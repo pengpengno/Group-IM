@@ -1,6 +1,6 @@
 package com.github.im.server.service;
 
-import com.github.im.server.dto.FriendRequestDto;
+import com.github.im.dto.FriendRequestDto;
 import com.github.im.server.model.Friendship;
 import com.github.im.server.model.User;
 import com.github.im.server.repository.FriendshipRepository;

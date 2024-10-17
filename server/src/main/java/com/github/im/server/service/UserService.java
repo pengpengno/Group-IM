@@ -1,12 +1,12 @@
 package com.github.im.server.service;
 
-import com.github.im.server.dto.UserInfo;
+import com.github.im.dto.UserInfo;
+import com.github.im.dto.UserRegisterRequest;
 import com.github.im.server.model.User;
 import com.github.im.server.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.beans.factory.annotation.Autowired;
 import java.util.Optional;
 
 @Service
@@ -18,13 +18,14 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
 
 
-    public User registerUser(User user) {
-        // 注册逻辑，包括加密密码
-        user.setPasswordHash(passwordEncoder.encode(user.getPassword()));
-
+    public User registerUser(UserRegisterRequest userRegisterRequest) {
+        User user = new User();
+        user.setUsername(userRegisterRequest.getUsername());
+        user.setEmail(userRegisterRequest.getEmail());
+        user.setPhoneNumber(userRegisterRequest.getPhoneNumber());
+        user.setPasswordHash(passwordEncoder.encode(userRegisterRequest.getPassword())); // 存储加密后的密码
         return userRepository.save(user);
     }
-
 
 
     // 用户登录

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns:fx="http://javafx.com/fxml" fx:controller="com.github.im.group.gui.controller.LoginView" spacing="10">
+    <TextField fx:id="usernameField" promptText="用户名" />
+    <PasswordField fx:id="passwordField" promptText="密码" />
+    <Button fx:id="loginButton" text="登录" />
+</VBox>

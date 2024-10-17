@@ -1,7 +1,8 @@
 package com.github.im.server.controller;
 
-import com.github.im.server.dto.LoginRequest;
-import com.github.im.server.dto.UserInfo;
+import com.github.im.dto.LoginRequest;
+import com.github.im.dto.UserInfo;
+import com.github.im.dto.UserRegisterRequest;
 import com.github.im.server.model.User;
 import com.github.im.server.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,8 +18,9 @@ public class UserController {
     private UserService userService;
 
     @PostMapping("/register")
-    public User registerUser(@RequestBody User user) {
-        return userService.registerUser(user);
+    public ResponseEntity<User> registerUser(@RequestBody UserRegisterRequest userRegisterRequest) {
+        User registeredUser = userService.registerUser(userRegisterRequest);
+        return ResponseEntity.status(HttpStatus.CREATED).body(registeredUser);
     }
 
     @GetMapping("/{username}")

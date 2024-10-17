@@ -1,9 +1,16 @@
 package com.github.im.group.gui.controller;
 
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+
+import java.io.IOException;
+
 public class MainController {
 
     @FXML
@@ -42,5 +49,25 @@ public class MainController {
 
     private void handleWorkClick() {
         System.out.println("Work Button Clicked");
+    }
+
+
+    public void show() {
+        try {
+            // 加载主界面的 FXML 文件
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/MainView.fxml"));
+            Parent root = loader.load();
+
+            // 创建新窗口并设置场景
+            Stage stage = new Stage();
+            stage.setTitle("主界面");
+            stage.setScene(new Scene(root));
+
+            // 显示主界面
+            stage.show();
+        } catch (IOException e) {
+            e.printStackTrace();
+            // 处理加载失败的情况
+        }
     }
 }

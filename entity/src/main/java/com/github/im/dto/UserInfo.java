@@ -1,4 +1,4 @@
-package com.github.im.server.dto;
+package com.github.im.dto;
 
 import lombok.Data;
 
