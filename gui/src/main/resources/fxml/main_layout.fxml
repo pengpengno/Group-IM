@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.im.group.gui.controller.MainController">
+    <!-- 左侧导航栏 -->
+    <left>
+        <VBox fx:id="sideBar" prefWidth="100" styleClass="bg-dark">
+            <Button fx:id="chatButton" text="Chat" maxWidth="Infinity" styleClass="btn btn-dark btn-block"/>
+            <Button fx:id="contactsButton" text="Contacts" maxWidth="Infinity" styleClass="btn btn-dark btn-block"/>
+            <Button fx:id="workButton" text="Work" maxWidth="Infinity" styleClass="btn btn-dark btn-block"/>
+        </VBox>
+    </left>
+    <!-- 顶部工具栏 -->
+    <top>
+        <ToolBar styleClass="bg-light">
+            <Label text="IM Platform" styleClass="h4"/>
+            <Pane HBox.hgrow="ALWAYS"/>
+            <Button text="Profile" styleClass="btn btn-outline-primary"/>
+            <Button text="Notifications" styleClass="btn btn-outline-primary"/>
+            <Button text="Settings" styleClass="btn btn-outline-primary"/>
+        </ToolBar>
+    </top>
+    <!-- 中心内容区 -->
+    <center>
+        <ListView fx:id="chatListView" styleClass="list-group"/>
+    </center>
+    <!-- 底部状态栏 -->
+    <bottom>
+        <HBox styleClass="bg-dark text-white" alignment="CENTER_LEFT">
+            <Label text="Online" />
+        </HBox>
+    </bottom>
+</BorderPane>

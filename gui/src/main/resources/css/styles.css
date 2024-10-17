@@ -1,0 +1,24 @@
+/* 自定义样式调整 */
+.root {
+    -fx-font-family: "Arial";
+}
+
+/* 顶部工具栏样式 */
+.h4 {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+/* ListView 样式 */
+.list-group {
+    -fx-padding: 10;
+}
+
+/* 状态栏样式 */
+.bg-dark {
+    -fx-background-color: #2d323e;
+}
+
+.text-white {
+    -fx-text-fill: white;
+}
