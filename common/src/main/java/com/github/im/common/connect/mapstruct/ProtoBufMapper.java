@@ -2,7 +2,7 @@ package com.github.im.common.connect.mapstruct;
 
 import cn.hutool.core.util.StrUtil;
 import com.github.im.common.connect.model.proto.Account;
-import com.github.meeting.common.model.AccountInfo;
+import com.github.im.common.model.AccountInfo;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
 

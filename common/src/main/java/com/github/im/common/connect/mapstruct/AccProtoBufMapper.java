@@ -1,7 +1,7 @@
 package com.github.im.common.connect.mapstruct;
 
 import com.github.im.common.connect.model.proto.Chat;
-import com.github.meeting.common.model.account.ChatMsgVo;
+import com.github.im.common.model.account.ChatMsgVo;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
 

@@ -1,9 +1,11 @@
 package com.github.im.group.gui.controller;
 
 import com.github.im.dto.user.LoginRequest;
+import com.github.im.group.gui.Main;
 import com.github.im.group.gui.api.UserEndpoint;
 import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.FxmlLoader;
+import com.github.im.group.gui.util.StageManager;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -11,6 +13,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +27,7 @@ import java.util.ResourceBundle;
 @Service
 @Slf4j
 @FxView(path = "login_view")
-public class LoginView extends VBox  implements Initializable {
+public class LoginView extends StackPane implements Initializable {
 
     @FXML
     private TextField usernameField;
@@ -37,8 +40,6 @@ public class LoginView extends VBox  implements Initializable {
     @FXML
     private Button navigateToRegister;
 
-    @FXML
-    private VBox rootPane;
 
     @Autowired
     private UserEndpoint userEndpoint;
@@ -53,9 +54,12 @@ public class LoginView extends VBox  implements Initializable {
     @FXML
     private void navigateToRegister() {
 
-        var stage = FxmlLoader.applySingleStage(RegisterView.class);
-        this.getScene().getWindow().hide();
-        stage.show();
+        var stage = FxmlLoader.getSceneInstance(RegisterView.class);
+
+        var primaryStage = StageManager.getPrimaryStage();
+        primaryStage.setResizable(true);
+        primaryStage.setScene(stage);
+
 
     }
     @FXML

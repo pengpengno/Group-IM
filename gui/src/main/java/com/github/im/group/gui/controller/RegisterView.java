@@ -4,6 +4,7 @@ import com.github.im.dto.user.RegistrationRequest;
 import com.github.im.group.gui.api.UserEndpoint;
 import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.FxmlLoader;
+import com.github.im.group.gui.util.StageManager;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -70,9 +71,9 @@ public class RegisterView extends VBox implements Initializable {
                 .subscribe(userInfo -> {
                     // 注册成功后跳转到登录页面或主界面
                     Platform.runLater(() -> {
-                        var stage = FxmlLoader.applySingleStage(LoginView.class);
-                        this.getScene().getWindow().hide();
-                        stage.show();
+                        var stage = FxmlLoader.getSceneInstance(LoginView.class);
+                        StageManager.getPrimaryStage().setScene(stage);
+//                        this.getScene().getWindow().hide();
                     });
                 }, throwable -> {
                     if (throwable instanceof WebClientResponseException) {

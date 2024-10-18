@@ -35,7 +35,7 @@ public class User {
     private String bio;
 
     @Column(nullable = false)
-    private String status = "offline";
+    private boolean status = true;
 
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime updatedAt = LocalDateTime.now();

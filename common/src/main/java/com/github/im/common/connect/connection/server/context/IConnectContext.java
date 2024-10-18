@@ -1,8 +1,6 @@
 package com.github.im.common.connect.connection.server.context;
 
-//import com.github.benmanes.caffeine.cache.Cache;
-//import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.meeting.common.util.ValidatorUtil;
+import com.github.im.common.util.ValidatorUtil;
 import io.netty.buffer.ByteBuf;
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,10 +19,6 @@ public class IConnectContext implements IConnectContextAction {
 
 
     private final ConcurrentHashMap<String, IConnection> connectionCache =  new ConcurrentHashMap<String,IConnection>();
-//
-//            Caffeine.newBuilder()
-//            .maximumSize(1000)
-//            .build();
 
 
     /***
@@ -32,10 +26,6 @@ public class IConnectContext implements IConnectContextAction {
      */
     private final ConcurrentHashMap<String, ConnectionGroupRoom> connectionGroup =
             new ConcurrentHashMap<String,ConnectionGroupRoom>();
-
-//            Caffeine.newBuilder()
-//            .maximumSize(1000)
-//            .build();
 
 
 
@@ -101,18 +91,9 @@ public class IConnectContext implements IConnectContextAction {
             byteBuf.getBytes(byteBuf.readerIndex(),bytes);
 
         }
+
         return bytes;
 
     }
-    //    @Override
-//    public void close(Connection connection) {
-//        Account.AccountInfo accountInfo = connection.channel().attr(ConnectionConstants.BING_ACCOUNT_KEY).get();
-//        if (accountInfo == null){
-//            log.info("Account is null , remove IConnection is unnecessary!");
-//            return;
-//        }
-//        closeAndRmConnection(accountInfo.getAccount());
-//    }
-
 
 }

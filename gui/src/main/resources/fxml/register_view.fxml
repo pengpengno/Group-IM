@@ -4,32 +4,42 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.PasswordField?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 
-<GridPane xmlns:fx="http://javafx.com/fxml" stylesheets="@../css/styles.css"  fx:controller="com.github.im.group.gui.controller.RegisterView"
-          alignment="center" hgap="10" vgap="10" styleClass="register-pane">
-    <VBox alignment="center" spacing="20">
-        <Label text="Register" styleClass="header-label"/>
-        <GridPane alignment="center" hgap="10" vgap="10">
-            <Label text="Full Name:"/>
-            <TextField fx:id="fullNameField"/>
+<GridPane alignment="center" hgap="10" vgap="10" styleClass="register-pane" stylesheets="@../css/styles.css" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21" fx:controller="com.github.im.group.gui.controller.RegisterView">
+    <columnConstraints>
+        <ColumnConstraints minWidth="100" prefWidth="150" hgrow="ALWAYS"/>
+        <ColumnConstraints minWidth="100" prefWidth="200" hgrow="ALWAYS"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints minHeight="30" prefHeight="30" vgrow="ALWAYS"/>
+        <RowConstraints minHeight="30" prefHeight="30" vgrow="ALWAYS"/>
+        <RowConstraints minHeight="30" prefHeight="30" vgrow="ALWAYS"/>
+        <RowConstraints minHeight="30" prefHeight="30" vgrow="ALWAYS"/>
+        <RowConstraints minHeight="30" prefHeight="30" vgrow="ALWAYS"/>
+        <RowConstraints minHeight="30" prefHeight="30" vgrow="ALWAYS"/>
+    </rowConstraints>
 
-            <Label text="Username:"/>
-            <TextField fx:id="usernameField"/>
+    <Label text="Full Name:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+    <TextField fx:id="fullNameField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
 
-            <Label text="Email:"/>
-            <TextField fx:id="emailField"/>
+    <Label text="Username:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+    <TextField fx:id="usernameField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
 
-            <Label text="Password:"/>
-            <PasswordField fx:id="passwordField"/>
+    <Label text="Email:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+    <TextField fx:id="emailField" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
 
-            <Label text="Confirm Password:"/>
-            <PasswordField fx:id="confirmPasswordField"/>
+    <Label text="Password:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+    <PasswordField fx:id="passwordField" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
 
-            <Label text="Phone Number:"/>
-            <TextField fx:id="phoneNumberField"/>
-        </GridPane>
-        <Button text="Register" onAction="#register" styleClass="register-button"/>
-    </VBox>
+    <Label text="Confirm Password:" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+    <PasswordField fx:id="confirmPasswordField" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+
+    <Label text="Phone Number:" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
+    <TextField fx:id="phoneNumberField" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+
+    <Button fx:id="registerButton" onAction="#register" styleClass="register-button" text="Register" GridPane.rowIndex="6" GridPane.columnIndex="1" />
 </GridPane>

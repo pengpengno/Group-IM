@@ -16,12 +16,17 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-
         <postgresql.driver.version>42.7.3</postgresql.driver.version>
     </properties>
 
 
     <dependencies>
+
+        <dependency>
+            <groupId>com.github.im</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>com.github.im</groupId>
             <artifactId>entity</artifactId>

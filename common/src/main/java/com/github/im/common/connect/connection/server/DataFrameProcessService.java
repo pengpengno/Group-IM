@@ -44,7 +44,7 @@ public class DataFrameProcessService implements ApplicationContextAware ,ByteBuf
                         .stream()
                         .filter(e->e.type()!=null)
                         .collect(Collectors.toMap(e -> e.type()
-                                .getMessageClass(), e ->e, (e1, e2) -> e1));
+                            .getMessageClass(), e ->e, (e1, e2) -> e1));
         }
 
     }

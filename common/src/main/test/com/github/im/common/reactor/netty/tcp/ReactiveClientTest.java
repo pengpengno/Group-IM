@@ -2,7 +2,7 @@ package com.github.im.common.reactor.netty.tcp;
 
 import com.github.im.common.connect.handler.client.ClientInboundHandler;
 import com.github.im.common.connect.model.proto.Account;
-import com.github.meeting.common.model.AccountInfo;
+import com.github.im.common.model.AccountInfo;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.handler.logging.LogLevel;

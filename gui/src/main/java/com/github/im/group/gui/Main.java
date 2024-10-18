@@ -3,9 +3,11 @@ package com.github.im.group.gui;
 import com.github.im.group.gui.controller.LoginView;
 import com.github.im.group.gui.controller.MainController;
 import com.github.im.group.gui.util.FxmlLoader;
+import com.github.im.group.gui.util.StageManager;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
 import org.kordamp.bootstrapfx.BootstrapFX;
@@ -13,6 +15,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.io.ClassPathResource;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
@@ -29,17 +32,21 @@ import java.io.IOException;
 @SpringBootApplication
 public class Main extends Application {
 
-    private Stage primaryStage;
+    private static Stage primaryStage;
 
     private ConfigurableApplicationContext applicationContext;
 
     @Override
-    public void start(Stage primaryStage) {
+    public void start(Stage primaryStage) throws IOException {
         this.primaryStage = primaryStage;
         this.primaryStage.setTitle("IM Platform");
 
         // 设置图标
-//        this.primaryStage.getIcons().add(new Image(getClass().getResourceAsStream("/images/icon.png")));
+        var iconResource = new ClassPathResource("images/icon.png");
+        if (iconResource.exists()){
+            this.primaryStage.getIcons().add(new Image(iconResource.getInputStream()));
+
+        }
 
         initRootLayout();
     }
@@ -67,7 +74,10 @@ public class Main extends Application {
         primaryStage.setScene(scene);
         primaryStage.setMinWidth(800);
         primaryStage.setMinHeight(600);
+
         primaryStage.show();
+
+        StageManager.setPrimaryStage(primaryStage);
     }
 
     public static void main(String[] args) {
