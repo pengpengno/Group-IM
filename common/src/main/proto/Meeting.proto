@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package com.github.meeting.common.connect.model.proto;
+option java_package = "com.github.meeting.common.connect.model.proto";
+option java_outer_classname = "Meeting";
+import "Account.proto";
+
+
+message MeetingInfo {
+  int64 meetingId = 1;
+
+  string meetingName = 2;
+
+  repeated AccountInfo meetingAccounts = 3;
+
+  bytes screenData =4;
+
+
+}

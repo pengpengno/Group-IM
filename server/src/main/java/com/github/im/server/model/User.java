@@ -1,12 +1,14 @@
 package com.github.im.server.model;
 
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
 @Entity
 @Table(name = "users")
+@Builder
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,6 +31,7 @@ public class User {
     private String passwordHash;
 
     private String avatarUrl;
+
     private String bio;
 
     @Column(nullable = false)
@@ -41,4 +44,6 @@ public class User {
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+
+
 }

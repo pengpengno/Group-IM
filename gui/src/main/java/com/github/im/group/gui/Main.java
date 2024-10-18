@@ -1,5 +1,8 @@
 package com.github.im.group.gui;
 
+import com.github.im.group.gui.controller.LoginView;
+import com.github.im.group.gui.controller.MainController;
+import com.github.im.group.gui.util.FxmlLoader;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -55,22 +58,16 @@ public class Main extends Application {
     }
 
     private void initRootLayout() {
-        try {
-            FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(getClass().getResource("/fxml/main_layout.fxml"));
-            BorderPane rootLayout = loader.load();
 
-            Scene scene = new Scene(rootLayout);
-            // 加载BootstrapFX样式
-            scene.getStylesheets().add(BootstrapFX.bootstrapFXStylesheet());
-            scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
-            primaryStage.setScene(scene);
-            primaryStage.setMinWidth(800);
-            primaryStage.setMinHeight(600);
-            primaryStage.show();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        var scene = FxmlLoader.getSceneInstance(LoginView.class);
+
+        // 加载BootstrapFX样式
+        scene.getStylesheets().add(BootstrapFX.bootstrapFXStylesheet());
+        scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
+        primaryStage.setScene(scene);
+        primaryStage.setMinWidth(800);
+        primaryStage.setMinHeight(600);
+        primaryStage.show();
     }
 
     public static void main(String[] args) {

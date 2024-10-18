@@ -1,7 +1,9 @@
 package com.github.im.server.service;
 
-import com.github.im.dto.UserInfo;
-import com.github.im.dto.UserRegisterRequest;
+import com.github.im.dto.user.RegistrationRequest;
+import com.github.im.dto.user.UserInfo;
+import com.github.im.dto.user.UserRegisterRequest;
+import com.github.im.server.mapstruct.UserMapper;
 import com.github.im.server.model.User;
 import com.github.im.server.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,13 +20,33 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
 
 
-    public User registerUser(UserRegisterRequest userRegisterRequest) {
-        User user = new User();
-        user.setUsername(userRegisterRequest.getUsername());
-        user.setEmail(userRegisterRequest.getEmail());
-        user.setPhoneNumber(userRegisterRequest.getPhoneNumber());
-        user.setPasswordHash(passwordEncoder.encode(userRegisterRequest.getPassword())); // 存储加密后的密码
-        return userRepository.save(user);
+
+    public Optional<UserInfo> registerUser(RegistrationRequest request) {
+        // Validate the request details
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new IllegalArgumentException("Passwords do not match");
+        }
+        // Check if username or email already exists
+          return userRepository.findByUsernameOrEmail(request.getUsername(), request.getEmail())
+
+                .or(()->
+                        // Proceed with registration
+                        Optional.of(saveNewUser(request))
+                )
+                 .map(UserMapper.INSTANCE::userToUserInfo)
+         ;
+    }
+
+    private  User saveNewUser(RegistrationRequest request) {
+        // Encrypt the password and create a new user object
+        String encryptedPassword =passwordEncoder.encode(request.getPassword());
+        var newUser = User.builder()
+                .email(request.getEmail())
+                .passwordHash(encryptedPassword)
+                .username(request.getUsername())
+                .phoneNumber(request.getPhoneNumber())
+                .build();
+        return userRepository.save(newUser);
     }
 
 
@@ -35,8 +57,9 @@ public class UserService {
             User user = userOptional.get();
             if (passwordEncoder.matches(password, user.getPassword())) {
                 // 登录成功，返回用户基础信息
-                return Optional.of(new UserInfo(user.getUserId(), user.getUsername(), user.getUsername(), user.getAvatarUrl()));
+                return Optional.ofNullable(UserMapper.INSTANCE.userToUserInfo(user));
             }
+
         }
         return Optional.empty(); // 登录失败
     }

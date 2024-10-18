@@ -3,7 +3,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.im.group.gui.controller.MainController">
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" stylesheets="@../css/styles.css"  fx:controller="com.github.im.group.gui.controller.MainController">
     <!-- 左侧导航栏 -->
     <left>
         <VBox fx:id="sideBar" prefWidth="100" styleClass="bg-dark">

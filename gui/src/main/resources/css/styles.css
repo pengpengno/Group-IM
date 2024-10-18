@@ -22,3 +22,51 @@
 .text-white {
     -fx-text-fill: white;
 }
+
+.login-pane {
+    -fx-background-color: #f0f0f0;
+}
+
+.header-label {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333333;
+}
+
+.text-field, .password-field {
+    -fx-pref-width: 200px;
+    -fx-border-color: #dcdcdc;
+    -fx-border-radius: 5;
+}
+
+.button {
+    -fx-background-color: #4caf50;
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+    -fx-background-radius: 20;
+    -fx-pref-width: 120px;
+}
+
+.button:hover {
+    -fx-background-color: #45a049;
+}
+
+.register-pane {
+    -fx-padding: 20;
+    -fx-background-color: #f5f5f5;
+    -fx-border-color: #cccccc;
+    -fx-border-radius: 10;
+}
+
+.header-label {
+    -fx-font-size: 24px;
+    -fx-text-fill: #333;
+}
+
+.register-button {
+    -fx-background-color: #007bff;
+    -fx-text-fill: white;
+    -fx-padding: 10 20;
+    -fx-border-radius: 5;
+}
+

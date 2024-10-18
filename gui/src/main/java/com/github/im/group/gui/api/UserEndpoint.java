@@ -1,22 +1,23 @@
 package com.github.im.group.gui.api;
 
-import com.github.im.dto.LoginRequest;
-import com.github.im.dto.UserInfo;
-import com.github.im.dto.UserRegisterRequest;
-import org.springframework.web.bind.annotation.PathVariable;
+import com.github.im.dto.user.LoginRequest;
+import com.github.im.dto.user.RegistrationRequest;
+import com.github.im.dto.user.UserInfo;
+import com.github.im.dto.user.UserRegisterRequest;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.service.annotation.GetExchange;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;
-import org.springframework.web.service.annotation.PutExchange;
 import reactor.core.publisher.Mono;
 
+/**
+ * 用户 端点
+ */
 @HttpExchange
 public interface UserEndpoint {
 
 	// 用户注册
 	@PostExchange("/api/users/register")
-	UserRegisterRequest registerUser(@RequestBody UserRegisterRequest user);
+	Mono<UserRegisterRequest> registerUser(@RequestBody RegistrationRequest registrationRequest);
 
 	// 用户登录
 	@PostExchange("/api/users/login")

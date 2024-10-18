@@ -1,5 +1,7 @@
 package com.github.im.group.gui.controller;
 
+import com.github.im.group.gui.util.FxView;
+import com.github.im.group.gui.util.FxmlLoader;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -8,10 +10,17 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 
+@Service
+@Slf4j
+@FxView(path = "main_layout")
 public class MainController {
+
 
     @FXML
     private VBox sideBar;
@@ -37,6 +46,7 @@ public class MainController {
         chatButton.setOnAction(event -> handleChatClick());
         contactsButton.setOnAction(event -> handleContactsClick());
         workButton.setOnAction(event -> handleWorkClick());
+
     }
 
     private void handleChatClick() {
@@ -53,21 +63,6 @@ public class MainController {
 
 
     public void show() {
-        try {
-            // 加载主界面的 FXML 文件
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/MainView.fxml"));
-            Parent root = loader.load();
 
-            // 创建新窗口并设置场景
-            Stage stage = new Stage();
-            stage.setTitle("主界面");
-            stage.setScene(new Scene(root));
-
-            // 显示主界面
-            stage.show();
-        } catch (IOException e) {
-            e.printStackTrace();
-            // 处理加载失败的情况
-        }
     }
 }

@@ -1,6 +1,6 @@
 package com.github.im.server.controller;
 
-import com.github.im.dto.FriendRequestDto;
+import com.github.im.dto.user.FriendRequestDto;
 import com.github.im.server.service.FriendshipService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

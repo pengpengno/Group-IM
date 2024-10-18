@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package com.github.meeting.common.connect.model.proto;
+option java_package = "com.github.meeting.common.connect.model.proto";
+option java_outer_classname = "Account";
+
+
+
+message AccountInfo{
+
+  string account = 1 ;
+
+  string accountName = 2 ;
+
+  int64 userId  = 3 ;
+
+  string eMail = 4 ;
+
+
+}
+
+enum AccountOperationType{
+
+  SIGNIN = 0;
+
+  LOGOUT = 1;
+
+
+}

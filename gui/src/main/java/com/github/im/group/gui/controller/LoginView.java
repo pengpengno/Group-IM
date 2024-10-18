@@ -1,25 +1,31 @@
 package com.github.im.group.gui.controller;
 
-import com.github.im.dto.LoginRequest;
+import com.github.im.dto.user.LoginRequest;
 import com.github.im.group.gui.api.UserEndpoint;
+import com.github.im.group.gui.util.FxView;
+import com.github.im.group.gui.util.FxmlLoader;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
-import lombok.RequiredArgsConstructor;
+import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+
+import java.net.URL;
+import java.util.ResourceBundle;
 
 @Service
 @Slf4j
-//@RequiredArgsConstructor
-public class LoginView extends VBox {
-    
+@FxView(path = "login_view")
+public class LoginView extends VBox  implements Initializable {
+
     @FXML
     private TextField usernameField;
 
@@ -28,42 +34,69 @@ public class LoginView extends VBox {
 
     @FXML
     private Button loginButton;
+    @FXML
+    private Button navigateToRegister;
+
+    @FXML
+    private VBox rootPane;
 
     @Autowired
-    private  UserEndpoint userEndpoint;
+    private UserEndpoint userEndpoint;
 
-    public LoginView() {
-        // 初始化 WebClient
-        initialize();
-    }
 
-    private void initialize() {
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
+        // Attach the login action to the login button
         loginButton.setOnAction(event -> login());
     }
 
+    @FXML
+    private void navigateToRegister() {
+
+        var stage = FxmlLoader.applySingleStage(RegisterView.class);
+        this.getScene().getWindow().hide();
+        stage.show();
+
+    }
+    @FXML
     private void login() {
-        String username = usernameField.getText();
-        String password = passwordField.getText();
+        String username = usernameField.getText().trim();
+        String password = passwordField.getText().trim();
+
+        if (username.isEmpty() || password.isEmpty()) {
+            displayError("Please enter both username and password.");
+            return;
+        }
 
         LoginRequest loginRequest = new LoginRequest(username, password);
-        
+
         userEndpoint.loginUser(loginRequest)
-            .subscribe(userInfo -> {
-                // 登录成功，跳转到主界面
-                Platform.runLater(() -> {
-                    MainController mainController = new MainController();
-                    mainController.show();
-                    // 隐藏登录界面或关闭当前窗口
-                    this.getScene().getWindow().hide();
-                });
-            }, throwable -> {
-                if (throwable instanceof WebClientResponseException) {
-                    // 处理登录失败的情况
+                .subscribe(userInfo -> {
+                    // On successful login, navigate to the main view
                     Platform.runLater(() -> {
-                        // 显示错误提示，例如：弹出提示框
-                        System.out.println("登录失败: " + throwable.getMessage());
+                        var stage = FxmlLoader.applySingleStage(MainController.class);
+                        this.getScene().getWindow().hide();
+                        stage.show();
                     });
-                }
-            });
+                }, throwable -> {
+                    // Handle login failure
+                    if (throwable instanceof WebClientResponseException) {
+                        WebClientResponseException exception = (WebClientResponseException) throwable;
+                        Platform.runLater(() -> {
+                            displayError("Login failed: " + exception.getMessage());
+                        });
+                    } else {
+                        Platform.runLater(() -> {
+                            displayError("An unexpected error occurred.");
+                        });
+                    }
+                    log.error("Login attempt failed", throwable);
+                });
+    }
+
+    private void displayError(String message) {
+        // Display error messages (replace this with your preferred error display logic)
+        log.error(message);
+        // Optionally, you could add a Label for errors and set its text here
     }
 }

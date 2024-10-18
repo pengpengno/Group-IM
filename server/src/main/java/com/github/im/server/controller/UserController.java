@@ -1,8 +1,9 @@
 package com.github.im.server.controller;
 
-import com.github.im.dto.LoginRequest;
-import com.github.im.dto.UserInfo;
-import com.github.im.dto.UserRegisterRequest;
+import com.github.im.dto.user.LoginRequest;
+import com.github.im.dto.user.RegistrationRequest;
+import com.github.im.dto.user.UserInfo;
+import com.github.im.dto.user.UserRegisterRequest;
 import com.github.im.server.model.User;
 import com.github.im.server.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,10 +19,12 @@ public class UserController {
     private UserService userService;
 
     @PostMapping("/register")
-    public ResponseEntity<User> registerUser(@RequestBody UserRegisterRequest userRegisterRequest) {
-        User registeredUser = userService.registerUser(userRegisterRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body(registeredUser);
+    public ResponseEntity<UserInfo> registerUser(@RequestBody RegistrationRequest registrationRequest) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(userService.registerUser(registrationRequest).get());
     }
+
+
 
     @GetMapping("/{username}")
     public Optional<User> getUserByUsername(@PathVariable String username) {
@@ -41,4 +44,7 @@ public class UserController {
     public User resetPassword(@PathVariable Long userId, @RequestBody String newPassword) {
         return userService.resetPassword(userId, newPassword);
     }
+
+
+
 }
