@@ -1,8 +1,13 @@
 package com.github.im.server.config;
 
+import com.github.im.server.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfiguration;
@@ -13,9 +18,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
-//public class SecurityConfig  extends WebSecurityConfiguration {
 public class SecurityConfig  {
-
 
 
     @Bean
@@ -39,4 +42,16 @@ public class SecurityConfig  {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
+
+
+    @Bean
+    @ConditionalOnBean(UserService.class)
+    public AuthenticationManager authenticationManager(HttpSecurity http,@Autowired UserService userService) throws Exception {
+        AuthenticationManagerBuilder auth = http.getSharedObject(AuthenticationManagerBuilder.class);
+        auth.userDetailsService(userService).passwordEncoder(passwordEncoder());
+        return auth.build();
+    }
 }
+
+

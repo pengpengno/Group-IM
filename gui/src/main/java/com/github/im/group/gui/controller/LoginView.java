@@ -55,8 +55,8 @@ public class LoginView extends StackPane implements Initializable {
     private void navigateToRegister() {
 
         var stage = FxmlLoader.getSceneInstance(RegisterView.class);
-
         var primaryStage = StageManager.getPrimaryStage();
+
         primaryStage.setResizable(true);
         primaryStage.setScene(stage);
 

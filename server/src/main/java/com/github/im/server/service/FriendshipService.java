@@ -5,7 +5,10 @@ import com.github.im.server.model.Friendship;
 import com.github.im.server.model.User;
 import com.github.im.server.repository.FriendshipRepository;
 import com.github.im.server.repository.UserRepository;
+import io.lettuce.core.RedisClient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,7 +25,6 @@ public class FriendshipService {
     public void sendFriendRequest(FriendRequestDto request) {
         User user = userRepository.findById(request.getUserId()).orElseThrow();
         User friend = userRepository.findById(request.getFriendId()).orElseThrow();
-
         Friendship friendship = new Friendship();
         friendship.setUser(user);
         friendship.setFriend(friend);

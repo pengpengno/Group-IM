@@ -7,18 +7,20 @@ import com.github.im.server.mapstruct.UserMapper;
 import com.github.im.server.model.User;
 import com.github.im.server.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class UserService {
+public class UserService  implements UserDetailsService {
 
     private  final UserRepository userRepository;
 
     private final PasswordEncoder passwordEncoder;
-
 
 
     public Optional<UserInfo> registerUser(RegistrationRequest request) {
@@ -28,7 +30,6 @@ public class UserService {
         }
         // Check if username or email already exists
           return userRepository.findByUsernameOrEmail(request.getUsername(), request.getEmail())
-
                 .or(()->
                         // Proceed with registration
                         Optional.of(saveNewUser(request))
@@ -49,6 +50,20 @@ public class UserService {
         return userRepository.save(newUser);
     }
 
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+
+        User user = findUserByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+
+        // 返回 UserDetails 实例
+        return org.springframework.security.core.userdetails.User.builder()
+                .username(user.getUsername())
+                .password(user.getPassword())
+//                .roles(user.getRole()) // 假设你的 User 模型有 role 属性
+                .build();
+    }
 
     // 用户登录
     public Optional<UserInfo> loginUser(String username, String password) {

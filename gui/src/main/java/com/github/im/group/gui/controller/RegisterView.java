@@ -68,21 +68,21 @@ public class RegisterView extends VBox implements Initializable {
         );
 
         userEndpoint.registerUser(registrationRequest)
-                .subscribe(userInfo -> {
-                    // 注册成功后跳转到登录页面或主界面
-                    Platform.runLater(() -> {
-                        var stage = FxmlLoader.getSceneInstance(LoginView.class);
-                        StageManager.getPrimaryStage().setScene(stage);
+            .subscribe(userInfo -> {
+                // 注册成功后跳转到登录页面或主界面
+                Platform.runLater(() -> {
+                    var stage = FxmlLoader.getSceneInstance(LoginView.class);
+                    StageManager.getPrimaryStage().setScene(stage);
 //                        this.getScene().getWindow().hide();
-                    });
-                }, throwable -> {
-                    if (throwable instanceof WebClientResponseException) {
-                        // 处理注册失败的情况
-                        Platform.runLater(() -> {
-                            // 显示错误提示，例如：弹出提示框
-                            System.out.println("注册失败: " + throwable.getMessage());
-                        });
-                    }
                 });
+            }, throwable -> {
+                if (throwable instanceof WebClientResponseException) {
+                    // 处理注册失败的情况
+                    Platform.runLater(() -> {
+                        // 显示错误提示，例如：弹出提示框
+                        System.out.println("注册失败: " + throwable.getMessage());
+                    });
+                }
+            });
     }
 }

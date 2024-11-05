@@ -1,6 +1,8 @@
 package com.github.im.group.gui.util;
 
 import javafx.stage.Stage;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Description:
@@ -13,13 +15,12 @@ import javafx.stage.Stage;
  * @since 2024/10/18
  */
 public class StageManager {
+
+    @Getter
+    @Setter
     private static Stage primaryStage;
 
-    public static void setPrimaryStage(Stage stage) {
-        primaryStage = stage;
-    }
 
-    public static Stage getPrimaryStage() {
-        return primaryStage;
-    }
+
+
 }

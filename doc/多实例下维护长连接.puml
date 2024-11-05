@@ -1,0 +1,34 @@
+@startuml
+title  elsbiz 签约时序图
+skinparam backgroundColor #EEEBDC
+skinparam handwritten true
+autonumber
+
+skinparam sequence {
+ArrowColor DeepSkyBlue
+ActorBorderColor DeepSkyBlue
+LifeLineBorderColor blue
+LifeLineBackgroundColor #A9DCDF
+
+ParticipantBorderColor GhostWhite
+ParticipantBackgroundColor DodgerBlue
+ParticipantFontName Impact
+ParticipantFontSize 17
+ParticipantFontColor #A9DCDF
+
+ActorBackgroundColor aqua
+ActorFontColor DeepSkyBlue
+ActorFontSize 17
+ActorFontName Aapex
+}
+
+
+actor 用户A as a
+actor 用户B as b
+participant service as service
+participant 中间件 as service
+group 合同签署前置操作
+A -> service: send message
+note left : message:\nseq:1\nfrom:A\nto:B\nmessage:hello\nclientTime:178263733
+
+@enduml
