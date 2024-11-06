@@ -43,4 +43,6 @@
     <TextField fx:id="phoneNumberField" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
 
     <Button fx:id="registerButton" onAction="#register" styleClass="register-button" text="Register" GridPane.rowIndex="6" GridPane.columnIndex="1" />
+
+    <Button fx:id="backButton" onAction="#backToLogin" styleClass="register-button" text="Back" GridPane.rowIndex="6" GridPane.columnIndex="2" />
 </GridPane>

@@ -32,8 +32,7 @@ public class ConnectConfig  {
     public ReactiveServer reactiveServer () {
 
         var instance = ReactorTcpServer.getInstance();
-        instance.init(new InetSocketAddress("localhost", tcpPort))
-                ;
+        instance.init(new InetSocketAddress("localhost", tcpPort));
         return  instance;
     }
 

@@ -3,6 +3,7 @@ package com.github.im.common.connect.connection.server.tcp;
 import com.github.im.common.connect.spi.ReactiveHandlerSPI;
 import com.github.im.common.connect.connection.server.ReactiveServer;
 import com.github.im.common.connect.connection.ConnectionConstants;
+import com.github.im.common.util.RtspServer;
 import com.google.inject.Singleton;
 import io.netty.handler.codec.rtsp.RtspEncoder;
 import io.netty.handler.logging.LogLevel;
@@ -64,7 +65,7 @@ public class ReactorTcpServer implements ReactiveServer {
 
                     connection
 //                            .addHandlerLast(new RtspDecoder())
-//                            .addHandlerLast(new RtspServerHandler())
+//                            .addHandlerLast(new RtspServer.RtspServerHandler())
 //                            .addHandlerLast(new ServerInboundHandler())
                             .addHandlerLast(new RtspEncoder())
 //                            .addHandlerLast(new RtspDecoder())
@@ -89,7 +90,7 @@ public class ReactorTcpServer implements ReactiveServer {
 //                            // 添加HTTP请求处理器
 //                            routes.get("/hello", (req, res) ->
 //                                    res.status(HttpResponseStatus.OK)
-//                                            .sendString(Mono.just("Hello World!")));
+//                                    .sendString(Mono.just("Hello World!")));
 //
 //                            // 添加WebSocket处理器
 //                            routes.ws("/ws", (inbound, outbound) -> {
@@ -107,6 +108,10 @@ public class ReactorTcpServer implements ReactiveServer {
 //    }
 
     public ReactiveServer start(){
+        if(address == null || address.isUnresolved()){
+            log.error("start server error ");
+        }
+
         log.info("start netty server on port {}",address.getPort());
         disposableServer = server.bindNow();
         disposableServer.onDispose().block();

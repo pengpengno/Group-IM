@@ -28,12 +28,9 @@
                 <RowConstraints />
             </rowConstraints>
         </GridPane>
-        <Button fx:id="loginButton" onAction="#login" style="-fx-font-size: 16px; -fx-background-color: #4caf50; -fx-text-fill: white; -fx-background-radius: 20; -fx-pref-width: 120px;" text="Login" />
+        <Button fx:id="loginButton" onAction="#login" styleClass="register-button" text="Login" />
+        <Button fx:id="navigateToRegister" layoutY="242.0" onAction="#navigateToRegister" styleClass="register-button"
+                text="Register"/>
     </VBox>
-    <AnchorPane>
-        <Button fx:id="navigateToRegister" onAction="#navigateToRegister"
-                style="-fx-font-size: 16px; -fx-background-color: #4caf50; -fx-text-fill: white; -fx-background-radius: 20; -fx-pref-width: 120px;"
-                text="Register"
-                AnchorPane.leftAnchor="20" AnchorPane.bottomAnchor="20" />
-    </AnchorPane>
+
 </StackPane>

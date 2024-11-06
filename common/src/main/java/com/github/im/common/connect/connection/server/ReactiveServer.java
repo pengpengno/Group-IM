@@ -17,9 +17,18 @@ public interface ReactiveServer {
         return tcpServer;
     }
 
+    /**
+     * 初始化 服务 配置信息
+     * @param address
+     * @return
+     */
     public ReactiveServer init (InetSocketAddress address);
 
 
+    /**
+     * 启动服务
+     * @return
+     */
     public ReactiveServer start();
 
 

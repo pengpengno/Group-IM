@@ -6,6 +6,7 @@ import com.github.im.dto.user.UserInfo;
 import com.github.im.dto.user.UserRegisterRequest;
 import com.github.im.server.model.User;
 import com.github.im.server.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,12 +15,13 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/users")
+@Valid
 public class UserController {
     @Autowired
     private UserService userService;
 
     @PostMapping("/register")
-    public ResponseEntity<UserInfo> registerUser(@RequestBody RegistrationRequest registrationRequest) {
+    public ResponseEntity<UserInfo> registerUser(@RequestBody @Valid RegistrationRequest registrationRequest) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(userService.registerUser(registrationRequest).get());
     }
@@ -34,7 +36,7 @@ public class UserController {
     // 用户登录
     @PostMapping("/login")
     public ResponseEntity<UserInfo> loginUser(@RequestBody LoginRequest loginRequest) {
-        Optional<UserInfo> userInfo = userService.loginUser(loginRequest.getUsername(), loginRequest.getPassword());
+        Optional<UserInfo> userInfo = userService.loginUser(loginRequest);
         // 登录失败
         return userInfo.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
     }

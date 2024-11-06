@@ -11,6 +11,7 @@ import reactor.netty.tcp.TcpServer;
 /**
  * Description:
  * <p>
+ *     长连接初始化
  * </p>
  *
  * @author pengpeng
