@@ -45,14 +45,20 @@ public class SecurityConfig  {
     }
 
 
-
-    @Bean
-    @ConditionalOnBean(UserService.class)
-    public AuthenticationManager authenticationManager(HttpSecurity http,@Autowired UserService userService) throws Exception {
-        AuthenticationManagerBuilder auth = http.getSharedObject(AuthenticationManagerBuilder.class);
-        auth.userDetailsService(userService).passwordEncoder(passwordEncoder());
-        return auth.build();
+    @Autowired
+    public void configure(AuthenticationManagerBuilder auth, UserService userService) throws Exception {
+        auth.userDetailsService(userService)
+                .passwordEncoder(passwordEncoder());
     }
+
+//    @Bean
+//    @ConditionalOnBean(UserService.class)
+//    public AuthenticationManager authenticationManager(HttpSecurity http,@Autowired UserService userService) throws Exception {
+//        AuthenticationManagerBuilder auth = http.getSharedObject(AuthenticationManagerBuilder.class);
+//        auth.userDetailsService(userService)
+//                .passwordEncoder(passwordEncoder());
+//        return auth.build();
+//    }
 }
 
 

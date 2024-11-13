@@ -1,16 +1,18 @@
 package com.github.im.server.service;
 
 import com.github.im.dto.user.FriendRequestDto;
+import com.github.im.dto.user.FriendshipDTO;
+import com.github.im.server.mapstruct.FriendShipMapper;
 import com.github.im.server.model.Friendship;
 import com.github.im.server.model.User;
+import com.github.im.server.model.enums.Status;
 import com.github.im.server.repository.FriendshipRepository;
 import com.github.im.server.repository.UserRepository;
-import io.lettuce.core.RedisClient;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 public class FriendshipService {
@@ -28,7 +30,6 @@ public class FriendshipService {
         Friendship friendship = new Friendship();
         friendship.setUser(user);
         friendship.setFriend(friend);
-        friendship.setStatus("requested");
         friendshipRepository.save(friendship);
     }
 
@@ -38,12 +39,32 @@ public class FriendshipService {
                 userRepository.findById(request.getFriendId()).orElseThrow(),
                 userRepository.findById(request.getUserId()).orElseThrow()
         ).orElseThrow();
-        friendship.setStatus("accepted");
+
         friendshipRepository.save(friendship);
     }
 
-    @Transactional
-    public void deleteFriend(Long friendId) {
-        // Implement logic to delete friendship
+
+    /**
+     * 获取用户的好友列表
+     */
+    public List<FriendshipDTO> getFriends(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+        var byUserAndStatus = friendshipRepository.findByUserAndStatus(user, Status.ACTIVE.name());
+        return FriendShipMapper.INSTANCE.friendshipsToFriendshipDTOs(byUserAndStatus);
     }
+
+    /**
+     * 删除好友关系
+     */
+    @Transactional
+    public void deleteFriend(Long userId, Long friendId) {
+        User user = userRepository.findById(userId).orElseThrow();
+        User friend = userRepository.findById(friendId).orElseThrow();
+
+        // 删除好友关系
+        Friendship friendship = friendshipRepository.findByUserAndFriend(user, friend)
+                .orElseThrow(() -> new IllegalStateException("好友关系不存在"));
+        friendshipRepository.delete(friendship);
+    }
+
 }

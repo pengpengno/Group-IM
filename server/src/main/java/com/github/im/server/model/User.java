@@ -1,6 +1,6 @@
 package com.github.im.server.model;
 
-import com.github.im.server.enums.UserStatus;
+import com.github.im.server.model.enums.Status;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -43,7 +43,8 @@ public class User {
     private boolean status = true;
 
     @Enumerated(EnumType.STRING)
-    private UserStatus userStatus;
+    private Status userStatus;
+
 
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime updatedAt = LocalDateTime.now();

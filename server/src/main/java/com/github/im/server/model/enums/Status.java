@@ -1,4 +1,4 @@
-package com.github.im.server.enums;
+package com.github.im.server.model.enums;
 
 /**
  * Description:
@@ -9,7 +9,7 @@ package com.github.im.server.enums;
  * @version 1.0
  * @since 2024/11/6
  */
-public enum UserStatus {
+public enum Status {
 
     ACTIVE ,
 

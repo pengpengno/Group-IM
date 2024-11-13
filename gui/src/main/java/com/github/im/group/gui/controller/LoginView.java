@@ -1,24 +1,20 @@
 package com.github.im.group.gui.controller;
 
 import com.github.im.dto.user.LoginRequest;
-import com.github.im.group.gui.Main;
 import com.github.im.group.gui.api.UserEndpoint;
+import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.FxmlLoader;
 import com.github.im.group.gui.util.StageManager;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
@@ -44,6 +40,7 @@ public class LoginView extends StackPane implements Initializable {
     private Button navigateToRegister;
 
     private final UserEndpoint userEndpoint;
+    private final LoginLifecycle loginLifecycle;
 
 
     @Override
@@ -87,16 +84,7 @@ public class LoginView extends StackPane implements Initializable {
         LoginRequest loginRequest = new LoginRequest(username, password);
 
         userEndpoint.loginUser(loginRequest)
-                .subscribe(userInfo -> {
-                    // On successful login, navigate to the main view
-                    Platform.runLater(() -> {
-//                        var stage = FxmlLoader.applySingleStage(MainController.class);
-                        log.debug("login success {}" ,userInfo);
-                        Display.display(MainController.class);
-//                        this.getScene().getWindow().hide();
-//                        stage.show();
-                    });
-                }, throwable -> {
+                .subscribe(loginLifecycle::loginCallBack, throwable -> {
                     // Handle login failure
                     if (throwable instanceof WebClientResponseException exception) {
                         Platform.runLater(() -> {

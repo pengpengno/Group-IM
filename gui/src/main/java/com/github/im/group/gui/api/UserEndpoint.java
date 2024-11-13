@@ -11,6 +11,9 @@ import reactor.core.publisher.Mono;
 
 /**
  * 用户 端点
+ * <b>
+ * <a href="https://www.baeldung.com/spring-6-http-interface"> HttpExchange  REFERENCE DOC</a>
+ * </b>
  */
 @HttpExchange
 public interface UserEndpoint {
@@ -23,12 +26,5 @@ public interface UserEndpoint {
 	@PostExchange("/api/users/login")
 	Mono<UserInfo> loginUser(@RequestBody LoginRequest loginRequest);
 
-//	// 根据用户名查找用户
-//	@GetExchange("/api/users/{username}")
-//	Optional<User> getUserByUsername(@PathVariable String username);
-//
-//	// 重置用户密码
-//	@PutExchange("/api/users/reset-password/{userId}")
-//	User resetPassword(@PathVariable Long userId, @RequestBody String newPassword);
 
 }

@@ -1,10 +1,14 @@
 package com.github.im.server.controller;
 
 import com.github.im.dto.user.FriendRequestDto;
+import com.github.im.dto.user.FriendshipDTO;
+import com.github.im.server.model.Friendship;
 import com.github.im.server.service.FriendshipService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/friendships")
@@ -25,9 +29,20 @@ public class FriendshipController {
         return ResponseEntity.ok().build();
     }
 
-    @DeleteMapping("/{friendId}")
-    public ResponseEntity<Void> deleteFriend(@PathVariable Long friendId) {
-        friendshipService.deleteFriend(friendId);
+
+    @GetMapping("/list")
+    public  ResponseEntity<List<FriendshipDTO>> getFriends(@RequestParam("userId") Long userId) {
+
+        return ResponseEntity.ok( friendshipService.getFriends(userId));
+    }
+
+
+
+    @DeleteMapping("/{userId}/{friendId}")
+    public ResponseEntity<Void> deleteFriend(@PathVariable Long friendId,@PathVariable Long userId) {
+        friendshipService.deleteFriend(userId,friendId);
         return ResponseEntity.noContent().build();
     }
+
+
 }

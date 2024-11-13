@@ -1,5 +1,6 @@
 package com.github.im.group.gui.config;
 
+import com.github.im.group.gui.api.FriendShipEndpoint;
 import com.github.im.group.gui.api.UserEndpoint;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -22,6 +23,8 @@ import org.springframework.web.service.invoker.HttpServiceProxyFactory;
  */
 
 @Configuration
+//@EnableHttpExchangeProxy
+@Enable
 public class WebClientConfig {
 
     @Bean
@@ -44,6 +47,11 @@ public class WebClientConfig {
     @ConditionalOnBean(HttpServiceProxyFactory.class)
     public UserEndpoint userEndpoint (HttpServiceProxyFactory factory) {
         return factory.createClient(UserEndpoint.class);
+    }
+
+    @Bean
+    public FriendShipEndpoint friendShipEndpoint(HttpServiceProxyFactory factory) {
+        return factory.createClient(FriendShipEndpoint.class);
     }
 
 }
