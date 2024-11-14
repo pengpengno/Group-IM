@@ -8,12 +8,8 @@ import com.github.im.server.model.User;
 import com.github.im.server.repository.UserRepository;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
+import lombok.Setter;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,11 +18,13 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class UserService implements UserDetailsService {
+public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
+//    private final AuthenticationManager authenticationManager;
+//    @Lazy
+    private final AuthenticationService authenticationService;
 
     /**
      * 用户注册逻辑
@@ -61,37 +59,30 @@ public class UserService implements UserDetailsService {
         return userRepository.save(newUser);
     }
 
-    @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsernameOrEmail(username)
-                .orElseThrow(() -> new UsernameNotFoundException("用户未找到: " + username));
 
-        // 返回 UserDetails 实例
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(user.getUsername())
-                .password(user.getPasswordHash())
-                .roles("USER") // 假设角色是 "USER"，可以根据需求动态设置
-                .build();
-    }
 
     /**
      * 用户登录逻辑，返回用户信息
      */
     public Optional<UserInfo> loginUser(LoginRequest loginRequest) {
-        Authentication authenticationToken = new UsernamePasswordAuthenticationToken(
-                loginRequest.getLoginAccount(),
-                loginRequest.getPassword()
-        );
 
-        // 验证用户凭证并获取认证结果
-        Authentication authResult = authenticationManager.authenticate(authenticationToken);
+       return  authenticationService.loginUser(loginRequest);
 
-        // 将认证信息存储到 SecurityContext，以便后续请求中可以访问认证信息
-        SecurityContextHolder.getContext().setAuthentication(authResult);
-
-        // 从认证结果中获取用户信息
-        User user = (User) authResult.getPrincipal();
-        return Optional.of(UserMapper.INSTANCE.userToUserInfo(user));
+//        Authentication authenticationToken = new UsernamePasswordAuthenticationToken(
+//                loginRequest.getLoginAccount(),
+//                loginRequest.getPassword()
+//        );
+//
+//
+//        // 验证用户凭证并获取认证结果
+//        Authentication authResult = authenticationManager.authenticate(authenticationToken);
+//
+//        // 将认证信息存储到 SecurityContext，以便后续请求中可以访问认证信息
+//        SecurityContextHolder.getContext().setAuthentication(authResult);
+//
+//        // 从认证结果中获取用户信息
+//        User user = (User) authResult.getPrincipal();
+//        return Optional.of(UserMapper.INSTANCE.userToUserInfo(user));
     }
 
     /**

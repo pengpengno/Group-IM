@@ -24,7 +24,6 @@ import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 
 @Configuration
 //@EnableHttpExchangeProxy
-@Enable
 public class WebClientConfig {
 
     @Bean
