@@ -22,6 +22,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class AuthenticationService implements UserDetailsService {
+
     @Setter
     private  AuthenticationManager authenticationManager;
 
@@ -48,11 +49,13 @@ public class AuthenticationService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("用户未找到: " + username));
 
         // 返回 UserDetails 实例
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(user.getUsername())
-                .password(user.getPasswordHash())
-                .roles("USER") //
-                .build();
+//        return org.springframework.security.core.userdetails.User.builder()
+//                .username(user.getUsername())
+//                .password(user.getPasswordHash())
+//                .roles("USER") //
+//                .build();
+
+        return  user;
     }
 
 

@@ -125,7 +125,7 @@
                 <version>1.6.2</version>
             </extension>
         </extensions>
-        <outputDirectory>${project.parent.basedir}/gui/target</outputDirectory>
+        <outputDirectory>${project.basedir}/target</outputDirectory>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

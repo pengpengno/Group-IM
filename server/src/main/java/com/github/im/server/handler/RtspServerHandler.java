@@ -1,4 +1,4 @@
-package com.github.im.server.handler;//package com.github.meeting.server.handler;
+package com.github.im.server.handler;
 //
 //import cn.hutool.core.util.StrUtil;
 //import com.github.meeting.common.connect.connection.server.ServerToolkit;

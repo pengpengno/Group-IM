@@ -76,7 +76,6 @@ public class MainController {
                 chatListView.getItems().add(friendName);
             });
         });
-
     }
 
     private void handleChatClick() {

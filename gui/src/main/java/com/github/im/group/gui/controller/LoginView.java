@@ -47,6 +47,10 @@ public class LoginView extends StackPane implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         // Attach the login action to the login button
 //        loginButton.setOnAction(event -> login());
+        usernameField.setText("kl");
+        passwordField.setText("1");
+//        String username = usernameField.getText().trim();
+//        String password = passwordField.getText().trim();
     }
 
     @FXML

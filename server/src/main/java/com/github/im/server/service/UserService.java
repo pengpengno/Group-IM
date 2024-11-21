@@ -8,8 +8,6 @@ import com.github.im.server.model.User;
 import com.github.im.server.repository.UserRepository;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,8 +20,6 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-//    private final AuthenticationManager authenticationManager;
-//    @Lazy
     private final AuthenticationService authenticationService;
 
     /**
