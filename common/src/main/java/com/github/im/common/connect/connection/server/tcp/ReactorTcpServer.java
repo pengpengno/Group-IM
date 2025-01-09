@@ -1,17 +1,30 @@
 package com.github.im.common.connect.connection.server.tcp;
 
+import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.spi.ReactiveHandlerSPI;
 import com.github.im.common.connect.connection.server.ReactiveServer;
 import com.github.im.common.connect.connection.ConnectionConstants;
 import com.github.im.common.util.RtspServer;
 import com.google.inject.Singleton;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.group.ChannelGroup;
+import io.netty.channel.group.DefaultChannelGroup;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import io.netty.handler.codec.rtsp.RtspEncoder;
 import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.util.concurrent.GlobalEventExecutor;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
 import reactor.netty.DisposableServer;
 import reactor.netty.tcp.TcpServer;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 响应式 tcp 链接
@@ -23,6 +36,7 @@ import java.net.InetSocketAddress;
 @Singleton
 public class ReactorTcpServer implements ReactiveServer {
 
+    private final ChannelGroup allChannels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
 
     private InetSocketAddress address;
     private enum SingleInstance{
@@ -43,11 +57,19 @@ public class ReactorTcpServer implements ReactiveServer {
 
     private DisposableServer disposableServer;
 
+    private final ProtobufVarint32FrameDecoder protobufVarint32FrameDecoder = new ProtobufVarint32FrameDecoder();
+    private final ProtobufDecoder  protobufDecoder = new ProtobufDecoder(BaseMessage.BaseMessagePkg.getDefaultInstance());
+    private final ProtobufVarint32LengthFieldPrepender  protobufVarint32LengthFieldPrepender = new ProtobufVarint32LengthFieldPrepender();
+    private final ProtobufEncoder  protobufEncoder = new ProtobufEncoder();
+
     private ReactorTcpServer(){
     }
 
     @Override
     public void stop() {
+
+        allChannels.disconnect();
+        allChannels.close();
         disposableServer.disposeNow();
     }
 
@@ -59,53 +81,36 @@ public class ReactorTcpServer implements ReactiveServer {
                 .create()
                 .wiretap("tcp-server", LogLevel.INFO)
                 .port(address.getPort())
+//                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000)
                 .doOnConnection(connection -> {
-//                    ConnectionConsumer.getInstance(connection).accept(connection);
-                    connection.channel().attr(ConnectionConstants.ROOM_KEY).set("group");
+
+                    allChannels.add(connection.channel()); // 将连接添加到管理组
+
+//                    connection.channel().attr(ConnectionConstants.ROOM_KEY).set("group");
 
                     connection
-//                            .addHandlerLast(new RtspDecoder())
-//                            .addHandlerLast(new RtspServer.RtspServerHandler())
-//                            .addHandlerLast(new ServerInboundHandler())
-                            .addHandlerLast(new RtspEncoder())
-//                            .addHandlerLast(new RtspDecoder())
+////                            .addHandlerFirst(new ReadTimeoutHandler(10, TimeUnit.SECONDS))
+                            .addHandlerLast(new ProtobufVarint32FrameDecoder())
+                            .addHandlerLast(protobufDecoder)
+                            .addHandlerLast(protobufVarint32LengthFieldPrepender)
+                            .addHandlerLast(protobufEncoder)
+
                             ;
                 })
+                .doOnChannelInit((observer, channel, remoteAddress) ->   channel.pipeline()
+                        .addFirst(new LoggingHandler("reactor.netty")))
+
                 //  注入 执行的handler
                 .handle(ReactiveHandlerSPI.wiredSpiHandler().handler())
+
+                .doOnUnbound(bound -> log.warn(" do on unbound!"))
         ;
 
-        log.info("startup netty  on port {}",address.getPort());
+        log.info("config netty  on port {}",address.getPort());
 
         return this;
     }
 
-
-//    public ReactiveServer getInstance(InetSocketAddress address){
-//
-//        DisposableServer server =
-//                HttpServer.create()
-//                        .port(8080)
-//                        .route(routes -> {
-//                            // 添加HTTP请求处理器
-//                            routes.get("/hello", (req, res) ->
-//                                    res.status(HttpResponseStatus.OK)
-//                                    .sendString(Mono.just("Hello World!")));
-//
-//                            // 添加WebSocket处理器
-//                            routes.ws("/ws", (inbound, outbound) -> {
-//                                // 处理WebSocket消息
-//                                return outbound.sendString(inbound.receive()
-//                                        .retain()
-//                                        .map(byteBuf -> {
-//                                            String msg = byteBuf.toString(io.netty.util.CharsetUtil.UTF_8);
-//                                            return "Received WebSocket message: " + msg;
-//                                        }));
-//                            });
-//                        })
-//                        .bindNow();
-//
-//    }
 
     public ReactiveServer start(){
         if(address == null || address.isUnresolved()){
@@ -118,6 +123,11 @@ public class ReactorTcpServer implements ReactiveServer {
         return this;
     }
 
-
-
+    @Override
+    public boolean isRunning() {
+        if(disposableServer == null){
+            return false;
+        }
+        return disposableServer.isDisposed();
+    }
 }

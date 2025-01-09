@@ -1,7 +1,7 @@
 package com.github.im.server.handler;//package com.github.meeting.server.handler;
 //
 //import cn.hutool.core.util.StrUtil;
-//import com.github.meeting.common.connect.connection.server.ProtoBufProcess;
+//import com.github.meeting.common.connect.connection.server.ProtoBufProcessHandler;
 //import com.github.meeting.common.connect.connection.server.context.IConnectContextAction;
 //import com.github.meeting.common.connect.connection.server.context.ReactorConnection;
 //import com.github.meeting.common.connect.connection.ConnectionConstants;
@@ -16,7 +16,7 @@ package com.github.im.server.handler;//package com.github.meeting.server.handler
 //import reactor.netty.Connection;
 //@Component
 //@Slf4j
-//public class AuthProcessService implements ProtoBufProcess {
+//public class AuthProcessService implements ProtoBufProcessHandler {
 //
 //
 //    @Autowired

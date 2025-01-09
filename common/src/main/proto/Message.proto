@@ -1,13 +1,14 @@
 syntax = "proto3";
 
-package com.github.meeting.common.connect.model.proto;
-option java_package = "com.github.meeting.common.connect.model.proto";
+package com.github.im.common.connect.model.proto;
+option java_package = "com.github.im.common.connect.model.proto";
 option java_outer_classname = "Chat";
 import "google/protobuf/any.proto";
 import "Account.proto";
 
 // chat 信息
 message ChatMessage  {
+
 
   int64 msgId = 1 ;
 

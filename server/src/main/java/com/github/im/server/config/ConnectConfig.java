@@ -33,7 +33,8 @@ public class ConnectConfig  {
 
         var instance = ReactorTcpServer.getInstance();
         instance.init(new InetSocketAddress("localhost", tcpPort));
-        return  instance;
+
+        return instance;
     }
 
 

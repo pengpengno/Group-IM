@@ -8,15 +8,16 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.web.context.WebServerInitializedEvent;
 import org.springframework.context.ApplicationListener;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"com.github.im.server", "com.github.im.common"})
 @Slf4j
+@EnableAsync
 public class Application {
 
-    @SneakyThrows
     public static void main(String[] args) {
 
         SpringApplication.run(Application.class);

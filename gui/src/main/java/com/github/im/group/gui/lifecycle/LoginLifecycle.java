@@ -1,14 +1,9 @@
-package com.github.im.group.gui.lifecycle;/**
- * Description: [描述方法或类的作用和功能]
- * <p>
- * </p>
- *
- * @author [peng]
- * @since 07
- */
+package com.github.im.group.gui.lifecycle;
+
 
 import com.github.im.dto.user.LoginRequest;
 import com.github.im.dto.user.UserInfo;
+import reactor.core.publisher.Mono;
 
 /**
  * Description:

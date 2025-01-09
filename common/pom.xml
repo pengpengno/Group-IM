@@ -55,10 +55,10 @@
             <version>${reactor.mq.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>com.github.im</groupId>
-            <artifactId>common</artifactId>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>com.github.im</groupId>-->
+<!--            <artifactId>common</artifactId>-->
+<!--        </dependency>-->
 
         <dependency>
             <groupId>cn.hutool</groupId>

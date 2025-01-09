@@ -5,6 +5,7 @@ import com.github.im.dto.user.UserInfo;
 import com.github.im.server.mapstruct.UserMapper;
 import com.github.im.server.model.User;
 import com.github.im.server.repository.UserRepository;
+import com.github.im.server.utils.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,9 @@ public class AuthenticationService implements UserDetailsService {
     private final UserRepository userRepository;
 
 
+    @Autowired
+    JwtUtil jwtUtil;
+
 
     public Optional<UserInfo> loginUser(LoginRequest loginRequest) {
         Authentication authenticationToken = new UsernamePasswordAuthenticationToken(
@@ -40,7 +44,10 @@ public class AuthenticationService implements UserDetailsService {
         SecurityContextHolder.getContext().setAuthentication(authResult);
 
         User user = (User) authResult.getPrincipal();
-        return Optional.of(UserMapper.INSTANCE.userToUserInfo(user));
+        var token = jwtUtil.createToken(user);
+        var userInfo = UserMapper.INSTANCE.userToUserInfo(user);
+        userInfo.setToken(token);
+        return Optional.of(userInfo);
     }
 
     @Override

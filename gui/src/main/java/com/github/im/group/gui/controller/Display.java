@@ -10,6 +10,7 @@ package com.github.im.group.gui.controller;/**
 import com.github.im.group.gui.util.FxmlLoader;
 import com.github.im.group.gui.util.StageManager;
 import javafx.application.Platform;
+import org.kordamp.bootstrapfx.BootstrapFX;
 
 /**
  * Description:
@@ -24,13 +25,15 @@ import javafx.application.Platform;
 public interface Display {
 
 
-    public static  void display(Class displayClass){
+    public static  void display(Class<?> displayClass){
 
         Platform.runLater(()-> {
 //            Class<? extends Display> displayClass = this.getClass();
             var scene = FxmlLoader.getSceneInstance(displayClass);
             var primaryStage = StageManager.getPrimaryStage();
             primaryStage.sizeToScene(); // 自动调整主 Stage 大小以适应当前 Scene 的大小
+
+//            scene.getStylesheets().add(BootstrapFX.bootstrapFXStylesheet());       //(3)
 
             scene.widthProperty().addListener((observable, oldValue, newValue) -> {
                 primaryStage.setWidth(newValue.doubleValue());

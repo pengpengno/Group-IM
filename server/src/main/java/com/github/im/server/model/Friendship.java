@@ -3,6 +3,8 @@ package com.github.im.server.model;
 import com.github.im.server.model.enums.Status;
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -26,8 +28,11 @@ public class Friendship {
     @Enumerated(EnumType.STRING)
     private Status status;
 
+    @CreationTimestamp // 自动设置创建时间
+    @Column(updatable = false) // 创建时间不可被更新
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @UpdateTimestamp // 自动设置更新时间
     private LocalDateTime updatedAt;
 
 
@@ -39,4 +44,7 @@ public class Friendship {
             status = Status.ACTIVE;  // 例如，默认状态为 PENDING
         }
     }
+
+
+
 }

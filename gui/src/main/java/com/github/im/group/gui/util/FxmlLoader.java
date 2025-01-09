@@ -1,24 +1,22 @@
 package com.github.im.group.gui.util;
 
-import jakarta.annotation.PostConstruct;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
-
 import java.io.File;
 import java.net.URL;
-import java.nio.file.Files;
 import java.util.concurrent.ConcurrentHashMap;
+
+
 /***
  *  所有 fxml 设计为 与controller 同名 且 同路径
  */
@@ -45,6 +43,54 @@ public class FxmlLoader implements ApplicationContextAware {
     }
 
 
+    public static URL  getFxmlResourceUrl(String name) {
+        URL fxmlResourceUrl = null;
+        if (!StringUtils.endsWithIgnoreCase(name,FXML_SUFFIX)){
+            name = name + FXML_SUFFIX;
+        }
+
+        if (!StringUtils.startsWithIgnoreCase(name, File.separator)){
+            name = File.separator + name ;
+        }
+        var fxmlResource = new ClassPathResource(FXML_PATH_FLODER + name);
+
+        if(!fxmlResource.exists()){
+
+            fxmlResource = new ClassPathResource(name);
+
+        }
+        try{
+
+            fxmlResourceUrl = fxmlResource.getURL();
+            return fxmlResourceUrl;
+        }catch (Exception exception){
+            log.error("Failed to load FXML resource for  {}",  exception.getMessage(), exception);
+        }
+
+        throw new RuntimeException("Failed to load FXML resource for " );
+
+    }
+
+    public static URL  getFxmlResourceUrl(Class<?> clazz) {
+        try {
+            var viewAnn = clazz.getAnnotation(FxView.class);
+
+            var  path = "";
+            URL fxmlResourceUrl = null;
+
+            if(viewAnn != null ){
+                path = viewAnn.path();
+
+                fxmlResourceUrl = getFxmlResourceUrl(path);
+            }
+            return fxmlResourceUrl;
+        }catch (Exception exception){
+            log.error("Failed to load FXML resource for {}: {}", clazz.getName(), exception.getMessage(), exception);
+        }
+
+        throw new RuntimeException("Failed to load FXML resource for " + clazz.getName());
+    }
+
     /***
      * 获取单例的 Stage
      * 此方法会有三种方式来搜索对应的fxml 文件
@@ -61,31 +107,7 @@ public class FxmlLoader implements ApplicationContextAware {
 
             Assert.notNull(clazz, "The specified class cannot be null!");
 
-            var viewAnn = clazz.getAnnotation(FxView.class);
-
-            var  path = "";
-            URL fxmlResourceUrl = null;
-
-            if(viewAnn != null ){
-                path = viewAnn.path();
-                if (!StringUtils.endsWithIgnoreCase(path,FXML_SUFFIX)){
-                    path = path + FXML_SUFFIX;
-                }
-
-                if (!StringUtils.startsWithIgnoreCase(path, File.separator)){
-                    path = File.separator + path ;
-                }
-
-                var fxmlResource = new ClassPathResource(FXML_PATH_FLODER + path);
-
-                if(!fxmlResource.exists()){
-
-                    fxmlResource = new ClassPathResource(path);
-
-                }
-
-                fxmlResourceUrl = fxmlResource.getURL();
-            }
+            var fxmlResourceUrl = getFxmlResourceUrl(clazz);
 
             if (fxmlResourceUrl == null){
                 // 如果不存在则直接 使用类的路径来查询
@@ -98,8 +120,10 @@ public class FxmlLoader implements ApplicationContextAware {
             fxmlLoader.setControllerFactory(applicationContext::getBean);
 
             Parent load = fxmlLoader.load();
-            Scene scene = new Scene(load);
 
+            var scene = new Scene(load);
+
+//            scene.getStylesheets().add(Ma)
             return scene;
 
         } catch (Exception e) {
@@ -107,6 +131,8 @@ public class FxmlLoader implements ApplicationContextAware {
             return null;
         }
     }
+
+
 
     /***
      * Builds the FXML path string based on the given class.

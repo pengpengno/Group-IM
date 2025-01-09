@@ -70,3 +70,24 @@
     -fx-border-radius: 5;
 }
 
+#iconMenu {
+    -fx-pref-width: 100;
+    -fx-background-color: #2e3b4e;
+}
+
+#conversationList {
+    -fx-pref-height: 200; /* Control height of the conversation list */
+}
+
+#chatPane {
+    -fx-padding: 10;
+    -fx-background-color: #f4f4f4;
+}
+
+#chatContent {
+    -fx-pref-height: 200;
+}
+
+#messageInput {
+    -fx-background-color: #f0f0f0;
+}

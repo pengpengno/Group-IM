@@ -4,6 +4,8 @@ import com.github.im.dto.user.LoginRequest;
 import com.github.im.dto.user.RegistrationRequest;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.dto.user.UserRegisterRequest;
+import org.springframework.beans.factory.annotation.Lookup;
+import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;

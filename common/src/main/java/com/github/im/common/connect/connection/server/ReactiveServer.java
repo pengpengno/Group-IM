@@ -32,6 +32,10 @@ public interface ReactiveServer {
     public ReactiveServer start();
 
 
+    default public boolean isRunning(){
+        return true ;
+    }
+
     public void stop();
 
 

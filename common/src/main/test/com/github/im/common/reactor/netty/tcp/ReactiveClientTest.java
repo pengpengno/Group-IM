@@ -1,5 +1,8 @@
 package com.github.im.common.reactor.netty.tcp;
 
+import com.github.im.common.connect.connection.client.ClientLifeStyle;
+import com.github.im.common.connect.connection.client.ClientToolkit;
+import com.github.im.common.connect.connection.client.ReactiveClientAction;
 import com.github.im.common.connect.handler.client.ClientInboundHandler;
 import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.model.AccountInfo;
@@ -13,6 +16,8 @@ import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 import reactor.netty.tcp.TcpClient;
 
+import java.net.InetSocketAddress;
+
 /**
  * @author pengpeng
  * @description
@@ -21,7 +26,7 @@ import reactor.netty.tcp.TcpClient;
 @Slf4j
 public class ReactiveClientTest {
     public  static String  HOST = "127.0.0.1";
-    public  static Integer  PORT = 8094;
+    public  static Integer  PORT = 8088;
     public static String TCPLogger = "TCPLogger";
     private final AttributeKey<AccountInfo> attribute = AttributeKey.valueOf(AccountInfo.class.getName());
 
@@ -30,9 +35,16 @@ public class ReactiveClientTest {
     public void testClient(){
         AccountInfo pengpeng = AccountInfo.builder().account("pengpeng")
                 .build();
+
+        var clientLifeStyle = ClientToolkit.clientLifeStyle();
+        var connect1 = clientLifeStyle.connect(new InetSocketAddress(HOST, PORT));
+        var reactiveClientAction = ClientToolkit.reactiveClientAction();
+
+        reactiveClientAction.sendString("1111111111111111111111").subscribe();
+        reactiveClientAction.sendString("22222");
         Connection connect = TcpClient.create()
                 .host(HOST)
-                .port(8094)
+                .port(PORT)
                 .wiretap("client",LogLevel.INFO)
                 .doOnChannelInit((connectionObserver, channel, remoteAddress) -> {
                     channel.attr(attribute).set(pengpeng);
@@ -40,6 +52,8 @@ public class ReactiveClientTest {
                 .handle((nettyInbound, nettyOutbound) -> Mono.never())
                 .connectNow();
         log.info("{}", connect.isDisposed());
+
+
         connect.inbound().receive().asString().doOnNext(log::info).then().subscribe();
         connect.outbound().sendString(Mono.just("nice to meet you")).then().subscribe();
         connect.onDispose().block();
@@ -50,7 +64,7 @@ public class ReactiveClientTest {
         String jwt = "eyJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE2NzgyNzM1ODcsImV4cCI6MTY3ODM1OTk4NywiQUNDT1VOVCI6eyJ1c2VySWQiOm51bGwsImFjY291bnQiOiJ3YW5ncGVuZyIsInVzZXJOYW1lIjpudWxsLCJlbWFpbCI6bnVsbH19.KjmiH4PXvzKmMOFMtpwWQjHdm8bpr8-c4_-oHxzH1vA";
         Connection connect = TcpClient.create()
                 .host(HOST)
-                .port(8094)
+                .port(PORT)
                 .wiretap("client",LogLevel.INFO)
                 .doOnChannelInit((connectionObserver, channel, remoteAddress) -> {
                     channel.pipeline().addLast(new ClientInboundHandler(jwt));

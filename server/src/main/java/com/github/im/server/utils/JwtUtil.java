@@ -18,13 +18,13 @@ import java.util.Date;
 @Component
 @Slf4j
 public class JwtUtil {
+
+
     @Autowired
     JwtEncoder encoder;
 
     @Autowired
     JwtDecoder jwtDecoder;
-
-
 
 
     public String createToken(User user) {
@@ -43,6 +43,16 @@ public class JwtUtil {
     }
 
 
+    public String  parseTokenAndGetName(String authToken){
+        Assert.notNull(authToken,"Auth token not be null. ");
+        var jwt = jwtDecoder.decode(authToken);
+
+        var username = jwt.getClaimAsString("name");
+
+        return username;
+    }
+
+
     public Long parseToken(String authToken){
         Assert.notNull(authToken,"Auth token not be null. ");
         var jwt = jwtDecoder.decode(authToken);
@@ -50,7 +60,6 @@ public class JwtUtil {
         var userId = jwt.getClaimAsString(JwtClaimNames.ISS);
 
         return Long.parseLong(userId);
-
     }
 
 

@@ -32,7 +32,7 @@ public class ConnectionGroupRoom {
 
     public final Object object = new Object();
 
-private ByteBuf lastByteBuf ;
+    private ByteBuf lastByteBuf ;
 
     private Flux<byte[]> byteFlux ;
 

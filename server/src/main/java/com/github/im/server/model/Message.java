@@ -1,31 +1,47 @@
 package com.github.im.server.model;
 
+import com.github.im.enums.MessageStatus;
+import com.github.im.enums.MessageType;
 import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
+// 消息实体类
 @Entity
+@Data
+@NoArgsConstructor
 @Table(name = "messages")
 public class Message {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long msgId;  // 消息ID
 
-    @ManyToOne
-    @JoinColumn(name = "sender_id", nullable = false)
-    private User sender;
+    private Long sessionId;  // 会话ID
 
-    @ManyToOne
-    @JoinColumn(name = "receiver_id", nullable = false)
-    private User receiver;
+    private String content;  // 消息内容
 
-    @Column(nullable = false)
-    private String content;
+    private Long fromAccountId;  // 发送方ID
 
-    @Column(nullable = false)
-    private String messageType; // Could be 'text', 'image', 'file'
+    private Long toAccountId;  // 接收方ID
 
-    private LocalDateTime sentAt = LocalDateTime.now();
+    @Enumerated(EnumType.STRING)
+    private MessageType type;  // 消息类型
 
-    // Getters and Setters
+    @Enumerated(EnumType.STRING)
+    private MessageStatus status;  // 消息状态
+
+    private LocalDateTime timestamp;  // 消息时间戳
+
+    public Message(Long sessionId, String content, Long fromAccountId, Long toAccountId, MessageType type, MessageStatus status) {
+        this.sessionId = sessionId;
+        this.content = content;
+        this.fromAccountId = fromAccountId;
+        this.toAccountId = toAccountId;
+        this.type = type;
+        this.status = status;
+        this.timestamp = LocalDateTime.now();
+    }
 }

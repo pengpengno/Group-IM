@@ -21,13 +21,13 @@ public class IConnectContext implements IConnectContextAction {
     private final ConcurrentHashMap<String, IConnection> connectionCache =  new ConcurrentHashMap<String,IConnection>();
 
 
-    /***
-     * connection group used to route info to group
-     */
-    private final ConcurrentHashMap<String, ConnectionGroupRoom> connectionGroup =
-            new ConcurrentHashMap<String,ConnectionGroupRoom>();
-
-
+//    /***
+//     * connection group used to route info to group
+//     */
+//    private final ConcurrentHashMap<String, ConnectionGroupRoom> connectionGroup =
+//            new ConcurrentHashMap<String,ConnectionGroupRoom>();
+//
+//
 
     private enum SingleInstance{
         INSTANCE;
@@ -51,10 +51,6 @@ public class IConnectContext implements IConnectContextAction {
 
     }
 
-    @Override
-    public ConnectionGroupRoom applyConnectionGroup(String roomKey) {
-        return connectionGroup.get(roomKey);
-    }
 
     @Override
     public void putConnection(IConnection connection) {
@@ -63,37 +59,43 @@ public class IConnectContext implements IConnectContextAction {
         connectionCache.put(account,connection);
     }
 
-    @Override
-    public void closeAndRmConnection(String account) {
-        IConnection connection = applyConnection(account);
-        if (connection != null){
-            connection.close();
-        }
-    }
+//
+//    @Override
+//    public ConnectionGroupRoom applyConnectionGroup(String roomKey) {
+//        return connectionGroup.get(roomKey);
+//    }
+//
+//    @Override
+//    public void closeAndRmConnection(String account) {
+//        IConnection connection = applyConnection(account);
+//        if (connection != null){
+//            connection.close();
+//        }
+//    }
+//
+//
+//
+//    @Override
+//    public ConnectionGroupRoom getOrSupplier(String roomKey, Function<String, Supplier<ConnectionGroupRoom>> connectionFactor) {
+//        return connectionGroup.computeIfAbsent(roomKey, (key) -> connectionFactor.apply(key).get());
+//    }
 
-
-
-    @Override
-    public ConnectionGroupRoom getOrSupplier(String roomKey, Function<String, Supplier<ConnectionGroupRoom>> connectionFactor) {
-        return connectionGroup.computeIfAbsent(roomKey, (key) -> connectionFactor.apply(key).get());
-    }
-
-    private byte[] getData (ByteBuf byteBuf){
-        byte[] bytes = null;
-        if (byteBuf.hasArray()) {  //  jvm  heap byteBuf 处理
-
-            bytes = byteBuf.array();
-
-        } else {  //  memory  byteBuf 处理
-            int length = byteBuf.readableBytes();
-            bytes = new byte[length];
-
-            byteBuf.getBytes(byteBuf.readerIndex(),bytes);
-
-        }
-
-        return bytes;
-
-    }
+//    private byte[] getData (ByteBuf byteBuf){
+//        byte[] bytes = null;
+//        if (byteBuf.hasArray()) {  //  jvm  heap byteBuf 处理
+//
+//            bytes = byteBuf.array();
+//
+//        } else {  //  memory  byteBuf 处理
+//            int length = byteBuf.readableBytes();
+//            bytes = new byte[length];
+//
+//            byteBuf.getBytes(byteBuf.readerIndex(),bytes);
+//
+//        }
+//
+//        return bytes;
+//
+//    }
 
 }

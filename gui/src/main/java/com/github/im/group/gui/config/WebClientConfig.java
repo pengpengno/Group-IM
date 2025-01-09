@@ -2,6 +2,7 @@ package com.github.im.group.gui.config;
 
 import com.github.im.group.gui.api.FriendShipEndpoint;
 import com.github.im.group.gui.api.UserEndpoint;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -23,17 +24,16 @@ import org.springframework.web.service.invoker.HttpServiceProxyFactory;
  */
 
 @Configuration
-//@EnableHttpExchangeProxy
 public class WebClientConfig {
 
     @Bean
-    @ConditionalOnProperty(value = {"server.host"})
     @LoadBalanced
-    public HttpServiceProxyFactory webClient(@Value("${server.host}")  String host) {
+    public HttpServiceProxyFactory webClient(@Autowired ServerConnectProperties serverConnectProperties, @Autowired WebClientFilter authFilter) {
         var webClient = WebClient.builder()
-                .baseUrl(host)
-                .build();
 
+                .baseUrl(serverConnectProperties.getRest().getHost())
+                .filter(authFilter)
+                .build();
 
         WebClientAdapter adapter = WebClientAdapter.create(webClient);
 
@@ -42,15 +42,5 @@ public class WebClientConfig {
     }
 
 
-    @Bean
-    @ConditionalOnBean(HttpServiceProxyFactory.class)
-    public UserEndpoint userEndpoint (HttpServiceProxyFactory factory) {
-        return factory.createClient(UserEndpoint.class);
-    }
-
-    @Bean
-    public FriendShipEndpoint friendShipEndpoint(HttpServiceProxyFactory factory) {
-        return factory.createClient(FriendShipEndpoint.class);
-    }
 
 }

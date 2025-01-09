@@ -3,16 +3,20 @@ package com.github.im.common.connect.connection.client.tcp;
 import cn.hutool.core.exceptions.ExceptionUtil;
 import com.github.im.common.connect.connection.client.ClientLifeStyle;
 import com.github.im.common.connect.connection.client.ReactiveClientAction;
+import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.spi.ReactiveHandlerSPI;
-import com.github.im.common.connect.handler.proto.ProtoBufMessageLiteScanner;
 import com.google.protobuf.Message;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.rtsp.*;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import io.netty.handler.logging.LogLevel;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.netty.ByteBufFlux;
 import reactor.netty.Connection;
 import reactor.netty.NettyOutbound;
 import reactor.netty.tcp.TcpClient;
@@ -38,8 +42,14 @@ public class ReactorTcpClient implements ClientLifeStyle, ReactiveClientAction {
 
     private TcpClient client;
 
+
+    private final ProtobufDecoder  protobufDecoder = new ProtobufDecoder(BaseMessage.BaseMessagePkg.getDefaultInstance());
+    private final ProtobufVarint32LengthFieldPrepender  protobufVarint32LengthFieldPrepender = new ProtobufVarint32LengthFieldPrepender();
+    private final ProtobufEncoder  protobufEncoder = new ProtobufEncoder();
+
     @Override
     public ClientLifeStyle config(InetSocketAddress address) {
+        log.debug("connect config  {}" ,address);
         this.address = address;
         client = TcpClient
                     .create()
@@ -48,13 +58,40 @@ public class ReactorTcpClient implements ClientLifeStyle, ReactiveClientAction {
                     .port(this.address.getPort())
                     .doOnChannelInit((connectionObserver, channel, remoteAddress) -> {
                         log.debug("init channel pipeline ");
-                        ChannelPipeline pipeline = channel.pipeline();
-                        ProtoBufMessageLiteScanner.protobufDecoders()
-                                .forEach(handler -> pipeline.addLast(handler));
-                        pipeline.addLast(new RtspDecoder());
-                        pipeline.addLast(new RtspEncoder());
+//                        ChannelPipeline pipeline = channel.pipeline();
+//                        pipeline.addLast(new ProtobufVarint32FrameDecoder())
+//                                .addLast(protobufDecoder)
+//                                .addLast(protobufVarint32LengthFieldPrepender)
+//                                .addLast(protobufEncoder)
+//                                ;
+
+                    })
+                    .doOnConnected(connection-> {
+                        // 建立完 channel 的handler
+                        connection
+                                .addHandlerLast(new ProtobufVarint32FrameDecoder())
+                                .addHandlerLast(protobufDecoder)
+                                .addHandlerLast(protobufVarint32LengthFieldPrepender)
+                                .addHandlerLast(protobufEncoder)
+                        ;
+
                     })
                     .handle(ReactiveHandlerSPI.wiredSpiHandler().handler())
+//                    .handle(((nettyInbound, nettyOutbound) -> {
+//                        log.debug("connect server {}  port {} success",address.getHostString(),address.getPort());
+//                        Flux<BaseMessage.BaseMessagePkg> subscribe = nettyInbound.receiveObject()
+//                                .cast(BaseMessage.BaseMessagePkg.class)
+//                                .handle((obj,sink)->{
+//                                    log.debug("receive message {}",obj);
+//                                })
+////                                .doOnError(ex->log.error("receive message error , stack is \n {}", ExceptionUtil.stacktraceToString(ex)))
+//                                ;
+////                        subscribe.doOnError();
+//                        return nettyOutbound.sendObject(Flux.concat(subscribe)).then()
+//                                .doOnError(ex->log.error("out bound send essage error , stack is \n {}", ExceptionUtil.stacktraceToString(ex)))
+//
+//                                ;
+//                    }))
 
         ;
         return this;
@@ -65,13 +102,7 @@ public class ReactorTcpClient implements ClientLifeStyle, ReactiveClientAction {
         config(address);
 
         try{
-            connection = client.connectNow();
-            connection.inbound().withConnection((con)-> {
-                connection.inbound().receive().asString().doOnNext(log::info)
-                        .subscribe();
-            });
-
-
+            connection =  client.connectNow();
         }catch (Exception exception){
             log.error("connect server {}  port {} encounter error , stack is \n {}",address.getHostString(),address.getPort(), ExceptionUtil.stacktraceToString(exception));
             throw new IllegalArgumentException("remote server is invalid!");
@@ -143,17 +174,23 @@ public class ReactorTcpClient implements ClientLifeStyle, ReactiveClientAction {
                 && connection.channel().isActive();
     }
 
+    private Connection ensureConnection() {
+        if (!isAlive()) {
+            connect(); // 确保 connect() 返回 Mono<Connection>
 
+        }
+        return connection;
+    }
     @Override
     public Mono<Void> sendMessage(Message message) {
-        if (isAlive()){
+        ensureConnection();
+        NettyOutbound nettyOutbound = connection.outbound().sendObject(Mono.just(message));
+//        NettyOutbound nettyOutbound = connection.outbound().sendByteArray(Mono.just(message.toByteArray()));
 
-            NettyOutbound nettyOutbound = connection.outbound().sendObject(Mono.just(message));
+        return nettyOutbound.then();
 
-            return nettyOutbound.then();
-        }
 
-        throw new IllegalArgumentException("connection is invalid !");
+//        throw new IllegalArgumentException("connection is invalid !");
     }
 
 

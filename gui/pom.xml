@@ -19,12 +19,34 @@
 
 
     <dependencies>
+        <dependency>
+            <groupId>com.github.im</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>transmittable-thread-local</artifactId>
             <version>2.14.4</version>
         </dependency>
+        <dependency>
+            <groupId>com.jfoenix</groupId>
+            <artifactId>jfoenix</artifactId>
+            <version>9.0.10</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.kordamp.bootstrapfx</groupId>
+            <artifactId>bootstrapfx-core</artifactId>
+            <version>0.4.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.github.palexdev</groupId>
+            <artifactId>materialfx</artifactId>
+            <version>11.17.0</version>
+        </dependency>
+
 
         <!-- JavaFX Modules -->
         <dependency>
@@ -50,12 +72,6 @@
 
 
 
-        <!-- BootstrapFX依赖 -->
-        <dependency>
-            <groupId>org.kordamp.bootstrapfx</groupId>
-            <artifactId>bootstrapfx-core</artifactId>
-            <version>0.4.0</version>
-        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

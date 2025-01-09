@@ -14,6 +14,5 @@ public interface ConnectionConstants {
 
 
 
-    AttributeKey<String> ROOM_KEY = AttributeKey.valueOf("group");
 
 }

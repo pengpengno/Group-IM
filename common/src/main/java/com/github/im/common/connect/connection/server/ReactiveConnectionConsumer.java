@@ -2,10 +2,12 @@ package com.github.im.common.connect.connection.server;
 
 import cn.hutool.core.exceptions.ExceptionUtil;
 import com.github.im.common.connect.connection.ConnectionConsumer;
+import com.github.im.common.connect.model.proto.BaseMessage;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.netty.Connection;
+import reactor.netty.NettyInbound;
 
 /**
  * 响应式 服务处理 Handler
@@ -20,37 +22,22 @@ public class ReactiveConnectionConsumer extends ConnectionConsumer {
     @SneakyThrows
     public ReactiveConnectionConsumer(){
         super((nettyInbound, nettyOutbound) -> {
-
-            Flux<byte[]> handle = nettyInbound.receive().handle((byteBuf, sink) ->
-
-                nettyInbound.withConnection(connection -> {
-
-                log.debug("receive data ");
-
-                int i = byteBuf.readableBytes();
-
-                    if (i > 0) {
-
-                    try{
-
-//                        ByteBufProcessService.getInstance().process(connection,byteBuf);
-                        DataFrameProcessService.getInstance().process(connection,byteBuf);
-
-                    }catch (Exception exception){
-
-                        log.error("reactor netty occur error {} ", ExceptionUtil.stacktraceToString(exception));
-
-                        sink.next(("occur error {} " + ExceptionUtil.stacktraceToString(exception)).getBytes());
-
-                    }
+            // 处理 BaseMessage（对象）
+            Flux<BaseMessage.BaseMessagePkg> handleBaseMessage = nettyInbound.receiveObject()
+                    .cast( BaseMessage.BaseMessagePkg.class)
+                    .handle((obj, sink) -> {
+                log.debug("Received Object: {}", obj);
+                if (obj != null) {
+                    // 处理 BaseMessage 类型
+                    MessageDispatcher.getInstance().dispatchMessage(nettyInbound ,nettyOutbound,obj);
 
                 }
 
-                sink.next("receive the data from client".getBytes());
+            });
 
-            }));
 
-            var outbound = nettyOutbound.sendByteArray(Flux.concat(handle));
+//            var outbound = nettyOutbound.sendByteArray(Flux.concat(handle));
+            var outbound = nettyOutbound.sendObject(Flux.concat(handleBaseMessage));
 
             return outbound.then();
 

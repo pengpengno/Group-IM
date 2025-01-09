@@ -24,18 +24,6 @@ public interface IConnectContextAction {
     public void putConnection(IConnection connection);
 
 
-    public ConnectionGroupRoom getOrSupplier (String key ,  Function<String, Supplier<ConnectionGroupRoom>> connectionFactor);
-
-
-    public ConnectionGroupRoom applyConnectionGroup(String roomKey);
-
-    /***
-     * 关闭指定账户的连接
-     * @param bindKey  attr bind to channel
-     */
-    public void closeAndRmConnection(String bindKey) throws ConnectException;
-
-
 
 
 

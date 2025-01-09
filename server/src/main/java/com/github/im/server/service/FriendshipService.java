@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.MessageFormat;
 import java.util.List;
 
 @Service
@@ -36,7 +37,8 @@ public class FriendshipService {
     @Transactional
     public void acceptFriendRequest(FriendRequestDto request) {
         Friendship friendship = friendshipRepository.findByUserAndFriend(
-                userRepository.findById(request.getFriendId()).orElseThrow(),
+                userRepository.findById(request.getFriendId()).orElseThrow(()->
+                        new IllegalArgumentException(MessageFormat.format("No user id {0}",request.getFriendId()))),
                 userRepository.findById(request.getUserId()).orElseThrow()
         ).orElseThrow();
 
@@ -49,7 +51,7 @@ public class FriendshipService {
      */
     public List<FriendshipDTO> getFriends(Long userId) {
         User user = userRepository.findById(userId).orElseThrow();
-        var byUserAndStatus = friendshipRepository.findByUserAndStatus(user, Status.ACTIVE.name());
+        var byUserAndStatus = friendshipRepository.findByUserAndStatus(user, Status.ACTIVE);
         return FriendShipMapper.INSTANCE.friendshipsToFriendshipDTOs(byUserAndStatus);
     }
 

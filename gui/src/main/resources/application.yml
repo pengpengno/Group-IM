@@ -1,6 +1,12 @@
-server:
-  host: ${SERVER_HOST:http://localhost:8080/}
+im:
+  server:
+    rest:
+      host: ${SERVER_HOST:http://localhost:8080}
+    connect:
+      host: ${CONNECT_HOST:localhost}
+      port: 8088
 logging:
   level:
     root: INFO
     com.github.im.group.gui: DEBUG
+#    reactor.netty: DEBUG

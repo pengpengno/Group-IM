@@ -1,4 +1,4 @@
-package com.github.im.server;
+package com.github.im.server.config;
 
 import java.io.IOException;
 
@@ -9,6 +9,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,19 +26,20 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *
  */
 @Component
+@RequiredArgsConstructor
 public class AuthTokenFilter extends OncePerRequestFilter {
 
   @Autowired
   private JwtUtil jwtUtils;
 
+  @Autowired
+  private  AuthenticationService userDetailsService;
 
 
   private static final String TOKEN_HEADER = "Authorization";
 
   private static final String TOKEN_PREFIX = "Bearer ";
 
-  @Autowired
-  private AuthenticationService userDetailsService;
 
   private static final Logger logger = LoggerFactory.getLogger(AuthTokenFilter.class);
 
@@ -47,24 +49,28 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     try {
       String jwt = resolveToken(request);
       if (jwt != null ) {
-
-        String username =" jwtUtils.getUserNameFromJwtToken(jwt)";
+        var username = jwtUtils.parseTokenAndGetName(jwt);
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
         UsernamePasswordAuthenticationToken authentication =
-            new UsernamePasswordAuthenticationToken(
-                userDetails,
-                null,
-                userDetails.getAuthorities());
+                new UsernamePasswordAuthenticationToken(
+                        userDetails,
+                        null,
+                        userDetails.getAuthorities());
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
+
       }
     } catch (Exception e) {
       logger.error("Cannot set user authentication", e);
     }
+    try{
+      filterChain.doFilter(request, response);
 
-    filterChain.doFilter(request, response);
+    }catch (Exception exception){
+      logger.error("ex error ",exception);
+    }
   }
 
 

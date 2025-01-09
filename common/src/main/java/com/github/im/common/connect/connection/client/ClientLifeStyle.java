@@ -9,9 +9,8 @@ import java.net.InetSocketAddress;
 import java.time.Duration;
 
 /**
- * 客户端生命周期
+ * manage client config  connect stop and offline-re-Try
  */
-
 public interface ClientLifeStyle {
 
 

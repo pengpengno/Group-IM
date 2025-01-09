@@ -6,6 +6,7 @@ import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.FxmlLoader;
 import com.github.im.group.gui.util.StageManager;
+import io.github.palexdev.materialfx.controls.MFXButton;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -34,10 +35,10 @@ public class LoginView extends StackPane implements Initializable {
     private PasswordField passwordField;
 
     @FXML
-    private Button loginButton;
+    private MFXButton loginButton;
 
     @FXML
-    private Button navigateToRegister;
+    private MFXButton navigateToRegister;
 
     private final UserEndpoint userEndpoint;
     private final LoginLifecycle loginLifecycle;
@@ -49,8 +50,7 @@ public class LoginView extends StackPane implements Initializable {
 //        loginButton.setOnAction(event -> login());
         usernameField.setText("kl");
         passwordField.setText("1");
-//        String username = usernameField.getText().trim();
-//        String password = passwordField.getText().trim();
+
     }
 
     @FXML
@@ -87,8 +87,8 @@ public class LoginView extends StackPane implements Initializable {
 
         LoginRequest loginRequest = new LoginRequest(username, password);
 
-        userEndpoint.loginUser(loginRequest)
-                .subscribe(loginLifecycle::loginCallBack, throwable -> {
+        var userInfo = userEndpoint.loginUser(loginRequest)
+                .doOnError(throwable -> {
                     // Handle login failure
                     if (throwable instanceof WebClientResponseException exception) {
                         Platform.runLater(() -> {
@@ -100,7 +100,10 @@ public class LoginView extends StackPane implements Initializable {
                         });
                     }
                     log.error("Login attempt failed", throwable);
-                });
+                }).block()
+                ;
+
+        loginLifecycle.loginCallBack(userInfo);
     }
 
 

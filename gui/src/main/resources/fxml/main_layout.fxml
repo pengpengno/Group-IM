@@ -1,35 +1,64 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml/1" stylesheets="@../css/styles.css"  fx:controller="com.github.im.group.gui.controller.MainController">
-    <!-- 左侧导航栏 -->
+<?import javafx.scene.image.ImageView?>
+<?import io.github.palexdev.materialfx.controls.MFXButton?>
+<?import io.github.palexdev.mfxresources.fonts.MFXFontIcon?>
+<?import javafx.geometry.Insets?>
+<BorderPane fx:id="rootpane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.github.im.group.gui.controller.MainController">
+    <top>
+        <HBox fx:id="windowHeader" alignment="CENTER_RIGHT" layoutY="6.0" prefHeight="50.0" prefWidth="1281.0"
+              spacing="10.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+            <padding>
+                <Insets right="10.0"/>
+            </padding>
+            <MFXFontIcon fx:id="alwaysOnTopIcon" description="fas-circle" size="15.0" styleClass="always-on-top-icon"/>
+            <MFXFontIcon fx:id="minimizeIcon" description="fas-circle" size="15.0" styleClass="minimize-icon"/>
+            <MFXFontIcon fx:id="closeIcon" description="fas-circle" size="15.0" styleClass="close-icon"/>
+
+        </HBox>
+    </top>
+
+    <!-- 左侧菜单栏 -->
     <left>
-        <VBox fx:id="sideBar" prefWidth="100" styleClass="bg-dark">
-            <Button fx:id="chatButton" text="Chat" maxWidth="Infinity" styleClass="btn btn-dark btn-block"/>
-            <Button fx:id="contactsButton" text="Contacts" maxWidth="Infinity" styleClass="btn btn-dark btn-block"/>
-            <Button fx:id="workButton" text="Work" maxWidth="Infinity" styleClass="btn btn-dark btn-block"/>
+
+        <VBox fx:id="iconMenu" spacing="10" prefWidth="100" style="-fx-background-color: #2e3b4e;">
+            <MFXButton fx:id="messagesButton" text="Messages">
+                <graphic>
+                    <ImageView fx:id="meetingsIcon" fitHeight="20" fitWidth="20" preserveRatio="true"
+                               pickOnBounds="true"
+                    />
+                </graphic>
+            </MFXButton>
+            <MFXButton text="Mail" />
+            <MFXButton text="Documents"/>
+            <MFXButton text="Schedule"/>
+            <Button text="Meetings"/>
+            <Button text="Workbench"/>
+            <Button text="Contacts"/>
         </VBox>
     </left>
-    <!-- 顶部工具栏 -->
-    <top>
-        <ToolBar styleClass="bg-light">
-            <Label text="IM Platform" styleClass="h4"/>
-            <Pane HBox.hgrow="ALWAYS"/>
-            <Button text="Profile" styleClass="btn btn-outline-primary"/>
-            <Button text="Notifications" styleClass="btn btn-outline-primary"/>
-            <Button text="Settings" styleClass="btn btn-outline-primary"/>
-        </ToolBar>
-    </top>
-    <!-- 中心内容区 -->
+
+    <!-- 中央区域 -->
     <center>
-        <ListView fx:id="chatListView" styleClass="list-group"/>
+        <VBox>
+            <!-- 会话列表 -->
+            <ListView fx:id="conversationList" VBox.vgrow="ALWAYS" style="-fx-pref-height: 200;"/>
+
+            <!-- 聊天界面 -->
+            <StackPane fx:id="chatPane" VBox.vgrow="ALWAYS" style="-fx-padding: 10;">
+                <VBox spacing="5">
+                    <!-- 聊天内容显示 -->
+                    <TextArea fx:id="chatContent" editable="false" prefHeight="200"/>
+
+                    <!-- 消息输入框和发送按钮 -->
+                    <HBox spacing="5">
+                        <TextField fx:id="messageInput" HBox.hgrow="ALWAYS" promptText="Type a message..."/>
+                        <MFXButton fx:id="sendMessageButton" text="Send"/>
+                    </HBox>
+                </VBox>
+            </StackPane>
+        </VBox>
     </center>
-    <!-- 底部状态栏 -->
-    <bottom>
-        <HBox styleClass="bg-dark text-white" alignment="CENTER_LEFT">
-            <Label text="Online" />
-        </HBox>
-    </bottom>
 </BorderPane>

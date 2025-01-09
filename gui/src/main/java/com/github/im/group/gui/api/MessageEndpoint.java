@@ -1,0 +1,27 @@
+package com.github.im.group.gui.api;
+
+import com.github.im.dto.user.LoginRequest;
+import com.github.im.dto.user.RegistrationRequest;
+import com.github.im.dto.user.UserInfo;
+import com.github.im.dto.user.UserRegisterRequest;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.service.annotation.HttpExchange;
+import org.springframework.web.service.annotation.PostExchange;
+import reactor.core.publisher.Mono;
+
+/**
+ * messageApi
+ * <b>
+ * <a href="https://www.baeldung.com/spring-6-http-interface"> HttpExchange  REFERENCE DOC</a>
+ * </b>
+ */
+@HttpExchange(url = "/api/chat")
+public interface MessageEndpoint {
+
+
+	// 用户登录
+	@PostExchange("/users/login")
+	Mono<UserInfo> loginUser(@RequestBody LoginRequest loginRequest);
+
+
+}

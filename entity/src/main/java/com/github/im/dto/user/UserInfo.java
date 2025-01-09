@@ -16,4 +16,6 @@ public class UserInfo implements Serializable {
     private String avatar;
     private String email;
 
+    private String token ;
+
 }

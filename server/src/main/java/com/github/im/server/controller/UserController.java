@@ -3,7 +3,6 @@ package com.github.im.server.controller;
 import com.github.im.dto.user.LoginRequest;
 import com.github.im.dto.user.RegistrationRequest;
 import com.github.im.dto.user.UserInfo;
-import com.github.im.dto.user.UserRegisterRequest;
 import com.github.im.server.model.User;
 import com.github.im.server.service.UserService;
 import jakarta.validation.Valid;
