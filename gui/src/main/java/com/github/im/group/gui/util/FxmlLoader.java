@@ -123,7 +123,6 @@ public class FxmlLoader implements ApplicationContextAware {
 
             var scene = new Scene(load);
 
-//            scene.getStylesheets().add(Ma)
             return scene;
 
         } catch (Exception e) {

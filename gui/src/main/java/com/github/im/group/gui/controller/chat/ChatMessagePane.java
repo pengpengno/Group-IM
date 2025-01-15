@@ -1,24 +1,36 @@
 package com.github.im.group.gui.controller.chat;
 
 import com.github.im.common.connect.connection.client.ClientToolkit;
+import com.github.im.common.connect.connection.client.ReactiveClientAction;
 import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.model.proto.Chat;
-import com.github.im.group.gui.context.UserInfoContext;
+import com.github.im.dto.user.UserInfo;
+import com.jfoenix.controls.JFXTextArea;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXScrollPane;
 import io.github.palexdev.materialfx.enums.ButtonType;
+import io.github.palexdev.materialfx.utils.ScrollUtils;
 import jakarta.annotation.PostConstruct;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.fxml.Initializable;
-import javafx.scene.control.TextArea;
+import javafx.geometry.Insets;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 
 import java.net.URL;
+import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.function.Supplier;
 
 /**
  * Description:
@@ -32,18 +44,40 @@ import java.util.ResourceBundle;
  * @since 2025/1/9
  */
 @Component
+@Scope("prototype")
 @Slf4j
 public class ChatMessagePane extends BorderPane implements Initializable {
 
 
-    private TextArea messageSendArea; // message send area
+//    private MFXTextField messageSendArea; // message send area
+    private JFXTextArea messageSendArea; // message send area
 
 
-    private TextArea messageDisplayArea;
+    private String sessionId ; // session id
+
+    @Getter
+    @Setter
+    private UserInfo toAccountInfo;
+
+
+    private VBox messageDisplayArea; // 设置每条消息之间的间距
+
+    private MFXScrollPane scrollPane; // 设置每条消息之间的间距
 
 
     private SendMessagePane sendMessagePane;
 
+
+    @Autowired
+    private ReactiveClientAction clientAction; ;
+
+
+
+    /**
+     * send message pane
+     * contains
+     * Button send
+     */
     public static class SendMessagePane extends AnchorPane implements Initializable {
 
 
@@ -53,60 +87,113 @@ public class ChatMessagePane extends BorderPane implements Initializable {
             initialize();
         }
 
+
+        /**
+         *  set send message action
+         * @param messageSendAction
+         */
+        private SendMessagePane(Mono<Void> messageSendAction){
+            initialize();
+            sendButton.setOnAction(event -> {
+                messageSendAction.subscribe();
+            });
+        }
+
+
+
         @Override
         public void initialize(URL location, ResourceBundle resources) {
 
         }
-//        @PostConstruct
+
+        @PostConstruct
         public void initialize() {
             // 初始化  将文本域 放在 boderpane 最上方
             sendButton = new MFXButton("发送");
             sendButton.setButtonType(ButtonType.RAISED);
+            sendButton.setRippleColor(javafx.scene.paint.Color.DARKSEAGREEN);
+            // 设置按钮的右下角位置
 
-            sendButton.setLayoutX(250); // Example: Set position in AnchorPane
-            sendButton.setLayoutY(10); // Example: Set position in AnchorPane
+            AnchorPane.setBottomAnchor(sendButton, 10.0);  // 设置底部距 10 像素
+            AnchorPane.setRightAnchor(sendButton, 10.0);   // 设置右侧距 10 像素
 
             this.getChildren().add(sendButton);
+
             this.setPrefHeight(50); // Set the height for the send area
 
-
         }
-
-
 
 
     }
 
-    private void sendMessage() {
-        String message = messageSendArea.getText();
-        if (message == null || message.isBlank()) {
-            return;
-        }
+    /**
+     * 发送消息
+     *
+     * @return
+     */
+    private Mono<Void> sendMessage() {
+        // 获取输入消息
+        return Mono.defer(()-> Mono.fromCallable(()->messageSendArea.getText()))
+                .filter(message -> !message.isBlank()) // 过滤空消息
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Message cannot be blank")))
+                .flatMap(message -> {
+                    // 获取目标用户信息
+                    return Mono.justOrEmpty(getToAccountInfo())
+                            .switchIfEmpty(Mono.error(new IllegalArgumentException("Target user is not selected")))
+                            .map(userInfo -> {
+                                // 构造 AccountInfo
+                                var accountInfo = Account.AccountInfo.newBuilder()
+                                        .setUserId(userInfo.getUserId())
+                                        .setAccount(userInfo.getUsername())
+                                        .build();
 
-        log.debug("Sending message: " + message);
-
-        var userInfo = UserInfoContext.getCurrentUser();
-        var accountInfo = Account.AccountInfo.newBuilder()
-                .setUserId(userInfo.getUserId())
-                .setAccountName(userInfo.getUsername())
-                .build();
-
-        Chat.ChatMessage chatMessage = Chat.ChatMessage.newBuilder()
-                .setToAccountInfo(accountInfo)
-                .setContent(message)
-                .build();
-
-        var baseChatMessage = BaseMessage.BaseMessagePkg.newBuilder()
-                .setMessage(chatMessage)
-                .build();
-
-        ClientToolkit.reactiveClientAction().sendMessage(baseChatMessage).doOnSuccess(response -> {
-            Platform.runLater(() -> {
-//                    chatContent.appendText("You: " + message + "\n");
-//                    messageInput.clear();
-            });
-        }).subscribe();
+                                // 构造 ChatMessage
+                                return Chat.ChatMessage.newBuilder()
+                                        .setToAccountInfo(accountInfo)
+                                        .setContent(message)
+                                        .build();
+                            })
+                            .map(chatMessage -> {
+                                // 构造 BaseMessagePkg
+                                return BaseMessage.BaseMessagePkg.newBuilder()
+                                        .setMessage(chatMessage)
+                                        .build();
+                            })
+                            .flatMap(baseChatMessage -> {
+                                // 发送消息
+                                return ClientToolkit.reactiveClientAction()
+                                        .sendMessage(baseChatMessage)
+                                        .doOnSuccess(response -> {
+                                            // 更新 UI
+                                            Platform.runLater(() -> {
+                                                addMessageBubble(message); // 添加消息气泡
+                                                messageSendArea.clear();   // 清空输入框
+                                                scrollPane.setVvalue(1.0); // 滚动到底部
+                                            });
+                                        });
+                            });
+                })
+                .then()
+                .onErrorResume(e -> {
+                    log.error("Failed to send message: {}", e.getMessage());
+                    return Mono.empty(); // 忽略错误，或者显示提示
+                })
+                .checkpoint()
+                ;
     }
+
+
+    /**
+     * Adds a new message bubble to the display area on the JavaFX Application Thread.
+     *
+     * @param message            The message content
+     */
+    public  void addMessageBubble( String message) {
+        Platform.runLater(() -> messageDisplayArea.getChildren().add(new ChatBubblePane(message)));
+    }
+
+
+
 
 
     @Override
@@ -117,44 +204,43 @@ public class ChatMessagePane extends BorderPane implements Initializable {
     @PostConstruct
     public void initialize() {
         // Initialize message display area
-        messageDisplayArea = new TextArea();
-        messageDisplayArea.setEditable(false); // Message display should be non-editable
-        messageDisplayArea.setWrapText(true);
+        messageDisplayArea = new VBox(10);
+        messageDisplayArea.setPadding(new Insets(10)); // 设置内边距
+
 
         // Initialize send message area
-        messageSendArea = new TextArea();
-        messageSendArea.setPromptText("Type a message..."); // Placeholder text
+//        messageSendArea = new MFXTextField();
+        messageSendArea = new JFXTextArea();
 
         // Create a scroll pane for message display area
-        MFXScrollPane scrollPane = new MFXScrollPane(messageDisplayArea);
+        scrollPane = new MFXScrollPane(messageDisplayArea);
         scrollPane.setFitToWidth(true);
-        scrollPane.setFitToHeight(true);
+        ScrollUtils.addSmoothScrolling(scrollPane);
 
-        // Place the message display area inside the center of BorderPane
-        this.setCenter(scrollPane);
 
-        // Place the send message area at the bottom of the BorderPane
-        this.setBottom(messageSendArea);
+        scrollPane.setPrefHeight(300);
+
+        messageSendArea.setPrefHeight(200); // 设置组件的最小高度
 
         // Create a SendMessagePane instance and place it in the bottom-right corner
-        SendMessagePane sendMessagePane = new SendMessagePane();
-        this.setRight(sendMessagePane);
 
-        sendMessagePane.sendButton.setOnAction(event -> {
-            sendMessage();
+//        this.prefHeightProperty().bind(Bindings.multiply(this.heightProperty(), 0.2));
+
+        sendMessagePane = new SendMessagePane(sendMessage());
+        sendMessagePane.setPrefHeight(50);
+
+        sendMessagePane.prefHeightProperty().bind(Bindings.multiply(this.heightProperty(), 0.1));
+
+        // Vbox 每次变动都会滚动到最底部
+        messageDisplayArea.heightProperty().addListener((observable, oldValue, newValue) -> {
+            scrollPane.setVvalue(1.0); // Scroll to the bottom
         });
 
-        // Optional: You can add logic to handle message sending with the send button
+        this.setTop(scrollPane);
+        this.setCenter(messageSendArea);
+        this.setBottom(sendMessagePane);
+
     }
 
 
-    private void loadChatContent(String friendName) {
-        log.debug("Loading chat content for: " + friendName);
-
-//        chatContent.clear();
-//        // Example: Simulate fetching chat history (replace with backend call)
-//        chatContent.appendText("Chat with " + friendName + "\n");
-//        chatContent.appendText("Friend: Hi there!\n");
-//        chatContent.appendText("You: Hello!\n");
-    }
 }

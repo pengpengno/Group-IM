@@ -39,6 +39,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static io.github.palexdev.materialfx.MFXResourcesLoader.loadURL;
 
@@ -89,81 +90,17 @@ public class MainController {
 
     @FXML
     public void initialize() {
-        chatMainPane.initialize(null, null);
+//        chatMainPane.initialize(null, null);
+        chatMainPane.loadFriendList();
         rootpane.setCenter(chatMainPane);
-
 
         closeIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> Platform.exit());
         minimizeIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event ->
                 ((Stage) rootpane.getScene().getWindow()).setIconified(true));
 
-//        alwaysOnTopIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
-//            boolean newVal = !stage.isAlwaysOnTop();
-//            alwaysOnTopIcon.pseudoClassStateChanged(PseudoClass.getPseudoClass("always-on-top"), newVal);
-//            stage.setAlwaysOnTop(newVal);
-//        });
-
         sendMessageButton.setButtonType(ButtonType.FLAT);
 
-//        sendMessageButton.setOnAction(event -> sendMessage());
-
-        // Example action for loading chat content
-//        conversationList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-//            if (newValue != null) {
-//                loadChatContent(newValue);
-//            }
-//        });
     }
 
-//    private static ToggleButton createToggle(String icon, String text) {
-//        return createToggle(icon, text, 0);
-//    }
-
-//    private static ToggleButton createToggle(String icon, String text, double rotate) {
-//        MFXIconWrapper wrapper = new MFXIconWrapper(icon, 24, 32);
-//        MFXRectangleToggleNode toggleNode = new MFXRectangleToggleNode(text, wrapper);
-//        toggleNode.setAlignment(Pos.CENTER_LEFT);
-//        toggleNode.setMaxWidth(Double.MAX_VALUE);
-////        toggleNode.setToggleGroup(toggleGroup);
-//        toggleNode.setToggleGroup(new ToggleGroup());
-//        if (rotate != 0) wrapper.getIcon().setRotate(rotate);
-//        return toggleNode;
-//    }
-
-    // Load the friend list from the backend
-//    private void loadFriendList() {
-//        log.debug("Loading friend list...");
-//
-//        Long userId = UserInfoContext.getCurrentUser().getUserId();
-//        Mono<List<FriendshipDTO>> friendListMono = friendShipEndpoint.getFriends(userId);
-//
-//        friendListMono.doOnError(error -> log.error("Failed to load friends", error))
-//                .doOnSuccess(this::updateFriendList)
-//                .subscribe();
-//    }
-//
-//    // Update the UI with the loaded friend list
-//    private void updateFriendList(List<FriendshipDTO> friendships) {
-//        Platform.runLater(() -> {
-//            conversationList.getItems().clear();
-//            friendships.forEach(friendship -> {
-//                String friendName = friendship.getFriendUserInfo().getUsername();
-//                conversationList.getItems().add(friendName);
-//            });
-//        });
-//    }
-
-//    // Load chat content for a selected conversation
-//    private void loadChatContent(String friendName) {
-//        log.debug("Loading chat content for: " + friendName);
-//
-//        chatContent.clear();
-//        // Example: Simulate fetching chat history (replace with backend call)
-//        chatContent.appendText("Chat with " + friendName + "\n");
-//        chatContent.appendText("Friend: Hi there!\n");
-//        chatContent.appendText("You: Hello!\n");
-//    }
-
-    // Send a message
 
 }

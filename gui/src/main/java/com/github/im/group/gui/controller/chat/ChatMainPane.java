@@ -1,26 +1,29 @@
 package com.github.im.group.gui.controller.chat;
 
 import com.github.im.dto.user.FriendshipDTO;
+import com.github.im.dto.user.UserInfo;
 import com.github.im.group.gui.api.FriendShipEndpoint;
 import com.github.im.group.gui.context.UserInfoContext;
-import io.github.palexdev.materialfx.controls.MFXTextField;
 import jakarta.annotation.PostConstruct;
 import javafx.application.Platform;
-import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.VBox;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Lookup;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
  * Description:
@@ -42,29 +45,31 @@ import java.util.ResourceBundle;
 @RequiredArgsConstructor
 public class ChatMainPane extends BorderPane implements Initializable {
 
-    private VBox chatVBox ; // 防止 拉取的 好友会话列表的 VBox
 
     private ListView<ChatInfoPane> conversationList;
-//    private ListView<String> conversationList;
 
-    private final ChatMessagePane chatPane;
+    private ChatMessagePane currentChatPane;
 
     private final FriendShipEndpoint friendShipEndpoint;
 
 
+    private ConcurrentHashMap<String, ChatMessagePane>  chatPaneMap = new ConcurrentHashMap<>();
 
 
 
     public static class ChatInfoPane extends AnchorPane implements Initializable{
 
         private Label chatNameLabel ;
-
+        @Getter
+//        @Setter
+        private UserInfo userInfo;
 
         private Label  recentMessageLabel ; // 最近的 消息
 
 
-        public ChatInfoPane(String chatName){
-            chatNameLabel = new Label(chatName);
+        public ChatInfoPane(UserInfo userInfo){
+            var username = userInfo.getUsername();
+            chatNameLabel = new Label(username);
             this.getChildren().add(chatNameLabel);
         }
 
@@ -82,17 +87,57 @@ public class ChatMainPane extends BorderPane implements Initializable {
         Platform.runLater(() -> {
             conversationList.getItems().clear();
             friendships.forEach(friendship -> {
-                String friendName = friendship.getFriendUserInfo().getUsername();
-                conversationList.getItems().add(new ChatInfoPane(friendName));
+                var friendUserInfo = friendship.getFriendUserInfo();
+                var chatInfoPane = new ChatInfoPane(friendUserInfo);
+                chatInfoPane.setOnMouseClicked(mouseEvent -> {
+                    log.debug("click chatInfo pane");
+                    var chatMessagePane = getChatMessagePane(friendUserInfo);
+                    switchChatPane(chatMessagePane);
+                });
+                conversationList.getItems().add(chatInfoPane);
             });
         });
     }
 
+    public ChatMessagePane getChatMessagePane (UserInfo userInfo) {
+
+        var username = userInfo.getUsername();
+
+        if (chatPaneMap.containsKey(username)){
+            return chatPaneMap.get(username);
+        }else{
+            var newChatPane = createChatMessagePane();
+//            newChatPane.initialize();
+            newChatPane.setToAccountInfo(userInfo);
+            chatPaneMap.putIfAbsent(username, newChatPane);
+            return newChatPane;
+        }
 
 
-    public  void switchChatPane(){
+    }
 
-        // 切换不同的聊天窗体
+    @Lookup
+    protected ChatMessagePane createChatMessagePane() {
+        // Spring 会自动注入此方法的实现，无需手动实现
+        return null;
+    }
+
+
+    /**
+     * 切换聊天的窗体
+     * @param chatMessagePane
+     */
+    public void switchChatPane(ChatMessagePane chatMessagePane){
+
+        Platform.runLater(() -> {
+            currentChatPane = chatMessagePane;
+
+            if (currentChatPane != null){
+                this.setCenter(currentChatPane);
+            }
+        });
+
+
     }
 
     @PostConstruct
@@ -103,39 +148,28 @@ public class ChatMainPane extends BorderPane implements Initializable {
 
         this.setLeft(conversationList);
 
-        chatPane.initialize(null,null);
     }
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
 
-
-        loadFriendList();
-
+//        loadFriendList();
 
     }
 
     // Load the friend list from the backend
-    private void loadFriendList() {
+    public void loadFriendList() {
         log.debug("Loading friend list...");
 
         Long userId = UserInfoContext.getCurrentUser().getUserId();
         Mono<List<FriendshipDTO>> friendListMono = friendShipEndpoint.getFriends(userId);
 
 
-        // Example action for loading chat content
-        conversationList.getSelectionModel().selectedItemProperty()
-                .addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
-                var chatNameLabel = newValue.chatNameLabel;
-                log.info("click {}",chatNameLabel);
-//                loadChatContent(newValue);
-            }
-        });
         friendListMono.doOnError(error -> log.error("Failed to load friends", error))
                 .doOnSuccess(this::updateFriendList)
                 .subscribe();
     }
+
 
 
 

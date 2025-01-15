@@ -16,6 +16,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.kordamp.bootstrapfx.BootstrapFX;
+import org.scenicview.ScenicView;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -43,8 +44,6 @@ public class Main extends Application {
 
     @Override
     public void start(Stage primaryStage) throws IOException {
-
-//        CSSFX.start();
 
         UserAgentBuilder.builder()
                 .themes(JavaFXThemes.MODENA)
@@ -85,16 +84,14 @@ public class Main extends Application {
 
         var scene = FxmlLoader.getSceneInstance(LoginView.class);
 
-
         scene.setFill(Color.TRANSPARENT);
-        primaryStage.initStyle(StageStyle.TRANSPARENT);
-        // 加载BootstrapFX样式
-//        scene.getStylesheets().add(BootstrapFX.bootstrapFXStylesheet());
-//        scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
+//        primaryStage.initStyle(StageStyle.TRANSPARENT);
+//        ScenicView.show(scene);
+
         primaryStage.setScene(scene);
         primaryStage.setMinWidth(800);
         primaryStage.setMinHeight(600);
-
+        primaryStage.setResizable(true);
         primaryStage.show();
 
         StageManager.setPrimaryStage(primaryStage);

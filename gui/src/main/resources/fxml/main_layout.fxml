@@ -23,14 +23,14 @@
     <!-- 左侧菜单栏 -->
     <left>
 
-        <VBox fx:id="iconMenu" spacing="10" prefWidth="100" style="-fx-background-color: #2e3b4e;">
-            <MFXButton fx:id="messagesButton" text="Messages">
-                <graphic>
-                    <ImageView fx:id="meetingsIcon" fitHeight="20" fitWidth="20" preserveRatio="true"
-                               pickOnBounds="true"
-                    />
-                </graphic>
-            </MFXButton>
+        <VBox fx:id="iconMenu" spacing="10" prefWidth="100" styleClass="sidebar" >
+<!--            <MFXButton fx:id="messagesButton" text="Messages">-->
+<!--                <graphic>-->
+<!--                    <ImageView fx:id="meetingsIcon" fitHeight="20" fitWidth="20" preserveRatio="true"-->
+<!--                               pickOnBounds="true"-->
+<!--                    />-->
+<!--                </graphic>-->
+<!--            </MFXButton>-->
             <MFXButton text="Mail" />
             <MFXButton text="Documents"/>
             <MFXButton text="Schedule"/>
