@@ -6,6 +6,8 @@ import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.dto.user.UserInfo;
+import com.github.im.group.gui.connect.handler.EventBus;
+import com.github.im.group.gui.context.UserInfoContext;
 import com.jfoenix.controls.JFXTextArea;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXScrollPane;
@@ -26,11 +28,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.net.URL;
-import java.util.Optional;
 import java.util.ResourceBundle;
-import java.util.function.Supplier;
 
 /**
  * Description:
@@ -49,8 +50,10 @@ import java.util.function.Supplier;
 public class ChatMessagePane extends BorderPane implements Initializable {
 
 
-//    private MFXTextField messageSendArea; // message send area
     private JFXTextArea messageSendArea; // message send area
+
+    @Autowired
+    private EventBus bus;
 
 
     private String sessionId ; // session id
@@ -117,13 +120,29 @@ public class ChatMessagePane extends BorderPane implements Initializable {
             AnchorPane.setBottomAnchor(sendButton, 10.0);  // 设置底部距 10 像素
             AnchorPane.setRightAnchor(sendButton, 10.0);   // 设置右侧距 10 像素
 
-            this.getChildren().add(sendButton);
 
+            this.getChildren().add(sendButton);
             this.setPrefHeight(50); // Set the height for the send area
 
         }
 
 
+    }
+
+
+    /**
+     * receive chat message Event
+     * @return
+     */
+    public Mono<Void>  receiveChatMessageEvent() {
+        return bus.asFlux().ofType(Chat.ChatMessage.class )
+                .doOnNext(chatmessage -> {
+                    var fromAccountInfo = chatmessage.getFromAccountInfo();
+                    var account = fromAccountInfo.getAccount();
+                    addMessageBubble(account, chatmessage.getContent()); // 添加消息气泡
+                })
+                .then()
+                ;
     }
 
     /**
@@ -141,20 +160,15 @@ public class ChatMessagePane extends BorderPane implements Initializable {
                     return Mono.justOrEmpty(getToAccountInfo())
                             .switchIfEmpty(Mono.error(new IllegalArgumentException("Target user is not selected")))
                             .map(userInfo -> {
-                                // 构造 AccountInfo
                                 var accountInfo = Account.AccountInfo.newBuilder()
                                         .setUserId(userInfo.getUserId())
                                         .setAccount(userInfo.getUsername())
                                         .build();
-
-                                // 构造 ChatMessage
-                                return Chat.ChatMessage.newBuilder()
+                                var chatMessage = Chat.ChatMessage.newBuilder()
                                         .setToAccountInfo(accountInfo)
+                                        .setFromAccountInfo(UserInfoContext.getAccountInfo())
                                         .setContent(message)
                                         .build();
-                            })
-                            .map(chatMessage -> {
-                                // 构造 BaseMessagePkg
                                 return BaseMessage.BaseMessagePkg.newBuilder()
                                         .setMessage(chatMessage)
                                         .build();
@@ -163,6 +177,8 @@ public class ChatMessagePane extends BorderPane implements Initializable {
                                 // 发送消息
                                 return ClientToolkit.reactiveClientAction()
                                         .sendMessage(baseChatMessage)
+                                        .subscribeOn(Schedulers.boundedElastic()) // 网络请求放入后台线程池
+
                                         .doOnSuccess(response -> {
                                             // 更新 UI
                                             Platform.runLater(() -> {
@@ -192,6 +208,10 @@ public class ChatMessagePane extends BorderPane implements Initializable {
         Platform.runLater(() -> messageDisplayArea.getChildren().add(new ChatBubblePane(message)));
     }
 
+    public  void addMessageBubble( String sender , String message) {
+        Platform.runLater(() -> messageDisplayArea.getChildren().add(new ChatBubblePane(sender,message)));
+    }
+
 
 
 
@@ -203,6 +223,10 @@ public class ChatMessagePane extends BorderPane implements Initializable {
 
     @PostConstruct
     public void initialize() {
+        // 监听聊天消息事件
+        receiveChatMessageEvent().subscribe();
+
+
         // Initialize message display area
         messageDisplayArea = new VBox(10);
         messageDisplayArea.setPadding(new Insets(10)); // 设置内边距

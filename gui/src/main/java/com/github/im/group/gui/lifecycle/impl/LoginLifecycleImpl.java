@@ -65,6 +65,8 @@ public class LoginLifecycleImpl implements LoginLifecycle {
             var accountInfo = Account.AccountInfo.newBuilder()
                     .setUserId(userInfo.getUserId())
                     .setAccountName(userInfo.getUsername())
+                    .setAccount(userInfo.getUsername())
+                    .setEMail(userInfo.getEmail())
                     .build();
 
             var baseMessage = BaseMessage.BaseMessagePkg.newBuilder()

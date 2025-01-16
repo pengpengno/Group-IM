@@ -51,17 +51,16 @@ public class ChatBubblePane extends HBox {
     private Label senderLabel;
 
 
-//    private MFXTextField senderTextField;
-//    private JFXTextArea senderTextField;
     private TextArea senderTextField;
 //    private InlineCssTextArea senderTextField;
 
 
-
-
-    public ChatBubblePane(String sender ,String message) {
-        init(message, sender, false);
-    }
+    /**
+     *
+     * @param message message text
+     * @param name  sender
+     * @param isSent  isCurrentSender , if true , the avatar is on the right side
+     */
     private void init(String message, String name , boolean isSent) {
 
         this.setSpacing(10); // 间距
@@ -122,6 +121,7 @@ public class ChatBubblePane extends HBox {
 
     }
 
+
     protected ChatBubblePane(String message){
 
         var currentUser = UserInfoContext.getCurrentUser();
@@ -132,48 +132,8 @@ public class ChatBubblePane extends HBox {
 
     }
 
-    public ChatBubblePane(String sender, String message,  boolean isSent) {
-        this.setSpacing(10); // 间距
-        this.setPadding(new Insets(10));
-        this.setAlignment(isSent ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT); // 根据消息类型调整对齐
-        avatar = new ImageView( AvatarGenerator.generateAvatar(sender, 100));;
-
-        avatar.setFitWidth(40);
-        avatar.setFitHeight(40);
-        avatar.setStyle("-fx-effect: dropshadow(gaussian, gray, 4, 0.5, 0, 0);"); // 添加阴影效果
-
-        // 创建发送者名称
-
-        senderLabel = new Label(sender);
-        senderLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: gray;");
-
-        // 创建消息文本
-        Text messageText = new Text(message);
-        messageText.setFill(Color.WHITE);
-
-        // 包裹消息文本的 TextFlow
-        TextFlow messageBubble = new TextFlow(messageText);
-        messageBubble.setPadding(new Insets(10));
-        messageBubble.setStyle("-fx-background-color: " + (isSent ? "#4caf50" : "#2196f3") + ";"
-                + "-fx-background-radius: 15;");
-        messageBubble.setMaxWidth(250); // 限制最大宽度
-        messageBubble.setLineSpacing(2);
-//        messageBubble
-
-        // 消息部分 (包含发送者名称和气泡)
-        VBox messageBox = new VBox(5);
-        if (!isSent) {
-            messageBox.getChildren().add(senderLabel);
-        }
-        messageBox.getChildren().add(messageBubble);
-
-        // 根据消息类型添加组件顺序
-        if (isSent) {
-            this.getChildren().addAll(messageBox, avatar); // 自己的消息：消息在左，头像在右
-        } else {
-            this.getChildren().addAll(avatar, messageBox); // 对方的消息：头像在左，消息在右
-        }
-
+    public ChatBubblePane(String sender, String message) {
+        init(message, sender, false);
     }
 
 

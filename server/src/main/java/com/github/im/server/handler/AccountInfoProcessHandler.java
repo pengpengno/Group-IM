@@ -46,24 +46,20 @@ public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
             connection.channel().attr(ConnectionConstants.BING_ACCOUNT_KEY).set(accountInfo);
 
             // 过滤出符合条件的消息，并发送
-            var chatMessages = ReactiveConnectionManager.getChatMessages();
+            var chatMessages = ReactiveConnectionManager.getChatMessages(accountInfo);
+            var account = accountInfo.getAccount();
             chatMessages
-                    .filter(chatMessage -> accountInfo.getAccount().equals(chatMessage.getToAccountInfo().getAccount())
+                    .filter(chatMessage -> account.equals(chatMessage.getToAccountInfo().getAccount())
                             &&!con.isDisposed())  // 过滤条件
                     .doOnNext(chatMessage -> {
                         // 可以在此进行日志记录等操作
-                        log.debug("Sending chat message to: {}", accountInfo.getAccount());
+                        log.debug("Sending chat message to: {}", account);
                     })
                     .flatMap(chatMessage -> {
-                        // 返回消息流给 connection.outbound() 进行发送
-                        Chat.ChatMessage.Builder builder = Chat.ChatMessage.newBuilder()
-                                .setFromAccountInfo(chatMessage.getFromAccountInfo())
-                                .setToAccountInfo(chatMessage.getToAccountInfo())
-                                .setContent("111111111111111")
-                                ;
+//                        // 返回消息流给 connection.outbound() 进行发送
 
                         var baseChatMessage = BaseMessage.BaseMessagePkg.newBuilder()
-                                .setMessage(builder.build())
+                                .setMessage(chatMessage)
                                 .build();
                         return connection.outbound().sendObject(Mono.just(baseChatMessage));
                     }).checkpoint()
@@ -72,7 +68,7 @@ public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
                         log.debug("Chat message stream completed.");
                     })
                     .doOnError(ex -> {
-                        log.error("Error occurred while sending chat message to: {}", accountInfo.getAccount(), ex);
+                        log.error("Error occurred while sending chat message to: {}", account, ex);
                     })
                     .subscribe(
                             // 订阅并处理流
@@ -82,6 +78,7 @@ public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
             // 监听连接关闭事件，当连接被关闭时取消订阅
             con.onDispose()
                 .doOnTerminate(() -> {
+                    ReactiveConnectionManager.unSubscribe(accountInfo);
                     // 连接关闭时，取消订阅，执行清理操作
                     log.debug("Connection closed, cancelling message stream subscription.");
                     chatMessages.subscribe().dispose();  // 显式取消流的订阅

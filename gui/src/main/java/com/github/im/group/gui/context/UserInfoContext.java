@@ -1,7 +1,10 @@
 package com.github.im.group.gui.context;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
+import com.github.im.common.connect.model.proto.Account;
 import com.github.im.dto.user.UserInfo;
+
+import java.util.Optional;
 
 /**
  * Description:
@@ -18,6 +21,8 @@ public class UserInfoContext {
 
 
 
+//    private static final AccountInfo
+
 
     // 设置当前用户
     public static void setCurrentUser(UserInfo user) {
@@ -27,6 +32,24 @@ public class UserInfoContext {
     // 获取当前用户
     public static UserInfo getCurrentUser() {
         return currentUserThreadLocal.get();
+    }
+
+    public static Account.AccountInfo getAccountInfo() {
+
+
+        return Optional.ofNullable(getCurrentUser()).map(userInfo -> {
+            // 获取当前用户信息
+            // ...
+            Account.AccountInfo accountInfo = Account.AccountInfo.newBuilder()
+                    .setUserId(userInfo.getUserId())
+                    .setAccount(userInfo.getUsername())
+                    .setAccountName(userInfo.getUsername())
+                    .setEMail(userInfo.getEmail())
+                    .build();
+            return accountInfo;
+        }).orElse( Account.AccountInfo.newBuilder().build());
+
+
     }
 
     // 清除当前用户

@@ -3,6 +3,7 @@ package com.github.im.group.gui.connect.handler;
 import com.github.im.common.connect.connection.server.ProtoBufProcessHandler;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Hooks;
 import reactor.netty.Connection;
@@ -14,6 +15,9 @@ import reactor.netty.Connection;
 @Slf4j
 public class ClientChatProcessServiceHandler implements ProtoBufProcessHandler {
 
+    @Autowired
+    private EventBus eventBus;
+
     @Override
     public BaseMessage.BaseMessagePkg.PayloadCase type() {
 
@@ -24,10 +28,13 @@ public class ClientChatProcessServiceHandler implements ProtoBufProcessHandler {
     public void process(Connection con, BaseMessage.BaseMessagePkg message) {
 
         Hooks.onOperatorDebug();
+
         var chatMessage = message.getMessage();
 
-
         log.info("ChatProcessServiceHandler{}",chatMessage);
+
+        eventBus.publish(chatMessage);
+
 
     }
 }
