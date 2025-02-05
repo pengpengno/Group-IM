@@ -33,10 +33,10 @@ jobs:
 #          fileName: 'my.keystore'
 #          encodedString: ${{ secrets.GLUON_ANDROID_KEYSTORE_BASE64 }}
 
-      - name: Gluon License
-        uses: gluonhq/gluon-build-license@v1
-        with:
-          gluon-license: ${{ secrets.GLUON_LICENSE }}
+#      - name: Gluon License
+#        uses: gluonhq/gluon-build-license@v1
+#        with:
+#          gluon-license: ${{ secrets.GLUON_LICENSE }}
 
 
       - name: Gluon Build
