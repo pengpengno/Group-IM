@@ -8,12 +8,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Setup Gluon's GraalVM
         uses: gluonhq/setup-graalvm@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '21'
 
       - name: Install libraries
         run: |
@@ -32,6 +38,7 @@ jobs:
         with:
           gluon-license: ${{ secrets.GLUON_LICENSE }}
 
+
       - name: Gluon Build
         run: |
           export ANDROID_SDK=$ANDROID_HOME
@@ -49,7 +56,7 @@ jobs:
         run: cp -r target/gluonfx/aarch64-android/gvm/HelloGluon.* staging
 
       - name: Upload
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: Package
           path: staging
