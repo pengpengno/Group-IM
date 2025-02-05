@@ -23,7 +23,7 @@ import java.util.ResourceBundle;
 
 @Service
 @Slf4j
-@FxView(path = "register_view")
+@FxView(path = "register_view",viewName = "REGISTER_VIEW")
 public class RegisterView extends VBox implements Initializable {
 
     @FXML

@@ -24,7 +24,7 @@ import java.util.ResourceBundle;
 
 @Service
 @Slf4j
-@FxView(path = "login_view")
+@FxView(path = "login_view",viewName = "LOGIN_VIEW")
 @RequiredArgsConstructor
 public class LoginView extends StackPane implements Initializable {
 

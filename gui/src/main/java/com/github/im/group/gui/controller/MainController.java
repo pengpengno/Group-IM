@@ -45,7 +45,7 @@ import static io.github.palexdev.materialfx.MFXResourcesLoader.loadURL;
 
 @Service
 @Slf4j
-@FxView(path = "main_layout")
+@FxView(path = "main_layout",viewName = "MAIN_VIEW")
 public class MainController {
 
     @Autowired

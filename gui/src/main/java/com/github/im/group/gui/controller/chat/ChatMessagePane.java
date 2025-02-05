@@ -37,7 +37,6 @@ import java.util.ResourceBundle;
  * Description:
  * <p>
  *     chat message pane , include  message send area , messageDisplay Area;
- *
  * </p>
  *
  * @author pengpeng
@@ -52,24 +51,19 @@ public class ChatMessagePane extends BorderPane implements Initializable {
 
     private JFXTextArea messageSendArea; // message send area
 
-    @Autowired
-    private EventBus bus;
-
-
-    private String sessionId ; // session id
-
     @Getter
     @Setter
     private UserInfo toAccountInfo;
-
 
     private VBox messageDisplayArea; // 设置每条消息之间的间距
 
     private MFXScrollPane scrollPane; // 设置每条消息之间的间距
 
-
     private SendMessagePane sendMessagePane;
 
+
+    @Autowired
+    private EventBus bus;
 
     @Autowired
     private ReactiveClientAction clientAction; ;
@@ -111,12 +105,12 @@ public class ChatMessagePane extends BorderPane implements Initializable {
 
         @PostConstruct
         public void initialize() {
-            // 初始化  将文本域 放在 boderpane 最上方
+            // 初始化  将文本域 放在 BorderPane 最上方
             sendButton = new MFXButton("发送");
             sendButton.setButtonType(ButtonType.RAISED);
             sendButton.setRippleColor(javafx.scene.paint.Color.DARKSEAGREEN);
-            // 设置按钮的右下角位置
 
+            // 设置按钮的右下角位置
             AnchorPane.setBottomAnchor(sendButton, 10.0);  // 设置底部距 10 像素
             AnchorPane.setRightAnchor(sendButton, 10.0);   // 设置右侧距 10 像素
 
@@ -126,16 +120,17 @@ public class ChatMessagePane extends BorderPane implements Initializable {
 
         }
 
-
     }
 
 
     /**
      * receive chat message Event
-     * @return
+     * @return chat message event mono
      */
     public Mono<Void>  receiveChatMessageEvent() {
         return bus.asFlux().ofType(Chat.ChatMessage.class )
+                .filter(chatmessage -> chatmessage.getToAccountInfo().getAccount()
+                        .equals(getToAccountInfo().getUsername()))
                 .doOnNext(chatmessage -> {
                     var fromAccountInfo = chatmessage.getFromAccountInfo();
                     var account = fromAccountInfo.getAccount();
@@ -204,11 +199,16 @@ public class ChatMessagePane extends BorderPane implements Initializable {
      *
      * @param message            The message content
      */
-    public  void addMessageBubble( String message) {
+    private   void addMessageBubble( String message) {
         Platform.runLater(() -> messageDisplayArea.getChildren().add(new ChatBubblePane(message)));
     }
 
-    public  void addMessageBubble( String sender , String message) {
+    /**
+     * Adds a new message bubble to the display area on the JavaFX Application Thread.
+     * @param sender message sender
+     * @param message  message content
+     */
+    private  void addMessageBubble( String sender , String message) {
         Platform.runLater(() -> messageDisplayArea.getChildren().add(new ChatBubblePane(sender,message)));
     }
 
@@ -247,8 +247,6 @@ public class ChatMessagePane extends BorderPane implements Initializable {
         messageSendArea.setPrefHeight(200); // 设置组件的最小高度
 
         // Create a SendMessagePane instance and place it in the bottom-right corner
-
-//        this.prefHeightProperty().bind(Bindings.multiply(this.heightProperty(), 0.2));
 
         sendMessagePane = new SendMessagePane(sendMessage());
         sendMessagePane.setPrefHeight(50);

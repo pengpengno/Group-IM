@@ -22,6 +22,9 @@ message ChatMessage  {
 
   AccountInfo toAccountInfo = 8 ;
 
+  sint32 clientTimeStamp = 7 ;
+  sint32 serverTimeStamp = 12 ;
+
   MessageType type = 6 ;
 
   google.protobuf.Any chat = 10;

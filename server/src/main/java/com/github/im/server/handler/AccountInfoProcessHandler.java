@@ -26,8 +26,7 @@ import java.util.Optional;
 @Slf4j
 public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
 
-    private static final Sinks.Many<Connection> connectionsSink =
-            Sinks.many().multicast().directAllOrNothing();
+
 
     @Override
     public BaseMessage.BaseMessagePkg.PayloadCase type() {

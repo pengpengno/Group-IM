@@ -7,9 +7,13 @@ package com.github.im.group.gui.controller;/**
  * @since 06
  */
 
+import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.FxmlLoader;
 import com.github.im.group.gui.util.StageManager;
+import com.gluonhq.charm.glisten.application.AppManager;
+import com.gluonhq.charm.glisten.mvc.View;
 import javafx.application.Platform;
+import javafx.scene.Scene;
 import org.kordamp.bootstrapfx.BootstrapFX;
 
 /**
@@ -25,7 +29,40 @@ import org.kordamp.bootstrapfx.BootstrapFX;
 public interface Display {
 
 
+    /**
+     * 展示当前窗体
+     * 此处使用的事 Gluon 的组件来渲染 窗体
+     * @param displayClass
+     */
     public static  void display(Class<?> displayClass){
+        Platform.runLater(()-> {
+            var appManager = AppManager.getInstance();
+
+            var annotation = displayClass.getAnnotation(FxView.class);
+            if (annotation != null){
+                var viewName = annotation.viewName();
+                appManager.addViewFactory(viewName,()->{
+                    var sceneInstance = FxmlLoader.getSceneInstance(displayClass);
+                    if (sceneInstance != null){
+                        return new View(sceneInstance.getRoot());
+                    }
+                    return new View();
+                });
+                appManager.switchView(viewName);
+            }
+
+        });
+
+
+    }
+
+    /**
+     * 展示当前窗体
+     * 此方法使用的事原始的 Javafx 在 primaryStage 切换 Scene ，在
+     * @param displayClass
+     */
+    @Deprecated
+    public static  void displayV1(Class<?> displayClass){
 
         Platform.runLater(()-> {
 //            Class<? extends Display> displayClass = this.getClass();

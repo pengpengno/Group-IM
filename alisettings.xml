@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+
+
+  <!--
+    仓库的优先级：本地仓库 > settings 中的 profile > pom 中的 repository > mirror
+  -->
+
+<!--  <localRepository>${user.home}/.m2/repository</localRepository>-->
+  <localRepository>D:\workdir\tools\maven\repository</localRepository>
+
+  <mirrors>
+
+    <mirror>
+      <id>aliyunmaven</id>
+      <mirrorOf>*</mirrorOf>
+      <name>阿里云公共仓库</name>
+      <url>https://maven.aliyun.com/repository/public</url>
+    </mirror>
+    <mirror>
+      <id>gluon-mirror</id>
+      <mirrorOf>gluon-releases</mirrorOf>
+      <name>Gluon Releases Repository</name>
+      <url>https://nexus.gluonhq.com/nexus/content/repositories/releases/</url>
+    </mirror>
+  </mirrors>
+  <servers>
+
+    <server>
+      <id>central</id>
+      <username>zNOXrjT5</username>
+      <password>Gn2sT6MD+Mr6GMJSNG50V5949z7g2n4ZWW2JBa7okaTj</password>
+    </server>
+
+
+    <server>
+      <id>ossrh</id>
+      <username>zNOXrjT5</username>
+      <password>Gn2sT6MD+Mr6GMJSNG50V5949z7g2n4ZWW2JBa7okaTj</password>
+    </server>
+  </servers>
+
+
+</settings>
+
+
+
+

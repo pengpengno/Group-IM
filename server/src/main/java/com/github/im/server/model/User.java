@@ -19,6 +19,7 @@ import java.util.Collection;
 @AllArgsConstructor
 @NoArgsConstructor
 public class User implements UserDetails {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long userId;
@@ -49,12 +50,19 @@ public class User implements UserDetails {
     private Status userStatus;
 
 
-    private LocalDateTime createdAt = LocalDateTime.now();
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    private LocalDateTime createdAt ;
+    private LocalDateTime updatedAt ;
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    @PrePersist
+    protected void onPersist() {
+        var now = LocalDateTime.now();
+        this.updatedAt = now;
+        this.createdAt = now;
     }
 
     @Override
@@ -78,7 +86,7 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return Status.ACTIVE.equals(getUserStatus()) ;
     }
 
 

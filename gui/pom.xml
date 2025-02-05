@@ -15,10 +15,38 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <javafx.version>21</javafx.version>
+
+
+        <attach.version>4.0.21</attach.version>
+        <charm.version>6.2.3</charm.version>
+        <gluonfx.maven.plugin.version>1.0.24</gluonfx.maven.plugin.version>
+        <main.class>com.github.meeting.gui.Launcher</main.class>
+        <app.description>The HelloGluon app</app.description>
+        <app.identifier>${main.class}</app.identifier>
+
+
+        <package.type/>
+        <mac.app.store/>
+        <mac.signing.user.name/>
+        <bundle.version/>
+        <bundle.short.version/>
+        <version.code/>
+        <provided.keystore.path/>
+        <provided.keystore.password/>
+        <provided.key.alias/>
+        <provided.key.alias.password/>
     </properties>
 
 
     <dependencies>
+
+        <dependency>
+            <groupId>com.github.im</groupId>
+            <artifactId>gluon-dependency-bom</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <type>pom</type>
+<!--            <scope>import</scope>-->
+        </dependency>
         <dependency>
             <groupId>com.github.im</groupId>
             <artifactId>common</artifactId>
@@ -122,17 +150,83 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>
+
         <dependency>
             <groupId>com.github.im</groupId>
             <artifactId>entity</artifactId>
         </dependency>
 
-
     </dependencies>
 
 
+
+    <repositories>
+        <repository>
+            <id>gluon-releases</id>
+            <url>https://nexus.gluonhq.com/nexus/content/repositories/releases</url>
+        </repository>
+
+        <repository>
+            <id>Gluon</id>
+            <url>https://nexus.gluonhq.com/nexus/content/repositories/releases</url>
+        </repository>
+        <repository>
+            <id>snapshot</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+        </repository>
+    </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+
+            <id>snapshot</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+        </pluginRepository>
+    </pluginRepositories>
+
     <build>
         <plugins>
+
+            <plugin>
+                <groupId>com.gluonhq</groupId>
+                <artifactId>gluonfx-maven-plugin</artifactId>
+                <version>${gluonfx.maven.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build</goal>
+                            <goal>package</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <verbose>true</verbose>
+                    <target>${gluonfx.target}</target>
+                    <attachList>
+                        <list>display</list>
+                        <list>lifecycle</list>
+                        <list>statusbar</list>
+                        <list>storage</list>
+                    </attachList>
+                    <mainClass>${main.class}</mainClass>
+                    <appIdentifier>${app.identifier}</appIdentifier>
+                    <releaseConfiguration>
+                        <vendor>Gluon</vendor>
+                        <description>${app.description}</description>
+                        <packageType>${package.type}</packageType>
+                        <!-- for macOS/iOS -->
+                        <macAppStore>${mac.app.store}</macAppStore>
+                        <bundleShortVersion>${bundle.short.version}</bundleShortVersion>
+                        <bundleVersion>${bundle.version}</bundleVersion>
+                        <!-- for Android -->
+                        <versionCode>${version.code}</versionCode>
+                        <providedKeyStorePath>${provided.keystore.path}</providedKeyStorePath>
+                        <providedKeyStorePassword>${provided.keystore.password}</providedKeyStorePassword>
+                        <providedKeyAlias>${provided.key.alias}</providedKeyAlias>
+                        <providedKeyAliasPassword>${provided.key.alias.password}</providedKeyAliasPassword>
+                    </releaseConfiguration>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -153,6 +247,58 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>desktop</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <gluonfx.target>host</gluonfx.target>
+            </properties>
+        </profile>
+        <profile>
+            <id>mac</id>
+            <properties>
+                <package.type>pkg</package.type>
+                <mac.app.store>false</mac.app.store>
+                <bundle.version>${env.GITHUB_RUN_NUMBER}</bundle.version>
+                <bundle.short.version>1.0</bundle.short.version>
+            </properties>
+        </profile>
+        <profile>
+            <id>macstore</id>
+            <properties>
+                <package.type>pkg</package.type>
+                <mac.app.store>true</mac.app.store>
+                <bundle.version>1.${env.GITHUB_RUN_NUMBER}</bundle.version>
+                <bundle.short.version>1.6</bundle.short.version>
+            </properties>
+        </profile>
+        <profile>
+            <id>ios</id>
+            <properties>
+                <gluonfx.target>ios</gluonfx.target>
+                <bundle.version>${env.GITHUB_RUN_NUMBER}</bundle.version>
+                <bundle.short.version>1.0</bundle.short.version>
+            </properties>
+        </profile>
+        <profile>
+            <id>android</id>
+            <properties>
+                <gluonfx.target>android</gluonfx.target>
+                <app.identifier>${main.class}</app.identifier>
+                <version.code>${env.GITHUB_RUN_NUMBER}</version.code>
+            </properties>
+        </profile>
+        <profile>
+            <id>pi</id>
+            <properties>
+                <gluonfx.target>linux-aarch64</gluonfx.target>
+            </properties>
+        </profile>
+    </profiles>
 
 
 </project>

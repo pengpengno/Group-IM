@@ -1,7 +1,5 @@
 package com.github.im.group.gui.config;
 
-import com.github.im.group.gui.api.FriendShipEndpoint;
-import com.github.im.group.gui.api.UserEndpoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;

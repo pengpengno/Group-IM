@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /***
  *  所有 fxml 设计为 与controller 同名 且 同路径
+ *  所有的fxml 都是 Singleton And Cached
  */
 @Component
 @Slf4j
@@ -188,7 +189,7 @@ public class FxmlLoader implements ApplicationContextAware {
     }
 
     /**
-     * 获取 相应的实例
+     * 获取 相应的 Scene 实例
      * Retrieves a cached scene if it exists.
      * @param clazz The class for which to retrieve the scene.
      * @return The cached Scene, or null if not found.

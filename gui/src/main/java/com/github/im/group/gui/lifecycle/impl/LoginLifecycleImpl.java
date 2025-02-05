@@ -10,6 +10,9 @@ import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.Display;
 import com.github.im.group.gui.controller.MainController;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
+import com.github.im.group.gui.util.FxmlLoader;
+import com.gluonhq.charm.glisten.application.AppManager;
+import com.gluonhq.charm.glisten.mvc.View;
 import feign.Client;
 import jakarta.annotation.Resource;
 import javafx.application.Platform;
@@ -50,6 +53,12 @@ public class LoginLifecycleImpl implements LoginLifecycle {
         Platform.runLater(() -> {
             log.debug("login success {}" ,userInfo);
             UserInfoContext.setCurrentUser(userInfo);
+
+            AppManager.getInstance().addViewFactory("MAIN",()-> {
+                return new View(FxmlLoader.getSceneInstance(MainController.class).getRoot());
+            });
+
+            AppManager.getInstance().switchView("MAIN");
             Display.display(MainController.class);
         });
 

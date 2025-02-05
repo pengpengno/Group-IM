@@ -35,8 +35,6 @@
     </licenses>
 
 
-
-    <!-- FIXME change it to the project's website -->
     <url>http://maven.apache.org</url>
 
     <properties>
@@ -55,10 +53,6 @@
             <version>${reactor.mq.version}</version>
         </dependency>
 
-<!--        <dependency>-->
-<!--            <groupId>com.github.im</groupId>-->
-<!--            <artifactId>common</artifactId>-->
-<!--        </dependency>-->
 
         <dependency>
             <groupId>cn.hutool</groupId>
@@ -97,7 +91,6 @@
 
 
 
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
@@ -125,12 +118,9 @@
                 <version>1.6.2</version>
             </extension>
         </extensions>
-        <outputDirectory>${project.basedir}/target</outputDirectory>
+<!--        <outputDirectory>./target</outputDirectory>-->
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-            </plugin>
+
             <plugin>
                 <groupId>org.xolstice.maven.plugins</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>
@@ -146,7 +136,7 @@
                     <execution>
                         <goals>
                             <goal>compile</goal>
-                            <goal>compile-custom</goal>
+<!--                            <goal>compile-custom</goal>-->
                         </goals>
                     </execution>
                 </executions>

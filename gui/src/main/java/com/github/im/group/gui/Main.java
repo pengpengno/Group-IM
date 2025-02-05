@@ -1,29 +1,19 @@
 package com.github.im.group.gui;
 
 import com.github.im.group.gui.controller.LoginView;
-import com.github.im.group.gui.controller.MainController;
 import com.github.im.group.gui.util.FxmlLoader;
-import com.github.im.group.gui.util.StageManager;
+import com.gluonhq.charm.glisten.application.AppManager;
+import com.gluonhq.charm.glisten.mvc.View;
 import io.github.palexdev.materialfx.theming.JavaFXThemes;
 import io.github.palexdev.materialfx.theming.MaterialFXStylesheets;
 import io.github.palexdev.materialfx.theming.UserAgentBuilder;
 import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
 import javafx.scene.image.Image;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.paint.Color;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
-import org.kordamp.bootstrapfx.BootstrapFX;
-import org.scenicview.ScenicView;
-import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.io.ClassPathResource;
-import reactor.core.publisher.Mono;
-
 import java.io.IOException;
 
 /**
@@ -35,15 +25,41 @@ import java.io.IOException;
  * @version 1.0
  * @since 2024/10/17
  */
-@SpringBootApplication
+//@SpringBootApplication
 public class Main extends Application {
 
-    private static Stage primaryStage;
-
+//    private static Stage primaryStage;
     private ConfigurableApplicationContext applicationContext;
+    private AppManager appManager;
+
+    @Override
+    public void init() {
+        // **手动启动 SpringBoot**
+        applicationContext = new SpringApplicationBuilder(SpringBootApp.class)
+                .web(WebApplicationType.NONE) // 关闭 Web 环境
+                .run();
+
+        // **延迟初始化 AppManager**
+        appManager = AppManager.initialize((scene)->postInit());
+
+//        appManager.addViewFactory(AppManager.HOME_VIEW,
+//                () -> new View(FxmlLoader.getSceneInstance(LoginView.class).getRoot()));
+
+
+    }
+
+    public void postInit() {
+
+        appManager.addViewFactory("LOGIN_VIEW",
+                () -> new View(FxmlLoader.getSceneInstance(LoginView.class).getRoot()));
+
+        appManager.switchView("LOGIN_VIEW");
+    }
 
     @Override
     public void start(Stage primaryStage) throws IOException {
+//        this.primaryStage = primaryStage;
+//        StageManager.setPrimaryStage(primaryStage);
 
         UserAgentBuilder.builder()
                 .themes(JavaFXThemes.MODENA)
@@ -53,48 +69,29 @@ public class Main extends Application {
                 .build()
                 .setGlobal();
 
-        this.primaryStage = primaryStage;
-        this.primaryStage.setTitle("IM Platform");
+        primaryStage.setTitle("IM Platform");
 
 
         // 设置图标
         var iconResource = new ClassPathResource("images/icon.png");
         if (iconResource.exists()){
-            this.primaryStage.getIcons().add(new Image(iconResource.getInputStream()));
+            primaryStage.getIcons().add(new Image(iconResource.getInputStream()));
 
         }
+        primaryStage.setMinWidth(800);
+        primaryStage.setMinHeight(600);
+        primaryStage.setWidth(1000);  // 设置默认宽度
+        primaryStage.setHeight(700);  // 设置默认高度
+        primaryStage.setResizable(true);
 
-        initRootLayout();
-    }
-
-    @Override
-    public void init() {
-        SpringApplication app = new SpringApplication(Main.class);
-        app.setWebApplicationType(WebApplicationType.NONE);
-        applicationContext = app.run();
-
+        appManager.start(primaryStage);
+        // **手动取消全屏**
+        primaryStage.setFullScreen(false);
     }
 
     @Override
     public void stop() {
         applicationContext.close();
-    }
-
-    private void initRootLayout() {
-
-        var scene = FxmlLoader.getSceneInstance(LoginView.class);
-
-        scene.setFill(Color.TRANSPARENT);
-//        primaryStage.initStyle(StageStyle.TRANSPARENT);
-//        ScenicView.show(scene);
-
-        primaryStage.setScene(scene);
-        primaryStage.setMinWidth(800);
-        primaryStage.setMinHeight(600);
-        primaryStage.setResizable(true);
-        primaryStage.show();
-
-        StageManager.setPrimaryStage(primaryStage);
     }
 
     public static void main(String[] args) {
