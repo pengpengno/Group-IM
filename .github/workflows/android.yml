@@ -38,11 +38,14 @@ jobs:
 #        with:
 #          gluon-license: ${{ secrets.GLUON_LICENSE }}
 
+      - name: Build meeting-common
+        run:
+          mvn install -DskipTests
 
       - name: Gluon Build
         run: |
           export ANDROID_SDK=$ANDROID_HOME
-          ./mvnw -Pandroid gluonfx:build gluonfx:package -f gui/pom.xml
+          mvn -Pandroid gluonfx:build gluonfx:package -f gui/pom.xml -DskipTests
         env:
           GLUON_ANDROID_KEYSTOREPATH: ${{ steps.android_keystore_file.outputs.filePath }}
           GLUON_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.GLUON_ANDROID_KEYSTORE_PASSWORD }}
@@ -53,7 +56,9 @@ jobs:
         run: mkdir staging
 
       - name: Copy packages to staging
-        run: cp -r target/gluonfx/aarch64-android/gvm/HelloGluon.* staging
+        run: cp -r gui/target/gluonfx/aarch64-android/gvm/*.apk staging
+
+#        run: cp -r target/gluonfx/aarch64-android/gvm/HelloGluon.* staging
 
       - name: Upload
         uses: actions/upload-artifact@v4
