@@ -1,5 +1,20 @@
-version: '3.8'
+#version: '3.8'
 services:
+  compileapk:
+    container_name: compileApk
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/app  # 将当前目录挂载到容器的 /app 目录
+#    command: tail -f /dev/null  # 保持容器运行，不会退出
+#    stdin_open: true  # 允许进入容器
+#    tty: true  # 保持伪终端，允许交互式使用
+
+    environment:
+      - JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 # 设置 Java 环境变量（如果有其他配置环境变量需要添加）
+      - GRAALVM_HOME=/usr/lib/jvm/graalvm  # 设置 Java 环境变量（如果有其他配置环境变量需要添加）
+#      - PATH=/usr/lib/jvm/graalvm/bin:$PATH  # 确保能使用 GraalVM 和相关工具
 
   postgres:
     container_name: database

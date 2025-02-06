@@ -20,7 +20,8 @@
         <attach.version>4.0.21</attach.version>
         <charm.version>6.2.3</charm.version>
         <gluonfx.maven.plugin.version>1.0.24</gluonfx.maven.plugin.version>
-        <main.class>com.github.meeting.gui.Launcher</main.class>
+        <main.class>com.github.im.group.gui.Main</main.class>
+<!--        <main.class>com.github.meeting.gui.Launcher</main.class>-->
         <app.description>The HelloGluon app</app.description>
         <app.identifier>${main.class}</app.identifier>
 
@@ -30,7 +31,7 @@
         <mac.signing.user.name/>
         <bundle.version/>
         <bundle.short.version/>
-        <version.code/>
+        <version.code>1</version.code>
         <provided.keystore.path/>
         <provided.keystore.password/>
         <provided.key.alias/>
@@ -193,30 +194,54 @@
     </dependencies>
 
 
-
     <repositories>
+        <!-- 阿里云 Maven 仓库 -->
+        <repository>
+            <id>aliyunmaven</id>
+            <url>https://maven.aliyun.com/repository/public</url>
+        </repository>
+
+        <!-- Gluon 官方仓库 -->
         <repository>
             <id>gluon-releases</id>
-            <url>https://nexus.gluonhq.com/nexus/content/repositories/releases</url>
+            <url>https://nexus.gluonhq.com/nexus/content/repositories/releases/</url>
         </repository>
-
-        <repository>
-            <id>Gluon</id>
-            <url>https://nexus.gluonhq.com/nexus/content/repositories/releases</url>
-        </repository>
-        <repository>
-            <id>snapshot</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-        </repository>
+<!--        <repository>-->
+<!--            <id>gluon-snapshots</id>-->
+<!--            <url>https://nexus.gluonhq.com/nexus/content/repositories/snapshots/</url>-->
+<!--        </repository>-->
     </repositories>
 
     <pluginRepositories>
         <pluginRepository>
-
-            <id>snapshot</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <id>gluon-plugins</id>
+            <url>https://nexus.gluonhq.com/nexus/content/repositories/releases/</url>
         </pluginRepository>
     </pluginRepositories>
+
+<!--    <repositories>-->
+<!--        <repository>-->
+<!--            <id>gluon-releases</id>-->
+<!--            <url>https://nexus.gluonhq.com/nexus/content/repositories/releases</url>-->
+<!--        </repository>-->
+
+<!--        <repository>-->
+<!--            <id>Gluon</id>-->
+<!--            <url>https://nexus.gluonhq.com/nexus/content/repositories/releases</url>-->
+<!--        </repository>-->
+<!--        <repository>-->
+<!--            <id>snapshot</id>-->
+<!--            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>-->
+<!--        </repository>-->
+<!--    </repositories>-->
+
+<!--    <pluginRepositories>-->
+<!--        <pluginRepository>-->
+
+<!--            <id>snapshot</id>-->
+<!--            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>-->
+<!--        </pluginRepository>-->
+<!--    </pluginRepositories>-->
 
     <build>
         <plugins>
@@ -228,8 +253,8 @@
                 <executions>
                     <execution>
                         <goals>
-                            <goal>compile</goal>
-                            <goal>build</goal>
+<!--                            <goal>compile</goal>-->
+<!--                            <goal>build</goal>-->
                         </goals>
                     </execution>
                 </executions>
@@ -265,14 +290,6 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
-<!--            <plugin>-->
-<!--                <groupId>org.apache.maven.plugins</groupId>-->
-<!--                <artifactId>maven-invoker-plugin</artifactId>-->
-<!--                <version>3.2.2</version>-->
-<!--                <configuration>-->
-<!--                    <interactive>false</interactive>-->
-<!--                </configuration>-->
-<!--            </plugin>-->
 
             <!-- JavaFX Maven Plugin -->
             <plugin>

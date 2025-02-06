@@ -24,27 +24,20 @@ RUN sed -i 's|http://archive.ubuntu.com|http://mirrors.aliyun.com|g' /etc/apt/so
 #    PATH="$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
 
 # 设置 GraalVM (Java 21) 环境变量
-ENV JAVA_HOME=/usr/lib/jvm/graalvm \
-    ANDROID_HOME=/opt/android-sdk \
-    ANDROID_NDK_HOME=/opt/android-sdk/ndk/25.1.8937393 \
-    PATH="$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+#ENV JAVA_HOME=/usr/lib/jvm/graalvm \
+#    ANDROID_HOME=/opt/android-sdk \
+#    ANDROID_NDK_HOME=/opt/android-sdk/ndk/25.1.8937393 \
+#    PATH="$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
 
-
-# 安装 GraalVM (Java 21)
-RUN wget https://download.oracle.com/graalvm/21/latest/graalvm-jdk-21_linux-x64_bin.tar.gz -O graalvm.tar.gz \
-    && tar -xzf graalvm.tar.gz -C /usr/lib/jvm \
+#COPY graalvm-jdk-21_linux-x64_bin.tar.gz gravelvm.tar.gz
+## 安装 GraalVM (Java 21)
+#RUN wget https://download.oracle.com/graalvm/21/latest/graalvm-jdk-21_linux-x64_bin.tar.gz -O graalvm.tar.gz \
+RUN tar -xzf graalvm.tar.gz -C /usr/lib/jvm \
     && mv /usr/lib/jvm/graalvm-jdk-21* /usr/lib/jvm/graalvm \
-    && rm graalvm.tar.gz
+    && rm graalvm.tar.gz \
 
-
-
-
-# 安装 Android SDK 和 NDK
-RUN mkdir -p $ANDROID_HOME/cmdline-tools && cd $ANDROID_HOME/cmdline-tools \
-    && wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O cmdline-tools.zip \
-    && unzip cmdline-tools.zip -d . \
-    && mv cmdline-tools latest \
-    && rm cmdline-tools.zip
+#
+#
 
 # 接受 Android SDK 许可并安装 SDK 组件
 
@@ -54,17 +47,34 @@ RUN mkdir -p $ANDROID_HOME/cmdline-tools && cd $ANDROID_HOME/cmdline-tools \
 WORKDIR /app
 
 # 复制项目文件
-COPY ../ /app
+#COPY graalvm-jdk-21_linux-x64_bin.tar.gz /app/graalvm-jdk-21_linux-x64_bin.tar.gz
+#COPY ./graalvm-jdk-21_linux-x64_bin.tar.gz /app/graalvm-jdk-21_linux-x64_bin.tar.gz
+#COPY ./ /app
+
+
+RUN #mv graalvm-jdk-21_linux-x64_bin.tar.gz   graalvm.tar.gz
+#RUN mv graalvm-java23-linux-amd64-gluon-23+25.1-dev.tar.gz   graalvm.tar.gz
+#
+#
+RUN tar -xzf graalvm.tar.gz -C /usr/lib/jvm \
+    && mv /usr/lib/jvm/graalvm-jdk-21* /usr/lib/jvm/graalvm \
+    && rm graalvm.tar.gz
+
+
 # 构建 APK
-RUN mvn clean protobuf:compile  -f common/pom.xml -s ./alisettings.xml
-RUN mvn clean install -DskipTests -s ./alisettings.xml
-RUN  export ANDROID_SDK=$ANDROID_HOME
-RUN mvn -Pandroid gluonfx:build gluonfx:package  -DskipTests -s ./alisettings.xml -am -f gui/pom.xml
+
+
+RUN #mvn  install -DskipTests -s ./alisettings.xml -f entity/pom.xml
+RUN #mvn  install -DskipTests -s ./alisettings.xml
+RUN #mvn -Pandroid gluonfx:package  -DskipTests -s ./alisettings.xml -am -f gui/pom.xml
+#CMD ["/bin/bash"]
+
+ENTRYPOINT ["tail", "-f", "/dev/null"]
 
 # 生产环境阶段，只保留 APK
-FROM ubuntu:20.04 AS runtime
-WORKDIR /app
-
-COPY --from=builder /app/target/*.apk /app/
-
-CMD ["/bin/bash"]
+#FROM ubuntu:20.04 AS runtime
+#WORKDIR /app
+#
+#COPY --from=builder /app/target/*.apk /app/
+#
+#CMD ["/bin/bash"]
