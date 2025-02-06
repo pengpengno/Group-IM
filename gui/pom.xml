@@ -51,6 +51,12 @@
         <dependency>
             <groupId>com.github.im</groupId>
             <artifactId>common</artifactId>
+<!--            <exclusions>-->
+<!--                <exclusion>-->
+<!--                    <artifactId>logback-classic</artifactId>-->
+<!--                    <groupId>ch.qos.logback</groupId>-->
+<!--                </exclusion>-->
+<!--            </exclusions>-->
         </dependency>
 
         <dependency>
@@ -166,6 +172,13 @@
 
 
 
+<!--        &lt;!&ndash; 添加 SLF4J Simple 作为日志实现 &ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>org.slf4j</groupId>-->
+<!--            <artifactId>slf4j-simple</artifactId>-->
+<!--        </dependency>-->
+
+
 
 
         <dependency>
@@ -246,6 +259,29 @@
     <build>
         <plugins>
 
+
+<!--            <plugin>-->
+<!--                <groupId>org.graalvm.nativeimage</groupId>-->
+<!--                <artifactId>native-image-maven-plugin</artifactId>-->
+<!--                <version>22.3.0</version> &lt;!&ndash; 使用适当版本 &ndash;&gt;-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <goals>-->
+<!--                            <goal>native-image</goal>-->
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--                <configuration>-->
+<!--                    &lt;!&ndash; 设置相关的构建参数 &ndash;&gt;-->
+<!--                    <options>-->
+<!--                        <option>&#45;&#45;initialize-at-build-time</option>-->
+<!--                        <option>&#45;&#45;no-fallback</option>-->
+<!--                        <option>&#45;&#45;enable-all-security-services</option>-->
+<!--                        <option>&#45;&#45;report-unsupported-elements-at-runtime</option>-->
+<!--                        &lt;!&ndash; 如果需要更多的配置可以在这里添加 &ndash;&gt;-->
+<!--                    </options>-->
+<!--                </configuration>-->
+<!--            </plugin>-->
             <plugin>
                 <groupId>com.gluonhq</groupId>
                 <artifactId>gluonfx-maven-plugin</artifactId>
