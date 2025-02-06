@@ -40,13 +40,13 @@
 
     <dependencies>
 
-        <dependency>
-            <groupId>com.github.im</groupId>
-            <artifactId>gluon-dependency-bom</artifactId>
-            <version>1.0-SNAPSHOT</version>
-            <type>pom</type>
-<!--            <scope>import</scope>-->
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>com.github.im</groupId>-->
+<!--            <artifactId>gluon-dependency-bom</artifactId>-->
+<!--            <version>1.0-SNAPSHOT</version>-->
+<!--            <type>pom</type>-->
+<!--&lt;!&ndash;            <scope>import</scope>&ndash;&gt;-->
+<!--        </dependency>-->
         <dependency>
             <groupId>com.github.im</groupId>
             <artifactId>common</artifactId>
@@ -132,6 +132,40 @@
 
 
 
+        <dependency>
+            <groupId>com.gluonhq</groupId>
+            <artifactId>charm-glisten</artifactId>
+            <version>${charm.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gluonhq.attach</groupId>
+            <artifactId>display</artifactId>
+            <version>${attach.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gluonhq.attach</groupId>
+            <artifactId>lifecycle</artifactId>
+            <version>${attach.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gluonhq.attach</groupId>
+            <artifactId>statusbar</artifactId>
+            <version>${attach.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gluonhq.attach</groupId>
+            <artifactId>storage</artifactId>
+            <version>${attach.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gluonhq.attach</groupId>
+            <artifactId>util</artifactId>
+            <version>${attach.version}</version>
+        </dependency>
+
+
+
+
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -194,8 +228,8 @@
                 <executions>
                     <execution>
                         <goals>
+                            <goal>compile</goal>
                             <goal>build</goal>
-                            <goal>package</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -231,6 +265,14 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.apache.maven.plugins</groupId>-->
+<!--                <artifactId>maven-invoker-plugin</artifactId>-->
+<!--                <version>3.2.2</version>-->
+<!--                <configuration>-->
+<!--                    <interactive>false</interactive>-->
+<!--                </configuration>-->
+<!--            </plugin>-->
 
             <!-- JavaFX Maven Plugin -->
             <plugin>
@@ -263,7 +305,7 @@
             <properties>
                 <package.type>pkg</package.type>
                 <mac.app.store>false</mac.app.store>
-                <bundle.version>${env.GITHUB_RUN_NUMBER}</bundle.version>
+<!--                <bundle.version>${env.GITHUB_RUN_NUMBER}</bundle.version>-->
                 <bundle.short.version>1.0</bundle.short.version>
             </properties>
         </profile>
@@ -272,7 +314,7 @@
             <properties>
                 <package.type>pkg</package.type>
                 <mac.app.store>true</mac.app.store>
-                <bundle.version>1.${env.GITHUB_RUN_NUMBER}</bundle.version>
+<!--                <bundle.version>1.${env.GITHUB_RUN_NUMBER}</bundle.version>-->
                 <bundle.short.version>1.6</bundle.short.version>
             </properties>
         </profile>
@@ -280,7 +322,7 @@
             <id>ios</id>
             <properties>
                 <gluonfx.target>ios</gluonfx.target>
-                <bundle.version>${env.GITHUB_RUN_NUMBER}</bundle.version>
+<!--                <bundle.version>${env.GITHUB_RUN_NUMBER}</bundle.version>-->
                 <bundle.short.version>1.0</bundle.short.version>
             </properties>
         </profile>
@@ -289,7 +331,7 @@
             <properties>
                 <gluonfx.target>android</gluonfx.target>
                 <app.identifier>${main.class}</app.identifier>
-                <version.code>${env.GITHUB_RUN_NUMBER}</version.code>
+<!--                <version.code>${env.GITHUB_RUN_NUMBER}</version.code>-->
             </properties>
         </profile>
         <profile>

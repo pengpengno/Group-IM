@@ -6,6 +6,7 @@ import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.FxmlLoader;
 import com.github.im.group.gui.util.StageManager;
+import com.gluonhq.charm.glisten.application.AppManager;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -56,9 +57,11 @@ public class LoginView extends StackPane implements Initializable {
     @FXML
     private void navigateToRegister() {
 
-        var scene = FxmlLoader.getSceneInstance(RegisterView.class);
-        var primaryStage = StageManager.getPrimaryStage();
-        primaryStage.sizeToScene(); // 自动调整主 Stage 大小以适应当前 Scene 的大小
+
+        Display.display(RegisterView.class);
+//        var scene = FxmlLoader.getSceneInstance(RegisterView.class);
+//        var primaryStage = StageManager.getPrimaryStage();
+//        primaryStage.sizeToScene(); // 自动调整主 Stage 大小以适应当前 Scene 的大小
 
 //        如果希望窗口在首次加载时能自适应，你也可以绑定 RegisterView 的宽度和高度到 Scene
 //        scene.widthProperty().addListener((observable, oldValue, newValue) -> {
@@ -68,8 +71,8 @@ public class LoginView extends StackPane implements Initializable {
 //            primaryStage.setHeight(newValue.doubleValue());
 //        });
 
-        primaryStage.setResizable(true);
-        primaryStage.setScene(scene);
+//        primaryStage.setResizable(true);
+//        primaryStage.setScene(scene);
 
 
     }

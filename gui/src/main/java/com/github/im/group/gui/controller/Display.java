@@ -14,6 +14,7 @@ import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.mvc.View;
 import javafx.application.Platform;
 import javafx.scene.Scene;
+import lombok.extern.slf4j.Slf4j;
 import org.kordamp.bootstrapfx.BootstrapFX;
 
 /**
@@ -26,6 +27,7 @@ import org.kordamp.bootstrapfx.BootstrapFX;
  * @version 1.0
  * @since 2024/11/6
  */
+//@Slf4j
 public interface Display {
 
 
@@ -41,13 +43,19 @@ public interface Display {
             var annotation = displayClass.getAnnotation(FxView.class);
             if (annotation != null){
                 var viewName = annotation.viewName();
-                appManager.addViewFactory(viewName,()->{
-                    var sceneInstance = FxmlLoader.getSceneInstance(displayClass);
-                    if (sceneInstance != null){
-                        return new View(sceneInstance.getRoot());
-                    }
-                    return new View();
-                });
+                try{
+                    appManager.addViewFactory(viewName,()->{
+                        var sceneInstance = FxmlLoader.getSceneInstance(displayClass);
+                        if (sceneInstance != null){
+                            return new View(sceneInstance.getRoot());
+                        }
+                        return new View();
+                    });
+                }catch (Exception exception){
+                    exception.printStackTrace();
+//                    log.error("already existed ",exception);
+                }
+
                 appManager.switchView(viewName);
             }
 
