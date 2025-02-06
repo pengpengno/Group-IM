@@ -4,14 +4,13 @@
           xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
 
 
-
   <!--
     仓库的优先级：本地仓库 > settings 中的 profile > pom 中的 repository > mirror
   -->
 
-<!--  <localRepository>${user.home}/.m2/repository</localRepository>-->
-  <localRepository>D:\workdir\tools\maven\repository</localRepository>
-
+  <localRepository>${user.home}/.m2/repository</localRepository>
+<!--  <localRepository>D:\workdir\tools\maven\repository</localRepository>-->
+<!---->
   <mirrors>
 
     <mirror>

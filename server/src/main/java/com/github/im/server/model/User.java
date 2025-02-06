@@ -62,6 +62,7 @@ public class User implements UserDetails {
     protected void onPersist() {
         var now = LocalDateTime.now();
         this.updatedAt = now;
+        this.userStatus = Status.ACTIVE;
         this.createdAt = now;
     }
 
@@ -86,7 +87,8 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return Status.ACTIVE.equals(getUserStatus()) ;
+//        return Status.ACTIVE.equals(getUserStatus()) ;
+        return true;
     }
 
 
