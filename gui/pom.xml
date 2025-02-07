@@ -18,7 +18,7 @@
 
         <attach.version>4.0.21</attach.version>
         <charm.version>6.2.3</charm.version>
-        <gluonfx.maven.plugin.version>1.0.24</gluonfx.maven.plugin.version>
+        <gluonfx.maven.plugin.version>1.0.25</gluonfx.maven.plugin.version>
         <main.class>com.github.im.group.gui.Main</main.class>
 <!--        <main.class>com.github.meeting.gui.Launcher</main.class>-->
         <app.description>The HelloGluon app</app.description>
