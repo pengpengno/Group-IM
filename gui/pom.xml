@@ -16,7 +16,6 @@
 
         <javafx.version>21</javafx.version>
 
-
         <attach.version>4.0.21</attach.version>
         <charm.version>6.2.3</charm.version>
         <gluonfx.maven.plugin.version>1.0.24</gluonfx.maven.plugin.version>
@@ -261,9 +260,9 @@
 
 
 <!--            <plugin>-->
-<!--                <groupId>org.graalvm.nativeimage</groupId>-->
-<!--                <artifactId>native-image-maven-plugin</artifactId>-->
-<!--                <version>22.3.0</version> &lt;!&ndash; 使用适当版本 &ndash;&gt;-->
+<!--                <groupId>org.graalvm.buildtools</groupId>-->
+<!--                <artifactId>native-gradle-plugin</artifactId>-->
+<!--                <version>0.10.5</version>-->
 <!--                <executions>-->
 <!--                    <execution>-->
 <!--                        <goals>-->
@@ -286,15 +285,31 @@
                 <groupId>com.gluonhq</groupId>
                 <artifactId>gluonfx-maven-plugin</artifactId>
                 <version>${gluonfx.maven.plugin.version}</version>
-                <executions>
-                    <execution>
-                        <goals>
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <goals>-->
 <!--                            <goal>compile</goal>-->
 <!--                            <goal>build</goal>-->
-                        </goals>
-                    </execution>
-                </executions>
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--                mvn gluonfx:compile -Pnative -Dagentlib=native-image-agent-->
+<!---->
                 <configuration>
+
+<!--                    <sharedLibrary>true</sharedLibrary>-->
+<!---->
+<!--            GRAALVM 无法编译一些静态变量 ，所以需要添加buildArgs
+                https://github.com/oracle/graal/issues/5678
+https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error-com-oracle-graal-pointsto-constraints-unreso-->
+                    <nativeImageArgs>
+                        <arg>-H:+UnlockExperimentalVMOptions</arg>
+                        <arg>--initialize-at-build-time=org.slf4j.LoggerFactory,ch.qos.logback,ch.qos.logback.classic,org.slf4j</arg>
+                        <arg>--initialize-at-run-time=io.netty</arg>
+                        <arg>-H:IncludeResources=logback-spring.xml</arg>
+                        <arg>-H:+SharedLibrary</arg>
+<!--                        <arg>-H:ResourceConfigurationFiles=src/main/resources/META-INF/native-image/resource-config.json</arg>-->
+                    </nativeImageArgs>
                     <verbose>true</verbose>
                     <target>${gluonfx.target}</target>
                     <attachList>
@@ -305,8 +320,10 @@
                     </attachList>
                     <mainClass>${main.class}</mainClass>
                     <appIdentifier>${app.identifier}</appIdentifier>
+
                     <releaseConfiguration>
                         <vendor>Gluon</vendor>
+
                         <description>${app.description}</description>
                         <packageType>${package.type}</packageType>
                         <!-- for macOS/iOS -->

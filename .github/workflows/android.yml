@@ -38,14 +38,14 @@ jobs:
 #        with:
 #          gluon-license: ${{ secrets.GLUON_LICENSE }}
 
-      - name: Build meeting-common
+      - name: Build jar
         run:
           mvn install -DskipTests -B
 
       - name: Gluon Build
         run: |
           export ANDROID_SDK=$ANDROID_HOME
-          mvn -Pandroid gluonfx:build gluonfx:package -f gui/pom.xml -DskipTests -B
+          mvn -Pandroid gluonfx:build gluonfx:link gluonfx:package -f gui/pom.xml -DskipTests
         env:
           GLUON_ANDROID_KEYSTOREPATH: ${{ steps.android_keystore_file.outputs.filePath }}
           GLUON_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.GLUON_ANDROID_KEYSTORE_PASSWORD }}
