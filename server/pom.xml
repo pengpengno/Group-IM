@@ -81,6 +81,12 @@
     </dependencies>
 
     <build>
+        <testSourceDirectory>src/test/java</testSourceDirectory>
+        <testResources>
+            <testResource>
+                <directory>src/main/test/resouces</directory>
+            </testResource>
+        </testResources>
         <!--suppress UnresolvedMavenProperty -->
         <finalName>
             ${project.artifactId}-${project.version}-${build.time}

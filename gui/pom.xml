@@ -203,6 +203,20 @@
             <artifactId>entity</artifactId>
         </dependency>
 
+<!--        &lt;!&ndash; https://mvnrepository.com/artifact/org.springframework.experimental/spring-aot &ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>org.springframework.experimental</groupId>-->
+<!--            <artifactId>spring-aot</artifactId>-->
+<!--            <version>0.12.2</version>-->
+<!--        </dependency>-->
+
+        <!--        &lt;!&ndash; https://mvnrepository.com/artifact/org.graalvm.buildtools/native-maven-plugin &ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>org.graalvm.buildtools</groupId>-->
+<!--            <artifactId>native-maven-plugin</artifactId>-->
+<!--            <version>0.10.5</version>-->
+<!--        </dependency>-->
+
     </dependencies>
 
 
@@ -218,10 +232,6 @@
             <id>gluon-releases</id>
             <url>https://nexus.gluonhq.com/nexus/content/repositories/releases/</url>
         </repository>
-<!--        <repository>-->
-<!--            <id>gluon-snapshots</id>-->
-<!--            <url>https://nexus.gluonhq.com/nexus/content/repositories/snapshots/</url>-->
-<!--        </repository>-->
     </repositories>
 
     <pluginRepositories>
@@ -231,84 +241,64 @@
         </pluginRepository>
     </pluginRepositories>
 
-<!--    <repositories>-->
-<!--        <repository>-->
-<!--            <id>gluon-releases</id>-->
-<!--            <url>https://nexus.gluonhq.com/nexus/content/repositories/releases</url>-->
-<!--        </repository>-->
-
-<!--        <repository>-->
-<!--            <id>Gluon</id>-->
-<!--            <url>https://nexus.gluonhq.com/nexus/content/repositories/releases</url>-->
-<!--        </repository>-->
-<!--        <repository>-->
-<!--            <id>snapshot</id>-->
-<!--            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>-->
-<!--        </repository>-->
-<!--    </repositories>-->
-
-<!--    <pluginRepositories>-->
-<!--        <pluginRepository>-->
-
-<!--            <id>snapshot</id>-->
-<!--            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>-->
-<!--        </pluginRepository>-->
-<!--    </pluginRepositories>-->
 
     <build>
         <plugins>
 
+            <plugin>
+                <groupId>org.graalvm.buildtools</groupId>
+                <artifactId>native-maven-plugin</artifactId>
+<!--                <version>0.10.3</version>  &lt;!&ndash; Adjust version as needed &ndash;&gt;-->
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>add-reachability-metadata</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
 
-<!--            <plugin>-->
-<!--                <groupId>org.graalvm.buildtools</groupId>-->
-<!--                <artifactId>native-gradle-plugin</artifactId>-->
-<!--                <version>0.10.5</version>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <goals>-->
-<!--                            <goal>native-image</goal>-->
-<!--                        </goals>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--                <configuration>-->
-<!--                    &lt;!&ndash; 设置相关的构建参数 &ndash;&gt;-->
-<!--                    <options>-->
-<!--                        <option>&#45;&#45;initialize-at-build-time</option>-->
-<!--                        <option>&#45;&#45;no-fallback</option>-->
-<!--                        <option>&#45;&#45;enable-all-security-services</option>-->
-<!--                        <option>&#45;&#45;report-unsupported-elements-at-runtime</option>-->
-<!--                        &lt;!&ndash; 如果需要更多的配置可以在这里添加 &ndash;&gt;-->
-<!--                    </options>-->
-<!--                </configuration>-->
-<!--            </plugin>-->
+
             <plugin>
                 <groupId>com.gluonhq</groupId>
                 <artifactId>gluonfx-maven-plugin</artifactId>
                 <version>${gluonfx.maven.plugin.version}</version>
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <goals>-->
-<!--                            <goal>compile</goal>-->
-<!--                            <goal>build</goal>-->
-<!--                        </goals>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--                mvn gluonfx:compile -Pnative -Dagentlib=native-image-agent-->
-<!---->
-                <configuration>
 
-<!--                    <sharedLibrary>true</sharedLibrary>-->
+                <configuration>
+<!--                    <reflectionList>-->
+<!--                        <list>javafx.scene.control.Menu</list>-->
+<!--                        <list>javafx.scene.control.MenuBar</list>-->
+<!--                        <list>javafx.scene.control.MenuItem</list>-->
+<!--                        <list>javafx.scene.control.SeparatorMenuItem</list>-->
+<!--                        <list>javafx.scene.layout.BorderPane</list>-->
+<!--                        <list>javafx.scene.layout.HBox</list>-->
+<!--                        <list>ch.qos.logback.classic.Logger</list>-->
+<!--                        <list>ch.qos.logback.classic.pattern.LineSeparatorConverter</list>-->
+<!--                        <list>ch.qos.logback.classic.pattern.MessageConverter</list>-->
+<!--                        <list>ch.qos.logback.classic.pattern.ThreadConverter</list>-->
+<!--                        <list>ch.qos.logback.classic.pattern.LoggerConverter</list>-->
+<!--                        <list>ch.qos.logback.classic.pattern.LevelConverter</list>-->
+<!--                        <list>ch.qos.logback.classic.pattern.DateConverter</list>-->
+<!--                    </reflectionList>-->
 <!---->
 <!--            GRAALVM 无法编译一些静态变量 ，所以需要添加buildArgs
                 https://github.com/oracle/graal/issues/5678
 https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error-com-oracle-graal-pointsto-constraints-unreso-->
                     <nativeImageArgs>
-                        <arg>-H:+UnlockExperimentalVMOptions</arg>
-                        <arg>--initialize-at-build-time=org.slf4j.LoggerFactory,ch.qos.logback,ch.qos.logback.classic,org.slf4j</arg>
+<!--                        <arg>-H:+UnlockExperimentalVMOptions</arg>-->
+                        <arg>--initialize-at-build-time=org.slf4j.LoggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLog,org.apache ,org.apache.commons.logging,
+                            org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,
+                            reactor.adapter.JdkFlowAdapter$PublisherAsFlowPublisher.pub,
+                            ch.qos.logback.core.ContextBase.started,
+                            ch.qos.logback.core.ContextBase,
+                            ch.qos.logback.core.*,
+                            ch.qos.logback,ch.qos.logback.classic,org.slf4j</arg>
                         <arg>--initialize-at-run-time=io.netty</arg>
                         <arg>-H:IncludeResources=logback-spring.xml</arg>
-                        <arg>-H:+SharedLibrary</arg>
-<!--                        <arg>-H:ResourceConfigurationFiles=src/main/resources/META-INF/native-image/resource-config.json</arg>-->
+                        <arg>-H:ReflectionConfigurationFiles=META-INF/native-image/reflect-config.json</arg>
+
+                        <!--                        <arg>-H:ReflectionConfigurationFiles=META-INF/native-image/reflect-config.json</arg>-->
+<!--                        <arg>-H:+SharedLibrary</arg>-->
                     </nativeImageArgs>
                     <verbose>true</verbose>
                     <target>${gluonfx.target}</target>
@@ -322,6 +312,9 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                     <appIdentifier>${app.identifier}</appIdentifier>
 
                     <releaseConfiguration>
+<!--                        <android>-->
+<!--                            <manifest>${project.basedir}/src/android/AndroidManifest.xml</manifest>-->
+<!--                        </android>-->
                         <vendor>Gluon</vendor>
 
                         <description>${app.description}</description>
@@ -342,6 +335,13 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>process-aot</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- JavaFX Maven Plugin -->

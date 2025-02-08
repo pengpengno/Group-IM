@@ -9,4 +9,9 @@ logging:
   level:
     root: INFO
     com.github.im.group.gui: DEBUG
+
+
+spring:
+  aot:
+    enabled: true
 #    reactor.netty: DEBUG

@@ -1,7 +1,10 @@
 {
-  "resources": [
-    {
-      "pattern": ".*logback-spring.xml$"
-    }
-  ]
+  "resources": {
+    "includes": [
+      {"pattern": "application.properties"},
+      {"pattern": "static/.*"},
+      {"pattern": "templates/.*"},
+      {"pattern": "META-INF/.*"}
+    ]
+  }
 }

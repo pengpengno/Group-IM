@@ -4,13 +4,19 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.0</version>
+        <relativePath /> <!-- lookup parent from repository -->
+    </parent>
     <groupId>com.github.im</groupId>
     <artifactId>Group</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <modules>
         <module>common</module>
-<!--        <module>gluon-dependency-bom</module>-->
         <module>entity</module>
         <module>server</module>
         <module>gui</module>
@@ -56,14 +62,6 @@
     <dependencyManagement>
         <dependencies>
 
-<!--            <dependency>-->
-<!--                <groupId>com.github.im</groupId>-->
-<!--                <artifactId>gluon-dependency-bom</artifactId>-->
-<!--                <version>1.0-SNAPSHOT</version>-->
-<!--                <type>pom</type>-->
-<!--                <scope>import</scope>-->
-<!--            </dependency>-->
-
             <dependency>
                 <groupId>com.github.im</groupId>
                 <artifactId>common</artifactId>
@@ -83,6 +81,15 @@
                 <scope>import</scope>
             </dependency>
 
+<!--            &lt;!&ndash; https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-parent &ndash;&gt;-->
+<!--            <dependency>-->
+<!--                <groupId>org.springframework.boot</groupId>-->
+<!--                <artifactId>spring-boot-starter-parent</artifactId>-->
+<!--                <version>3.4.2</version>-->
+<!--                <type>pom</type>-->
+<!--                <scope>import</scope>-->
+<!--            </dependency>-->
+
 
             <dependency>
                 <groupId>org.springframework.boot</groupId>
@@ -97,29 +104,6 @@
     <build>
 
         <plugins>
-<!--            <plugin>-->
-<!--                <groupId>org.apache.maven.plugins</groupId>-->
-<!--                <artifactId>maven-jar-plugin</artifactId>-->
-<!--                <version>3.2.0</version>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--&lt;!&ndash;                        <goals>&ndash;&gt;-->
-<!--&lt;!&ndash;                            <goal>assembly</goal>&ndash;&gt;-->
-<!--&lt;!&ndash;                        </goals>&ndash;&gt;-->
-<!--                        <phase>package</phase>-->
-<!--                        <configuration>-->
-<!--                            <descriptorRefs>-->
-<!--                                <descriptorRef>jar-with-dependencies</descriptorRef>-->
-<!--                            </descriptorRefs>-->
-<!--                            <archive>-->
-<!--                                <manifest>-->
-<!--                                    <mainClass>com.starter.MyListner</mainClass>-->
-<!--                                </manifest>-->
-<!--                            </archive>-->
-<!--                        </configuration>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--            </plugin>-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

@@ -10,6 +10,7 @@ import io.github.palexdev.materialfx.theming.UserAgentBuilder;
 import javafx.application.Application;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -35,9 +36,15 @@ public class Main extends Application {
     @Override
     public void init() {
         // **手动启动 SpringBoot**
-        applicationContext = new SpringApplicationBuilder(SpringBootApp.class)
-                .web(WebApplicationType.NONE) // 关闭 Web 环境
-                .run();
+//        applicationContext = new SpringApplicationBuilder(SpringBootApp.class)
+//                .web(WebApplicationType.NONE) // 关闭 Web 环境
+//                .run();
+
+
+        var springApplication = new SpringApplication(SpringBootApp.class);
+        springApplication.setWebApplicationType(WebApplicationType.NONE);
+        applicationContext = springApplication.run();
+
 
         // **延迟初始化 AppManager**
         appManager = AppManager.initialize((scene)->postInit());
