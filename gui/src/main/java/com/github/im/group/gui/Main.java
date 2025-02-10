@@ -10,8 +10,10 @@ import io.github.palexdev.materialfx.theming.UserAgentBuilder;
 import javafx.application.Application;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.io.ClassPathResource;
@@ -27,24 +29,26 @@ import java.io.IOException;
  * @since 2024/10/17
  */
 //@SpringBootApplication
+@Slf4j
 public class Main extends Application {
 
-//    private static Stage primaryStage;
-    private ConfigurableApplicationContext applicationContext;
     private AppManager appManager;
 
     @Override
     public void init() {
-        // **手动启动 SpringBoot**
-//        applicationContext = new SpringApplicationBuilder(SpringBootApp.class)
-//                .web(WebApplicationType.NONE) // 关闭 Web 环境
-//                .run();
-
 
         var springApplication = new SpringApplication(SpringBootApp.class);
+//        var springApplication = new SpringApplication(Main.class);
         springApplication.setWebApplicationType(WebApplicationType.NONE);
-        applicationContext = springApplication.run();
-
+//        applicationContext = springApplication.run();
+         springApplication.run();
+        String mainRunner = System.getProperty("sun.java.command");
+        if ("org.springframework.boot.SpringApplicationAotProcessor".equals(mainRunner)) {
+            //For Spring's AOT build phase with maven, the SpringContext is sufficient.
+            //So we have to stop here because otherwise JavaFX window makes AOT generation fail.
+            log.info("Simple run for Spring AOT");
+            return;
+        }
 
         // **延迟初始化 AppManager**
         appManager = AppManager.initialize((scene)->postInit());
@@ -96,10 +100,10 @@ public class Main extends Application {
         primaryStage.setFullScreen(false);
     }
 
-    @Override
-    public void stop() {
-        applicationContext.close();
-    }
+//    @Override
+//    public void stop() {
+//        applicationContext.close();
+//    }
 
     public static void main(String[] args) {
         launch(args);

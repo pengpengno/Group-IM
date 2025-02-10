@@ -256,7 +256,35 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                </configuration>
             </plugin>
+
+<!--            <plugin>-->
+<!--                <groupId>org.apache.maven.plugins</groupId>-->
+<!--                <artifactId>maven-resources-plugin</artifactId>-->
+<!--                <version>3.2.0</version>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <phase>process-resources</phase>-->
+<!--                        <goals>-->
+<!--                            <goal>copy-resources</goal>-->
+<!--                        </goals>-->
+<!--                        <configuration>-->
+<!--&lt;!&ndash;                            <outputDirectory>${project.build.directory}/gluonfx/${target}/gvm/gui/META-INF/native-image</outputDirectory>&ndash;&gt;-->
+<!--                            <outputDirectory>${project.build.directory}/gluonfx/aarch64-android/gvm/gui/META-INF/native-image</outputDirectory>-->
+<!--                            <resources>-->
+<!--                                <resource>-->
+<!--                                    <directory>${project.build.directory}/classes/META-INF/native-image</directory>-->
+<!--                                    <includes>-->
+<!--                                        <include>**/*</include>-->
+<!--                                    </includes>-->
+<!--                                </resource>-->
+<!--                            </resources>-->
+<!--                        </configuration>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
 
 
             <plugin>
@@ -265,40 +293,24 @@
                 <version>${gluonfx.maven.plugin.version}</version>
 
                 <configuration>
-<!--                    <reflectionList>-->
-<!--                        <list>javafx.scene.control.Menu</list>-->
-<!--                        <list>javafx.scene.control.MenuBar</list>-->
-<!--                        <list>javafx.scene.control.MenuItem</list>-->
-<!--                        <list>javafx.scene.control.SeparatorMenuItem</list>-->
-<!--                        <list>javafx.scene.layout.BorderPane</list>-->
-<!--                        <list>javafx.scene.layout.HBox</list>-->
-<!--                        <list>ch.qos.logback.classic.Logger</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.LineSeparatorConverter</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.MessageConverter</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.ThreadConverter</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.LoggerConverter</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.LevelConverter</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.DateConverter</list>-->
-<!--                    </reflectionList>-->
-<!---->
 <!--            GRAALVM 无法编译一些静态变量 ，所以需要添加buildArgs
                 https://github.com/oracle/graal/issues/5678
 https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error-com-oracle-graal-pointsto-constraints-unreso-->
                     <nativeImageArgs>
 <!--                        <arg>-H:+UnlockExperimentalVMOptions</arg>-->
-                        <arg>--initialize-at-build-time=org.slf4j.LoggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLog,org.apache ,org.apache.commons.logging,
-                            org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,
-                            reactor.adapter.JdkFlowAdapter$PublisherAsFlowPublisher.pub,
-                            ch.qos.logback.core.ContextBase.started,
-                            ch.qos.logback.core.ContextBase,
-                            ch.qos.logback.core.*,
-                            ch.qos.logback,ch.qos.logback.classic,org.slf4j</arg>
+                        <arg>--initialize-at-build-time=ch.qos.logback.classic.Logger,com.github.im.group.gui.config.ClientConfig$$SpringCGLIB$$0,=com.github.im.group.gui.config.WebClientConfig$$SpringCGLIB$$0, ch.qos.logback.classic.Logger.effectiveLevelInt,org.slf4j.helpers.NOP_FallbackServiceProvider,org.slf4j.helpers.NOP_FallbackServiceProvider.loggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,org.slf4j.LoggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLog, org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,reactor.adapter.JdkFlowAdapter$PublisherAsFlowPublisher, ch.qos.logback.core.ContextBase, ch.qos.logback.core.*, ch.qos.logback, ch.qos.logback.classic, org.slf4j</arg>
+                        <arg>--initialize-at-build-time=org.slf4j.helpers</arg>
+<!--                        <arg>-H:ReflectionConfigurationFiles=META-INF/native-image/reflect-config.json</arg>-->
+<!--                        <arg>-H:ReflectionConfigurationFiles=META-INF/native-image/com.github.im/gui/reflect-config.json</arg>-->
+<!--                        <arg>-H:ReflectionConfigurationFiles=reflectionconfig-aarch64-android.json</arg>-->
                         <arg>--initialize-at-run-time=io.netty</arg>
                         <arg>-H:IncludeResources=logback-spring.xml</arg>
-                        <arg>-H:ReflectionConfigurationFiles=META-INF/native-image/reflect-config.json</arg>
+<!--                        <arg>-H:ReflectionConfigurationFiles=META-INF/native-image/reflect-config.json</arg>-->
+<!--                        <arg>-H:DynamicProxyConfigurationFiles=META-INF/native-image/com.github.im/gui/proxy-config.json</arg>-->
+<!--                        <arg>-H:DynamicProxyConfigurationFiles=proxy-config.json</arg>-->
+<!--                        <arg>-H:DynamicProxyConfigurationFiles=META-INF/native-image/com.github.im.group/gui/proxy-config.json</arg>-->
 
-                        <!--                        <arg>-H:ReflectionConfigurationFiles=META-INF/native-image/reflect-config.json</arg>-->
-<!--                        <arg>-H:+SharedLibrary</arg>-->
+                        <arg>-H:+SharedLibrary</arg>
                     </nativeImageArgs>
                     <verbose>true</verbose>
                     <target>${gluonfx.target}</target>
@@ -330,6 +342,22 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                         <providedKeyAlias>${provided.key.alias}</providedKeyAlias>
                         <providedKeyAliasPassword>${provided.key.alias.password}</providedKeyAliasPassword>
                     </releaseConfiguration>
+<!--                    <reflectionList>-->
+<!--                        <list>javafx.scene.control.Menu</list>-->
+<!--                        <list>javafx.scene.control.MenuBar</list>-->
+<!--                        <list>javafx.scene.control.MenuItem</list>-->
+<!--                        <list>javafx.scene.control.SeparatorMenuItem</list>-->
+<!--                        <list>javafx.scene.layout.BorderPane</list>-->
+<!--                        <list>javafx.scene.layout.HBox</list>-->
+
+<!--                        <list>ch.qos.logback.classic.Logger</list>-->
+<!--                        <list>ch.qos.logback.classic.pattern.LineSeparatorConverter</list>-->
+<!--                        <list>ch.qos.logback.classic.pattern.MessageConverter</list>-->
+<!--                        <list>ch.qos.logback.classic.pattern.ThreadConverter</list>-->
+<!--                        <list>ch.qos.logback.classic.pattern.LoggerConverter</list>-->
+<!--                        <list>ch.qos.logback.classic.pattern.LevelConverter</list>-->
+<!--                        <list>ch.qos.logback.classic.pattern.DateConverter</list>-->
+<!--                    </reflectionList>-->
                 </configuration>
             </plugin>
             <plugin>

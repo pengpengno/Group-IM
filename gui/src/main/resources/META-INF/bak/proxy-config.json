@@ -1,0 +1,7 @@
+[
+  {
+    "interfaces": [
+      "ch.qos.logback.core.spi.ContextAware"
+    ]
+  }
+]
