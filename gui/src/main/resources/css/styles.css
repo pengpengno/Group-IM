@@ -3,6 +3,36 @@
     -fx-font-family: "Arial";
 }
 
+
+/* 针对手机端屏幕 */
+@media screen and (max-width: 600px) {
+    .root {
+        -fx-padding: 10px;
+    }
+
+    .button {
+        -fx-font-size: 14px;
+    }
+
+    .label {
+        -fx-font-size: 12px;
+    }
+}
+
+/* 针对桌面端屏幕 */
+@media screen and (min-width: 601px) {
+    .root {
+        -fx-padding: 20px;
+    }
+
+    .button {
+        -fx-font-size: 18px;
+    }
+
+    .label {
+        -fx-font-size: 16px;
+    }
+}
 /* 顶部工具栏样式 */
 .h4 {
     -fx-font-size: 18px;

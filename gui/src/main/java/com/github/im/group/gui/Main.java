@@ -2,12 +2,16 @@ package com.github.im.group.gui;
 
 import com.github.im.group.gui.controller.LoginView;
 import com.github.im.group.gui.util.FxmlLoader;
+import com.gluonhq.attach.display.DisplayService;
+import com.gluonhq.attach.util.Platform;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.mvc.View;
 import io.github.palexdev.materialfx.theming.JavaFXThemes;
 import io.github.palexdev.materialfx.theming.MaterialFXStylesheets;
 import io.github.palexdev.materialfx.theming.UserAgentBuilder;
 import javafx.application.Application;
+import javafx.geometry.Dimension2D;
+import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
@@ -54,7 +58,10 @@ public class Main extends Application {
         }
 
         // **延迟初始化 AppManager**
-        appManager = AppManager.initialize((scene)->postInit());
+        appManager = AppManager.initialize((scene)->postInit(scene));
+
+
+
 
 //        appManager.addViewFactory(AppManager.HOME_VIEW,
 //                () -> new View(FxmlLoader.getSceneInstance(LoginView.class).getRoot()));
@@ -62,12 +69,20 @@ public class Main extends Application {
 
     }
 
-    public void postInit() {
+    public void postInit(Scene scene) {
 
         appManager.addViewFactory("LOGIN_VIEW",
                 () -> new View(FxmlLoader.getSceneInstance(LoginView.class).getRoot()));
 
         appManager.switchView("LOGIN_VIEW");
+
+        if (Platform.isDesktop()) {
+            Dimension2D dimension2D = DisplayService.create()
+                    .map(DisplayService::getDefaultDimensions)
+                    .orElse(new Dimension2D(640, 480));
+            scene.getWindow().setWidth(dimension2D.getWidth());
+            scene.getWindow().setHeight(dimension2D.getHeight());
+        }
     }
 
     @Override
@@ -88,14 +103,19 @@ public class Main extends Application {
 
         // 设置图标
         var iconResource = new ClassPathResource("images/icon.png");
+        var stylesResource = new ClassPathResource("css/styles.png");
         if (iconResource.exists()){
             primaryStage.getIcons().add(new Image(iconResource.getInputStream()));
-
         }
-        primaryStage.setMinWidth(800);
-        primaryStage.setMinHeight(600);
-        primaryStage.setWidth(1000);  // 设置默认宽度
-        primaryStage.setHeight(700);  // 设置默认高度
+        if(stylesResource.exists()){
+            primaryStage.getScene().getStylesheets().add(stylesResource.getURL().toExternalForm());
+        }
+//        primaryStage.setMinWidth(800);
+//        primaryStage.setMinHeight(600);
+//        primaryStage.setWidth(1000);  // 设置默认宽度
+//        primaryStage.setHeight(700);  // 设置默认高度
+
+
         primaryStage.setResizable(true);
 
         appManager.start(primaryStage);
