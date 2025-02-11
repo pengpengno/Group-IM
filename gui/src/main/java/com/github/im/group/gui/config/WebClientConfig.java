@@ -1,8 +1,13 @@
 package com.github.im.group.gui.config;
 
+import com.github.im.group.gui.api.FriendShipEndpoint;
+import com.github.im.group.gui.api.GroupMemberEndpoint;
+import com.github.im.group.gui.api.MessageEndpoint;
+import com.github.im.group.gui.api.UserEndpoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.context.annotation.Bean;
@@ -37,6 +42,32 @@ public class WebClientConfig {
 
         return HttpServiceProxyFactory.builderFor(adapter).build();
 
+    }
+
+
+    @Bean
+    @ConditionalOnMissingBean(UserEndpoint.class)
+    public UserEndpoint userEndpoint(@Autowired HttpServiceProxyFactory webClient) {
+        return webClient.createClient(UserEndpoint.class);
+    }
+
+
+    @Bean
+    @ConditionalOnMissingBean(GroupMemberEndpoint.class)
+    public GroupMemberEndpoint groupMemberEndpoint(@Autowired HttpServiceProxyFactory webClient) {
+        return webClient.createClient(GroupMemberEndpoint.class);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(MessageEndpoint.class)
+    public MessageEndpoint MessageEndpoint(@Autowired HttpServiceProxyFactory webClient) {
+        return webClient.createClient(MessageEndpoint.class);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(FriendShipEndpoint.class)
+    public FriendShipEndpoint FriendShipEndpoint(@Autowired HttpServiceProxyFactory webClient) {
+        return webClient.createClient(FriendShipEndpoint.class);
     }
 
 

@@ -40,7 +40,14 @@
 
     <dependencies>
 
+        <!-- https://mvnrepository.com/artifact/org.springframework.experimental/spring-aot -->
 <!--        <dependency>-->
+<!--            <groupId>org.springframework.experimental</groupId>-->
+<!--            <artifactId>spring-aot</artifactId>-->
+<!--            <version>0.12.2</version>-->
+<!--        </dependency>-->
+
+        <!--        <dependency>-->
 <!--            <groupId>com.github.im</groupId>-->
 <!--            <artifactId>gluon-dependency-bom</artifactId>-->
 <!--            <version>1.0-SNAPSHOT</version>-->
@@ -202,8 +209,12 @@
             <groupId>com.github.im</groupId>
             <artifactId>entity</artifactId>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId></groupId>-->
+<!--            <artifactId>spring-aot</artifactId>-->
+<!--        </dependency>-->
 
-<!--        &lt;!&ndash; https://mvnrepository.com/artifact/org.springframework.experimental/spring-aot &ndash;&gt;-->
+        <!-- https://mvnrepository.com/artifact/org.springframework.experimental/spring-aot -->
 <!--        <dependency>-->
 <!--            <groupId>org.springframework.experimental</groupId>-->
 <!--            <artifactId>spring-aot</artifactId>-->
@@ -248,7 +259,6 @@
             <plugin>
                 <groupId>org.graalvm.buildtools</groupId>
                 <artifactId>native-maven-plugin</artifactId>
-<!--                <version>0.10.3</version>  &lt;!&ndash; Adjust version as needed &ndash;&gt;-->
                 <executions>
                     <execution>
                         <goals>
@@ -300,15 +310,9 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
 <!--                        <arg>-H:+UnlockExperimentalVMOptions</arg>-->
                         <arg>--initialize-at-build-time=ch.qos.logback.classic.Logger,com.github.im.group.gui.config.ClientConfig$$SpringCGLIB$$0,=com.github.im.group.gui.config.WebClientConfig$$SpringCGLIB$$0, ch.qos.logback.classic.Logger.effectiveLevelInt,org.slf4j.helpers.NOP_FallbackServiceProvider,org.slf4j.helpers.NOP_FallbackServiceProvider.loggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,org.slf4j.LoggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLog, org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,reactor.adapter.JdkFlowAdapter$PublisherAsFlowPublisher, ch.qos.logback.core.ContextBase, ch.qos.logback.core.*, ch.qos.logback, ch.qos.logback.classic, org.slf4j</arg>
                         <arg>--initialize-at-build-time=org.slf4j.helpers</arg>
-<!--                        <arg>-H:ReflectionConfigurationFiles=META-INF/native-image/reflect-config.json</arg>-->
-<!--                        <arg>-H:ReflectionConfigurationFiles=META-INF/native-image/com.github.im/gui/reflect-config.json</arg>-->
-<!--                        <arg>-H:ReflectionConfigurationFiles=reflectionconfig-aarch64-android.json</arg>-->
                         <arg>--initialize-at-run-time=io.netty</arg>
                         <arg>-H:IncludeResources=logback-spring.xml</arg>
-<!--                        <arg>-H:ReflectionConfigurationFiles=META-INF/native-image/reflect-config.json</arg>-->
-<!--                        <arg>-H:DynamicProxyConfigurationFiles=META-INF/native-image/com.github.im/gui/proxy-config.json</arg>-->
-<!--                        <arg>-H:DynamicProxyConfigurationFiles=proxy-config.json</arg>-->
-<!--                        <arg>-H:DynamicProxyConfigurationFiles=META-INF/native-image/com.github.im.group/gui/proxy-config.json</arg>-->
+                        <arg>--no-fallback</arg>  <!-- 仅生成必要的部分 -->
 
                         <arg>-H:+SharedLibrary</arg>
                     </nativeImageArgs>
@@ -361,6 +365,17 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                 </configuration>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+<!--                    <compilerArgs>-->
+<!--                        <arg>-Djava.awt.headless=true</arg>-->
+<!--                        <arg>-Dprism.order=sw</arg>-->
+<!--                        <arg>-Dprism.verbose=false</arg>-->
+<!--                    </compilerArgs>-->
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <executions>
@@ -370,6 +385,9 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                         </goals>
                     </execution>
                 </executions>
+<!--                <configuration>-->
+<!--                    <mainClass>com.github.im.group.gui.Main</mainClass>-->
+<!--                </configuration>-->
             </plugin>
 
             <!-- JavaFX Maven Plugin -->

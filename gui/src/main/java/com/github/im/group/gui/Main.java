@@ -37,9 +37,12 @@ public class Main extends Application {
     @Override
     public void init() {
 
-        var springApplication = new SpringApplication(SpringBootApp.class);
+        log.info("application init ");
+
 //        var springApplication = new SpringApplication(Main.class);
+        var springApplication = new SpringApplication(SpringBootApp.class);
         springApplication.setWebApplicationType(WebApplicationType.NONE);
+        springApplication.setMainApplicationClass(SpringBootApp.class);
 //        applicationContext = springApplication.run();
          springApplication.run();
         String mainRunner = System.getProperty("sun.java.command");

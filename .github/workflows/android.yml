@@ -45,7 +45,7 @@ jobs:
       - name: Gluon Build
         run: |
           export ANDROID_SDK=$ANDROID_HOME
-          mvn -Pandroid gluonfx:compile gluonfx:link gluonfx:package -f gui/pom.xml -DskipTests
+          mvn -Pandroid gluonfx:build gluonfx:link gluonfx:package -f gui/pom.xml -DskipTests
         env:
           GLUON_ANDROID_KEYSTOREPATH: ${{ steps.android_keystore_file.outputs.filePath }}
           GLUON_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.GLUON_ANDROID_KEYSTORE_PASSWORD }}
