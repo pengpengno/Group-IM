@@ -8,19 +8,15 @@ import com.github.im.dto.user.UserInfo;
 import com.github.im.group.gui.config.ServerConnectProperties;
 import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.Display;
-import com.github.im.group.gui.controller.MainController;
+import com.github.im.group.gui.controller.desktop.MainController;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.github.im.group.gui.util.FxmlLoader;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.mvc.View;
-import feign.Client;
-import jakarta.annotation.Resource;
 import javafx.application.Platform;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
 import java.net.InetSocketAddress;
 
@@ -59,7 +55,7 @@ public class LoginLifecycleImpl implements LoginLifecycle {
             });
 
             AppManager.getInstance().switchView("MAIN");
-            Display.display(MainController.class);
+//            Display.display(MainController.class);
         });
 
         try{

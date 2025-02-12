@@ -296,6 +296,18 @@
 <!--                </executions>-->
 <!--            </plugin>-->
 
+<!--            <plugin>-->
+<!--                <groupId>com.gluonhq</groupId>-->
+<!--                <artifactId>gluon-substrate</artifactId>-->
+<!--                <version>0.0.65</version>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <goals>-->
+<!--                            <goal>build</goal>-->
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
 
             <plugin>
                 <groupId>com.gluonhq</groupId>
@@ -311,6 +323,8 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                         <arg>--initialize-at-build-time=ch.qos.logback.classic.Logger,com.github.im.group.gui.config.ClientConfig$$SpringCGLIB$$0,=com.github.im.group.gui.config.WebClientConfig$$SpringCGLIB$$0, ch.qos.logback.classic.Logger.effectiveLevelInt,org.slf4j.helpers.NOP_FallbackServiceProvider,org.slf4j.helpers.NOP_FallbackServiceProvider.loggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,org.slf4j.LoggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLog, org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,reactor.adapter.JdkFlowAdapter$PublisherAsFlowPublisher, ch.qos.logback.core.ContextBase, ch.qos.logback.core.*, ch.qos.logback, ch.qos.logback.classic, org.slf4j</arg>
                         <arg>--initialize-at-build-time=org.slf4j.helpers</arg>
                         <arg>--initialize-at-run-time=io.netty</arg>
+<!--                        <arg>&#45;&#45;initialize-at-run-time=io.github.palexdev.materialfx</arg>-->
+<!--                        <arg>&#45;&#45;initialize-at-run-time=io.github.palexdev.materialfx.*</arg>-->
                         <arg>-H:IncludeResources=logback-spring.xml</arg>
                         <arg>--no-fallback</arg>  <!-- 仅生成必要的部分 -->
 
@@ -415,6 +429,15 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
             <properties>
                 <gluonfx.target>host</gluonfx.target>
             </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>com.gluonhq.attach</groupId>
+                    <artifactId>display</artifactId>
+                    <version>${attach.version}</version>
+                    <classifier>desktop</classifier>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
         </profile>
         <profile>
             <id>mac</id>
@@ -449,6 +472,16 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                 <app.identifier>${main.class}</app.identifier>
 <!--                <version.code>${env.GITHUB_RUN_NUMBER}</version.code>-->
             </properties>
+
+            <dependencies>
+                <dependency>
+                    <groupId>com.gluonhq.attach</groupId>
+                    <artifactId>display</artifactId>
+                    <version>${attach.version}</version>
+                    <classifier>android</classifier>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
         </profile>
         <profile>
             <id>pi</id>

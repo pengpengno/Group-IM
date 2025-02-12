@@ -33,7 +33,6 @@ public class WebClientConfig {
     @LoadBalanced
     public HttpServiceProxyFactory webClient(@Autowired ServerConnectProperties serverConnectProperties, @Autowired WebClientFilter authFilter) {
         var webClient = WebClient.builder()
-
                 .baseUrl(serverConnectProperties.getRest().getHost())
                 .filter(authFilter)
                 .build();

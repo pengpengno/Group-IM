@@ -1,7 +1,8 @@
-package com.github.im.group.gui.controller;
+package com.github.im.group.gui.controller.desktop;
 
 import com.github.im.dto.user.RegistrationRequest;
 import com.github.im.group.gui.api.UserEndpoint;
+import com.github.im.group.gui.controller.Display;
 import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.FxmlLoader;
 import com.github.im.group.gui.util.StageManager;
@@ -23,7 +24,8 @@ import java.util.ResourceBundle;
 
 @Service
 @Slf4j
-@FxView(path = "register_view",viewName = "REGISTER_VIEW")
+//@FxView(path = "register_view",viewName = "REGISTER_VIEW")
+//@FxView(path = "register_view",viewName = "REGISTER_VIEW")
 public class RegisterView extends VBox implements Initializable {
 
     @FXML
@@ -63,7 +65,7 @@ public class RegisterView extends VBox implements Initializable {
     @FXML
     private void backToLogin() {
 
-        Display.display(LoginView.class);
+        Display.display(DesktopLoginView.class);
 
 //        var stage = FxmlLoader.getSceneInstance(LoginView.class);
 //        StageManager.getPrimaryStage().setScene(stage);
@@ -94,7 +96,7 @@ public class RegisterView extends VBox implements Initializable {
                     alert.setContentText("您的注册已成功！欢迎您！");
                     alert.showAndWait();
 
-                    var stage = FxmlLoader.getSceneInstance(LoginView.class);
+                    var stage = FxmlLoader.getSceneInstance(DesktopLoginView.class);
                     StageManager.getPrimaryStage().setScene(stage);
                 });
             }, throwable -> {

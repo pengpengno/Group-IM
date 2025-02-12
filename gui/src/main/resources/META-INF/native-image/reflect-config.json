@@ -1,0 +1,13 @@
+[
+  {
+    "name": "io.github.palexdev.materialfx.controls.*",
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+
+  {
+    "name": "io.github.palexdev.materialfx.controls.MFXButton$StyleableProperties",
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  }
+]

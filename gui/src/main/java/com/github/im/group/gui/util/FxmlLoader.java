@@ -1,5 +1,6 @@
 package com.github.im.group.gui.util;
 
+import com.gluonhq.charm.glisten.mvc.View;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -28,6 +29,10 @@ public class FxmlLoader implements ApplicationContextAware {
     private final static ConcurrentHashMap<Class<?>,Stage> stageMap = new ConcurrentHashMap<>();
 
     private final static ConcurrentHashMap<Class<?>,Scene> sceneMap = new ConcurrentHashMap<>();
+
+//    private final static ConcurrentHashMap<String, View> VIEW_MAP = new ConcurrentHashMap<>();
+
+
 
 
     private final static String FXML_SUFFIX = ".fxml";
@@ -72,7 +77,7 @@ public class FxmlLoader implements ApplicationContextAware {
 
     }
 
-    public static URL  getFxmlResourceUrl(Class<?> clazz) {
+    public static URL getFxmlResourceUrl(Class<?> clazz) {
         try {
             var viewAnn = clazz.getAnnotation(FxView.class);
 
@@ -122,15 +127,34 @@ public class FxmlLoader implements ApplicationContextAware {
 
             Parent load = fxmlLoader.load();
 
-            var scene = new Scene(load);
-
-            return scene;
+            return new Scene(load);
 
         } catch (Exception e) {
             log.error("Failed to create scene for {}: {}", clazz.getName(), e.getMessage(), e);
             return null;
         }
     }
+
+
+    /**
+     * 加载fxml
+     * @param urlPath url 路径
+     * @return 返回加载的 parent
+     */
+    public static Parent loadFxml(String urlPath) {
+        try {
+
+            var classPathResource = new ClassPathResource(urlPath);
+//            var fxmlResourceUrl = getFxmlResourceUrl(clazz);
+            Assert.notNull(urlPath, "FXML file not found for the specified class!");
+            FXMLLoader fxmlLoader = new FXMLLoader(classPathResource.getURL());
+            fxmlLoader.setControllerFactory(applicationContext::getBean);
+            return fxmlLoader.load();
+        } catch (Exception e) {
+            log.error("exception in fxml loader " ,e);
+        }
+        return null ;
+     }
 
 
 

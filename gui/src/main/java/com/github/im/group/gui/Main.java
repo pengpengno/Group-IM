@@ -1,6 +1,8 @@
 package com.github.im.group.gui;
 
+import com.github.im.group.gui.controller.Display;
 import com.github.im.group.gui.controller.LoginView;
+import com.github.im.group.gui.controller.desktop.DesktopLoginView;
 import com.github.im.group.gui.util.FxmlLoader;
 import com.gluonhq.attach.display.DisplayService;
 import com.gluonhq.attach.util.Platform;
@@ -17,9 +19,6 @@ import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.io.ClassPathResource;
 import java.io.IOException;
 
@@ -71,11 +70,12 @@ public class Main extends Application {
 
     public void postInit(Scene scene) {
 
-        appManager.addViewFactory("LOGIN_VIEW",
-                () -> new View(FxmlLoader.getSceneInstance(LoginView.class).getRoot()));
+//        appManager.addViewFactory("LOGIN_VIEW",
+//                () -> new View(FxmlLoader.getSceneInstance(DesktopLoginView.class).getRoot()));
+        Display.display(LoginView.class);
+//        appManager.switchView("LOGIN_VIEW");
 
-        appManager.switchView("LOGIN_VIEW");
-
+//         桌面端处理
         if (Platform.isDesktop()) {
             Dimension2D dimension2D = DisplayService.create()
                     .map(DisplayService::getDefaultDimensions)
@@ -83,6 +83,8 @@ public class Main extends Application {
             scene.getWindow().setWidth(dimension2D.getWidth());
             scene.getWindow().setHeight(dimension2D.getHeight());
         }
+
+
     }
 
     @Override

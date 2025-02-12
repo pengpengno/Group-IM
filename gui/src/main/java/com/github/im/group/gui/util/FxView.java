@@ -1,5 +1,7 @@
 package com.github.im.group.gui.util;
 
+import com.github.im.group.gui.controller.PlatformView;
+
 import java.lang.annotation.*;
 
 /**
@@ -19,18 +21,32 @@ public @interface FxView {
 
     /**
      *  窗体的fxml 文件加载路径
+     *  会判断当前平台根据 {@link PlatformView.PlatformType 平台} 加载在
+     *  src/main/resources/fxml/desktop 或者 src/main/resources/fxml/mobile
      * {@link FxmlLoader#FXML_PATH_FLODER 默认 fxml 路径}
      */
-    public String path() ;
+    public  String path() default "fxml/";
+
+    /**
+     *  窗体的fxml 文件加载路径
+     *  会判断当前平台根据 {@link PlatformView.PlatformType 平台} 加载在
+     *  src/main/resources/fxml/desktop 或者 src/main/resources/fxml/mobile
+     * {@link FxmlLoader#FXML_PATH_FLODER 默认 fxml 路径}
+     */
+    public String fxmlName();
 
     /**
      *  窗体标题
      */
     public String title() default "IM";
 
+
+
     /**
-     * 用于标识、检索 窗体的 ViewName
-     * {@link com.gluonhq.charm.glisten.application.AppManager#switchView(String) 切换窗体}
+     *  窗体的fxml 文件加载路径
+     *  会判断当前平台根据 {@link PlatformView.PlatformType 平台} 加载在
+     *  src/main/resources/fxml/desktop 或者 src/main/resources/fxml/mobile
+     * {@link FxmlLoader#FXML_PATH_FLODER 默认 fxml 路径}
      */
-    public String viewName() ;
+//    public String viewName() ;
 }

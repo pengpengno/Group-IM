@@ -1,42 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-
 <?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
 <?import io.github.palexdev.materialfx.controls.MFXButton?>
+
 <?import io.github.palexdev.mfxresources.fonts.MFXFontIcon?>
 <?import javafx.geometry.Insets?>
-<BorderPane fx:id="rootpane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.github.im.group.gui.controller.MainController">
+<BorderPane fx:id="rootpane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.github.im.group.gui.controller.desktop.MainController">
+
+    <!-- 顶部窗口控制栏 -->
     <top>
-        <HBox fx:id="windowHeader" alignment="CENTER_RIGHT" layoutY="6.0" prefHeight="50.0" prefWidth="1281.0"
-              spacing="10.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+        <HBox fx:id="windowHeader" alignment="CENTER_RIGHT" prefHeight="50.0" spacing="10.0">
             <padding>
                 <Insets right="10.0"/>
             </padding>
             <MFXFontIcon fx:id="alwaysOnTopIcon" description="fas-circle" size="15.0" styleClass="always-on-top-icon"/>
             <MFXFontIcon fx:id="minimizeIcon" description="fas-circle" size="15.0" styleClass="minimize-icon"/>
             <MFXFontIcon fx:id="closeIcon" description="fas-circle" size="15.0" styleClass="close-icon"/>
-
         </HBox>
     </top>
 
     <!-- 左侧菜单栏 -->
     <left>
-
-        <VBox fx:id="iconMenu" spacing="10" prefWidth="100" styleClass="sidebar" >
-<!--            <MFXButton fx:id="messagesButton" text="Messages">-->
-<!--                <graphic>-->
-<!--                    <ImageView fx:id="meetingsIcon" fitHeight="20" fitWidth="20" preserveRatio="true"-->
-<!--                               pickOnBounds="true"-->
-<!--                    />-->
-<!--                </graphic>-->
-<!--            </MFXButton>-->
-            <MFXButton text="Mail" />
-            <MFXButton text="Documents"/>
-            <MFXButton text="Schedule"/>
-            <Button text="Meetings"/>
-            <Button text="Workbench"/>
-            <Button text="Contacts"/>
+        <VBox fx:id="iconMenu" spacing="10.0" prefWidth="80.0" alignment="CENTER">
+            <!-- 这里的按钮会由 MainController 初始化 -->
         </VBox>
     </left>
 
@@ -61,4 +48,5 @@
             </StackPane>
         </VBox>
     </center>
+
 </BorderPane>
