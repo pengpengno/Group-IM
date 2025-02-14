@@ -8,13 +8,14 @@ import com.github.im.dto.user.UserInfo;
 import com.github.im.group.gui.config.ServerConnectProperties;
 import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.Display;
-import com.github.im.group.gui.controller.desktop.MainController;
+import com.github.im.group.gui.controller.MainHomeView;
+import com.github.im.group.gui.controller.desktop.DesktopLoginView;
+import com.github.im.group.gui.controller.desktop.DesktopMainView;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
-import com.github.im.group.gui.util.FxmlLoader;
-import com.gluonhq.charm.glisten.application.AppManager;
-import com.gluonhq.charm.glisten.mvc.View;
 import javafx.application.Platform;
+import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
+import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -48,14 +49,15 @@ public class LoginLifecycleImpl implements LoginLifecycle {
         // On successful login, navigate to the main view
         Platform.runLater(() -> {
             log.debug("login success {}" ,userInfo);
+
             UserInfoContext.setCurrentUser(userInfo);
+            var primaryStage = Display.getPrimaryStage();
+            primaryStage.setMinWidth(560);
+            primaryStage.setWidth(970);
+            primaryStage.setHeight(560);
+            primaryStage.setMinHeight(450);
+            Display.display(MainHomeView.class);
 
-            AppManager.getInstance().addViewFactory("MAIN",()-> {
-                return new View(FxmlLoader.getSceneInstance(MainController.class).getRoot());
-            });
-
-            AppManager.getInstance().switchView("MAIN");
-//            Display.display(MainController.class);
         });
 
         try{
@@ -64,8 +66,6 @@ public class LoginLifecycleImpl implements LoginLifecycle {
             ClientToolkit.clientLifeStyle()
                     .connect(new InetSocketAddress(serverConnectPro.getHost()
                     , serverConnectPro.getPort()));
-
-
 
             var accountInfo = Account.AccountInfo.newBuilder()
                     .setUserId(userInfo.getUserId())
@@ -86,8 +86,6 @@ public class LoginLifecycleImpl implements LoginLifecycle {
             log.error("connect to  server error " ,exception);
 
         }
-
-
 
     }
 }

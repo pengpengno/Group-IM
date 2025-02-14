@@ -1,7 +1,6 @@
-package com.github.im.group.gui.controller.desktop;
+package com.github.im.group.gui.controller.mobile;
 
-import com.github.im.group.gui.controller.chat.ChatMainPane;
-import com.github.im.group.gui.util.FxView;
+import com.github.im.group.gui.controller.desktop.chat.ChatMainPane;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.enums.ButtonType;
 import io.github.palexdev.mfxresources.fonts.MFXFontIcon;
@@ -27,9 +26,7 @@ import java.util.List;
 
 @Service
 @Slf4j
-@FxView(fxmlName = "main_layout")
-//@FxView(path = "main_layout", viewName = "MAIN_VIEW")
-public class MainController {
+public class MobileMainHomeView {
 
     @Autowired
     private ChatMainPane chatMainPane;

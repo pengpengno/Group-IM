@@ -11,12 +11,14 @@ import com.gluonhq.charm.glisten.mvc.View;
 import io.github.palexdev.materialfx.theming.JavaFXThemes;
 import io.github.palexdev.materialfx.theming.MaterialFXStylesheets;
 import io.github.palexdev.materialfx.theming.UserAgentBuilder;
+import jakarta.inject.Inject;
 import javafx.application.Application;
 import javafx.geometry.Dimension2D;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
+import org.scenicview.ScenicView;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.core.io.ClassPathResource;
@@ -35,19 +37,16 @@ import java.io.IOException;
 @Slf4j
 public class Main extends Application {
 
+    @Inject
     private AppManager appManager;
 
-    @Override
-    public void init() {
-
+    public void initApp() {
         log.info("application init ");
-
 //        var springApplication = new SpringApplication(Main.class);
         var springApplication = new SpringApplication(SpringBootApp.class);
         springApplication.setWebApplicationType(WebApplicationType.NONE);
         springApplication.setMainApplicationClass(SpringBootApp.class);
-//        applicationContext = springApplication.run();
-         springApplication.run();
+        springApplication.run();
         String mainRunner = System.getProperty("sun.java.command");
         if ("org.springframework.boot.SpringApplicationAotProcessor".equals(mainRunner)) {
             //For Spring's AOT build phase with maven, the SpringContext is sufficient.
@@ -56,24 +55,16 @@ public class Main extends Application {
             return;
         }
 
+//        System.setProperty("javafx.platform", "DESKTOP");
         // **延迟初始化 AppManager**
         appManager = AppManager.initialize((scene)->postInit(scene));
-
-
-
-
-//        appManager.addViewFactory(AppManager.HOME_VIEW,
-//                () -> new View(FxmlLoader.getSceneInstance(LoginView.class).getRoot()));
 
 
     }
 
     public void postInit(Scene scene) {
 
-//        appManager.addViewFactory("LOGIN_VIEW",
-//                () -> new View(FxmlLoader.getSceneInstance(DesktopLoginView.class).getRoot()));
         Display.display(LoginView.class);
-//        appManager.switchView("LOGIN_VIEW");
 
 //         桌面端处理
         if (Platform.isDesktop()) {
@@ -89,8 +80,6 @@ public class Main extends Application {
 
     @Override
     public void start(Stage primaryStage) throws IOException {
-//        this.primaryStage = primaryStage;
-//        StageManager.setPrimaryStage(primaryStage);
 
         UserAgentBuilder.builder()
                 .themes(JavaFXThemes.MODENA)
@@ -112,23 +101,29 @@ public class Main extends Application {
         if(stylesResource.exists()){
             primaryStage.getScene().getStylesheets().add(stylesResource.getURL().toExternalForm());
         }
-//        primaryStage.setMinWidth(800);
-//        primaryStage.setMinHeight(600);
-//        primaryStage.setWidth(1000);  // 设置默认宽度
-//        primaryStage.setHeight(700);  // 设置默认高度
+
 
 
         primaryStage.setResizable(true);
 
+        initApp();
+
+
         appManager.start(primaryStage);
+
+        System.setProperty("javafx.platform","android");
+
+        Display.setPrimaryStage(primaryStage);
+
+//        ScenicView.show(primaryStage.getScene());
+
         // **手动取消全屏**
         primaryStage.setFullScreen(false);
+
+
     }
 
-//    @Override
-//    public void stop() {
-//        applicationContext.close();
-//    }
+
 
     public static void main(String[] args) {
         launch(args);

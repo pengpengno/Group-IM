@@ -3,7 +3,9 @@ package com.github.im.group.gui.controller.desktop;
 import com.github.im.dto.user.RegistrationRequest;
 import com.github.im.group.gui.api.UserEndpoint;
 import com.github.im.group.gui.controller.Display;
-import com.github.im.group.gui.util.FxView;
+import com.github.im.group.gui.controller.LoginView;
+import com.github.im.group.gui.controller.MainHomeView;
+import com.github.im.group.gui.controller.RegisterView;
 import com.github.im.group.gui.util.FxmlLoader;
 import com.github.im.group.gui.util.StageManager;
 import javafx.application.Platform;
@@ -22,11 +24,10 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import java.net.URL;
 import java.util.ResourceBundle;
 
-@Service
+//@Service
 @Slf4j
 //@FxView(path = "register_view",viewName = "REGISTER_VIEW")
-//@FxView(path = "register_view",viewName = "REGISTER_VIEW")
-public class RegisterView extends VBox implements Initializable {
+public class DesktopRegisterView extends VBox implements Initializable, RegisterView {
 
     @FXML
     private TextField fullNameField;
@@ -49,8 +50,6 @@ public class RegisterView extends VBox implements Initializable {
     @FXML
     private Button registerButton;
 
-
-
     @FXML
     private Button backButton;
 
@@ -62,13 +61,17 @@ public class RegisterView extends VBox implements Initializable {
         registerButton.setOnAction(event -> register());
     }
 
+
+    @Override
+    public PlatformType getPlatform() {
+        return PlatformType.DESKTOP;
+    }
+
     @FXML
     private void backToLogin() {
 
         Display.display(DesktopLoginView.class);
 
-//        var stage = FxmlLoader.getSceneInstance(LoginView.class);
-//        StageManager.getPrimaryStage().setScene(stage);
     }
 
     @FXML
@@ -95,10 +98,10 @@ public class RegisterView extends VBox implements Initializable {
                     alert.setHeaderText(null);
                     alert.setContentText("您的注册已成功！欢迎您！");
                     alert.showAndWait();
+                    Display.display(LoginView.class);
 
-                    var stage = FxmlLoader.getSceneInstance(DesktopLoginView.class);
-                    StageManager.getPrimaryStage().setScene(stage);
                 });
+
             }, throwable -> {
 
                 if (throwable instanceof WebClientResponseException) {

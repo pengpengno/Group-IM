@@ -1,4 +1,4 @@
-package com.github.im.group.gui.controller.chat;
+package com.github.im.group.gui.controller.desktop.chat;
 
 import com.github.im.common.connect.connection.client.ClientToolkit;
 import com.github.im.common.connect.connection.client.ReactiveClientAction;

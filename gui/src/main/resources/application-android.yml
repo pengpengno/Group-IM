@@ -12,6 +12,8 @@ logging:
 
 
 spring:
+  jvm:
+    args: -Djavafx.platform=ANDROID
   aot:
     enabled: true
 #    reactor.netty: DEBUG

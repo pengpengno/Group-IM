@@ -12,10 +12,16 @@ import com.github.im.group.gui.util.FxmlLoader;
 import com.github.im.group.gui.util.StageManager;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.mvc.View;
+import jakarta.annotation.Resource;
 import javafx.application.Platform;
 import javafx.scene.Scene;
+import javafx.stage.Stage;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.kordamp.bootstrapfx.BootstrapFX;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
@@ -37,11 +43,15 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Component
 @Slf4j
-public class Display  implements ApplicationContextAware {
+public class Display   {
+//public class Display  implements ApplicationContextAware {
 
-    private static ApplicationContext applicationContext;
+//    private static ApplicationContext applicationContext;
 
 
+    @Getter
+    @Setter
+    private static Stage primaryStage;
 
     private static final String DESKTOP_PATH = "desktop/";
     private static final String FXML_PATH  = "fxml/";
@@ -50,130 +60,117 @@ public class Display  implements ApplicationContextAware {
 
     public static final ConcurrentHashMap<String,View> DISPLAY_VIEW_MAP = new ConcurrentHashMap<>();
 
-    @Override
-    public void setApplicationContext(ApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
+
+
+    public  static <T extends PlatformView> T registerView(Class<T> displayClass) {
+
+
+
+        // 获取当前平台信息
+        var currentPlatform = com.gluonhq.attach.util.Platform.getCurrent();
+        var platformType = PlatformView.PlatformType.getPlatformType(currentPlatform);
+
+        log.debug("Current platform is {} ,platformType {} ", currentPlatform, platformType);
+
+        // 获取 FxView 注解
+        var annotation = displayClass.getAnnotation(FxView.class);
+        if (annotation == null) {
+            log.warn("No FxView annotation found for class {}", displayClass.getName());
+            return null;
+        }
+
+        // 构建 FXML 文件路径
+        String fxmlLoaderPath = buildFxmlPath(platformType, annotation.fxmlName());
+
+        // 加载 FXML 文件和其控制器
+        var tuples = FxmlLoader.loadFxml(fxmlLoaderPath);
+//        var tuples = fxmlLoader.loadFxml(fxmlLoaderPath);
+        if (tuples == null) {
+            log.error("Failed to load FXML file: {}", fxmlLoaderPath);
+            return null;
+        }
+
+        // 获取父节点和控制器
+        var parent = tuples.getT2();
+        var controller = tuples.getT1().getController();
+
+        if (controller == null) {
+            log.error("Loaded FXML does not contain a valid parent or controller.");
+            return null;
+        }
+
+        // 创建并注册视图
+        var viewName = displayClass.getName();
+        if (!DISPLAY_VIEW_MAP.containsKey(viewName)) {
+            try {
+                View view = new View(parent);
+                AppManager.getInstance().addViewFactory(viewName, () -> view);
+                log.info("View registered successfully: {}", viewName);
+            } catch (Exception e) {
+                log.error("Failed to register view {}: {}", viewName, e.getMessage());
+                return null;
+            }
+        }
+        return (T) controller;
     }
 
+    /**
+     * 构建平台特定的 FXML 文件路径
+     */
+    private static String buildFxmlPath(PlatformView.PlatformType platformType, String fxmlName) {
+        String platformPath = (platformType == PlatformView.PlatformType.DESKTOP) ? DESKTOP_PATH : MOBILE_PATH;
+        return FXML_PATH + platformPath + fxmlName + FXML_SUFFIX;
+    }
 
+    /**
+     * 切换 view
+     *  不存在 的View 就先register 在  switch
+     * @param displayClass
+     */
 
+    public static  void switchView(Class<? extends PlatformView> displayClass){
+        if (!DISPLAY_VIEW_MAP.containsKey(displayClass.getName())){
+            registerView(displayClass);
+        }
+        AppManager.getInstance().switchView(displayClass.getName());
+    }
     /**
      * 展示当前窗体
      * 此处使用的事 Gluon 的组件来渲染 窗体
      * @param displayClass
      */
-    public static  void display(Class<? extends PlatformView> displayClass){
+    public static void display(Class<? extends PlatformView> displayClass){
         Platform.runLater(()-> {
-            var appManager = AppManager.getInstance();
-
-            var annotation = displayClass.getAnnotation(FxView.class);
-
-            var currentPlatform = com.gluonhq.attach.util.Platform.getCurrent();
-
-
-
-            //根据当前平台调用不同的 view
-            var platformType = PlatformView.PlatformType.getPlatformType(currentPlatform);
-
-            log.debug("currentPlatform is {} ,platformType {} ",currentPlatform,platformType);
-
-
-            Map<String, ? extends PlatformView> beansOfType = applicationContext.getBeansOfType(displayClass);
-
-            if(beansOfType.isEmpty()){
-                log.info("");
-                return;
-            }
-            Collection<? extends PlatformView> beans = beansOfType.values();
-            var platform = beans.stream().filter(platformView -> {
-                return platformType.equals(platformView.getPlatform());
-            }).findFirst().map(PlatformView::getPlatform).orElseGet(() -> PlatformView.DEFAULT_PLATFORM);
-
-            if (annotation != null){
-                var viewName = displayClass.getName();
-                var cached = DISPLAY_VIEW_MAP.containsKey(viewName);
-                if (!cached){
-                    DISPLAY_VIEW_MAP.computeIfAbsent(viewName,key->{
-                        String fxmlLoaderPath ;
-                        if (platform.equals(PlatformView.PlatformType.DESKTOP)){
-                            fxmlLoaderPath = FXML_PATH+DESKTOP_PATH+annotation.fxmlName()+FXML_SUFFIX;
-                        }else{
-                            fxmlLoaderPath = FXML_PATH+MOBILE_PATH+annotation.fxmlName()+FXML_SUFFIX;
-
-                        }
-
-                        var PARENT = FxmlLoader.loadFxml(fxmlLoaderPath);
-                        View view ;
-                        if (PARENT != null){
-
-                            view =  new View(PARENT);
-                        }
-                        else{
-                            view = new View();
-                        }
-                        try{
-                            appManager.addViewFactory(viewName,()->{
-                                return view;
-                            });
-                        }catch (Exception exception){
-                            exception.printStackTrace();
-                        }
-
-                        return view;
-                    });
-
-                }
-
-
-
-//                try{
-//                    appManager.addViewFactory(viewName,()->{
-////                    appManager.addViewFactory(displayClass.getName(),()->{
-//                        var sceneInstance = FxmlLoader.getSceneInstance(displayClass);
-//                        if (sceneInstance != null){
-//                            return new View(sceneInstance.getRoot());
-//                        }
-//                        return new View();
-//                    });
-//                }catch (Exception exception){
-//                    exception.printStackTrace();
-////                    log.error("already existed ",exception);
-//                }
-
-                appManager.switchView(viewName);
-            }
-
-        });
-
-
-    }
-
-    /**
-     * 展示当前窗体
-     * 此方法使用的事原始的 Javafx 在 primaryStage 切换 Scene ，在
-     * @param displayClass
-     */
-    @Deprecated
-    public static  void displayV1(Class<?> displayClass){
-
-        Platform.runLater(()-> {
-//            Class<? extends Display> displayClass = this.getClass();
-            var scene = FxmlLoader.getSceneInstance(displayClass);
-            var primaryStage = StageManager.getPrimaryStage();
-            primaryStage.sizeToScene(); // 自动调整主 Stage 大小以适应当前 Scene 的大小
-
-//            scene.getStylesheets().add(BootstrapFX.bootstrapFXStylesheet());       //(3)
-
-            scene.widthProperty().addListener((observable, oldValue, newValue) -> {
-                primaryStage.setWidth(newValue.doubleValue());
-            });
-            scene.heightProperty().addListener((observable, oldValue, newValue) -> {
-                primaryStage.setHeight(newValue.doubleValue());
-            });
-
-
-            primaryStage.setResizable(true);
-            primaryStage.setScene(scene);
+            switchView(displayClass);
         });
     }
+
+//    /**
+//     * 展示当前窗体
+//     * 此方法使用的事原始的 Javafx 在 primaryStage 切换 Scene ，在
+//     * @param displayClass
+//     */
+//    @Deprecated
+//    public static  void displayV1(Class<?> displayClass){
+//
+//        Platform.runLater(()-> {
+////            Class<? extends Display> displayClass = this.getClass();
+//            var scene = FxmlLoader.getSceneInstance(displayClass);
+//            var primaryStage = StageManager.getPrimaryStage();
+//            primaryStage.sizeToScene(); // 自动调整主 Stage 大小以适应当前 Scene 的大小
+//
+////            scene.getStylesheets().add(BootstrapFX.bootstrapFXStylesheet());       //(3)
+//
+//            scene.widthProperty().addListener((observable, oldValue, newValue) -> {
+//                primaryStage.setWidth(newValue.doubleValue());
+//            });
+//            scene.heightProperty().addListener((observable, oldValue, newValue) -> {
+//                primaryStage.setHeight(newValue.doubleValue());
+//            });
+//
+//
+//            primaryStage.setResizable(true);
+//            primaryStage.setScene(scene);
+//        });
+//    }
 }

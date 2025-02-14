@@ -1,18 +1,21 @@
 package com.github.im.group.gui.util;
 
-import com.gluonhq.charm.glisten.mvc.View;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
+
 import java.io.File;
 import java.net.URL;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,14 +27,17 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Component
 @Slf4j
+//public class FxmlLoader{
 public class FxmlLoader implements ApplicationContextAware {
+
 
     private final static ConcurrentHashMap<Class<?>,Stage> stageMap = new ConcurrentHashMap<>();
 
     private final static ConcurrentHashMap<Class<?>,Scene> sceneMap = new ConcurrentHashMap<>();
 
-//    private final static ConcurrentHashMap<String, View> VIEW_MAP = new ConcurrentHashMap<>();
 
+
+    private final static ConcurrentHashMap<Class<?>,FXMLLoader> FXMLLOADER_MAP = new ConcurrentHashMap<>();
 
 
 
@@ -41,8 +47,12 @@ public class FxmlLoader implements ApplicationContextAware {
 
     private static ApplicationContext applicationContext;
 
+//    @Autowired
+//    private ApplicationContext applicationContext;
 
 
+
+//
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
@@ -97,6 +107,19 @@ public class FxmlLoader implements ApplicationContextAware {
         throw new RuntimeException("Failed to load FXML resource for " + clazz.getName());
     }
 
+
+    /**
+     * 获取 Controller 实体
+     * @param clazz
+     * @return
+     * @param <T>
+     */
+    public  <T>  T getController( Class<T> clazz) {
+
+        return getFxmlLoader(clazz).getController();
+
+    }
+
     /***
      * 获取单例的 Stage
      * 此方法会有三种方式来搜索对应的fxml 文件
@@ -108,22 +131,20 @@ public class FxmlLoader implements ApplicationContextAware {
      * @param clazz 传入的类
      * @return 返回加载的 stage
      */
-    private static Scene applySingleScene(Class<?> clazz) {
+    private  Scene applySingleScene(Class<?> clazz) {
         try {
 
-            Assert.notNull(clazz, "The specified class cannot be null!");
+//            Assert.notNull(clazz, "The specified class cannot be null!");
 
-            var fxmlResourceUrl = getFxmlResourceUrl(clazz);
+//            var fxmlResourceUrl = getFxmlResourceUrl(clazz);
+//
+//            Assert.notNull(fxmlResourceUrl, "FXML file not found for the specified class!");
+//
+//
+//            var fxmlLoader = getFxmlLoader(fxmlResourceUrl);
+            var fxmlLoader = getFxmlLoader(clazz);
 
-            if (fxmlResourceUrl == null){
-                // 如果不存在则直接 使用类的路径来查询
-                clazz.getResource(buildClassFxmlPath(clazz));
-            }
-
-            Assert.notNull(fxmlResourceUrl, "FXML file not found for the specified class!");
-
-            FXMLLoader fxmlLoader = new FXMLLoader(fxmlResourceUrl);
-            fxmlLoader.setControllerFactory(applicationContext::getBean);
+//            CONTROLLER_MAP.putIfAbsent(clazz,fxmlLoader.getController());
 
             Parent load = fxmlLoader.load();
 
@@ -135,25 +156,88 @@ public class FxmlLoader implements ApplicationContextAware {
         }
     }
 
+    private  FXMLLoader  getFxmlLoader(Class<?> clazz){
+
+        return FXMLLOADER_MAP.computeIfAbsent(clazz, key -> {
+
+            Assert.notNull(clazz, "The specified class cannot be null!");
+
+            var fxmlResourceUrl = getFxmlResourceUrl(clazz);
+
+            Assert.notNull(fxmlResourceUrl, "FXML file not found for the specified class!");
+
+            FXMLLoader fxmlLoader = new FXMLLoader(fxmlResourceUrl);
+
+            fxmlLoader.setControllerFactory(applicationContext::getBean);
+
+            return fxmlLoader;
+
+        });
+
+    }
+
+
 
     /**
      * 加载fxml
      * @param urlPath url 路径
-     * @return 返回加载的 parent
+     * @return 返回加载的 parent 不存在返回空
      */
-    public static Parent loadFxml(String urlPath) {
+    public static  Tuple2<FXMLLoader ,Parent> loadFxml(String urlPath) {
         try {
-
             var classPathResource = new ClassPathResource(urlPath);
-//            var fxmlResourceUrl = getFxmlResourceUrl(clazz);
+
             Assert.notNull(urlPath, "FXML file not found for the specified class!");
+
             FXMLLoader fxmlLoader = new FXMLLoader(classPathResource.getURL());
+
             fxmlLoader.setControllerFactory(applicationContext::getBean);
-            return fxmlLoader.load();
+
+            Parent load = fxmlLoader.load();
+            return Tuples.of(fxmlLoader,load);
         } catch (Exception e) {
             log.error("exception in fxml loader " ,e);
         }
-        return null ;
+        return null;
+    }
+    public  Parent loadFxml(String urlPath,Class<?> clazz) {
+
+        var loader = FXMLLOADER_MAP.get(clazz);
+        if (loader !=null ){
+            try {
+                return loader.load();
+            }
+            catch (Exception ex ){
+                log.error("exception in fxml loader " ,ex);
+                return null;
+            }
+        }
+
+        try{
+            return FXMLLOADER_MAP.computeIfAbsent(clazz, cls-> {
+                try {
+                    var classPathResource = new ClassPathResource(urlPath);
+
+                    Assert.notNull(urlPath, "FXML file not found for the specified class!");
+
+                    FXMLLoader fxmlLoader = new FXMLLoader(classPathResource.getURL());
+                    var classLoader = fxmlLoader.getController();
+
+                    fxmlLoader.setControllerFactory(applicationContext::getBean);
+                    return fxmlLoader;
+                } catch (Exception e) {
+                    log.error("exception in fxml loader " ,e);
+                }
+                return null ;
+            }).load();
+
+        }catch (Exception ex){
+
+            log.error("exception in fxml loader " ,ex);
+
+            return null;
+        }
+
      }
 
 
@@ -172,17 +256,17 @@ public class FxmlLoader implements ApplicationContextAware {
      * @param clazz The class for which to load the stage.
      * @return The loaded Stage.
      */
-    public static Stage applySingleStage(Class<?> clazz) {
-        return stageMap.computeIfAbsent(clazz, key -> {
-            Stage stage = new Stage();
-            Scene scene = applySingleScene(clazz);
-            if (scene != null) {
-                stage.setScene(scene);
-                addCloseEventHandler(stage, clazz);
-            }
-            return stage;
-        });
-    }
+//    public static Stage applySingleStage(Class<?> clazz) {
+//        return stageMap.computeIfAbsent(clazz, key -> {
+//            Stage stage = new Stage();
+//            Scene scene = applySingleScene(clazz);
+//            if (scene != null) {
+//                stage.setScene(scene);
+//                addCloseEventHandler(stage, clazz);
+//            }
+//            return stage;
+//        });
+//    }
 
     /**
      * Loads a prototype Stage (a new instance each time).
@@ -218,9 +302,9 @@ public class FxmlLoader implements ApplicationContextAware {
      * @param clazz The class for which to retrieve the scene.
      * @return The cached Scene, or null if not found.
      */
-    public static Scene getSceneInstance(Class<?> clazz) {
-        return sceneMap.computeIfAbsent(clazz,FxmlLoader::applySingleScene);
-    }
+//    public static Scene getSceneInstance(Class<?> clazz) {
+//        return sceneMap.computeIfAbsent(clazz,FxmlLoader::applySingleScene);
+//    }
 
     /**
      * Clears all cached stages and scenes. This can be used when you need to forcefully reload.

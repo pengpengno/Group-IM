@@ -4,17 +4,22 @@ import com.github.im.dto.user.LoginRequest;
 import com.github.im.group.gui.api.UserEndpoint;
 import com.github.im.group.gui.controller.Display;
 import com.github.im.group.gui.controller.LoginView;
+import com.github.im.group.gui.controller.MainHomeView;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.github.im.group.gui.util.FxView;
+import com.github.im.group.gui.util.FxmlLoader;
 import io.github.palexdev.materialfx.controls.MFXButton;
+import jakarta.annotation.PostConstruct;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.StackPane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
@@ -23,7 +28,6 @@ import java.util.ResourceBundle;
 
 @Service
 @Slf4j
-//@FxView(path = "login_view",viewName = "LOGIN_VIEW")
 @FxView(fxmlName = "login_view")
 @RequiredArgsConstructor
 public class DesktopLoginView extends StackPane implements Initializable, LoginView {
@@ -44,7 +48,10 @@ public class DesktopLoginView extends StackPane implements Initializable, LoginV
     @FXML
     private MFXButton navigateToRegister;
 
+
+
     private final UserEndpoint userEndpoint;
+
     private final LoginLifecycle loginLifecycle;
 
 
@@ -59,6 +66,8 @@ public class DesktopLoginView extends StackPane implements Initializable, LoginV
 
     @FXML
     private void navigateToRegister() {
+
+
 
 
 //        Display.display(RegisterView.class);
@@ -79,6 +88,14 @@ public class DesktopLoginView extends StackPane implements Initializable, LoginV
 
 
     }
+
+
+
+    @PostConstruct
+    public void init() {
+
+    }
+
     @FXML
     private void login() {
         String username = usernameField.getText().trim();
@@ -110,6 +127,11 @@ public class DesktopLoginView extends StackPane implements Initializable, LoginV
                 ;
 
         loginLifecycle.loginCallBack(userInfo);
+
+//        mainHome.initToolBar();
+//        FxmlLoader.getController(DesktopMainView.class).initToolbar();
+
+
     }
 
 

@@ -1,4 +1,4 @@
-package com.github.im.group.gui.controller.chat;
+package com.github.im.group.gui.controller.desktop.chat;
 
 import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.util.AvatarGenerator;
@@ -23,7 +23,6 @@ import org.fxmisc.richtext.InlineCssTextArea;
 /**
  * Description:
  * <p>
- *
  *     message bubble pane
  *     a chat message bubble pane should contains
  *     1. sender
@@ -34,7 +33,6 @@ import org.fxmisc.richtext.InlineCssTextArea;
  * @version 1.0
  * @since 2025/1/14
  */
-
 public class ChatBubblePane extends HBox {
 
 
@@ -67,7 +65,7 @@ public class ChatBubblePane extends HBox {
         this.setPadding(new Insets(10));
         this.setAlignment(isSent ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT); // 根据消息类型调整对齐
 
-        avatar = new ImageView( AvatarGenerator.generateAvatar(name, 100));;
+        avatar = new ImageView( AvatarGenerator.generateCircleAvatar(name, 100));;
         avatar.setFitWidth(40);
         avatar.setFitHeight(40);
 //        avatar.setStyle("-fx-effect: dropshadow(gaussian, gray, 4, 0.5, 0, 0);"); // 添加阴影效果

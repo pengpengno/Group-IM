@@ -3,10 +3,9 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
 <?import io.github.palexdev.materialfx.controls.MFXButton?>
-
 <?import io.github.palexdev.mfxresources.fonts.MFXFontIcon?>
 <?import javafx.geometry.Insets?>
-<BorderPane fx:id="rootpane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.github.im.group.gui.controller.desktop.MainController">
+<BorderPane fx:id="rootpane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.github.im.group.gui.controller.desktop.DesktopMainView">
 
     <!-- 顶部窗口控制栏 -->
     <top>
@@ -22,8 +21,13 @@
 
     <!-- 左侧菜单栏 -->
     <left>
-        <VBox fx:id="iconMenu" spacing="10.0" prefWidth="80.0" alignment="CENTER">
-            <!-- 这里的按钮会由 MainController 初始化 -->
+
+        <VBox fx:id="iconMenu"  prefWidth="50.0" VBox.vgrow="ALWAYS" style="-fx-background-color: #2196F3;">
+            <!-- 头像 -->
+            <ImageView fx:id="avatar" fitWidth="50" fitHeight="50" />
+            <!-- 这里的按钮会由 Controller 初始化 -->
+
+
         </VBox>
     </left>
 

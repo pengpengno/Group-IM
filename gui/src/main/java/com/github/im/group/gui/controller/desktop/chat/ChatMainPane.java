@@ -1,4 +1,4 @@
-package com.github.im.group.gui.controller.chat;
+package com.github.im.group.gui.controller.desktop.chat;
 
 import com.github.im.dto.user.FriendshipDTO;
 import com.github.im.dto.user.UserInfo;
@@ -9,7 +9,6 @@ import javafx.application.Platform;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
-import javafx.scene.control.TextArea;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import lombok.Getter;
@@ -23,7 +22,6 @@ import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
 
 /**
  * Description:
@@ -52,7 +50,6 @@ public class ChatMainPane extends BorderPane implements Initializable {
 
     private final FriendShipEndpoint friendShipEndpoint;
 
-
     private ConcurrentHashMap<String, ChatMessagePane>  chatPaneMap = new ConcurrentHashMap<>();
 
 
@@ -75,6 +72,7 @@ public class ChatMainPane extends BorderPane implements Initializable {
 
         @Override
         public void initialize(URL location, ResourceBundle resources) {
+
 
         }
     }

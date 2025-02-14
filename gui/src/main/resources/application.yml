@@ -5,6 +5,9 @@ im:
     connect:
       host: ${CONNECT_HOST:localhost}
       port: 8088
+
+javafx:
+  platform: DESKTOP
 logging:
   level:
     root: INFO
@@ -12,6 +15,8 @@ logging:
 
 
 spring:
-  aot:
-    enabled: true
+  jvm:
+    args: -Djavafx.platform=desktop
+#  aot:
+#    enabled: true
 #    reactor.netty: DEBUG
