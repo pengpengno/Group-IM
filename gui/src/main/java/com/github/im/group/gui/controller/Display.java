@@ -125,7 +125,7 @@ public class Display   {
     /**
      * 切换 view
      *  不存在 的View 就先register 在  switch
-     * @param displayClass
+     * @param displayClass 展示的view
      */
 
     public static  void switchView(Class<? extends PlatformView> displayClass){

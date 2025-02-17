@@ -28,7 +28,7 @@ import java.util.ResourceBundle;
 
 @Service
 @Slf4j
-@FxView(fxmlName = "login_view")
+//@FxView(fxmlName = "login_view")
 @RequiredArgsConstructor
 public class DesktopLoginView extends StackPane implements Initializable, LoginView {
     @Override
@@ -68,23 +68,6 @@ public class DesktopLoginView extends StackPane implements Initializable, LoginV
     private void navigateToRegister() {
 
 
-
-
-//        Display.display(RegisterView.class);
-//        var scene = FxmlLoader.getSceneInstance(RegisterView.class);
-//        var primaryStage = StageManager.getPrimaryStage();
-//        primaryStage.sizeToScene(); // 自动调整主 Stage 大小以适应当前 Scene 的大小
-
-//        如果希望窗口在首次加载时能自适应，你也可以绑定 RegisterView 的宽度和高度到 Scene
-//        scene.widthProperty().addListener((observable, oldValue, newValue) -> {
-//            primaryStage.setWidth(newValue.doubleValue());
-//        });
-//        scene.heightProperty().addListener((observable, oldValue, newValue) -> {
-//            primaryStage.setHeight(newValue.doubleValue());
-//        });
-
-//        primaryStage.setResizable(true);
-//        primaryStage.setScene(scene);
 
 
     }

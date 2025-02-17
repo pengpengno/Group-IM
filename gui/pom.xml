@@ -18,6 +18,8 @@
 
         <attach.version>4.0.21</attach.version>
         <charm.version>6.2.3</charm.version>
+        <glisten.afterburner.version>2.1.0</glisten.afterburner.version>
+
         <gluonfx.maven.plugin.version>1.0.25</gluonfx.maven.plugin.version>
         <main.class>com.github.im.group.gui.Main</main.class>
 <!--        <main.class>com.github.meeting.gui.Launcher</main.class>-->
@@ -209,24 +211,13 @@
             <groupId>com.github.im</groupId>
             <artifactId>entity</artifactId>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId></groupId>-->
-<!--            <artifactId>spring-aot</artifactId>-->
-<!--        </dependency>-->
 
-        <!-- https://mvnrepository.com/artifact/org.springframework.experimental/spring-aot -->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.experimental</groupId>-->
-<!--            <artifactId>spring-aot</artifactId>-->
-<!--            <version>0.12.2</version>-->
-<!--        </dependency>-->
 
-        <!--        &lt;!&ndash; https://mvnrepository.com/artifact/org.graalvm.buildtools/native-maven-plugin &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>org.graalvm.buildtools</groupId>-->
-<!--            <artifactId>native-maven-plugin</artifactId>-->
-<!--            <version>0.10.5</version>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>com.gluonhq</groupId>
+            <artifactId>glisten-afterburner</artifactId>
+            <version>${glisten.afterburner.version}</version>
+        </dependency>
 
     </dependencies>
 
@@ -270,44 +261,6 @@
                 </configuration>
             </plugin>
 
-<!--            <plugin>-->
-<!--                <groupId>org.apache.maven.plugins</groupId>-->
-<!--                <artifactId>maven-resources-plugin</artifactId>-->
-<!--                <version>3.2.0</version>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <phase>process-resources</phase>-->
-<!--                        <goals>-->
-<!--                            <goal>copy-resources</goal>-->
-<!--                        </goals>-->
-<!--                        <configuration>-->
-<!--&lt;!&ndash;                            <outputDirectory>${project.build.directory}/gluonfx/${target}/gvm/gui/META-INF/native-image</outputDirectory>&ndash;&gt;-->
-<!--                            <outputDirectory>${project.build.directory}/gluonfx/aarch64-android/gvm/gui/META-INF/native-image</outputDirectory>-->
-<!--                            <resources>-->
-<!--                                <resource>-->
-<!--                                    <directory>${project.build.directory}/classes/META-INF/native-image</directory>-->
-<!--                                    <includes>-->
-<!--                                        <include>**/*</include>-->
-<!--                                    </includes>-->
-<!--                                </resource>-->
-<!--                            </resources>-->
-<!--                        </configuration>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--            </plugin>-->
-
-<!--            <plugin>-->
-<!--                <groupId>com.gluonhq</groupId>-->
-<!--                <artifactId>gluon-substrate</artifactId>-->
-<!--                <version>0.0.65</version>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <goals>-->
-<!--                            <goal>build</goal>-->
-<!--                        </goals>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--            </plugin>-->
 
             <plugin>
                 <groupId>com.gluonhq</groupId>
@@ -470,7 +423,9 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
             <properties>
                 <gluonfx.target>android</gluonfx.target>
                 <app.identifier>${main.class}</app.identifier>
-<!--                <version.code>${env.GITHUB_RUN_NUMBER}</version.code>-->
+                <spring.profiles.active>android</spring.profiles.active>
+
+                <!--                <version.code>${env.GITHUB_RUN_NUMBER}</version.code>-->
             </properties>
 
             <dependencies>

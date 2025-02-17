@@ -12,6 +12,7 @@ logging:
 
 
 spring:
+  profiles: android
   jvm:
     args: -Djavafx.platform=ANDROID
   aot:
