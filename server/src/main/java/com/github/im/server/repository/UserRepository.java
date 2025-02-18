@@ -16,10 +16,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u WHERE u.username ILIKE ?1 OR u.email ILIKE ?1")
 //    @Query("SELECT u FROM User u WHERE u.username LIKE %:query% OR u.email LIKE %:query%")
-    Optional<User> findByNameOrEmail(@Param("query") String query);
+    Optional<List<User>> findByNameOrEmail(@Param("query") String query);
 
     @Query("SELECT u FROM User u WHERE u.username = ?1 OR u.email = ?1")
-    Optional<List<User>> findByUsernameOrEmail(@Param("loginAccount") String loginAccount);
+    Optional<User> findByUsernameOrEmail(@Param("loginAccount") String loginAccount);
 
 
     Optional<User> findByEmail(String email);
