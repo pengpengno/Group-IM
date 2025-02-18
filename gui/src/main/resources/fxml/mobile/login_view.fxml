@@ -6,7 +6,7 @@
 <View xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.github.im.group.gui.controller.mobile.MobileLoginView">
     <VBox alignment="CENTER" spacing="20.0" padding="20">
-        <Text text="MyApp Login" font="System Bold 24" fill="#4CAF50" />
+<!--        <Text text="MyApp Login" font="System Bold 24" fill="#4CAF50" />-->
         <TextField fx:id="usernameField" promptText="Username" prefWidth="300.0"/>
         <PasswordField fx:id="passwordField" promptText="Password" prefWidth="300.0"/>
         <Button text="Login" onAction="#handleLogin" prefWidth="300.0"/>

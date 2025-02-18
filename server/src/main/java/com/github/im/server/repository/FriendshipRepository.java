@@ -21,9 +21,6 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
     Optional<Friendship> findByUserAndFriend(User user, User friend);
 
 
-
-
-
     /**
      * 根据好友关系  查询哈有
      * @param user 用户

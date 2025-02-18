@@ -50,7 +50,6 @@ public class FriendshipController {
 
 
 
-    //    @PostMapping("/list/{userId}")
     @PostMapping("/list")
     public  ResponseEntity<List<FriendshipDTO>> getFriends(@RequestParam Long userId) {
 

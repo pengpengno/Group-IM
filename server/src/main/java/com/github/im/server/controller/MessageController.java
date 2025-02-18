@@ -27,6 +27,22 @@ public class MessageController {
         return ResponseEntity.ok(messageDTO);
     }
 
+
+
+    @PostMapping("/pull")
+    public ResponseEntity<MessageDTO> listUnReadMessages(@RequestParam Long sessionId,
+                                                  @RequestParam String content,
+                                                  @RequestParam Long fromAccountId,
+                                                  @RequestParam Long toAccountId,
+                                                  @RequestParam MessageType type) {
+        MessageDTO messageDTO = messageService.sendMessage(sessionId, content, fromAccountId, toAccountId, type);
+        return ResponseEntity.ok(messageDTO);
+    }
+
+
+
+
+
     // 获取会话中的所有消息
     @GetMapping("/session/{sessionId}")
     public ResponseEntity<List<MessageDTO>> getMessages(@PathVariable Long sessionId) {

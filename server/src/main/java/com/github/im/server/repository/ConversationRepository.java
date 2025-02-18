@@ -16,6 +16,5 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
 
 
     // 查询某个用户的所有群组
-//    @Query("SELECT c FROM Conversation c WHERE c.user.userId = :userId")
     List<Conversation> findByMembers_User_UserId(Long userId);
 }

@@ -4,6 +4,7 @@ import com.github.im.dto.user.LoginRequest;
 import com.github.im.group.gui.api.UserEndpoint;
 import com.github.im.group.gui.controller.LoginView;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
+import com.gluonhq.charm.glisten.afterburner.AppViewRegistry;
 import com.gluonhq.charm.glisten.control.Alert;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -41,7 +42,9 @@ public class MobileLoginView implements LoginView {
         String username = usernameField.getText();
         String password = passwordField.getText();
 //
-//        AppViewRegistry
+//        AppViewRegistry.getInstance().getView("chat").ifPresent(view -> {
+//            view.fireEvent(new AppViewRegistry.NavigateEvent("chat"));
+//        });
 
         LoginRequest loginRequest = new LoginRequest(username, password);
 
