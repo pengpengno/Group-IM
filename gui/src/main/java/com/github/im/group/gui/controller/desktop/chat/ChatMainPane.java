@@ -160,12 +160,11 @@ public class ChatMainPane extends BorderPane implements Initializable {
         log.debug("Loading friend list...");
 
         Long userId = UserInfoContext.getCurrentUser().getUserId();
-        Mono<List<FriendshipDTO>> friendListMono = friendShipEndpoint.getFriends(userId);
-
-
-        friendListMono.doOnError(error -> log.error("Failed to load friends", error))
-                .doOnSuccess(this::updateFriendList)
-                .subscribe();
+         friendShipEndpoint.getFriends(userId)
+                         .collectList()
+                        .doOnError(error -> log.error("Failed to load friends", error))
+                        .doOnSuccess(this::updateFriendList)
+                        .subscribe();
     }
 
 
