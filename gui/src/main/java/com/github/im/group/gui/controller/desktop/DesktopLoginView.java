@@ -1,5 +1,6 @@
 package com.github.im.group.gui.controller.desktop;
 
+import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.dto.user.LoginRequest;
 import com.github.im.group.gui.api.UserEndpoint;
 import com.github.im.group.gui.controller.Display;
@@ -31,8 +32,9 @@ import java.util.ResourceBundle;
 //@FxView(fxmlName = "login_view")
 @RequiredArgsConstructor
 public class DesktopLoginView extends StackPane implements Initializable, LoginView {
+
     @Override
-    public PlatformType getPlatform() {
+    public PlatformType  getPlatform() {
         return PlatformType.DESKTOP;
     }
 
@@ -47,7 +49,6 @@ public class DesktopLoginView extends StackPane implements Initializable, LoginV
 
     @FXML
     private MFXButton navigateToRegister;
-
 
 
     private final UserEndpoint userEndpoint;
@@ -68,11 +69,7 @@ public class DesktopLoginView extends StackPane implements Initializable, LoginV
     private void navigateToRegister() {
 
 
-
-
     }
-
-
 
     @PostConstruct
     public void init() {
@@ -110,10 +107,6 @@ public class DesktopLoginView extends StackPane implements Initializable, LoginV
                 ;
 
         loginLifecycle.loginCallBack(userInfo);
-
-//        mainHome.initToolBar();
-//        FxmlLoader.getController(DesktopMainView.class).initToolbar();
-
 
     }
 

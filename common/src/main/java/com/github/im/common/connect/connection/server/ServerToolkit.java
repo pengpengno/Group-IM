@@ -2,7 +2,7 @@ package com.github.im.common.connect.connection.server;
 
 
 import com.github.im.common.connect.connection.server.context.IConnectContext;
-import com.github.im.common.connect.connection.server.tcp.ReactorTcpAction;
+//import com.github.im.common.connect.connection.server.tcp.ReactorTcpAction;
 import com.github.im.common.connect.connection.server.tcp.ReactorTcpServer;
 import com.github.im.common.connect.connection.server.context.IConnectContextAction;
 
@@ -29,9 +29,9 @@ public class ServerToolkit {
         return IConnectContext.getInstance();
     }
 
-    public static ReactiveServerAction reactorTcpServerAction(){
-        return ReactorTcpAction.getInstance();
-    }
+//    public static ReactiveServerAction reactorTcpServerAction(){
+//        return ReactorTcpAction.getInstance();
+//    }
 
 
     public static ReactiveServer reactiveServer(){

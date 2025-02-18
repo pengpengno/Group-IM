@@ -7,8 +7,10 @@ import com.github.im.dto.user.UserRegisterRequest;
 import org.springframework.beans.factory.annotation.Lookup;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
@@ -28,5 +30,8 @@ public interface UserEndpoint {
 	@PostExchange("/api/users/login")
 	Mono<UserInfo> loginUser(@RequestBody LoginRequest loginRequest);
 
+
+	@PostExchange("/api/users/query")
+	Flux<UserInfo>  findUserByNameOrEmail(@RequestParam String query);
 
 }

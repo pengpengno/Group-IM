@@ -48,9 +48,9 @@ public class ChatMainPane extends BorderPane implements Initializable {
 
     private ChatMessagePane currentChatPane;
 
-    private final FriendShipEndpoint friendShipEndpoint;
 
     private ConcurrentHashMap<String, ChatMessagePane>  chatPaneMap = new ConcurrentHashMap<>();
+    private final FriendShipEndpoint friendShipEndpoint;
 
 
 

@@ -11,6 +11,7 @@ import org.springframework.web.service.annotation.DeleteExchange;
 import org.springframework.web.service.annotation.GetExchange;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -28,7 +29,8 @@ public interface FriendShipEndpoint {
 
 	// 获取好友列表
 	@PostExchange("/friendships/list")
-	Mono<List<FriendshipDTO>> getFriends(@RequestParam Long userId);
+	Flux<FriendshipDTO> getFriends(@RequestParam Long userId);
+//	Mono<List<FriendshipDTO>> getFriends(@RequestParam Long userId);
 
 	// 删除好友
 	@DeleteExchange("/friendships/{userId}/{friendId}")

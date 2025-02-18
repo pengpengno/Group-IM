@@ -7,6 +7,7 @@ package com.github.im.group.gui.controller;/**
  * @since 06
  */
 
+import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.FxmlLoader;
 import com.github.im.group.gui.util.StageManager;
@@ -46,7 +47,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Display   {
 //public class Display  implements ApplicationContextAware {
 
-//    private static ApplicationContext applicationContext;
 
 
     @Getter
@@ -68,7 +68,7 @@ public class Display   {
 
         // 获取当前平台信息
         var currentPlatform = com.gluonhq.attach.util.Platform.getCurrent();
-        var platformType = PlatformView.PlatformType.getPlatformType(currentPlatform);
+        var platformType = PlatformView.getPlatformType(currentPlatform);
 
         log.debug("Current platform is {} ,platformType {} ", currentPlatform, platformType);
 
@@ -117,8 +117,8 @@ public class Display   {
     /**
      * 构建平台特定的 FXML 文件路径
      */
-    private static String buildFxmlPath(PlatformView.PlatformType platformType, String fxmlName) {
-        String platformPath = (platformType == PlatformView.PlatformType.DESKTOP) ? DESKTOP_PATH : MOBILE_PATH;
+    private static String buildFxmlPath(PlatformType platformType, String fxmlName) {
+        String platformPath = (platformType == PlatformType.DESKTOP) ? DESKTOP_PATH : MOBILE_PATH;
         return FXML_PATH + platformPath + fxmlName + FXML_SUFFIX;
     }
 
@@ -145,32 +145,4 @@ public class Display   {
         });
     }
 
-//    /**
-//     * 展示当前窗体
-//     * 此方法使用的事原始的 Javafx 在 primaryStage 切换 Scene ，在
-//     * @param displayClass
-//     */
-//    @Deprecated
-//    public static  void displayV1(Class<?> displayClass){
-//
-//        Platform.runLater(()-> {
-////            Class<? extends Display> displayClass = this.getClass();
-//            var scene = FxmlLoader.getSceneInstance(displayClass);
-//            var primaryStage = StageManager.getPrimaryStage();
-//            primaryStage.sizeToScene(); // 自动调整主 Stage 大小以适应当前 Scene 的大小
-//
-////            scene.getStylesheets().add(BootstrapFX.bootstrapFXStylesheet());       //(3)
-//
-//            scene.widthProperty().addListener((observable, oldValue, newValue) -> {
-//                primaryStage.setWidth(newValue.doubleValue());
-//            });
-//            scene.heightProperty().addListener((observable, oldValue, newValue) -> {
-//                primaryStage.setHeight(newValue.doubleValue());
-//            });
-//
-//
-//            primaryStage.setResizable(true);
-//            primaryStage.setScene(scene);
-//        });
-//    }
 }

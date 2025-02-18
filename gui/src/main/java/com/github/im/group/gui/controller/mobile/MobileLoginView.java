@@ -1,10 +1,10 @@
 package com.github.im.group.gui.controller.mobile;
 
+import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.dto.user.LoginRequest;
 import com.github.im.group.gui.api.UserEndpoint;
 import com.github.im.group.gui.controller.LoginView;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
-import com.gluonhq.charm.glisten.afterburner.AppViewRegistry;
 import com.gluonhq.charm.glisten.control.Alert;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -23,7 +23,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 public class MobileLoginView implements LoginView {
     @Override
     public PlatformType getPlatform() {
-        return PlatformType.ANDROID;
+        return PlatformType.MOBILE;
     }
 
     @FXML

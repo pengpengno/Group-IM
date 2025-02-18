@@ -7,7 +7,11 @@ package com.github.im.group.gui.controller;/**
  * @since 12
  */
 
+import com.github.im.common.connect.enums.PlatformType;
+import com.github.im.common.connect.model.proto.Account;
 import com.gluonhq.attach.util.Platform;
+
+import static com.github.im.common.connect.enums.PlatformType.*;
 
 /**
  * Description:
@@ -21,37 +25,55 @@ import com.gluonhq.attach.util.Platform;
 public interface PlatformView {
 
 
-    public static PlatformType  DEFAULT_PLATFORM = PlatformType.DESKTOP;
+    public static PlatformType  DEFAULT_PLATFORM = DESKTOP;
 
 
     public PlatformType getPlatform();
 
 
-    /**
-     * DEFAULT IS DESKTOP
-     */
-    public enum PlatformType {
-        DESKTOP,
-        ANDROID,
-        IOS,
-        WEB,
-        UNKNOWN
 
-        ;
+    public static PlatformType getCurrentPlatform() {
+        return getPlatformType(Platform.getCurrent());
+    }
+
+    public static Account.PlatformType getCurrentPlatformType() {
 
 
-        //  enum corresponding to the  gluon Platform enum
-        public static PlatformType getPlatformType(Platform platform) {
-            return switch (platform) {
-                case DESKTOP -> DESKTOP;
-                case ANDROID -> ANDROID;
-                case IOS -> IOS;
-                default -> UNKNOWN;
-            };
+        var current = Platform.getCurrent();
 
+        switch (current) {
+            case ANDROID -> {
+                return Account.PlatformType.ANDROID;
+            }
+            case IOS -> {
+                return Account.PlatformType.IOS;
+            }
+            default -> {
+
+                var osName = System.getProperty("os.name").toLowerCase();
+
+                if (osName.contains("win")) {
+                    return Account.PlatformType.WINDOWS;
+                } else if (osName.contains("mac")) {
+                    return Account.PlatformType.IOS;
+                } else if (osName.contains("nix") || osName.contains("nux") || osName.contains("aix")) {
+                    return Account.PlatformType.LINUX;
+                } else if (osName.contains("android")) {
+                    return Account.PlatformType.ANDROID;
+                } else {
+                    return Account.PlatformType.WINDOWS;
+                }
+            }
         }
     }
 
-
-
+    //  enum corresponding to the  gluon Platform enum
+    public static PlatformType getPlatformType(Platform platform) {
+        return switch (platform) {
+            case DESKTOP -> DESKTOP;
+            case ANDROID -> MOBILE;
+            case IOS -> MOBILE;
+            default -> DESKTOP;
+        };
+    }
 }

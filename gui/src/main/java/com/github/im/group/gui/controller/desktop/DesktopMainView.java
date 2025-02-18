@@ -1,5 +1,6 @@
 package com.github.im.group.gui.controller.desktop;
 
+import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.MainHomeView;
 import com.github.im.group.gui.controller.PlatformView;
@@ -44,8 +45,9 @@ public class DesktopMainView implements MainHomeView {
     private BorderPane rootpane;
     @FXML
     private HBox windowHeader;
-    @FXML
-    private ListView<String> conversationList;
+//    @FXML
+//    private ListView<String> conversationList;
+
     @FXML
     private StackPane chatPane;
     @FXML
@@ -120,8 +122,8 @@ public class DesktopMainView implements MainHomeView {
 
 
     @Override
-    public PlatformView.PlatformType getPlatform() {
-        return PlatformView.PlatformType.DESKTOP;
+    public PlatformType getPlatform() {
+        return PlatformType.DESKTOP;
     }
 
 

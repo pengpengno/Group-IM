@@ -9,6 +9,7 @@ import com.github.im.group.gui.config.ServerConnectProperties;
 import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.Display;
 import com.github.im.group.gui.controller.MainHomeView;
+import com.github.im.group.gui.controller.PlatformView;
 import com.github.im.group.gui.controller.desktop.DesktopLoginView;
 import com.github.im.group.gui.controller.desktop.DesktopMainView;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
@@ -63,11 +64,13 @@ public class LoginLifecycleImpl implements LoginLifecycle {
         try{
 
             var serverConnectPro = serverConnectProperties.getConnect();
+
             ClientToolkit.clientLifeStyle()
                     .connect(new InetSocketAddress(serverConnectPro.getHost()
                     , serverConnectPro.getPort()));
 
             var accountInfo = Account.AccountInfo.newBuilder()
+                    .setPlatformType(PlatformView.getCurrentPlatformType())
                     .setUserId(userInfo.getUserId())
                     .setAccountName(userInfo.getUsername())
                     .setAccount(userInfo.getUsername())
@@ -79,7 +82,8 @@ public class LoginLifecycleImpl implements LoginLifecycle {
                     .build();
 
             ClientToolkit.reactiveClientAction()
-                    .sendMessage(baseMessage).subscribe();
+                    .sendMessage(baseMessage)
+                    .subscribe();
 
         }catch (Exception exception){
 

@@ -108,7 +108,6 @@ public class Main extends Application {
 
         initApp();
 
-
         appManager.start(primaryStage);
 
         System.setProperty("javafx.platform","android");

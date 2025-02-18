@@ -3,7 +3,7 @@ package com.github.im.common.reactor.netty.tcp;
 import com.github.im.common.connect.connection.client.ClientLifeStyle;
 import com.github.im.common.connect.connection.client.ClientToolkit;
 import com.github.im.common.connect.connection.client.ReactiveClientAction;
-import com.github.im.common.connect.handler.client.ClientInboundHandler;
+//import com.github.im.common.connect.handler.client.ClientInboundHandler;
 import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.model.AccountInfo;
 import io.netty.buffer.ByteBuf;
@@ -67,7 +67,7 @@ public class ReactiveClientTest {
                 .port(PORT)
                 .wiretap("client",LogLevel.INFO)
                 .doOnChannelInit((connectionObserver, channel, remoteAddress) -> {
-                    channel.pipeline().addLast(new ClientInboundHandler(jwt));
+//                    channel.pipeline().addLast(new ClientInboundHandler(jwt));
                 })
                 .connectNow().bind();
         log.info("{}", connect.isDisposed());

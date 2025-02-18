@@ -1,5 +1,6 @@
 package com.github.im.group.gui.controller.desktop;
 
+import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.dto.user.RegistrationRequest;
 import com.github.im.group.gui.api.UserEndpoint;
 import com.github.im.group.gui.controller.Display;
@@ -24,9 +25,8 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import java.net.URL;
 import java.util.ResourceBundle;
 
-//@Service
+@Service
 @Slf4j
-//@FxView(path = "register_view",viewName = "REGISTER_VIEW")
 public class DesktopRegisterView extends VBox implements Initializable, RegisterView {
 
     @FXML

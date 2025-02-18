@@ -5,6 +5,7 @@ option java_package = "com.github.im.common.connect.model.proto";
 option java_outer_classname = "BaseMessage";
 import "Account.proto";
 import "Message.proto";
+import "Notification.proto";
 
 
 message BaseMessagePkg {
@@ -15,6 +16,8 @@ message BaseMessagePkg {
     AccountInfo accountInfo = 1;
 
     ChatMessage message = 2;
+
+    NotificationInfo notification = 3;
 
   }
 

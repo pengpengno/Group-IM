@@ -26,6 +26,159 @@ public final class Account {
         (com.google.protobuf.ExtensionRegistryLite) registry);
   }
   /**
+   * Protobuf enum {@code com.github.im.common.connect.model.proto.PlatformType}
+   */
+  public enum PlatformType
+      implements com.google.protobuf.ProtocolMessageEnum {
+    /**
+     * <code>WEB = 0;</code>
+     */
+    WEB(0),
+    /**
+     * <code>ANDROID = 1;</code>
+     */
+    ANDROID(1),
+    /**
+     * <code>IOS = 2;</code>
+     */
+    IOS(2),
+    /**
+     * <code>WINDOWS = 3;</code>
+     */
+    WINDOWS(3),
+    /**
+     * <code>MAC = 4;</code>
+     */
+    MAC(4),
+    /**
+     * <code>LINUX = 5;</code>
+     */
+    LINUX(5),
+    UNRECOGNIZED(-1),
+    ;
+
+    static {
+      com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+        com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+        /* major= */ 4,
+        /* minor= */ 28,
+        /* patch= */ 2,
+        /* suffix= */ "",
+        PlatformType.class.getName());
+    }
+    /**
+     * <code>WEB = 0;</code>
+     */
+    public static final int WEB_VALUE = 0;
+    /**
+     * <code>ANDROID = 1;</code>
+     */
+    public static final int ANDROID_VALUE = 1;
+    /**
+     * <code>IOS = 2;</code>
+     */
+    public static final int IOS_VALUE = 2;
+    /**
+     * <code>WINDOWS = 3;</code>
+     */
+    public static final int WINDOWS_VALUE = 3;
+    /**
+     * <code>MAC = 4;</code>
+     */
+    public static final int MAC_VALUE = 4;
+    /**
+     * <code>LINUX = 5;</code>
+     */
+    public static final int LINUX_VALUE = 5;
+
+
+    public final int getNumber() {
+      if (this == UNRECOGNIZED) {
+        throw new java.lang.IllegalArgumentException(
+            "Can't get the number of an unknown enum value.");
+      }
+      return value;
+    }
+
+    /**
+     * @param value The numeric wire value of the corresponding enum entry.
+     * @return The enum associated with the given numeric wire value.
+     * @deprecated Use {@link #forNumber(int)} instead.
+     */
+    @java.lang.Deprecated
+    public static PlatformType valueOf(int value) {
+      return forNumber(value);
+    }
+
+    /**
+     * @param value The numeric wire value of the corresponding enum entry.
+     * @return The enum associated with the given numeric wire value.
+     */
+    public static PlatformType forNumber(int value) {
+      switch (value) {
+        case 0: return WEB;
+        case 1: return ANDROID;
+        case 2: return IOS;
+        case 3: return WINDOWS;
+        case 4: return MAC;
+        case 5: return LINUX;
+        default: return null;
+      }
+    }
+
+    public static com.google.protobuf.Internal.EnumLiteMap<PlatformType>
+        internalGetValueMap() {
+      return internalValueMap;
+    }
+    private static final com.google.protobuf.Internal.EnumLiteMap<
+        PlatformType> internalValueMap =
+          new com.google.protobuf.Internal.EnumLiteMap<PlatformType>() {
+            public PlatformType findValueByNumber(int number) {
+              return PlatformType.forNumber(number);
+            }
+          };
+
+    public final com.google.protobuf.Descriptors.EnumValueDescriptor
+        getValueDescriptor() {
+      if (this == UNRECOGNIZED) {
+        throw new java.lang.IllegalStateException(
+            "Can't get the descriptor of an unrecognized enum value.");
+      }
+      return getDescriptor().getValues().get(ordinal());
+    }
+    public final com.google.protobuf.Descriptors.EnumDescriptor
+        getDescriptorForType() {
+      return getDescriptor();
+    }
+    public static final com.google.protobuf.Descriptors.EnumDescriptor
+        getDescriptor() {
+      return com.github.im.common.connect.model.proto.Account.getDescriptor().getEnumTypes().get(0);
+    }
+
+    private static final PlatformType[] VALUES = values();
+
+    public static PlatformType valueOf(
+        com.google.protobuf.Descriptors.EnumValueDescriptor desc) {
+      if (desc.getType() != getDescriptor()) {
+        throw new java.lang.IllegalArgumentException(
+          "EnumValueDescriptor is not for this type.");
+      }
+      if (desc.getIndex() == -1) {
+        return UNRECOGNIZED;
+      }
+      return VALUES[desc.getIndex()];
+    }
+
+    private final int value;
+
+    private PlatformType(int value) {
+      this.value = value;
+    }
+
+    // @@protoc_insertion_point(enum_scope:com.github.im.common.connect.model.proto.PlatformType)
+  }
+
+  /**
    * Protobuf enum {@code com.github.im.common.connect.model.proto.AccountOperationType}
    */
   public enum AccountOperationType
@@ -116,7 +269,7 @@ public final class Account {
     }
     public static final com.google.protobuf.Descriptors.EnumDescriptor
         getDescriptor() {
-      return com.github.im.common.connect.model.proto.Account.getDescriptor().getEnumTypes().get(0);
+      return com.github.im.common.connect.model.proto.Account.getDescriptor().getEnumTypes().get(1);
     }
 
     private static final AccountOperationType[] VALUES = values();
@@ -187,6 +340,17 @@ public final class Account {
      */
     com.google.protobuf.ByteString
         getEMailBytes();
+
+    /**
+     * <code>.com.github.im.common.connect.model.proto.PlatformType platformType = 5;</code>
+     * @return The enum numeric value on the wire for platformType.
+     */
+    int getPlatformTypeValue();
+    /**
+     * <code>.com.github.im.common.connect.model.proto.PlatformType platformType = 5;</code>
+     * @return The platformType.
+     */
+    com.github.im.common.connect.model.proto.Account.PlatformType getPlatformType();
   }
   /**
    * Protobuf type {@code com.github.im.common.connect.model.proto.AccountInfo}
@@ -213,6 +377,7 @@ public final class Account {
       account_ = "";
       accountName_ = "";
       eMail_ = "";
+      platformType_ = 0;
     }
 
     public static final com.google.protobuf.Descriptors.Descriptor
@@ -356,6 +521,24 @@ public final class Account {
       }
     }
 
+    public static final int PLATFORMTYPE_FIELD_NUMBER = 5;
+    private int platformType_ = 0;
+    /**
+     * <code>.com.github.im.common.connect.model.proto.PlatformType platformType = 5;</code>
+     * @return The enum numeric value on the wire for platformType.
+     */
+    @java.lang.Override public int getPlatformTypeValue() {
+      return platformType_;
+    }
+    /**
+     * <code>.com.github.im.common.connect.model.proto.PlatformType platformType = 5;</code>
+     * @return The platformType.
+     */
+    @java.lang.Override public com.github.im.common.connect.model.proto.Account.PlatformType getPlatformType() {
+      com.github.im.common.connect.model.proto.Account.PlatformType result = com.github.im.common.connect.model.proto.Account.PlatformType.forNumber(platformType_);
+      return result == null ? com.github.im.common.connect.model.proto.Account.PlatformType.UNRECOGNIZED : result;
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -382,6 +565,9 @@ public final class Account {
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(eMail_)) {
         com.google.protobuf.GeneratedMessage.writeString(output, 4, eMail_);
       }
+      if (platformType_ != com.github.im.common.connect.model.proto.Account.PlatformType.WEB.getNumber()) {
+        output.writeEnum(5, platformType_);
+      }
       getUnknownFields().writeTo(output);
     }
 
@@ -403,6 +589,10 @@ public final class Account {
       }
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(eMail_)) {
         size += com.google.protobuf.GeneratedMessage.computeStringSize(4, eMail_);
+      }
+      if (platformType_ != com.github.im.common.connect.model.proto.Account.PlatformType.WEB.getNumber()) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeEnumSize(5, platformType_);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
@@ -427,6 +617,7 @@ public final class Account {
           != other.getUserId()) return false;
       if (!getEMail()
           .equals(other.getEMail())) return false;
+      if (platformType_ != other.platformType_) return false;
       if (!getUnknownFields().equals(other.getUnknownFields())) return false;
       return true;
     }
@@ -447,6 +638,8 @@ public final class Account {
           getUserId());
       hash = (37 * hash) + EMAIL_FIELD_NUMBER;
       hash = (53 * hash) + getEMail().hashCode();
+      hash = (37 * hash) + PLATFORMTYPE_FIELD_NUMBER;
+      hash = (53 * hash) + platformType_;
       hash = (29 * hash) + getUnknownFields().hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -582,6 +775,7 @@ public final class Account {
         accountName_ = "";
         userId_ = 0L;
         eMail_ = "";
+        platformType_ = 0;
         return this;
       }
 
@@ -627,6 +821,9 @@ public final class Account {
         if (((from_bitField0_ & 0x00000008) != 0)) {
           result.eMail_ = eMail_;
         }
+        if (((from_bitField0_ & 0x00000010) != 0)) {
+          result.platformType_ = platformType_;
+        }
       }
 
       @java.lang.Override
@@ -658,6 +855,9 @@ public final class Account {
           eMail_ = other.eMail_;
           bitField0_ |= 0x00000008;
           onChanged();
+        }
+        if (other.platformType_ != 0) {
+          setPlatformTypeValue(other.getPlatformTypeValue());
         }
         this.mergeUnknownFields(other.getUnknownFields());
         onChanged();
@@ -705,6 +905,11 @@ public final class Account {
                 bitField0_ |= 0x00000008;
                 break;
               } // case 34
+              case 40: {
+                platformType_ = input.readEnum();
+                bitField0_ |= 0x00000010;
+                break;
+              } // case 40
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -970,6 +1175,59 @@ public final class Account {
         return this;
       }
 
+      private int platformType_ = 0;
+      /**
+       * <code>.com.github.im.common.connect.model.proto.PlatformType platformType = 5;</code>
+       * @return The enum numeric value on the wire for platformType.
+       */
+      @java.lang.Override public int getPlatformTypeValue() {
+        return platformType_;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.PlatformType platformType = 5;</code>
+       * @param value The enum numeric value on the wire for platformType to set.
+       * @return This builder for chaining.
+       */
+      public Builder setPlatformTypeValue(int value) {
+        platformType_ = value;
+        bitField0_ |= 0x00000010;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.PlatformType platformType = 5;</code>
+       * @return The platformType.
+       */
+      @java.lang.Override
+      public com.github.im.common.connect.model.proto.Account.PlatformType getPlatformType() {
+        com.github.im.common.connect.model.proto.Account.PlatformType result = com.github.im.common.connect.model.proto.Account.PlatformType.forNumber(platformType_);
+        return result == null ? com.github.im.common.connect.model.proto.Account.PlatformType.UNRECOGNIZED : result;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.PlatformType platformType = 5;</code>
+       * @param value The platformType to set.
+       * @return This builder for chaining.
+       */
+      public Builder setPlatformType(com.github.im.common.connect.model.proto.Account.PlatformType value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        bitField0_ |= 0x00000010;
+        platformType_ = value.getNumber();
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.PlatformType platformType = 5;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearPlatformType() {
+        bitField0_ = (bitField0_ & ~0x00000010);
+        platformType_ = 0;
+        onChanged();
+        return this;
+      }
+
       // @@protoc_insertion_point(builder_scope:com.github.im.common.connect.model.proto.AccountInfo)
     }
 
@@ -1036,12 +1294,16 @@ public final class Account {
   static {
     java.lang.String[] descriptorData = {
       "\n\rAccount.proto\022(com.github.im.common.co" +
-      "nnect.model.proto\"R\n\013AccountInfo\022\017\n\007acco" +
-      "unt\030\001 \001(\t\022\023\n\013accountName\030\002 \001(\t\022\016\n\006userId" +
-      "\030\003 \001(\003\022\r\n\005eMail\030\004 \001(\t*.\n\024AccountOperatio" +
-      "nType\022\n\n\006SIGNIN\020\000\022\n\n\006LOGOUT\020\001B3\n(com.git" +
-      "hub.im.common.connect.model.protoB\007Accou" +
-      "ntb\006proto3"
+      "nnect.model.proto\"\240\001\n\013AccountInfo\022\017\n\007acc" +
+      "ount\030\001 \001(\t\022\023\n\013accountName\030\002 \001(\t\022\016\n\006userI" +
+      "d\030\003 \001(\003\022\r\n\005eMail\030\004 \001(\t\022L\n\014platformType\030\005" +
+      " \001(\01626.com.github.im.common.connect.mode" +
+      "l.proto.PlatformType*N\n\014PlatformType\022\007\n\003" +
+      "WEB\020\000\022\013\n\007ANDROID\020\001\022\007\n\003IOS\020\002\022\013\n\007WINDOWS\020\003" +
+      "\022\007\n\003MAC\020\004\022\t\n\005LINUX\020\005*.\n\024AccountOperation" +
+      "Type\022\n\n\006SIGNIN\020\000\022\n\n\006LOGOUT\020\001B3\n(com.gith" +
+      "ub.im.common.connect.model.protoB\007Accoun" +
+      "tb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -1052,7 +1314,7 @@ public final class Account {
     internal_static_com_github_im_common_connect_model_proto_AccountInfo_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_com_github_im_common_connect_model_proto_AccountInfo_descriptor,
-        new java.lang.String[] { "Account", "AccountName", "UserId", "EMail", });
+        new java.lang.String[] { "Account", "AccountName", "UserId", "EMail", "PlatformType", });
     descriptor.resolveAllFeaturesImmutable();
   }
 

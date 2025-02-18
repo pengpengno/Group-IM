@@ -48,27 +48,6 @@ public class MessageDispatcher {
         }
     }
 
-//    @Override
-//    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-//
-//        Map<String, ProtoBufProcessHandler> protoBufProcessMap = applicationContext.getBeansOfType(ProtoBufProcessHandler.class);
-//
-//        if (CollectionUtil.isNotEmpty(protoBufProcessMap)){
-//
-//             protoBufProcessMap
-//                    .values()
-//                    .stream()
-//                    .filter(e->e.type()!=null)
-//                     .forEach(handImpl-> {
-//                        log.debug("register handler {}",handImpl.type());
-//                         handlers.putIfAbsent(handImpl.type(),handImpl);
-//
-//                     })
-//                   ;
-//        }
-//
-//    }
-
 
     /**
      * dispatch message
@@ -94,7 +73,7 @@ public class MessageDispatcher {
         }
     }
 
-        private enum SingleInstance{
+    private enum SingleInstance{
         INSTANCE;
         private final MessageDispatcher instance;
         SingleInstance(){

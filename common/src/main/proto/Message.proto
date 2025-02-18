@@ -18,11 +18,16 @@ message ChatMessage  {
 
   string content  = 3 ;
 
+  int32 conversationId = 9 ;
+
   AccountInfo fromAccountInfo = 2 ;
 
   AccountInfo toAccountInfo = 8 ;
 
+
+
   sint32 clientTimeStamp = 7 ;
+
   sint32 serverTimeStamp = 12 ;
 
   MessageType type = 6 ;

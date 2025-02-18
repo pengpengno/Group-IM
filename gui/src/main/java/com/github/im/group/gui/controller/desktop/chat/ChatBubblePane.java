@@ -36,12 +36,9 @@ import org.fxmisc.richtext.InlineCssTextArea;
 public class ChatBubblePane extends HBox {
 
 
-
     private String sender;
 
-
     private String message;
-
 
     // 创建头像
     private ImageView avatar ;

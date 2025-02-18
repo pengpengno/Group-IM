@@ -21,14 +21,6 @@ public class IConnectContext implements IConnectContextAction {
     private final ConcurrentHashMap<String, IConnection> connectionCache =  new ConcurrentHashMap<String,IConnection>();
 
 
-//    /***
-//     * connection group used to route info to group
-//     */
-//    private final ConcurrentHashMap<String, ConnectionGroupRoom> connectionGroup =
-//            new ConcurrentHashMap<String,ConnectionGroupRoom>();
-//
-//
-
     private enum SingleInstance{
         INSTANCE;
         private final IConnectContext instance;

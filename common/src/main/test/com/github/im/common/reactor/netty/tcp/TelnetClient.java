@@ -15,7 +15,7 @@
  */
 package com.github.im.common.reactor.netty.tcp;
 
-import com.github.im.common.connect.handler.client.ClientInboundHandler;
+//import com.github.im.common.connect.handler.client.ClientInboundHandler;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import reactor.core.publisher.Mono;
@@ -39,7 +39,9 @@ public class TelnetClient {
 				TcpClient.create()
 				         .host(HOST)
 				         .port(PORT)
-						.doOnChannelInit((connectionObserver, channel, remoteAddress) -> channel.pipeline().addFirst(new ClientInboundHandler(jwt)))
+						.doOnChannelInit((connectionObserver, channel, remoteAddress) -> channel.pipeline()
+//								.addFirst(new ClientInboundHandler(jwt))
+						)
 				         .doOnConnected(connection ->{
 //									 connection.addHandlerLast(new DelimiterBasedFrameDecoder(8192, Delimiters.lineDelimiter()));
 //									 connection.addHandlerFirst(new ClientInboundHandler(jwt));

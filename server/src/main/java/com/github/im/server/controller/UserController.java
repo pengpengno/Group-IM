@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -30,6 +32,12 @@ public class UserController {
     @GetMapping("/{username}")
     public Optional<User> getUserByUsername(@PathVariable String username) {
         return userService.findUserByUsername(username);
+    }
+
+
+    @PostMapping("/query")
+    public Optional<List<UserInfo>> queryUserByNameOrEmail(@RequestParam String query) {
+        return userService.findUserByUsernameLike(query);
     }
 
     // 用户登录

@@ -59,6 +59,21 @@ public final class BaseMessage {
      */
     com.github.im.common.connect.model.proto.Chat.ChatMessageOrBuilder getMessageOrBuilder();
 
+    /**
+     * <code>.com.github.im.common.connect.model.proto.NotificationInfo notification = 3;</code>
+     * @return Whether the notification field is set.
+     */
+    boolean hasNotification();
+    /**
+     * <code>.com.github.im.common.connect.model.proto.NotificationInfo notification = 3;</code>
+     * @return The notification.
+     */
+    com.github.im.common.connect.model.proto.Notification.NotificationInfo getNotification();
+    /**
+     * <code>.com.github.im.common.connect.model.proto.NotificationInfo notification = 3;</code>
+     */
+    com.github.im.common.connect.model.proto.Notification.NotificationInfoOrBuilder getNotificationOrBuilder();
+
     com.github.im.common.connect.model.proto.BaseMessage.BaseMessagePkg.PayloadCase getPayloadCase();
   }
   /**
@@ -106,6 +121,7 @@ public final class BaseMessage {
             com.google.protobuf.AbstractMessage.InternalOneOfEnum {
       ACCOUNTINFO(1),
       MESSAGE(2),
+      NOTIFICATION(3),
       PAYLOAD_NOT_SET(0);
       private final int value;
       private PayloadCase(int value) {
@@ -125,6 +141,7 @@ public final class BaseMessage {
         switch (value) {
           case 1: return ACCOUNTINFO;
           case 2: return MESSAGE;
+          case 3: return NOTIFICATION;
           case 0: return PAYLOAD_NOT_SET;
           default: return null;
         }
@@ -202,6 +219,37 @@ public final class BaseMessage {
       return com.github.im.common.connect.model.proto.Chat.ChatMessage.getDefaultInstance();
     }
 
+    public static final int NOTIFICATION_FIELD_NUMBER = 3;
+    /**
+     * <code>.com.github.im.common.connect.model.proto.NotificationInfo notification = 3;</code>
+     * @return Whether the notification field is set.
+     */
+    @java.lang.Override
+    public boolean hasNotification() {
+      return payloadCase_ == 3;
+    }
+    /**
+     * <code>.com.github.im.common.connect.model.proto.NotificationInfo notification = 3;</code>
+     * @return The notification.
+     */
+    @java.lang.Override
+    public com.github.im.common.connect.model.proto.Notification.NotificationInfo getNotification() {
+      if (payloadCase_ == 3) {
+         return (com.github.im.common.connect.model.proto.Notification.NotificationInfo) payload_;
+      }
+      return com.github.im.common.connect.model.proto.Notification.NotificationInfo.getDefaultInstance();
+    }
+    /**
+     * <code>.com.github.im.common.connect.model.proto.NotificationInfo notification = 3;</code>
+     */
+    @java.lang.Override
+    public com.github.im.common.connect.model.proto.Notification.NotificationInfoOrBuilder getNotificationOrBuilder() {
+      if (payloadCase_ == 3) {
+         return (com.github.im.common.connect.model.proto.Notification.NotificationInfo) payload_;
+      }
+      return com.github.im.common.connect.model.proto.Notification.NotificationInfo.getDefaultInstance();
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -222,6 +270,9 @@ public final class BaseMessage {
       if (payloadCase_ == 2) {
         output.writeMessage(2, (com.github.im.common.connect.model.proto.Chat.ChatMessage) payload_);
       }
+      if (payloadCase_ == 3) {
+        output.writeMessage(3, (com.github.im.common.connect.model.proto.Notification.NotificationInfo) payload_);
+      }
       getUnknownFields().writeTo(output);
     }
 
@@ -238,6 +289,10 @@ public final class BaseMessage {
       if (payloadCase_ == 2) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(2, (com.github.im.common.connect.model.proto.Chat.ChatMessage) payload_);
+      }
+      if (payloadCase_ == 3) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(3, (com.github.im.common.connect.model.proto.Notification.NotificationInfo) payload_);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
@@ -264,6 +319,10 @@ public final class BaseMessage {
           if (!getMessage()
               .equals(other.getMessage())) return false;
           break;
+        case 3:
+          if (!getNotification()
+              .equals(other.getNotification())) return false;
+          break;
         case 0:
         default:
       }
@@ -286,6 +345,10 @@ public final class BaseMessage {
         case 2:
           hash = (37 * hash) + MESSAGE_FIELD_NUMBER;
           hash = (53 * hash) + getMessage().hashCode();
+          break;
+        case 3:
+          hash = (37 * hash) + NOTIFICATION_FIELD_NUMBER;
+          hash = (53 * hash) + getNotification().hashCode();
           break;
         case 0:
         default:
@@ -427,6 +490,9 @@ public final class BaseMessage {
         if (messageBuilder_ != null) {
           messageBuilder_.clear();
         }
+        if (notificationBuilder_ != null) {
+          notificationBuilder_.clear();
+        }
         payloadCase_ = 0;
         payload_ = null;
         return this;
@@ -476,6 +542,10 @@ public final class BaseMessage {
             messageBuilder_ != null) {
           result.payload_ = messageBuilder_.build();
         }
+        if (payloadCase_ == 3 &&
+            notificationBuilder_ != null) {
+          result.payload_ = notificationBuilder_.build();
+        }
       }
 
       @java.lang.Override
@@ -497,6 +567,10 @@ public final class BaseMessage {
           }
           case MESSAGE: {
             mergeMessage(other.getMessage());
+            break;
+          }
+          case NOTIFICATION: {
+            mergeNotification(other.getNotification());
             break;
           }
           case PAYLOAD_NOT_SET: {
@@ -543,6 +617,13 @@ public final class BaseMessage {
                 payloadCase_ = 2;
                 break;
               } // case 18
+              case 26: {
+                input.readMessage(
+                    getNotificationFieldBuilder().getBuilder(),
+                    extensionRegistry);
+                payloadCase_ = 3;
+                break;
+              } // case 26
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -859,6 +940,148 @@ public final class BaseMessage {
         return messageBuilder_;
       }
 
+      private com.google.protobuf.SingleFieldBuilder<
+          com.github.im.common.connect.model.proto.Notification.NotificationInfo, com.github.im.common.connect.model.proto.Notification.NotificationInfo.Builder, com.github.im.common.connect.model.proto.Notification.NotificationInfoOrBuilder> notificationBuilder_;
+      /**
+       * <code>.com.github.im.common.connect.model.proto.NotificationInfo notification = 3;</code>
+       * @return Whether the notification field is set.
+       */
+      @java.lang.Override
+      public boolean hasNotification() {
+        return payloadCase_ == 3;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.NotificationInfo notification = 3;</code>
+       * @return The notification.
+       */
+      @java.lang.Override
+      public com.github.im.common.connect.model.proto.Notification.NotificationInfo getNotification() {
+        if (notificationBuilder_ == null) {
+          if (payloadCase_ == 3) {
+            return (com.github.im.common.connect.model.proto.Notification.NotificationInfo) payload_;
+          }
+          return com.github.im.common.connect.model.proto.Notification.NotificationInfo.getDefaultInstance();
+        } else {
+          if (payloadCase_ == 3) {
+            return notificationBuilder_.getMessage();
+          }
+          return com.github.im.common.connect.model.proto.Notification.NotificationInfo.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.NotificationInfo notification = 3;</code>
+       */
+      public Builder setNotification(com.github.im.common.connect.model.proto.Notification.NotificationInfo value) {
+        if (notificationBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          payload_ = value;
+          onChanged();
+        } else {
+          notificationBuilder_.setMessage(value);
+        }
+        payloadCase_ = 3;
+        return this;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.NotificationInfo notification = 3;</code>
+       */
+      public Builder setNotification(
+          com.github.im.common.connect.model.proto.Notification.NotificationInfo.Builder builderForValue) {
+        if (notificationBuilder_ == null) {
+          payload_ = builderForValue.build();
+          onChanged();
+        } else {
+          notificationBuilder_.setMessage(builderForValue.build());
+        }
+        payloadCase_ = 3;
+        return this;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.NotificationInfo notification = 3;</code>
+       */
+      public Builder mergeNotification(com.github.im.common.connect.model.proto.Notification.NotificationInfo value) {
+        if (notificationBuilder_ == null) {
+          if (payloadCase_ == 3 &&
+              payload_ != com.github.im.common.connect.model.proto.Notification.NotificationInfo.getDefaultInstance()) {
+            payload_ = com.github.im.common.connect.model.proto.Notification.NotificationInfo.newBuilder((com.github.im.common.connect.model.proto.Notification.NotificationInfo) payload_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            payload_ = value;
+          }
+          onChanged();
+        } else {
+          if (payloadCase_ == 3) {
+            notificationBuilder_.mergeFrom(value);
+          } else {
+            notificationBuilder_.setMessage(value);
+          }
+        }
+        payloadCase_ = 3;
+        return this;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.NotificationInfo notification = 3;</code>
+       */
+      public Builder clearNotification() {
+        if (notificationBuilder_ == null) {
+          if (payloadCase_ == 3) {
+            payloadCase_ = 0;
+            payload_ = null;
+            onChanged();
+          }
+        } else {
+          if (payloadCase_ == 3) {
+            payloadCase_ = 0;
+            payload_ = null;
+          }
+          notificationBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.NotificationInfo notification = 3;</code>
+       */
+      public com.github.im.common.connect.model.proto.Notification.NotificationInfo.Builder getNotificationBuilder() {
+        return getNotificationFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.NotificationInfo notification = 3;</code>
+       */
+      @java.lang.Override
+      public com.github.im.common.connect.model.proto.Notification.NotificationInfoOrBuilder getNotificationOrBuilder() {
+        if ((payloadCase_ == 3) && (notificationBuilder_ != null)) {
+          return notificationBuilder_.getMessageOrBuilder();
+        } else {
+          if (payloadCase_ == 3) {
+            return (com.github.im.common.connect.model.proto.Notification.NotificationInfo) payload_;
+          }
+          return com.github.im.common.connect.model.proto.Notification.NotificationInfo.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.NotificationInfo notification = 3;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilder<
+          com.github.im.common.connect.model.proto.Notification.NotificationInfo, com.github.im.common.connect.model.proto.Notification.NotificationInfo.Builder, com.github.im.common.connect.model.proto.Notification.NotificationInfoOrBuilder> 
+          getNotificationFieldBuilder() {
+        if (notificationBuilder_ == null) {
+          if (!(payloadCase_ == 3)) {
+            payload_ = com.github.im.common.connect.model.proto.Notification.NotificationInfo.getDefaultInstance();
+          }
+          notificationBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              com.github.im.common.connect.model.proto.Notification.NotificationInfo, com.github.im.common.connect.model.proto.Notification.NotificationInfo.Builder, com.github.im.common.connect.model.proto.Notification.NotificationInfoOrBuilder>(
+                  (com.github.im.common.connect.model.proto.Notification.NotificationInfo) payload_,
+                  getParentForChildren(),
+                  isClean());
+          payload_ = null;
+        }
+        payloadCase_ = 3;
+        onChanged();
+        return notificationBuilder_;
+      }
+
       // @@protoc_insertion_point(builder_scope:com.github.im.common.connect.model.proto.BaseMessagePkg)
     }
 
@@ -926,29 +1149,34 @@ public final class BaseMessage {
     java.lang.String[] descriptorData = {
       "\n\021BaseMessage.proto\022(com.github.im.commo" +
       "n.connect.model.proto\032\rAccount.proto\032\rMe" +
-      "ssage.proto\"\263\001\n\016BaseMessagePkg\022L\n\013accoun" +
-      "tInfo\030\001 \001(\01325.com.github.im.common.conne" +
-      "ct.model.proto.AccountInfoH\000\022H\n\007message\030" +
-      "\002 \001(\01325.com.github.im.common.connect.mod" +
-      "el.proto.ChatMessageH\000B\t\n\007payloadB7\n(com" +
-      ".github.im.common.connect.model.protoB\013B" +
-      "aseMessageb\006proto3"
+      "ssage.proto\032\022Notification.proto\"\207\002\n\016Base" +
+      "MessagePkg\022L\n\013accountInfo\030\001 \001(\01325.com.gi" +
+      "thub.im.common.connect.model.proto.Accou" +
+      "ntInfoH\000\022H\n\007message\030\002 \001(\01325.com.github.i" +
+      "m.common.connect.model.proto.ChatMessage" +
+      "H\000\022R\n\014notification\030\003 \001(\0132:.com.github.im" +
+      ".common.connect.model.proto.Notification" +
+      "InfoH\000B\t\n\007payloadB7\n(com.github.im.commo" +
+      "n.connect.model.protoB\013BaseMessageb\006prot" +
+      "o3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
         new com.google.protobuf.Descriptors.FileDescriptor[] {
           com.github.im.common.connect.model.proto.Account.getDescriptor(),
           com.github.im.common.connect.model.proto.Chat.getDescriptor(),
+          com.github.im.common.connect.model.proto.Notification.getDescriptor(),
         });
     internal_static_com_github_im_common_connect_model_proto_BaseMessagePkg_descriptor =
       getDescriptor().getMessageTypes().get(0);
     internal_static_com_github_im_common_connect_model_proto_BaseMessagePkg_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_com_github_im_common_connect_model_proto_BaseMessagePkg_descriptor,
-        new java.lang.String[] { "AccountInfo", "Message", "Payload", });
+        new java.lang.String[] { "AccountInfo", "Message", "Notification", "Payload", });
     descriptor.resolveAllFeaturesImmutable();
     com.github.im.common.connect.model.proto.Account.getDescriptor();
     com.github.im.common.connect.model.proto.Chat.getDescriptor();
+    com.github.im.common.connect.model.proto.Notification.getDescriptor();
   }
 
   // @@protoc_insertion_point(outer_class_scope)

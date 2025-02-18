@@ -31,7 +31,7 @@
     <center>
         <VBox>
             <!-- 会话列表 -->
-            <ListView fx:id="conversationList" VBox.vgrow="ALWAYS" style="-fx-pref-height: 200;"/>
+<!--            <ListView fx:id="conversationList" VBox.vgrow="ALWAYS" style="-fx-pref-height: 200;"/>-->
 
             <!-- 聊天界面 -->
             <StackPane fx:id="chatPane" VBox.vgrow="ALWAYS" style="-fx-padding: 10;">
