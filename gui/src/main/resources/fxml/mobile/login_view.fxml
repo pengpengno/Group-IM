@@ -2,8 +2,6 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.text.*?>
-
-<?import com.gluonhq.charm.glisten.application.GlassPane?>
 <?import com.gluonhq.charm.glisten.mvc.View?>
 <View xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.github.im.group.gui.controller.mobile.MobileLoginView">
