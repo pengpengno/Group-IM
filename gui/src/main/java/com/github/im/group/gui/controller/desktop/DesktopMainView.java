@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.ResourceBundle;
 
 @Slf4j
 @Service
@@ -62,6 +63,10 @@ public class DesktopMainView implements MainHomeView {
     private MFXFontIcon minimizeIcon;
     @FXML
     private MFXFontIcon alwaysOnTopIcon;
+
+
+    private ResourceBundle bundle = ResourceBundle.getBundle("i18n/main");
+
 
     @FXML
     public void initialize() {

@@ -335,11 +335,12 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-<!--                    <compilerArgs>-->
+                    <compilerArgs>
 <!--                        <arg>-Djava.awt.headless=true</arg>-->
 <!--                        <arg>-Dprism.order=sw</arg>-->
 <!--                        <arg>-Dprism.verbose=false</arg>-->
-<!--                    </compilerArgs>-->
+                        <arg>-Dfile.encoding=UTF-8</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>

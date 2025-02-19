@@ -140,13 +140,13 @@ public class ChatMainPane extends BorderPane implements Initializable {
 
     @PostConstruct
     public void initComponent() {
-
         // 初始化
         conversationList = new ListView<>();
 
         this.setLeft(conversationList);
-
     }
+
+
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {

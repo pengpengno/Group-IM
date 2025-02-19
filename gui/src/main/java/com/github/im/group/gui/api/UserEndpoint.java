@@ -32,6 +32,6 @@ public interface UserEndpoint {
 
 
 	@PostExchange("/api/users/query")
-	Flux<UserInfo>  findUserByNameOrEmail(@RequestParam String query);
+	Flux<UserInfo>  queryUser(@RequestParam String query);
 
 }

@@ -41,7 +41,7 @@ public class MobileLoginView implements LoginView {
     public void handleLogin() {
         String username = usernameField.getText();
         String password = passwordField.getText();
-//
+
 //        AppViewRegistry.getInstance().getView("chat").ifPresent(view -> {
 //            view.fireEvent(new AppViewRegistry.NavigateEvent("chat"));
 //        });

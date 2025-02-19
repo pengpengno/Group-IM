@@ -1,5 +1,6 @@
 package com.github.im.group.gui.controller.desktop.contract;
 
+import com.github.im.dto.user.FriendRequestDto;
 import com.github.im.dto.user.FriendshipDTO;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.group.gui.api.FriendShipEndpoint;
@@ -7,24 +8,32 @@ import com.github.im.group.gui.api.UserEndpoint;
 import com.github.im.group.gui.context.UserInfoContext;
 import com.gluonhq.charm.glisten.control.CharmListView;
 import javafx.application.Platform;
-import javafx.scene.image.Image;
-import javafx.scene.layout.HBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.BorderPane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.ResourceBundle;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class ContractPane extends HBox {
+public class ContractMainPane extends BorderPane  {
 
     private final UserEndpoint userEndpoint;
-    private final FriendShipEndpoint friendShipEndpoint;
 
+    private final FriendShipEndpoint friendShipEndpoint;
+    // 好友信息展示
     private CharmListView<FriendshipDTO, String> contractListView;
+
+    // 搜索文本框
+    private TextField title;
+
+
+    private ResourceBundle bundle;
 
     public void initialize() {
         // 初始化CharmListView
@@ -43,12 +52,37 @@ public class ContractPane extends HBox {
         loadContacts();
     }
 
+
+
+    private  void queryUser(){
+        // 根据 搜索框传入 搜索的文本  用户姓名或者 邮箱来检索
+        userEndpoint.queryUser(title.getText())
+                .collectList()
+                .subscribe(friendships -> {
+                    //  在 contractListView 展示所有的 返回的检索用户信息
+                });
+    }
+
+    /**
+     * 添加 用户好友
+     */
+    private void addUser(UserInfo  friendUserInfo){
+        var currentUser = UserInfoContext.getCurrentUser();
+        var friendshipDTO = new FriendRequestDto();
+        friendshipDTO.setUserId(currentUser.getUserId());
+        friendshipDTO.setFriendId(friendUserInfo.getUserId());
+        friendShipEndpoint.sendFriendRequest(friendshipDTO)
+                .subscribe(aVoid -> {
+                    log.info("发送好友请求成功");
+                });
+
+    }
     // 加载联系人数据
     private void loadContacts() {
 //        List<FriendshipDTO> friendships = fetchFriendships();
         friendShipEndpoint.getFriends(UserInfoContext.getCurrentUser().getUserId())
                 .collectList()
-                .subscribe(friendships -> updateFriendList(friendships));
+                .subscribe(this::updateFriendList);
     }
 
     // 更新好友列表
