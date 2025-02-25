@@ -339,7 +339,7 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
 <!--                        <arg>-Djava.awt.headless=true</arg>-->
 <!--                        <arg>-Dprism.order=sw</arg>-->
 <!--                        <arg>-Dprism.verbose=false</arg>-->
-                        <arg>-Dfile.encoding=UTF-8</arg>
+<!--                        <arg>-Dfile.encoding=UTF-8</arg>-->
                     </compilerArgs>
                 </configuration>
             </plugin>

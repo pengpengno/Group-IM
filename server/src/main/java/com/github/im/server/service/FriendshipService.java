@@ -8,6 +8,9 @@ import com.github.im.server.model.User;
 import com.github.im.server.model.enums.Status;
 import com.github.im.server.repository.FriendshipRepository;
 import com.github.im.server.repository.UserRepository;
+import com.github.im.server.service.impl.SendMessageToClientEndPointImpl;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +19,8 @@ import java.text.MessageFormat;
 import java.util.List;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class FriendshipService {
 
     @Autowired
@@ -23,6 +28,9 @@ public class FriendshipService {
 
     @Autowired
     private FriendshipRepository friendshipRepository;
+
+
+    private final SendMessageToClientEndPointImpl sendMessageToClientEndPoint;
 
     @Transactional
     public void sendFriendRequest(FriendRequestDto request) {
@@ -32,6 +40,9 @@ public class FriendshipService {
         friendship.setUser(user);
         friendship.setFriend(friend);
         friendshipRepository.save(friendship);
+
+        sendMessageToClientEndPoint.sendMessage(request);
+
     }
 
     @Transactional

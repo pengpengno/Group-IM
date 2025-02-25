@@ -26,19 +26,19 @@ public class FluxTestCase {
     public void error(){
         AtomicInteger errorCount = new AtomicInteger();
         Flux<String> flux =
-                Flux.<String>error(new ConnectException("boom"))
-                        .doOnError(e -> {
-                            errorCount.incrementAndGet();
-                            log.info(e + " at  " + LocalTime.now() + errorCount.get());
-                        })
-                        .doAfterTerminate(()-> log.info("terminate"))
-                        .retryWhen(
-                                Retry
-                                .backoff(3, Duration.ofSeconds(1)).jitter(0.3d)
-                                        .filter(throwable -> throwable instanceof ConnectException)
-                                .doAfterRetry(rs -> log.info("retried at " + LocalTime.now() + ", attempt " + rs.totalRetries()))
-                                .onRetryExhaustedThrow((spec, rs) -> rs.failure())
-                        );
+            Flux.<String>error(new ConnectException("boom"))
+                .doOnError(e -> {
+                    errorCount.incrementAndGet();
+                    log.info(e + " at  " + LocalTime.now() + errorCount.get());
+                })
+                .doAfterTerminate(()-> log.info("terminate"))
+                .retryWhen(
+                        Retry
+                        .backoff(3, Duration.ofSeconds(1)).jitter(0.3d)
+                                .filter(throwable -> throwable instanceof ConnectException)
+                        .doAfterRetry(rs -> log.info("retried at " + LocalTime.now() + ", attempt " + rs.totalRetries()))
+                        .onRetryExhaustedThrow((spec, rs) -> rs.failure())
+                );
         StepVerifier
             .create(flux)
                 .verifyError()

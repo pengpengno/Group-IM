@@ -33,8 +33,6 @@ public class ContractMainPane extends BorderPane  {
     private TextField title;
 
 
-    private ResourceBundle bundle;
-
     public void initialize() {
         // 初始化CharmListView
         contractListView = new CharmListView<>();
@@ -70,8 +68,15 @@ public class ContractMainPane extends BorderPane  {
         var currentUser = UserInfoContext.getCurrentUser();
         var friendshipDTO = new FriendRequestDto();
         friendshipDTO.setUserId(currentUser.getUserId());
+        friendshipDTO.setAccount(currentUser.getUsername());
+        friendshipDTO.setUserName(currentUser.getUsername());
+
+        friendshipDTO.setFriendAccount(friendUserInfo.getUsername());
+        friendshipDTO.setFriendName(friendUserInfo.getUsername());
         friendshipDTO.setFriendId(friendUserInfo.getUserId());
-        friendShipEndpoint.sendFriendRequest(friendshipDTO)
+
+        friendShipEndpoint
+                .sendFriendRequest(friendshipDTO)
                 .subscribe(aVoid -> {
                     log.info("发送好友请求成功");
                 });
@@ -95,11 +100,5 @@ public class ContractMainPane extends BorderPane  {
         });
     }
 
-    // 模拟加载好友数据
-//    private List<FriendshipDTO> fetchFriendships() {
-//        return List.of(
-//                new FriendshipDTO(new UserInfo("John Doe", "john@example.com", "Online", new Image("avatar1.png"))),
-//                new FriendshipDTO(new UserInfo("Jane Smith", "jane@example.com", "Offline", new Image("avatar2.png")))
-//        );
-//    }
+
 }

@@ -1,7 +1,9 @@
 package com.github.im.server.handler.impl;
 
 import com.github.im.common.connect.connection.ReactiveConnectionManager;
+import com.github.im.common.connect.connection.server.BindAttr;
 import com.github.im.common.connect.connection.server.ProtoBufProcessHandler;
+import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Hooks;
@@ -24,8 +26,11 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
 
         Hooks.onOperatorDebug();
 
-        // 1. 向 Sink 流中推送 Message 数据
-        ReactiveConnectionManager.addChatMessage(message.getMessage());
+        var toAccountInfo = message.getMessage().getToAccountInfo();
+
+        var bindAttr = BindAttr.getBindAttr(toAccountInfo);
+
+        ReactiveConnectionManager.addBaseMessage(bindAttr, message);
 
 
     }

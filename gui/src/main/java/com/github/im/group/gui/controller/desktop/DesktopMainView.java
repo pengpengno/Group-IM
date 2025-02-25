@@ -46,8 +46,6 @@ public class DesktopMainView implements MainHomeView {
     private BorderPane rootpane;
     @FXML
     private HBox windowHeader;
-//    @FXML
-//    private ListView<String> conversationList;
 
     @FXML
     private StackPane chatPane;

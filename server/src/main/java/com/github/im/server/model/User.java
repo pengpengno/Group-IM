@@ -25,6 +25,7 @@ public class User implements UserDetails {
     private Long userId;
 
     @Column(nullable = false, unique = true)
+    // account
     private String username;
 
     @Column(nullable = false, unique = true)
@@ -64,6 +65,10 @@ public class User implements UserDetails {
         this.updatedAt = now;
         this.userStatus = Status.ACTIVE;
         this.createdAt = now;
+    }
+
+    public String getAccount() {
+        return getUsername();
     }
 
     @Override

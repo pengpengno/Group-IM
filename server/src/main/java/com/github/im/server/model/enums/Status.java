@@ -11,9 +11,13 @@ package com.github.im.server.model.enums;
  */
 public enum Status {
 
+    PENDING ,
+
     ACTIVE ,
 
     DISCARD ,
+
+    REJECT ,
 
     ;
 

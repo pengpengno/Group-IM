@@ -21,7 +21,7 @@ message NotificationInfo {
 
     int32  toUserId = 2;
 
-    int32   fromUserName =3 ;
+    string  fromUserName =3 ;
 
     string  toUserName =4;
 

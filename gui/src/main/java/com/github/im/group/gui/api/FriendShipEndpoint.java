@@ -30,7 +30,6 @@ public interface FriendShipEndpoint {
 	// 获取好友列表
 	@PostExchange("/friendships/list")
 	Flux<FriendshipDTO> getFriends(@RequestParam Long userId);
-//	Mono<List<FriendshipDTO>> getFriends(@RequestParam Long userId);
 
 	// 删除好友
 	@DeleteExchange("/friendships/{userId}/{friendId}")

@@ -1,6 +1,7 @@
 package com.github.im.group.gui.controller.mobile;
 
 import com.github.im.group.gui.controller.desktop.chat.ChatMainPane;
+import com.github.im.group.gui.controller.desktop.menu.impl.AbstractMenuButton;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.enums.ButtonType;
 import io.github.palexdev.mfxresources.fonts.MFXFontIcon;
@@ -54,6 +55,9 @@ public class MobileMainHomeView {
     @FXML
     private MFXFontIcon alwaysOnTopIcon;
 
+
+
+
     @FXML
     public void initialize() {
         // 加载好友列表并设置到主界面
@@ -81,19 +85,21 @@ public class MobileMainHomeView {
         iconMenu.getChildren().clear(); // 先清空已有按钮
 
         // 定义菜单项（图标路径 & 提示文本）
-        List<String[]> menuItems = List.of(
-                new String[]{"images/main/toolbox/mail.png", "Mail"},
-                new String[]{"images/main/toolbox/file.png", "Documents"},
-                new String[]{"images/main/toolbox/schedule.png", "Schedule"},
-                new String[]{"images/main/toolbox/meeting.png", "Meetings"},
-                new String[]{"images/main/toolbox/workbench.png", "Workbench"},
-                new String[]{"images/main/toolbox/contacts.png", "Contacts"}
-        );
+//        List<String[]> menuItems = List.of(
+//                new String[]{"images/main/toolbox/mail.png", "Mail"},
+//                new String[]{"images/main/toolbox/file.png", "Documents"},
+//                new String[]{"images/main/toolbox/schedule.png", "Schedule"},
+//                new String[]{"images/main/toolbox/meeting.png", "Meetings"},
+//                new String[]{"images/main/toolbox/workbench.png", "Workbench"},
+//                new String[]{"images/main/toolbox/contacts.png", "Contacts"}
+//        );
+//
 
-        for (String[] item : menuItems) {
-            MFXButton button = createMenuButton(item[0], item[1]);
-            iconMenu.getChildren().add(button);
-        }
+        iconMenu.getChildren().addAll(AbstractMenuButton.getAllButtons());
+//        for (String[] item : menuItems) {
+//            MFXButton button = createMenuButton(item[0], item[1]);
+//            iconMenu.getChildren().add(button);
+//        }
     }
 
 

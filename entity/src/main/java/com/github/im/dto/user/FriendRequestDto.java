@@ -10,8 +10,23 @@ import java.io.Serializable;
 @AllArgsConstructor
 @NoArgsConstructor
 public class FriendRequestDto implements Serializable {
+
+
     private Long userId;
+
+
     private Long friendId;
+
+
+    private String account ;
+
+    private String friendAccount;
+
+    private String friendName;
+
+    private String userName ;
+
+    private String remark;
 
     // Getters and Setters
 }

@@ -41,7 +41,7 @@ public class Friendship {
     public void prePersist() {
         // 如果 status 为 null，则设置默认值
         if (status == null) {
-            status = Status.ACTIVE;  // 例如，默认状态为 PENDING
+            status = Status.PENDING;  // 例如，默认状态为 PENDING
         }
     }
 

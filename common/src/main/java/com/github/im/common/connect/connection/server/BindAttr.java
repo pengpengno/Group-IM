@@ -17,6 +17,9 @@ public class BindAttr<T> {
         return attr;
     }
 
+    public static BindAttr<String> getBindAttr(String account) {
+        return getBindAttr(account,PlatformType.DESKTOP);
+    }
     public static BindAttr<String> getBindAttr(String account, PlatformType platformType ) {
         var ATTRKEY = String.join("_", account, platformType.name());
         return getAttr(ATTRKEY);

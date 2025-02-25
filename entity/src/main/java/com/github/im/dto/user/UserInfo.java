@@ -11,9 +11,13 @@ import java.io.Serializable;
 @AllArgsConstructor
 public class UserInfo implements Serializable {
     private Long userId;
+
     private String username;
-    private String nickname;
+
+//    private String nickname;
+
     private String avatar;
+
     private String email;
 
     private String token ;

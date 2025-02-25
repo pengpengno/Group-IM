@@ -100,10 +100,16 @@ public final class Notification {
       int getToUserId();
 
       /**
-       * <code>int32 fromUserName = 3;</code>
+       * <code>string fromUserName = 3;</code>
        * @return The fromUserName.
        */
-      int getFromUserName();
+      java.lang.String getFromUserName();
+      /**
+       * <code>string fromUserName = 3;</code>
+       * @return The bytes for fromUserName.
+       */
+      com.google.protobuf.ByteString
+          getFromUserNameBytes();
 
       /**
        * <code>string toUserName = 4;</code>
@@ -166,6 +172,7 @@ public final class Notification {
         super(builder);
       }
       private FriendRequest() {
+        fromUserName_ = "";
         toUserName_ = "";
         remark_ = "";
       }
@@ -342,14 +349,42 @@ public final class Notification {
       }
 
       public static final int FROMUSERNAME_FIELD_NUMBER = 3;
-      private int fromUserName_ = 0;
+      @SuppressWarnings("serial")
+      private volatile java.lang.Object fromUserName_ = "";
       /**
-       * <code>int32 fromUserName = 3;</code>
+       * <code>string fromUserName = 3;</code>
        * @return The fromUserName.
        */
       @java.lang.Override
-      public int getFromUserName() {
-        return fromUserName_;
+      public java.lang.String getFromUserName() {
+        java.lang.Object ref = fromUserName_;
+        if (ref instanceof java.lang.String) {
+          return (java.lang.String) ref;
+        } else {
+          com.google.protobuf.ByteString bs = 
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          fromUserName_ = s;
+          return s;
+        }
+      }
+      /**
+       * <code>string fromUserName = 3;</code>
+       * @return The bytes for fromUserName.
+       */
+      @java.lang.Override
+      public com.google.protobuf.ByteString
+          getFromUserNameBytes() {
+        java.lang.Object ref = fromUserName_;
+        if (ref instanceof java.lang.String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          fromUserName_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
       }
 
       public static final int TOUSERNAME_FIELD_NUMBER = 4;
@@ -476,8 +511,8 @@ public final class Notification {
         if (toUserId_ != 0) {
           output.writeInt32(2, toUserId_);
         }
-        if (fromUserName_ != 0) {
-          output.writeInt32(3, fromUserName_);
+        if (!com.google.protobuf.GeneratedMessage.isStringEmpty(fromUserName_)) {
+          com.google.protobuf.GeneratedMessage.writeString(output, 3, fromUserName_);
         }
         if (!com.google.protobuf.GeneratedMessage.isStringEmpty(toUserName_)) {
           com.google.protobuf.GeneratedMessage.writeString(output, 4, toUserName_);
@@ -505,9 +540,8 @@ public final class Notification {
           size += com.google.protobuf.CodedOutputStream
             .computeInt32Size(2, toUserId_);
         }
-        if (fromUserName_ != 0) {
-          size += com.google.protobuf.CodedOutputStream
-            .computeInt32Size(3, fromUserName_);
+        if (!com.google.protobuf.GeneratedMessage.isStringEmpty(fromUserName_)) {
+          size += com.google.protobuf.GeneratedMessage.computeStringSize(3, fromUserName_);
         }
         if (!com.google.protobuf.GeneratedMessage.isStringEmpty(toUserName_)) {
           size += com.google.protobuf.GeneratedMessage.computeStringSize(4, toUserName_);
@@ -538,8 +572,8 @@ public final class Notification {
             != other.getFromUserId()) return false;
         if (getToUserId()
             != other.getToUserId()) return false;
-        if (getFromUserName()
-            != other.getFromUserName()) return false;
+        if (!getFromUserName()
+            .equals(other.getFromUserName())) return false;
         if (!getToUserName()
             .equals(other.getToUserName())) return false;
         if (!getRemark()
@@ -565,7 +599,7 @@ public final class Notification {
         hash = (37 * hash) + TOUSERID_FIELD_NUMBER;
         hash = (53 * hash) + getToUserId();
         hash = (37 * hash) + FROMUSERNAME_FIELD_NUMBER;
-        hash = (53 * hash) + getFromUserName();
+        hash = (53 * hash) + getFromUserName().hashCode();
         hash = (37 * hash) + TOUSERNAME_FIELD_NUMBER;
         hash = (53 * hash) + getToUserName().hashCode();
         hash = (37 * hash) + REMARK_FIELD_NUMBER;
@@ -713,7 +747,7 @@ public final class Notification {
           bitField0_ = 0;
           fromUserId_ = 0;
           toUserId_ = 0;
-          fromUserName_ = 0;
+          fromUserName_ = "";
           toUserName_ = "";
           remark_ = "";
           type_ = null;
@@ -797,8 +831,10 @@ public final class Notification {
           if (other.getToUserId() != 0) {
             setToUserId(other.getToUserId());
           }
-          if (other.getFromUserName() != 0) {
-            setFromUserName(other.getFromUserName());
+          if (!other.getFromUserName().isEmpty()) {
+            fromUserName_ = other.fromUserName_;
+            bitField0_ |= 0x00000004;
+            onChanged();
           }
           if (!other.getToUserName().isEmpty()) {
             toUserName_ = other.toUserName_;
@@ -849,11 +885,11 @@ public final class Notification {
                   bitField0_ |= 0x00000002;
                   break;
                 } // case 16
-                case 24: {
-                  fromUserName_ = input.readInt32();
+                case 26: {
+                  fromUserName_ = input.readStringRequireUtf8();
                   bitField0_ |= 0x00000004;
                   break;
-                } // case 24
+                } // case 26
                 case 34: {
                   toUserName_ = input.readStringRequireUtf8();
                   bitField0_ |= 0x00000008;
@@ -952,34 +988,74 @@ public final class Notification {
           return this;
         }
 
-        private int fromUserName_ ;
+        private java.lang.Object fromUserName_ = "";
         /**
-         * <code>int32 fromUserName = 3;</code>
+         * <code>string fromUserName = 3;</code>
          * @return The fromUserName.
          */
-        @java.lang.Override
-        public int getFromUserName() {
-          return fromUserName_;
+        public java.lang.String getFromUserName() {
+          java.lang.Object ref = fromUserName_;
+          if (!(ref instanceof java.lang.String)) {
+            com.google.protobuf.ByteString bs =
+                (com.google.protobuf.ByteString) ref;
+            java.lang.String s = bs.toStringUtf8();
+            fromUserName_ = s;
+            return s;
+          } else {
+            return (java.lang.String) ref;
+          }
         }
         /**
-         * <code>int32 fromUserName = 3;</code>
+         * <code>string fromUserName = 3;</code>
+         * @return The bytes for fromUserName.
+         */
+        public com.google.protobuf.ByteString
+            getFromUserNameBytes() {
+          java.lang.Object ref = fromUserName_;
+          if (ref instanceof String) {
+            com.google.protobuf.ByteString b = 
+                com.google.protobuf.ByteString.copyFromUtf8(
+                    (java.lang.String) ref);
+            fromUserName_ = b;
+            return b;
+          } else {
+            return (com.google.protobuf.ByteString) ref;
+          }
+        }
+        /**
+         * <code>string fromUserName = 3;</code>
          * @param value The fromUserName to set.
          * @return This builder for chaining.
          */
-        public Builder setFromUserName(int value) {
-
+        public Builder setFromUserName(
+            java.lang.String value) {
+          if (value == null) { throw new NullPointerException(); }
           fromUserName_ = value;
           bitField0_ |= 0x00000004;
           onChanged();
           return this;
         }
         /**
-         * <code>int32 fromUserName = 3;</code>
+         * <code>string fromUserName = 3;</code>
          * @return This builder for chaining.
          */
         public Builder clearFromUserName() {
+          fromUserName_ = getDefaultInstance().getFromUserName();
           bitField0_ = (bitField0_ & ~0x00000004);
-          fromUserName_ = 0;
+          onChanged();
+          return this;
+        }
+        /**
+         * <code>string fromUserName = 3;</code>
+         * @param value The bytes for fromUserName to set.
+         * @return This builder for chaining.
+         */
+        public Builder setFromUserNameBytes(
+            com.google.protobuf.ByteString value) {
+          if (value == null) { throw new NullPointerException(); }
+          checkByteStringIsUtf8(value);
+          fromUserName_ = value;
+          bitField0_ |= 0x00000004;
           onChanged();
           return this;
         }
@@ -1929,7 +2005,7 @@ public final class Notification {
       "im.common.connect.model.proto.Notificati" +
       "onInfo.FriendRequestH\000\032\211\002\n\rFriendRequest" +
       "\022\022\n\nfromUserId\030\001 \001(\005\022\020\n\010toUserId\030\002 \001(\005\022\024" +
-      "\n\014fromUserName\030\003 \001(\005\022\022\n\ntoUserName\030\004 \001(\t" +
+      "\n\014fromUserName\030\003 \001(\t\022\022\n\ntoUserName\030\004 \001(\t" +
       "\022\016\n\006remark\030\005 \001(\t\022V\n\004type\030\006 \001(\0132H.com.git" +
       "hub.im.common.connect.model.proto.Notifi" +
       "cationInfo.FriendRequest\"@\n\021FriendReques" +

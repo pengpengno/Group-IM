@@ -65,17 +65,17 @@ public class BindAttrTest {
         BindAttr<String> bindAttr = BindAttr.getBindAttr(mockAccountInfo);
 
         // 注册 Sink 流
-        Sinks.Many<BaseMessage> registeredSink = ReactiveConnectionManager.registerSinkFlow(bindAttr);
+        Sinks.Many<BaseMessage.BaseMessagePkg> registeredSink = ReactiveConnectionManager.registerSinkFlow(bindAttr);
 
         // 获取已注册的 Sink 流
-        Sinks.Many<BaseMessage> retrievedSink = ReactiveConnectionManager.getSinkFlow(bindAttr);
+        Sinks.Many<BaseMessage.BaseMessagePkg> retrievedSink = ReactiveConnectionManager.getSinkFlow(bindAttr);
 
         // 验证获取的 Sink 流是否与注册的 Sink 流相同
         assertNotNull(retrievedSink);
         assertSame(registeredSink, retrievedSink);
 
         // 尝试再次注册相同的 BindAttr
-        Sinks.Many<BaseMessage> secondRegisteredSink = ReactiveConnectionManager.registerSinkFlow(bindAttr);
+        Sinks.Many<BaseMessage.BaseMessagePkg> secondRegisteredSink = ReactiveConnectionManager.registerSinkFlow(bindAttr);
 
         // 验证第二次注册的 Sink 流是否与第一次注册的 Sink 流相同
         assertSame(registeredSink, secondRegisteredSink);
