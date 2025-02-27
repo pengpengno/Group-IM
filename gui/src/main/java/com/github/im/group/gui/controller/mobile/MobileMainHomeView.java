@@ -61,8 +61,8 @@ public class MobileMainHomeView {
     @FXML
     public void initialize() {
         // 加载好友列表并设置到主界面
-        chatMainPane.loadFriendList();
-        rootpane.setCenter(chatMainPane);
+//        chatMainPane.loadFriendList();
+//        rootpane.setCenter(chatMainPane);
 
         // 关闭窗口
         closeIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> Platform.exit());
@@ -95,7 +95,7 @@ public class MobileMainHomeView {
 //        );
 //
 
-        iconMenu.getChildren().addAll(AbstractMenuButton.getAllButtons());
+//        iconMenu.getChildren().addAll(AbstractMenuButton.getAllButtons());
 //        for (String[] item : menuItems) {
 //            MFXButton button = createMenuButton(item[0], item[1]);
 //            iconMenu.getChildren().add(button);

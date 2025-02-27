@@ -194,6 +194,7 @@ public class FxmlLoader implements ApplicationContextAware {
             fxmlLoader.setControllerFactory(applicationContext::getBean);
 
             Parent load = fxmlLoader.load();
+
             return Tuples.of(fxmlLoader,load);
         } catch (Exception e) {
             log.error("exception in fxml loader " ,e);

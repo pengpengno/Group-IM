@@ -22,7 +22,7 @@
         </encoder>
     </appender>
 
-    <!-- applcation的文件输出日志 (按照每天生成日志文件 )，对applcation文件日志的文件名需要根据具体的applcation来配置-->
+    <!-- application 的文件输出日志 (按照每天生成日志文件 )，对 application 文件日志的文件名需要根据具体的 application 来配置-->
     <appender name="APP"  class="ch.qos.logback.core.rolling.RollingFileAppender">
     	<file>${LOG_APP_HOME}/project.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">

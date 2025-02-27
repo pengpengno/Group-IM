@@ -1,22 +1,21 @@
 package com.github.im.group.gui.controller.desktop.menu.impl;
 
-import com.github.im.group.gui.controller.desktop.menu.MenuButton;
-import io.github.palexdev.materialfx.controls.MFXButton;
-import io.github.palexdev.mfxresources.fonts.MFXFontIcon;
-import javafx.geometry.Insets;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseEvent;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import java.util.Objects;
-import java.util.ResourceBundle;
 
+@Component
+@Slf4j
 public class ScheduleButton extends  AbstractMenuButton  {
 
 
 
     public ScheduleButton() {
+        super();
         initializeButton();
      }
 

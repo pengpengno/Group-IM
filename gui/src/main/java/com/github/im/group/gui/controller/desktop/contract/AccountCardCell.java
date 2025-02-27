@@ -32,6 +32,7 @@ public class AccountCardCell extends CharmListCell<FriendshipDTO> {
 
         // 设置辅助区域
         tile.setSecondaryGraphic(buttonBar);
+
     }
 
     @Override
@@ -53,7 +54,7 @@ public class AccountCardCell extends CharmListCell<FriendshipDTO> {
             // 添加更多信息或交互按钮（如编辑、删除等）
             buttonBar.getChildren().clear();
             // 这里可以添加按钮进行操作，例如编辑、删除等
-            // e.g., buttonBar.getChildren().add(MaterialDesignIcon.EDIT.button(e -> editItem(item)));
+//             buttonBar.getChildren().add(MaterialDesignIcon.EDIT.button(e -> editItem(item)));
 
             // 设置当前图形内容
             setGraphic(tile);

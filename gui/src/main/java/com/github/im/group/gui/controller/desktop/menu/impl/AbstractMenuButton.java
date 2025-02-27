@@ -1,10 +1,17 @@
 package com.github.im.group.gui.controller.desktop.menu.impl;
 
 import com.github.im.group.gui.controller.desktop.menu.MenuButton;
-import io.github.palexdev.materialfx.controls.MFXButton;
+import io.github.palexdev.materialfx.controls.MFXRectangleToggleNode;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
+import org.springframework.beans.BeansException;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.ResourceBundle;
@@ -18,12 +25,43 @@ import java.util.ResourceBundle;
  * @version 1.0
  * @since 2025/2/25
  */
-public class AbstractMenuButton extends MFXButton  implements MenuButton {
+
+@Component
+public class AbstractMenuButton extends MFXRectangleToggleNode  implements MenuButton, ApplicationContextAware {
 
     static final ResourceBundle menuBundle = ResourceBundle.getBundle("i18n.menu.button");
 
+//    @Autowired
+//    List<AbstractMenuButton>  menuBars;
 
-    public ImageView getButtonIcon(){
+//
+//    @Autowired
+//    private ChatButton chatButton;
+//
+//    @Autowired
+//    private MailButton mailButton;
+//    @Autowired
+//    private ContactsButton contactsButton;
+//    @Autowired
+//    private DocumentsButton filesButton;
+//    @Autowired
+//    private ScheduleButton schedulesButton;
+//
+//    @Autowired
+//    private MeetingsButton meetingsButton;
+//
+//    @Autowired
+//    private WorkbenchButton workbenchButton;
+
+
+    private   ApplicationContext applicationContext;
+
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        this.applicationContext = applicationContext;
+    }
+
+    public ImageView getButtonIcon() {
 
         ImageView icon = new ImageView();
         icon.setFitWidth(24);
@@ -31,6 +69,7 @@ public class AbstractMenuButton extends MFXButton  implements MenuButton {
 
         return icon;
     }
+
 
 
     public AbstractMenuButton() {
@@ -43,29 +82,57 @@ public class AbstractMenuButton extends MFXButton  implements MenuButton {
     }
 
 
-     void initializeButton() {
+    void initializeButton() {
+
+
+//         MFXRectangleToggleNode toggleNode = new MFXRectangleToggleNode(text);
+        this.setAlignment(Pos.TOP_CENTER);
+//        toggleNode.setMaxWidth(Double.MAX_VALUE);
+        this.setMaxWidth(50);
+//        this.setToggleGroup(toggleGroup);
+//         toggleNode.setGraphic(getButtonIcon());
         this.setGraphic(getButtonIcon());
         this.setText(null);
+        this.setMaxSize(50, 50);
         this.setPrefSize(50, 50);
         this.setTooltip(getTooltip());
         this.setPadding(new Insets(0, 0, 0, 0));
-        this.getStyleClass().add("menu-button"); // 确保有 CSS 样式
+//        this.getStyleClass().add("menu-button"); // 确保有 CSS 样式
 
-     }
-
-
+    }
 
 
-    public static List<MFXButton>  getAllButtons() {
-
+//    public static List<ToggleButton>  getButtonGroup() {
+//        if (toggleGroup != null){
+//            var toggles = toggleGroup.getToggles();
+//
+//            if (toggles.size()>0){
+//                getAllButtons().forEach(but-> {
+//                    but
+//                });
+//                toggleGroup.();
+//
+//            }
+//
+//
+//        }
+//
+//
+//
+//
+//    }
+    /**
+     * 直接从 Spring 容器获取所有按钮，避免循环依赖
+     */
+    public List<ToggleButton> getAllButtons() {
         return List.of(
-                new ChatButton(),
-                new MailButton(),
-                new ContactsButton(),
-                new DocumentsButton(),
-                new ScheduleButton(),
-                new MeetingsButton(),
-                new WorkbenchButton()
+                applicationContext.getBean(ChatButton.class),
+                applicationContext.getBean(MailButton.class),
+                applicationContext.getBean(ContactsButton.class),
+                applicationContext.getBean(DocumentsButton.class),
+                applicationContext.getBean(ScheduleButton.class),
+                applicationContext.getBean(MeetingsButton.class),
+                applicationContext.getBean(WorkbenchButton.class)
         );
     }
 

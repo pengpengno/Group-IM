@@ -23,6 +23,12 @@ import java.util.*;
 public class I18nUtil {
 
 
+
+    public static InputStream getInputSteamByBundleName(ResourceBundle bundle , String bundleName)  {
+       return  I18nUtil.class.getResourceAsStream("/" + bundle.getString(bundleName));
+    }
+
+
     @SneakyThrows
     public static void main(String[] args) {
         Locale english = new Locale("en", "US");

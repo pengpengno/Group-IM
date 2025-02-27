@@ -9,6 +9,8 @@ import com.github.im.group.gui.controller.MainHomeView;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.FxmlLoader;
+import com.gluonhq.charm.glisten.control.AppBar;
+import com.gluonhq.charm.glisten.mvc.View;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import jakarta.annotation.PostConstruct;
 import javafx.application.Platform;
@@ -31,7 +33,7 @@ import java.util.ResourceBundle;
 @Slf4j
 //@FxView(fxmlName = "login_view")
 @RequiredArgsConstructor
-public class DesktopLoginView extends StackPane implements Initializable, LoginView {
+public class DesktopLoginView extends View implements Initializable, LoginView {
 
     @Override
     public PlatformType  getPlatform() {
@@ -69,6 +71,12 @@ public class DesktopLoginView extends StackPane implements Initializable, LoginV
     private void navigateToRegister() {
 
 
+    }
+
+
+    @Override
+    protected void updateAppBar(AppBar appBar) {
+        super.updateAppBar(appBar);
     }
 
     @PostConstruct

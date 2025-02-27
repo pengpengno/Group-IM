@@ -21,7 +21,7 @@ public @interface FxView {
 
     /**
      *  窗体的fxml 文件加载路径
-     *  会判断当前平台根据 {@link PlatformView.PlatformType 平台} 加载在
+     *  会判断当前平台根据 {@link PlatformView#getPlatform()}  平台} 加载在
      *  src/main/resources/fxml/desktop 或者 src/main/resources/fxml/mobile
      * {@link FxmlLoader#FXML_PATH_FLODER 默认 fxml 路径}
      */
@@ -29,7 +29,7 @@ public @interface FxView {
 
     /**
      *  窗体的fxml 文件加载路径
-     *  会判断当前平台根据 {@link PlatformView.PlatformType 平台} 加载在
+     *  会判断当前平台根据 {@link PlatformView#getPlatform() 平台} 加载在
      *  src/main/resources/fxml/desktop 或者 src/main/resources/fxml/mobile
      * {@link FxmlLoader#FXML_PATH_FLODER 默认 fxml 路径}
      */

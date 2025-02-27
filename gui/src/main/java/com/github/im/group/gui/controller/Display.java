@@ -10,26 +10,14 @@ package com.github.im.group.gui.controller;/**
 import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.FxmlLoader;
-import com.github.im.group.gui.util.StageManager;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.mvc.View;
-import jakarta.annotation.Resource;
 import javafx.application.Platform;
-import javafx.scene.Scene;
 import javafx.stage.Stage;
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.kordamp.bootstrapfx.BootstrapFX;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
-
-import java.io.File;
-import java.util.Collection;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -59,12 +47,17 @@ public class Display   {
     private static final String FXML_SUFFIX = ".fxml";
 
     public static final ConcurrentHashMap<String,View> DISPLAY_VIEW_MAP = new ConcurrentHashMap<>();
+    public static final ConcurrentHashMap<Class,Object> DISPLAY_CONTROLLER_MAP = new ConcurrentHashMap<>();
 
 
 
+    public  static <T extends PlatformView> T getController(Class<T> displayClass) {
+        if (DISPLAY_CONTROLLER_MAP.containsKey(displayClass)) {
+            return (T) DISPLAY_CONTROLLER_MAP.get(displayClass);
+        }
+        return registerView(displayClass);
+    }
     public  static <T extends PlatformView> T registerView(Class<T> displayClass) {
-
-
 
         // 获取当前平台信息
         var currentPlatform = com.gluonhq.attach.util.Platform.getCurrent();
@@ -111,7 +104,10 @@ public class Display   {
                 return null;
             }
         }
-        return (T) controller;
+        var controllerObj = (T) controller;
+
+        DISPLAY_CONTROLLER_MAP.putIfAbsent(displayClass,controllerObj);
+        return controllerObj;
     }
 
     /**

@@ -7,7 +7,10 @@ import com.github.im.group.gui.util.FxmlLoader;
 import com.gluonhq.attach.display.DisplayService;
 import com.gluonhq.attach.util.Platform;
 import com.gluonhq.charm.glisten.application.AppManager;
+import com.gluonhq.charm.glisten.application.MobileApplication;
+import com.gluonhq.charm.glisten.control.AppBar;
 import com.gluonhq.charm.glisten.mvc.View;
+import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
 import io.github.palexdev.materialfx.theming.JavaFXThemes;
 import io.github.palexdev.materialfx.theming.MaterialFXStylesheets;
 import io.github.palexdev.materialfx.theming.UserAgentBuilder;
@@ -15,8 +18,10 @@ import jakarta.inject.Inject;
 import javafx.application.Application;
 import javafx.geometry.Dimension2D;
 import javafx.scene.Scene;
+import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
 import org.scenicview.ScenicView;
 import org.springframework.boot.SpringApplication;
@@ -60,6 +65,9 @@ public class Main extends Application {
         appManager = AppManager.initialize((scene)->postInit(scene));
 
 
+
+
+//        MaterialDesignIcon.MIC_NONE
     }
 
     public void postInit(Scene scene) {
@@ -75,11 +83,18 @@ public class Main extends Application {
             scene.getWindow().setHeight(dimension2D.getHeight());
         }
 
+//        AppViewManager.registerViewsAndDrawer();
+
+
 
     }
 
     @Override
     public void start(Stage primaryStage) throws IOException {
+
+
+//        CSSFX.start();
+
 
         UserAgentBuilder.builder()
                 .themes(JavaFXThemes.MODENA)
@@ -89,6 +104,8 @@ public class Main extends Application {
                 .build()
                 .setGlobal();
 
+
+        primaryStage.initStyle(StageStyle.UNDECORATED);
         primaryStage.setTitle("IM Platform");
 
 
@@ -102,18 +119,34 @@ public class Main extends Application {
             primaryStage.getScene().getStylesheets().add(stylesResource.getURL().toExternalForm());
         }
 
-
-
         primaryStage.setResizable(true);
 
         initApp();
 
+
         appManager.start(primaryStage);
 
-        System.setProperty("javafx.platform","android");
 
         Display.setPrimaryStage(primaryStage);
 
+        final double[] offsetX = {0}, offsetY = {0};
+        var appBar = AppManager.getInstance().getAppBar();
+
+        appBar.setOnMousePressed(event -> {
+            offsetX[0] = event.getSceneX();
+            offsetY[0] = event.getSceneY();
+        });
+
+        appBar.setOnMouseDragged(mouseEvent -> {
+
+            if (!primaryStage.isMaximized()) {
+                primaryStage.setX(mouseEvent.getScreenX() - offsetX[0]);
+                primaryStage.setY(mouseEvent.getScreenY() - offsetY[0]);
+            }
+        });
+
+
+        appBar.setNavIcon(MaterialDesignIcon.MENU.button(e -> System.out.println("nav icon")));
 //        ScenicView.show(primaryStage.getScene());
 
         // **手动取消全屏**
@@ -121,6 +154,7 @@ public class Main extends Application {
 
 
     }
+
 
 
 
