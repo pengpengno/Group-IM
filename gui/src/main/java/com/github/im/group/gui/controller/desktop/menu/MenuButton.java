@@ -25,16 +25,8 @@ public interface MenuButton {
     default Button getButton(String text){
 
         var mfxButton = new MFXButton();
-//        ImageView icon = new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream("/" + "images/main/toolbox/message.png"))));
-//        icon.setFitWidth(24);
-//        icon.setFitHeight(24);
-
-//        Button button = new Button();
         mfxButton.setText(null);
-//        button.setButtonType(ButtonType.RAISED);
-//        mfxButton.setGraphic(icon);
         mfxButton.setPrefSize(50, 50);
-//        mfxButton.setTooltip(new Tooltip(bundle.getString("chat.text")));
         mfxButton.setPadding(new Insets(0,0,0,0));
         return mfxButton;
     }

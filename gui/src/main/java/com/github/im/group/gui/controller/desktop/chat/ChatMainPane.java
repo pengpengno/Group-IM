@@ -11,6 +11,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.GridPane;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,15 +43,15 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ChatMainPane extends BorderPane implements Initializable {
+public class ChatMainPane extends GridPane implements Initializable {
 
 
     private ListView<ChatInfoPane> conversationList;
 
     private ChatMessagePane currentChatPane;
 
-
     private ConcurrentHashMap<String, ChatMessagePane>  chatPaneMap = new ConcurrentHashMap<>();
+
     private final FriendShipEndpoint friendShipEndpoint;
 
 
@@ -125,33 +127,49 @@ public class ChatMainPane extends BorderPane implements Initializable {
      * 切换聊天的窗体
      * @param chatMessagePane
      */
-    public void switchChatPane(ChatMessagePane chatMessagePane){
-
+    public void switchChatPane(ChatMessagePane chatMessagePane) {
         Platform.runLater(() -> {
+            if (currentChatPane != null) {
+                this.getChildren().remove(currentChatPane); // 先移除旧的聊天面板
+            }
             currentChatPane = chatMessagePane;
 
-            if (currentChatPane != null){
-                this.setCenter(currentChatPane);
-            }
+            // 重新添加新的聊天面板
+            this.add(currentChatPane, 1, 0);
+
+            // 绑定宽度，确保 UI 自适应
+            currentChatPane.prefWidthProperty().bind(this.widthProperty().subtract(conversationList.widthProperty()));
         });
-
-
     }
+
 
     @PostConstruct
     public void initComponent() {
         // 初始化
         conversationList = new ListView<>();
 
-        this.setLeft(conversationList);
+        currentChatPane = new ChatMessagePane();
+
+        this.add(currentChatPane,1,0);
+
+        this.add(conversationList, 0, 0); // 例如将好友列表放到 GridPane 的第 0 行 0 列
+
+
+        // 设置列宽，确保 UI 不会挤在一起
+        this.getColumnConstraints().add(new ColumnConstraints(100));  // 设置第 0 列宽度为 250
+
+        ColumnConstraints col2 = new ColumnConstraints();
+        col2.setHgrow(javafx.scene.layout.Priority.ALWAYS);  // 让第 1 列可以自动扩展
+
+//        currentChatPane.setMaxWidth(Double.MAX_VALUE);
+
+//        this.setLeft(conversationList);
     }
 
 
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-
-//        loadFriendList();
 
     }
 

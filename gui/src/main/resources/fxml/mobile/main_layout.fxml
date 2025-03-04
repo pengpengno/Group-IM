@@ -28,25 +28,25 @@
     </left>
 
     <!-- 中央区域 -->
-    <center>
-        <VBox>
-            <!-- 会话列表 -->
-<!--            <ListView fx:id="conversationList" VBox.vgrow="ALWAYS" style="-fx-pref-height: 200;"/>-->
+<!--    <center>-->
+<!--        <VBox>-->
+<!--            &lt;!&ndash; 会话列表 &ndash;&gt;-->
+<!--&lt;!&ndash;            <ListView fx:id="conversationList" VBox.vgrow="ALWAYS" style="-fx-pref-height: 200;"/>&ndash;&gt;-->
 
-            <!-- 聊天界面 -->
-            <StackPane fx:id="chatPane" VBox.vgrow="ALWAYS" style="-fx-padding: 10;">
-                <VBox spacing="5">
-                    <!-- 聊天内容显示 -->
-                    <TextArea fx:id="chatContent" editable="false" prefHeight="200"/>
+<!--            &lt;!&ndash; 聊天界面 &ndash;&gt;-->
+<!--            <StackPane fx:id="chatPane" VBox.vgrow="ALWAYS" style="-fx-padding: 10;">-->
+<!--                <VBox spacing="5">-->
+<!--                    &lt;!&ndash; 聊天内容显示 &ndash;&gt;-->
+<!--                    <TextArea fx:id="chatContent" editable="false" prefHeight="200"/>-->
 
-                    <!-- 消息输入框和发送按钮 -->
-                    <HBox spacing="5">
-                        <TextField fx:id="messageInput" HBox.hgrow="ALWAYS" promptText="Type a message..."/>
-                        <MFXButton fx:id="sendMessageButton" text="Send"/>
-                    </HBox>
-                </VBox>
-            </StackPane>
-        </VBox>
-    </center>
+<!--                    &lt;!&ndash; 消息输入框和发送按钮 &ndash;&gt;-->
+<!--                    <HBox spacing="5">-->
+<!--                        <TextField fx:id="messageInput" HBox.hgrow="ALWAYS" promptText="Type a message..."/>-->
+<!--                        <MFXButton fx:id="sendMessageButton" text="Send"/>-->
+<!--                    </HBox>-->
+<!--                </VBox>-->
+<!--            </StackPane>-->
+<!--        </VBox>-->
+<!--    </center>-->
 
 </BorderPane>

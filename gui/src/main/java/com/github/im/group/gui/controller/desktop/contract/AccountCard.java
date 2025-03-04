@@ -9,6 +9,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.text.Text;
+import lombok.Getter;
 
 /**
  * AccountCard 用于展示用户简略信息，如头像和姓名
@@ -19,20 +20,20 @@ public class AccountCard extends StackPane {
     private ImageView avatar;
     private Text nameText;
     private HoverCard hoverCard;
+    @Getter
+    private UserInfo userInfo;
 
     public AccountCard(FriendshipDTO item) {
 
-//        currentItem = item;
-//
-//        if (empty || item == null) {
-//            setGraphic(null);
-//        } else {
-            UserInfo userInfo = item.getFriendUserInfo();
+
+
+
+            userInfo = item.getFriendUserInfo();
 
             // 更新ListTile的主要内容（头像和用户名）
             nameText = new Text();
             nameText.textProperty().set(userInfo.getUsername());
-            var image = AvatarGenerator.generateCircleAvatar(userInfo.getUsername(), 50);
+            var image = AvatarGenerator.generateSquareAvatarWithRoundedCorners(userInfo.getUsername(), 30);
             avatar= new ImageView(image);
 //            tile.setPrimaryGraphic(imageView);
 

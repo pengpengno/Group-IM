@@ -20,6 +20,7 @@ import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import lombok.Getter;
 import lombok.Setter;
@@ -66,9 +67,29 @@ public class ChatMessagePane extends BorderPane implements Initializable {
     private EventBus bus;
 
     @Autowired
-    private ReactiveClientAction clientAction; ;
+    private ReactiveClientAction clientAction;
 
 
+
+    /**
+     * chat toolbox
+     * <ul>
+     *     <li>emoji</li>
+     *     <li>file</li>
+     *     <li>screen print / capture</li>
+     *     <li>history</li>
+     * </ul>
+     */
+    public static  class ChatToolBoxPane extends GridPane {
+
+        private MFXButton emojiButton;
+        private MFXButton fileButton;
+        private MFXButton screenPrintButton;
+        private MFXButton historyButton;
+
+
+
+    }
 
     /**
      * send message pane

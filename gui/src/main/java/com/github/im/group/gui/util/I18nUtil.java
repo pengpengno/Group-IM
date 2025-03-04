@@ -23,6 +23,18 @@ import java.util.*;
 public class I18nUtil {
 
 
+    /**
+     * getResourceBundle by  packageName
+     *
+     * eg. <pre> {@code     private ResourceBundle bundle = ResourceBundle.getBundle("i18n.menu.button");}
+     * @param packageName under resources
+     * </pre>
+     * @return ResourceBundle
+     */
+    public static ResourceBundle getResourceBundle(String packageName) {
+        return ResourceBundle.getBundle(packageName);
+    }
+
 
     public static InputStream getInputSteamByBundleName(ResourceBundle bundle , String bundleName)  {
        return  I18nUtil.class.getResourceAsStream("/" + bundle.getString(bundleName));

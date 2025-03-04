@@ -5,13 +5,18 @@ import io.github.palexdev.materialfx.controls.MFXRectangleToggleNode;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
+import lombok.Setter;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Sinks;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import java.util.List;
 import java.util.ResourceBundle;
@@ -27,45 +32,40 @@ import java.util.ResourceBundle;
  */
 
 @Component
+//public class AbstractMenuButton extends MFXRectangleToggleNode  implements MenuButton, ApplicationContextAware {
 public class AbstractMenuButton extends MFXRectangleToggleNode  implements MenuButton, ApplicationContextAware {
 
     static final ResourceBundle menuBundle = ResourceBundle.getBundle("i18n.menu.button");
 
-//    @Autowired
-//    List<AbstractMenuButton>  menuBars;
 
-//
-//    @Autowired
-//    private ChatButton chatButton;
-//
-//    @Autowired
-//    private MailButton mailButton;
-//    @Autowired
-//    private ContactsButton contactsButton;
-//    @Autowired
-//    private DocumentsButton filesButton;
-//    @Autowired
-//    private ScheduleButton schedulesButton;
-//
-//    @Autowired
-//    private MeetingsButton meetingsButton;
-//
-//    @Autowired
-//    private WorkbenchButton workbenchButton;
+    public static Sinks.Many<Class<? extends AbstractMenuButton>> SWITCH_BUTTON = Sinks.many().multicast().onBackpressureBuffer();
 
 
     private   ApplicationContext applicationContext;
+
+    @Setter
+    private ToggleGroup group;
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
     }
 
+
+    public Flux<Class<? extends AbstractMenuButton>> getEventSink() {
+        return SWITCH_BUTTON.asFlux();
+    }
+
+    public void sendEvent(Class<? extends AbstractMenuButton> event) {
+        // 发布as事件到 Sink
+        SWITCH_BUTTON.tryEmitNext(event);
+    }
+
     public ImageView getButtonIcon() {
 
         ImageView icon = new ImageView();
-        icon.setFitWidth(24);
-        icon.setFitHeight(24);
+        icon.setFitWidth(25);
+        icon.setFitHeight(25);
 
         return icon;
     }
@@ -77,8 +77,7 @@ public class AbstractMenuButton extends MFXRectangleToggleNode  implements MenuB
     }
 
     public Tooltip tooltip() {
-        Tooltip tooltip = new Tooltip("Button");
-        return tooltip;
+        return new Tooltip("Button");
     }
 
 
@@ -88,14 +87,13 @@ public class AbstractMenuButton extends MFXRectangleToggleNode  implements MenuB
 //         MFXRectangleToggleNode toggleNode = new MFXRectangleToggleNode(text);
         this.setAlignment(Pos.TOP_CENTER);
 //        toggleNode.setMaxWidth(Double.MAX_VALUE);
-        this.setMaxWidth(50);
-//        this.setToggleGroup(toggleGroup);
-//         toggleNode.setGraphic(getButtonIcon());
+
+
         this.setGraphic(getButtonIcon());
         this.setText(null);
         this.setMaxSize(50, 50);
         this.setPrefSize(50, 50);
-        this.setTooltip(getTooltip());
+        this.setTooltip(tooltip());
         this.setPadding(new Insets(0, 0, 0, 0));
 //        this.getStyleClass().add("menu-button"); // 确保有 CSS 样式
 
@@ -124,6 +122,23 @@ public class AbstractMenuButton extends MFXRectangleToggleNode  implements MenuB
     /**
      * 直接从 Spring 容器获取所有按钮，避免循环依赖
      */
+    public <T extends AbstractMenuButton> List<Tuple2<Class<? extends AbstractMenuButton>,ToggleButton>> getAllButtonTuplesList() {
+        return List.of(
+                toggleButtonTuple2(ChatButton.class),
+                toggleButtonTuple2(MailButton.class),
+                toggleButtonTuple2(ContactsButton.class),
+                toggleButtonTuple2(DocumentsButton.class),
+                toggleButtonTuple2(ScheduleButton.class),
+                toggleButtonTuple2(MeetingsButton.class),
+                toggleButtonTuple2(WorkbenchButton.class)
+        );
+    }
+
+
+    private <T extends AbstractMenuButton> Tuple2<Class<? extends AbstractMenuButton>,ToggleButton> toggleButtonTuple2(Class<T> buttonClass) {
+        return Tuples.of(buttonClass,applicationContext.getBean(buttonClass));
+
+    }
     public List<ToggleButton> getAllButtons() {
         return List.of(
                 applicationContext.getBean(ChatButton.class),

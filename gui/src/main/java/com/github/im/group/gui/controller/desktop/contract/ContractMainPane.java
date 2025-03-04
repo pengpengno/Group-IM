@@ -31,13 +31,13 @@ public class ContractMainPane extends GridPane {
 
     private final UserEndpoint userEndpoint;
 
+    private final DetailInfoPane detailInfoPane;
+
     private final FriendShipEndpoint friendShipEndpoint;
     // 好友信息展示
     private CharmListView<FriendshipDTO, String> contractListView;
 
-
     private ListView<AccountCard> accountCardListView; // 好友列表
-
 
     private BorderPane friendsPane;
 
@@ -84,8 +84,23 @@ public class ContractMainPane extends GridPane {
         //  第一行 窄一些 第二列 宽一些  friendsPane 设置再最左边
 
         this.add(friendsPane, 0, 0); // 例如将好友列表放到 GridPane 的第 0 行 0 列
+        this.add(detailInfoPane,1,0);
+
+
         // 设置列宽，确保 UI 不会挤在一起
-        this.getColumnConstraints().add(new ColumnConstraints(250));  // 设置第 0 列宽度为 250
+        this.getColumnConstraints().add(new ColumnConstraints(100));  // 设置第 0 列宽度为 250
+
+        ColumnConstraints col2 = new ColumnConstraints();
+        col2.setHgrow(javafx.scene.layout.Priority.ALWAYS);  // 让第 1 列可以自动扩展
+
+        detailInfoPane.setMaxWidth(Double.MAX_VALUE);
+
+
+        //  响应式的取 friendsPane 占用完毕后的剩余宽度
+//        detailInfoPane.prefWidthProperty().
+        detailInfoPane.prefWidthProperty().bind(this.widthProperty().subtract(friendsPane.widthProperty()));
+
+
         this.setVgap(10);  // 设置行间距
         this.setHgap(10);  // 设置列间距
 
@@ -135,21 +150,25 @@ public class ContractMainPane extends GridPane {
                 .collectList()
                 .subscribe(this::updateFriendList);
 
-
-//        this.setCenter(accountCardListView);
     }
 
     // 更新好友列表
     private void updateFriendList(List<FriendshipDTO> friendships) {
         Platform.runLater(() -> {
-
-
             log.info("更新好友列表");
+            var collect = friendships.stream()
+                    .map(fri-> {
+                        var accountCard = new AccountCard((fri));
+                        accountCard.setOnMouseClicked(event-> {
+                            detailInfoPane.display(accountCard.getUserInfo());
+                        });
+                        return accountCard;
+                    })
+//                    .forEach(e-> e.setOnMouseClicked(event-> detailInfoPane.display(e.getUserInfo())))
+                    .toList();
 
-            var collect = friendships.stream().map(e -> {
-                return new AccountCard(e);
-            }).collect(Collectors.toList());
-
+            // 先 清楚现在有的数据
+            accountCardListView.getItems().clear();
 
             accountCardListView.getItems().addAll(collect);
 

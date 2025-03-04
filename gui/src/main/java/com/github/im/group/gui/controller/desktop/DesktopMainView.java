@@ -21,7 +21,9 @@ import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.enums.ButtonType;
 import io.github.palexdev.materialfx.utils.ToggleButtonsUtil;
 import io.github.palexdev.mfxresources.fonts.MFXFontIcon;
+import jakarta.annotation.PostConstruct;
 import javafx.application.Platform;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -32,13 +34,17 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.ResourceBundle;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -46,7 +52,6 @@ public class DesktopMainView  extends View implements MainHomeView {
 
     @Autowired
     private ChatMainPane chatMainPane;
-
 
     @Autowired
     private ContractMainPane contractMainPane;
@@ -67,14 +72,9 @@ public class DesktopMainView  extends View implements MainHomeView {
     @FXML
     private HBox windowHeader;
 
-    @FXML
-    private StackPane chatPane;
-    @FXML
-    private TextArea chatContent;
-    @FXML
-    private TextField messageInput;
-    @FXML
-    private MFXButton sendMessageButton;
+
+//    @FXML
+//    private MFXButton sendMessageButton;
 
 
     @FXML
@@ -88,7 +88,7 @@ public class DesktopMainView  extends View implements MainHomeView {
     private MFXFontIcon alwaysOnTopIcon;
 
 
-
+    @Getter
     private final ToggleGroup toggleGroup = new ToggleGroup();
 
 
@@ -127,6 +127,10 @@ public class DesktopMainView  extends View implements MainHomeView {
     }
 
 
+    @PostConstruct
+    public void  init () {
+
+    }
 
     public ImageView windowIcon(String iconName) {
         var node = new ImageView(new Image(I18nUtil.getInputSteamByBundleName(bundle, iconName)));
@@ -137,10 +141,6 @@ public class DesktopMainView  extends View implements MainHomeView {
 
     private void initWindowIcons() {
 
-//        chatMainPane.loadFriendList();
-//        borderPane.setLeft(chatMainPane);
-
-//        borderPane.setCenter(new TextArea("sadjsajkdjsajkd"));
 
         FloatingActionButton fab = new FloatingActionButton();
         fab.showOn(this);
@@ -150,18 +150,18 @@ public class DesktopMainView  extends View implements MainHomeView {
         });
 //        this.getChildren().add(fab);
 
-        var appBar = getAppManager().getAppBar();
-
-        // 新增条件判断，仅在非客户端桌面端更新 AppBar
-//        if (!getPlatform().equals(PlatformType.CLIENT_DESKTOP)) {
-            appBar.setTitleText("The AppBar");
-            appBar.getActionItems().addAll(
-                    MaterialDesignIcon.SEARCH.button(e -> System.out.println("search")),
-                    MaterialDesignIcon.FAVORITE.button(e -> System.out.println("fav")));
-
-            appBar.getMenuItems().addAll(new MenuItem("Settings"));
-
-            appBar.getMenuItems().addAll(new MenuItem("Settings"));
+//        var appBar = getAppManager().getAppBar();
+//
+//        // 新增条件判断，仅在非客户端桌面端更新 AppBar
+////        if (!getPlatform().equals(PlatformType.CLIENT_DESKTOP)) {
+//            appBar.setTitleText("The AppBar");
+//            appBar.getActionItems().addAll(
+//                    MaterialDesignIcon.SEARCH.button(e -> System.out.println("search")),
+//                    MaterialDesignIcon.FAVORITE.button(e -> System.out.println("fav")));
+//
+//            appBar.getMenuItems().addAll(new MenuItem("Settings"));
+//
+//            appBar.getMenuItems().addAll(new MenuItem("Settings"));
 //        }
 //        var node = new ImageView(new Image(I18nUtil.getInputSteamByBundleName(bundle, "close.icon")));
 //        node.setFitWidth(12);
@@ -195,21 +195,11 @@ public class DesktopMainView  extends View implements MainHomeView {
 
     }
 
-    @FXML
     public void initialize() {
 
         // 加载好友列表并设置到主界面
-
-//        rootpane.setCenter(chatMainPane);
-
         initWindowIcons();
-
-        var appBar = AppManager.getInstance().getAppBar();
-        updateAppBar(appBar);
-//        appBar.setVisible(false);
-
-        // 设置发送按钮样式
-        sendMessageButton.setButtonType(ButtonType.FLAT);
+        setupMenuButtons();
 
         UserInfoContext.subscribeUserInfoSink()
             .subscribe(userInfo -> {
@@ -219,27 +209,47 @@ public class DesktopMainView  extends View implements MainHomeView {
                 Platform.runLater(() -> avatar.setImage(image));
             });
 
-
-        // 初始化菜单按钮
-        setupMenuButtons();
+    // 初始化菜单按钮
+        log.info("初始化菜单按钮");
     }
 
     /**
      * 初始化左侧菜单栏按钮，并添加 Tooltip
      */
     private void setupMenuButtons() {
-        var allButtons = abstractMenuButton.getAllButtons();
-        allButtons.forEach(button -> {
+
+        var buttonTuples = abstractMenuButton.getAllButtonTuplesList();
+
+        var eventSink = abstractMenuButton.getEventSink();
+
+        List<ToggleButton> allButtons = buttonTuples.stream().map(buttonTup -> {
+            var button =  buttonTup.getT2();
+
             button.setToggleGroup(toggleGroup);
-        });
 
-//        toggleGroup.getToggles().addAll(AbstractMenuButton.getAllButtons());
+            // eventSink 接收到对应的事件，然后toggleGroup 激活对应的按钮 触发事件
 
-//        ToggleButtonsUtil.addAlwaysOneSelectedSupport(toggleGroup);
+            // 订阅事件流，触发按钮对应的状态
+            eventSink.subscribe(event -> {
+                log.debug(" button switch event {}",event.getSimpleName());
+                if (buttonTup.getT1().equals(event)) {
+                    toggleGroup.selectToggle(button);
+
+                    button.fireEvent(new ActionEvent(this,button));
+                }
+            });
+            button.setPadding(Insets.EMPTY); // 去除按钮的 padding
+
+            return button;
+
+        }) .toList();
+
 
         iconMenu.getChildren().addAll(allButtons);
 
+
     }
+
 
 
 

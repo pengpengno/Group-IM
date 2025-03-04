@@ -4,7 +4,9 @@ import com.github.im.group.gui.controller.Display;
 import com.github.im.group.gui.controller.MainHomeView;
 import com.github.im.group.gui.controller.desktop.DesktopMainView;
 import com.github.im.group.gui.controller.desktop.chat.ChatMainPane;
+import javafx.event.ActionEvent;
 import javafx.event.EventType;
+import javafx.geometry.Insets;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -23,30 +25,33 @@ public class ChatButton extends AbstractMenuButton {
     private ChatMainPane chatMainPane;
 
 
+
     public ChatButton() {
         super();
 
         this.setOnMouseClicked(event -> {
 
-//            if (this.isSelected()){
-//                return;
-//            }
-
             log.info("click  Contacts ");
-            EventType<? extends MouseEvent> eventType = event.getEventType();
-
-            var controller = Display.getController(MainHomeView.class);
-
-//            contractMainPane.initialize();
-
-            var d  = (DesktopMainView)controller;
-
-
-            chatMainPane.loadFriendList();
-            d.switchRootPane(chatMainPane);
-
+            trigger();
 
         });
+
+
+        this.addEventHandler(ActionEvent.ACTION ,event -> {
+            log.info("ActionEvent.ACTION ");
+
+            trigger();
+
+        });
+
+    }
+
+    private void trigger() {
+
+        var controller = Display.getController(MainHomeView.class);
+        var d  = (DesktopMainView)controller;
+        chatMainPane.loadFriendList();
+        d.switchRootPane(chatMainPane);
     }
 
     @Override
