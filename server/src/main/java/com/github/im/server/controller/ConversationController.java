@@ -1,13 +1,57 @@
 package com.github.im.server.controller;
 
-/**
- * Description:
- * <p>
- * </p>
- *
- * @author pengpeng
- * @version 1.0
- * @since 2025/2/18
- */
+import com.github.im.conversation.ConversationDTO;
+import com.github.im.conversation.GroupInfo;
+import com.github.im.server.model.Conversation;
+import com.github.im.server.service.ConversationService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/conversations")
+@Validated
 public class ConversationController {
+
+    @Autowired
+    private ConversationService conversationService;
+
+    /**
+     * 创建新群组
+     * @param groupInfo 群组信息，包括群组名称、描述和成员列表
+     * @return 创建后的群组
+     */
+    @PostMapping
+    public ResponseEntity<Conversation> createGroup(@RequestBody GroupInfo groupInfo) {
+        Conversation group = conversationService.createGroup(groupInfo.getGroupName(), groupInfo.getDescription(), groupInfo.getMembers());
+        return ResponseEntity.ok(group);
+    }
+
+
+
+    /**
+     * 创建或获取私聊会话
+     * @param userId1 第一个用户ID
+     * @param userId2 第二个用户ID
+     * @return 私聊会话的DTO
+     */
+    @PostMapping("/private-chat")
+    public ResponseEntity<ConversationDTO> createOrGetPrivateChat(@RequestParam Long userId1, @RequestParam Long userId2) {
+        ConversationDTO conversationDTO = conversationService.createOrGetPrivateChat(userId1, userId2);
+        return ResponseEntity.ok(conversationDTO);
+    }
+
+    /**
+     * 获取某个用户正在进行的群组
+     * @param userId 用户ID
+     * @return 用户正在进行的群组
+     */
+    @GetMapping("/users/{userId}/active")
+    public ResponseEntity<List<Conversation>> getActiveConversationsByUserId(@PathVariable Long userId) {
+        List<Conversation> activeConversations = conversationService.getActiveConversationsByUserId(userId);
+        return ResponseEntity.ok(activeConversations);
+    }
 }

@@ -161,9 +161,6 @@ public class ChatMainPane extends GridPane implements Initializable {
         ColumnConstraints col2 = new ColumnConstraints();
         col2.setHgrow(javafx.scene.layout.Priority.ALWAYS);  // 让第 1 列可以自动扩展
 
-//        currentChatPane.setMaxWidth(Double.MAX_VALUE);
-
-//        this.setLeft(conversationList);
     }
 
 
