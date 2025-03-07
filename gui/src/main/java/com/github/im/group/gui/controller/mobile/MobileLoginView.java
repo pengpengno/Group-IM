@@ -64,14 +64,8 @@ public class MobileLoginView implements LoginView {
                 }).block()
                 ;
 
-        loginLifecycle.loginCallBack(userInfo);
+//        loginLifecycle.loginCallBack(userInfo);
 
-//        // 模拟简单的用户验证
-//        if ("admin".equals(username) && "admin123".equals(password)) {
-//            showAlert("Login Successful", "Welcome, " + username + "!");
-//        } else {
-//            showAlert("Login Failed", "Invalid credentials. Please try again.");
-//        }
     }
 
 

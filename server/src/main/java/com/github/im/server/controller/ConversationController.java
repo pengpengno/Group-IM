@@ -1,8 +1,9 @@
 package com.github.im.server.controller;
 
-import com.github.im.conversation.ConversationDTO;
+import com.github.im.conversation.ConversationRes;
 import com.github.im.conversation.GroupInfo;
-import com.github.im.server.model.Conversation;
+import com.github.im.conversation.GroupInfoDTO; // 假设 GroupInfoDTO 存在
+import com.github.im.dto.GroupInfoDTO;
 import com.github.im.server.service.ConversationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -25,12 +26,11 @@ public class ConversationController {
      * @return 创建后的群组
      */
     @PostMapping
-    public ResponseEntity<Conversation> createGroup(@RequestBody GroupInfo groupInfo) {
-        Conversation group = conversationService.createGroup(groupInfo.getGroupName(), groupInfo.getDescription(), groupInfo.getMembers());
+    public ResponseEntity<ConversationRes> createGroup(@RequestBody GroupInfo groupInfo) {
+        var group = conversationService.createGroup(groupInfo.getGroupName(), groupInfo.getDescription(), groupInfo.getMembers());
+//        ConversationDTO conversationDTO = ConversationMapper.INSTANCE.toDTO(group); // 假设存在 ConversationMapper
         return ResponseEntity.ok(group);
     }
-
-
 
     /**
      * 创建或获取私聊会话
@@ -39,9 +39,9 @@ public class ConversationController {
      * @return 私聊会话的DTO
      */
     @PostMapping("/private-chat")
-    public ResponseEntity<ConversationDTO> createOrGetPrivateChat(@RequestParam Long userId1, @RequestParam Long userId2) {
-        ConversationDTO conversationDTO = conversationService.createOrGetPrivateChat(userId1, userId2);
-        return ResponseEntity.ok(conversationDTO);
+    public ResponseEntity<ConversationRes> createOrGetPrivateChat(@RequestParam Long userId1, @RequestParam Long userId2) {
+        ConversationRes conversationRes = conversationService.createOrGetPrivateChat(userId1, userId2);
+        return ResponseEntity.ok(conversationRes);
     }
 
     /**
@@ -49,9 +49,9 @@ public class ConversationController {
      * @param userId 用户ID
      * @return 用户正在进行的群组
      */
-    @GetMapping("/users/{userId}/active")
-    public ResponseEntity<List<Conversation>> getActiveConversationsByUserId(@PathVariable Long userId) {
-        List<Conversation> activeConversations = conversationService.getActiveConversationsByUserId(userId);
+    @GetMapping("/{userId}/active")
+    public ResponseEntity<List<ConversationRes>> getActiveConversationsByUserId(@PathVariable Long userId) {
+        var activeConversations = conversationService.getActiveConversationsByUserId(userId);
         return ResponseEntity.ok(activeConversations);
     }
 }

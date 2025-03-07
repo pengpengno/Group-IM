@@ -5,7 +5,6 @@
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
-<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
@@ -33,9 +32,10 @@
         </GridPane>
         <ProgressIndicator fx:id="progressIndicator" visible="false" />
         <Label fx:id="errorLabel" style="-fx-text-fill: red;" />
-        <HBox alignment="center" spacing="20">
-            <MFXButton fx:id="loginButton" onAction="#login" style="-fx-pref-width: 100px;" text="Login" />
-            <MFXButton fx:id="navigateToRegister" onAction="#navigateToRegister" style="-fx-pref-width: 100px;" styleClass="register-button" text="Register"/>
-        </HBox>
+
+        <MFXButton fx:id="loginButton" onAction="#login"  text="Login" />
+<!--        <MFXButton fx:id="loginButton" onAction="#login" styleClass="register-button" text="Login" />-->
+        <MFXButton fx:id="navigateToRegister" layoutY="242.0" onAction="#navigateToRegister" styleClass="register-button"
+                text="Register"/>
     </VBox>
 </StackPane>

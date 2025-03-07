@@ -5,6 +5,7 @@ import com.github.im.dto.user.RegistrationRequest;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.dto.user.UserRegisterRequest;
 import org.springframework.beans.factory.annotation.Lookup;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,7 +29,7 @@ public interface UserEndpoint {
 
 	// 用户登录
 	@PostExchange("/api/users/login")
-	Mono<UserInfo> loginUser(@RequestBody LoginRequest loginRequest);
+	Mono<ResponseEntity<UserInfo>> loginUser(@RequestBody LoginRequest loginRequest);
 
 
 	@PostExchange("/api/users/query")

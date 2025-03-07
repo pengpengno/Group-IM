@@ -53,16 +53,15 @@ public class LoginLifecycleImpl implements LoginLifecycle {
 
             UserInfoContext.setCurrentUser(userInfo);
             var primaryStage = Display.getPrimaryStage();
+
+            Display.display(MainHomeView.class);
             primaryStage.setMinWidth(560);
             primaryStage.setWidth(970);
             primaryStage.setHeight(560);
             primaryStage.setMinHeight(450);
-            Display.display(MainHomeView.class);
-
         });
 
         try{
-
             var serverConnectPro = serverConnectProperties.getConnect();
 
             ClientToolkit.clientLifeStyle()
