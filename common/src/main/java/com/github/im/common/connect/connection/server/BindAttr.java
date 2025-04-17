@@ -5,6 +5,10 @@ import com.github.im.common.connect.model.proto.Account;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
 public class BindAttr<T> {
 
     @Getter
@@ -20,10 +24,18 @@ public class BindAttr<T> {
     public static BindAttr<String> getBindAttr(String account) {
         return getBindAttr(account,PlatformType.DESKTOP);
     }
+
+    public static List<BindAttr<String>> getAllPlatformBindAttr(String account) {
+        return Arrays.stream(PlatformType.values()).map(e->getBindAttr(account,e) ).collect(Collectors.toList());
+    }
+
+
     public static BindAttr<String> getBindAttr(String account, PlatformType platformType ) {
         var ATTRKEY = String.join("_", account, platformType.name());
         return getAttr(ATTRKEY);
     }
+
+
     public static BindAttr<String> getBindAttr(Account.AccountInfo accountInfo) {
         var platformType = accountInfo.getPlatformType();
         var platformTypeEnums = PlatformType.getPlatformType(platformType);

@@ -1,10 +1,9 @@
 package com.github.im.server.model;
 
-import com.github.im.server.model.enums.ConversationType;
-import com.github.im.server.model.enums.ConversationStatus;
+import com.github.im.enums.ConversationType;
+import com.github.im.enums.ConversationStatus;
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,6 +12,8 @@ import java.util.List;
 @Table(name = "conversations")
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Conversation {
 
     @Id
@@ -27,7 +28,8 @@ public class Conversation {
 
     private String description;  // 群组描述
 
-    @OneToMany(mappedBy = "conversation")
+    @OneToMany(mappedBy = "conversation",fetch = FetchType.LAZY)
+//    @ManyToOne(fetch = FetchType.LAZY)
     private List<GroupMember> members;
 
     @ManyToOne(fetch = FetchType.LAZY)

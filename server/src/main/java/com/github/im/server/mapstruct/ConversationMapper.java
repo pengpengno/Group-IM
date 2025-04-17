@@ -5,10 +5,9 @@ import com.github.im.server.model.Conversation;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
 
-@Mapper
+@Mapper(componentModel = "spring",uses = {GroupMemberMapper.class})
 public interface ConversationMapper {
 
-    ConversationMapper INSTANCE = Mappers.getMapper(ConversationMapper.class);
 
     ConversationRes toDTO(Conversation conversation);
 }

@@ -1,8 +1,8 @@
 package com.github.im.server.repository;
 
 import com.github.im.server.model.Conversation;
-import com.github.im.server.model.enums.ConversationStatus;
-import com.github.im.server.model.enums.ConversationType;
+import com.github.im.enums.ConversationStatus;
+import com.github.im.enums.ConversationType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;

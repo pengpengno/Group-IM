@@ -46,8 +46,9 @@ public class ChatBubblePane extends HBox {
     private Label senderLabel;
 
 
-    private TextArea senderTextField;
-//    private InlineCssTextArea senderTextField;
+//    private TextArea senderTextField;
+    private InlineCssTextArea senderTextField;
+//    private Text senderTextField;
 
 
     /**
@@ -58,59 +59,48 @@ public class ChatBubblePane extends HBox {
      */
     private void init(String message, String name , boolean isSent) {
 
-        this.setSpacing(10); // 间距
+        this.setSpacing(10);
         this.setPadding(new Insets(10));
-        this.setAlignment(isSent ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT); // 根据消息类型调整对齐
+        this.setAlignment(isSent ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
 
-        avatar = new ImageView( AvatarGenerator.generateCircleAvatar(name, 100));;
+        avatar = new ImageView(AvatarGenerator.generateCircleAvatar(name, 100));
         avatar.setFitWidth(40);
         avatar.setFitHeight(40);
-//        avatar.setStyle("-fx-effect: dropshadow(gaussian, gray, 4, 0.5, 0, 0);"); // 添加阴影效果
 
-
-        senderTextField = new JFXTextArea();
-//        senderTextField = new InlineCssTextArea();
-//        senderTextField = new TextArea();
-//
+        senderTextField = new InlineCssTextArea();
         senderTextField.setEditable(false);
         senderTextField.appendText(message);
-//        senderTextField.setText(message);
+        senderTextField.setWrapText(true);
         senderTextField.setMaxWidth(250);
 
-//        adjustTextAreaHeight(senderTextField);
-        // 包裹消息文本的 TextFlow
-        TextFlow messageBubble = new TextFlow(senderTextField);
+        // 动态调整高度
+        senderTextField.textProperty().addListener((obs, oldText, newText) -> adjustTextAreaHeight(senderTextField));
+        adjustTextAreaHeight(senderTextField); // 初始调整
+
+        HBox messageBubble = new HBox(senderTextField);
         messageBubble.setPadding(new Insets(10));
-        messageBubble.setStyle("-fx-background-color: " + (isSent ? "#4caf50" : "#2196f3") + ";"
-                + "-fx-background-radius: 15;");
-        messageBubble.setMaxWidth(250); // 限制最大宽度
-        messageBubble.setLineSpacing(2);
-//        InlineCssTextArea
-//        this.getChildren().add(textFlow);
-
-
-        // 消息部分 (包含发送者名称和气泡)
-        VBox messageBox = new VBox(5);
-//        if (!isSent) {
-//            messageBox.getChildren().add(senderLabel);
-//        }
-
-
-        setHgrow(senderTextField, Priority.ALWAYS);
-
-//        messageBox.getChildren().add(senderTextField);
-        messageBox.getChildren().add(messageBubble);
-
-
-        // 根据消息类型添加组件顺序
+        messageBubble.getStyleClass().add("message-bubble");
         if (isSent) {
-            this.getChildren().addAll(messageBox, avatar); // 自己的消息：消息在左，头像在右
-        } else {
-            this.getChildren().addAll(avatar, messageBox); // 对方的消息：头像在左，消息在右
+            messageBubble.getStyleClass().add("sent-message-bubble");
         }
 
+        messageBubble.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(senderTextField, Priority.ALWAYS);  // 允许扩展
 
+        VBox messageBox = new VBox(5);
+        VBox.setVgrow(senderTextField, Priority.ALWAYS);
+
+        messageBox.getChildren().add(messageBubble);
+
+//        messageBox.getChildren().add(senderTextField);
+//
+        if (isSent) {
+            this.getChildren().addAll(messageBox, avatar);
+        } else {
+            this.getChildren().addAll(avatar, messageBox);
+        }
     }
+
 
     private ChatBubblePane(){
 
@@ -143,6 +133,23 @@ public class ChatBubblePane extends HBox {
         double newHeight = Math.min(Math.max(textHeight, textArea.getMinHeight()), textArea.getMaxHeight());
         textArea.setPrefHeight(newHeight);
     }
+
+    private void adjustTextAreaHeight(InlineCssTextArea textArea) {
+        Platform.runLater(() -> {
+            double textHeight = computeTextHeight(textArea);
+            textArea.setPrefHeight(textHeight); // 设置合适的高度
+        });
+    }
+
+    /**
+     * 计算 InlineCssTextArea 需要的高度
+     */
+    private double computeTextHeight(InlineCssTextArea textArea) {
+        int lines = textArea.getText().split("\n").length;  // 计算文本行数
+        double lineHeight = 18; // 估算单行高度（可根据字体调整）
+        return Math.max(40, lines * lineHeight + 10); // 最小高度 40
+    }
+
 
 
 

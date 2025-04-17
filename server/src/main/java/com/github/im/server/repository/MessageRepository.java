@@ -9,7 +9,7 @@ import java.util.List;
 public interface MessageRepository extends JpaRepository<Message, Long> {
 
     // 根据会话ID查询所有消息
-    List<Message> findBySessionId(Long sessionId);
+    List<Message> findByConversation_ConversationId(Long conversationId);
 
     // 获取某个账户的所有消息
     List<Message> findByFromAccountId(Long fromAccountId);

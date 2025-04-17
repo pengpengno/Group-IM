@@ -2,8 +2,6 @@ package com.github.im.server.controller;
 
 import com.github.im.conversation.ConversationRes;
 import com.github.im.conversation.GroupInfo;
-import com.github.im.conversation.GroupInfoDTO; // 假设 GroupInfoDTO 存在
-import com.github.im.dto.GroupInfoDTO;
 import com.github.im.server.service.ConversationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +32,8 @@ public class ConversationController {
 
     /**
      * 创建或获取私聊会话
-     * @param userId1 第一个用户ID
+     *
+     * @param userId1 第一个用户ID group creator
      * @param userId2 第二个用户ID
      * @return 私聊会话的DTO
      */

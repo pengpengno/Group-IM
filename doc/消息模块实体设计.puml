@@ -1,0 +1,28 @@
+@startuml
+class Group {
+    +groupId: String
+    +name: String
+    +createdAt: Date
+    +addMember(member: Member)
+    +removeMember(member: Member)
+}
+
+class Member {
+    +memberId: String
+    +username: String
+    +joinGroup(group: Group)
+    +leaveGroup(group: Group)
+}
+
+class Message {
+    +messageId: String
+    +content: String
+    +timestamp: Date
+    +sender: Member
+    +group: Group
+}
+
+Group "1" --* "0..*" Member : has
+Group "1" --* "0..*" Message : contains
+Member "1" -- "0..*" Message : sends
+@enduml

@@ -14,17 +14,15 @@ message ChatMessage  {
 
   int32 seq = 4;
 
-  int64 sessionId = 5 ;
-
   string content  = 3 ;
+  //client-server
+  int64 conversationId = 9 ;
 
-  int32 conversationId = 9 ;
+  string conversationName = 10 ;
 
   AccountInfo fromAccountInfo = 2 ;
-
+ // server-client
   AccountInfo toAccountInfo = 8 ;
-
-
 
   sint32 clientTimeStamp = 7 ;
 
@@ -32,22 +30,11 @@ message ChatMessage  {
 
   MessageType type = 6 ;
 
-  google.protobuf.Any chat = 10;
+//  google.protobuf.Any chat = 10;
+
+  MessagesStatus messagesStatus = 11;
 
 
-  MessagesStatus messagesStatus = 11; ;
-
-  message Group{
-
-    float sessionId = 1 ;
-
-    repeated string toAccounts = 8 ;  // the receive  account
-
-  }
-
-  message Single{
-    float toAccount = 1;
-  }
 
 
   enum MessagesStatus{

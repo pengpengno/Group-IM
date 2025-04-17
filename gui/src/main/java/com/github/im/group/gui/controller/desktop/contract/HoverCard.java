@@ -31,7 +31,7 @@ public class HoverCard extends StackPane {
 
         nameText = new Text(name);
         emailLabel = new Label("Email: " + email);
-//        statusLabel = new Label("Status: " + status);
+        statusLabel = new Label("Status: " + "🟢");
         statusLabel.setTextFill(Color.DARKBLUE);
 
         detailBox.getChildren().addAll(avatar, nameText, emailLabel, statusLabel);

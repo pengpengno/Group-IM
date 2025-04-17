@@ -8,6 +8,9 @@ option java_outer_classname = "Account";
 
 message AccountInfo{
 
+  /**
+   {@link UserInfo#getUsername}
+   */
   string account = 1 ;
 
   string accountName = 2 ;

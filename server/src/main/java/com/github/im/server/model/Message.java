@@ -1,5 +1,6 @@
 package com.github.im.server.model;
 
+import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.enums.MessageStatus;
 import com.github.im.enums.MessageType;
 import jakarta.persistence.*;
@@ -19,7 +20,15 @@ public class Message {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long msgId;  // 消息ID
 
-    private Long sessionId;  // 会话ID
+//    private Long sessionId;  // 会话ID
+
+
+//    private Long conversationId;  // 会话ID
+
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conversation_id",referencedColumnName = "conversationId" , nullable = false)
+    private Conversation conversation;
 
     private String content;  // 消息内容
 
@@ -36,7 +45,7 @@ public class Message {
     private LocalDateTime timestamp;  // 消息时间戳
 
     public Message(Long sessionId, String content, Long fromAccountId, Long toAccountId, MessageType type, MessageStatus status) {
-        this.sessionId = sessionId;
+//        this.sessionId = sessionId;
         this.content = content;
         this.fromAccountId = fromAccountId;
         this.toAccountId = toAccountId;
@@ -44,4 +53,7 @@ public class Message {
         this.status = status;
         this.timestamp = LocalDateTime.now();
     }
+
+
+
 }

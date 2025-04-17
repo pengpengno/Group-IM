@@ -1,6 +1,10 @@
 package com.github.im.group.gui.controller.desktop.contract;
 
 import com.github.im.dto.user.UserInfo;
+import com.github.im.group.gui.api.ConversationEndpoint;
+import com.github.im.group.gui.context.UserInfoContext;
+import com.github.im.group.gui.controller.desktop.chat.ChatMainPane;
+import com.github.im.group.gui.controller.desktop.chat.ChatMessagePane;
 import com.github.im.group.gui.controller.desktop.menu.impl.AbstractMenuButton;
 import com.github.im.group.gui.controller.desktop.menu.impl.ChatButton;
 import com.github.im.group.gui.util.AvatarGenerator;
@@ -11,10 +15,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.RowConstraints;
+import javafx.scene.layout.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -31,6 +32,13 @@ public class DetailInfoPane extends GridPane {
     @Autowired
     private AbstractMenuButton abstractMenuButton;
 
+
+    @Autowired
+    private ChatMainPane chatMainPane;
+
+    @Autowired
+    private ConversationEndpoint conversationEndpoint;
+
     private ImageView avatarGenerator;
     private Label phone = new Label();
     private Label mail = new Label();
@@ -40,7 +48,13 @@ public class DetailInfoPane extends GridPane {
     private MFXButton sendMail = new MFXButton();
     private MFXButton call = new MFXButton();
 
+
+    private UserInfo  userInfo;
+
     private ResourceBundle resourceBundle = I18nUtil.getResourceBundle("i18n.contract.contract");
+
+
+
 
     @PostConstruct
     public void initPane() {
@@ -71,7 +85,20 @@ public class DetailInfoPane extends GridPane {
 
             log.debug("click and   switch  button ");
 
+
             abstractMenuButton.sendEvent(ChatButton.class);
+
+            conversationEndpoint.createOrGetPrivateChat(UserInfoContext.getAccountInfo().getUserId() , this.userInfo.getUserId())
+                    .doOnError(error -> log.error("Failed to create or get private chat", error))
+                    .doOnSuccess(conversationRes -> {
+
+                        chatMainPane.updateConversations(conversationRes);
+
+                    })
+                    .subscribe();
+
+
+//            chatMainPane.updateConversations(this.userInfo);
 
         });
         // 初始化按钮
@@ -81,19 +108,29 @@ public class DetailInfoPane extends GridPane {
     }
 
     public void display(UserInfo userInfo) {
+
+
         this.getChildren().clear(); // 清空旧的 UI 组件
+
+
+        this.userInfo = userInfo;
 
         name.setText(userInfo.getUsername());
         avatarGenerator = new ImageView(AvatarGenerator.generateSquareAvatarWithRoundedCorners(userInfo.getUsername(), 40));
 
-        phone.setText("📞 " + userInfo.getEmail());
-        mail.setText("✉️ " + userInfo.getEmail());
+        phone.setText("tel:" + userInfo.getEmail());
+        mail.setText("email" + userInfo.getEmail());
         mail.setAlignment(Pos.CENTER);
         phone.setAlignment(Pos.CENTER);
 
         // 头像 + 名字，居中对齐
         HBox avatarBox = new HBox(10, avatarGenerator, name);
         avatarBox.setAlignment(Pos.CENTER);
+
+
+
+        VBox infoBox = new VBox(10, phone, mail);
+        infoBox.setAlignment(Pos.CENTER_LEFT);
 
         // 按钮组，居中对齐
         HBox buttonBox = new HBox(10, sendMessage, sendMail, call);
@@ -103,9 +140,10 @@ public class DetailInfoPane extends GridPane {
 
         // 添加组件到 GridPane，内容居中
         this.add(avatarBox, 0, 0, 2, 1);  // 跨两列
-        this.add(phone, 0, 1);
-        this.add(mail, 0, 2);
-        this.add(buttonBox, 0, 3, 2, 1);  // 按钮跨两列
+        this.add(infoBox, 0, 1, 2, 1);  // 跨两列
+//        this.add(phone, 0, 1);
+//        this.add(mail, 0, 2);
+        this.add(buttonBox, 0, 2, 2, 1);  // 按钮跨两列
 
 
 

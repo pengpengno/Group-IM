@@ -1,5 +1,6 @@
 package com.github.im.group.gui.controller.desktop.menu.impl;
 
+import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.Display;
 import com.github.im.group.gui.controller.MainHomeView;
 import com.github.im.group.gui.controller.desktop.DesktopMainView;
@@ -37,22 +38,24 @@ public class ChatButton extends AbstractMenuButton {
         });
 
 
-        this.addEventHandler(ActionEvent.ACTION ,event -> {
-            log.info("ActionEvent.ACTION ");
-
-            trigger();
-
-        });
+//        this.addEventHandler(ActionEvent.ACTION ,event -> {
+//            log.info("ActionEvent.ACTION ");
+//            trigger();
+//
+//        });
 
     }
 
     private void trigger() {
 
         var controller = Display.getController(MainHomeView.class);
-        var d  = (DesktopMainView)controller;
-        chatMainPane.loadFriendList();
-        d.switchRootPane(chatMainPane);
+        var desktopMainView  = (DesktopMainView)controller;
+//        chatMainPane.loadFriendList();
+        chatMainPane.loadConversation(UserInfoContext.getCurrentUser()).subscribe();
+
+        desktopMainView.switchRootPane(chatMainPane);
     }
+
 
     @Override
     public ImageView getButtonIcon() {

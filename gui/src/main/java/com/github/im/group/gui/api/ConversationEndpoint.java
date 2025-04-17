@@ -5,9 +5,11 @@ import com.github.im.conversation.GroupInfo;
 import com.github.im.dto.GroupMemberDTO;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.service.annotation.GetExchange;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -41,12 +43,12 @@ public interface ConversationEndpoint {
 
     /**
      * Create or get a private chat conversation between two users
-     * @param userId1 the ID of the first user
+     * @param userId1 the ID of the first user  group creator
      * @param userId2 the ID of the second user
      * @return the private chat conversation DTO
      */
     @PostExchange("/api/conversations/private-chat")
-    Mono<ConversationRes> createOrGetPrivateChat(@PathVariable("userId1") Long userId1, @PathVariable("userId2") Long userId2);
+    Mono<ConversationRes> createOrGetPrivateChat(@RequestParam("userId1") Long userId1, @RequestParam("userId2") Long userId2);
 
     /**
      * Get active conversations for a user

@@ -70,7 +70,9 @@ public class ReactorTcpServer implements ReactiveServer {
 
         allChannels.disconnect();
         allChannels.close();
-        disposableServer.disposeNow();
+        if(disposableServer != null ){
+            disposableServer.disposeNow();
+        }
     }
 
 

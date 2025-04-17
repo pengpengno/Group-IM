@@ -303,12 +303,6 @@ public final class Chat {
     int getSeq();
 
     /**
-     * <code>int64 sessionId = 5;</code>
-     * @return The sessionId.
-     */
-    long getSessionId();
-
-    /**
      * <code>string content = 3;</code>
      * @return The content.
      */
@@ -321,10 +315,22 @@ public final class Chat {
         getContentBytes();
 
     /**
-     * <code>int32 conversationId = 9;</code>
+     * <code>int64 conversationId = 9;</code>
      * @return The conversationId.
      */
-    int getConversationId();
+    long getConversationId();
+
+    /**
+     * <code>string conversationName = 10;</code>
+     * @return The conversationName.
+     */
+    java.lang.String getConversationName();
+    /**
+     * <code>string conversationName = 10;</code>
+     * @return The bytes for conversationName.
+     */
+    com.google.protobuf.ByteString
+        getConversationNameBytes();
 
     /**
      * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
@@ -340,21 +346,6 @@ public final class Chat {
      * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
      */
     com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getFromAccountInfoOrBuilder();
-
-    /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-     * @return Whether the toAccountInfo field is set.
-     */
-    boolean hasToAccountInfo();
-    /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-     * @return The toAccountInfo.
-     */
-    com.github.im.common.connect.model.proto.Account.AccountInfo getToAccountInfo();
-    /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-     */
-    com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getToAccountInfoOrBuilder();
 
     /**
      * <code>sint32 clientTimeStamp = 7;</code>
@@ -378,21 +369,6 @@ public final class Chat {
      * @return The type.
      */
     com.github.im.common.connect.model.proto.Chat.MessageType getType();
-
-    /**
-     * <code>.google.protobuf.Any chat = 10;</code>
-     * @return Whether the chat field is set.
-     */
-    boolean hasChat();
-    /**
-     * <code>.google.protobuf.Any chat = 10;</code>
-     * @return The chat.
-     */
-    com.google.protobuf.Any getChat();
-    /**
-     * <code>.google.protobuf.Any chat = 10;</code>
-     */
-    com.google.protobuf.AnyOrBuilder getChatOrBuilder();
 
     /**
      * <code>.com.github.im.common.connect.model.proto.ChatMessage.MessagesStatus messagesStatus = 11;</code>
@@ -432,6 +408,7 @@ public final class Chat {
     }
     private ChatMessage() {
       content_ = "";
+      conversationName_ = "";
       type_ = 0;
       messagesStatus_ = 0;
     }
@@ -620,1160 +597,6 @@ public final class Chat {
       // @@protoc_insertion_point(enum_scope:com.github.im.common.connect.model.proto.ChatMessage.MessagesStatus)
     }
 
-    public interface GroupOrBuilder extends
-        // @@protoc_insertion_point(interface_extends:com.github.im.common.connect.model.proto.ChatMessage.Group)
-        com.google.protobuf.MessageOrBuilder {
-
-      /**
-       * <code>float sessionId = 1;</code>
-       * @return The sessionId.
-       */
-      float getSessionId();
-
-      /**
-       * <pre>
-       * the receive  account
-       * </pre>
-       *
-       * <code>repeated string toAccounts = 8;</code>
-       * @return A list containing the toAccounts.
-       */
-      java.util.List<java.lang.String>
-          getToAccountsList();
-      /**
-       * <pre>
-       * the receive  account
-       * </pre>
-       *
-       * <code>repeated string toAccounts = 8;</code>
-       * @return The count of toAccounts.
-       */
-      int getToAccountsCount();
-      /**
-       * <pre>
-       * the receive  account
-       * </pre>
-       *
-       * <code>repeated string toAccounts = 8;</code>
-       * @param index The index of the element to return.
-       * @return The toAccounts at the given index.
-       */
-      java.lang.String getToAccounts(int index);
-      /**
-       * <pre>
-       * the receive  account
-       * </pre>
-       *
-       * <code>repeated string toAccounts = 8;</code>
-       * @param index The index of the value to return.
-       * @return The bytes of the toAccounts at the given index.
-       */
-      com.google.protobuf.ByteString
-          getToAccountsBytes(int index);
-    }
-    /**
-     * Protobuf type {@code com.github.im.common.connect.model.proto.ChatMessage.Group}
-     */
-    public static final class Group extends
-        com.google.protobuf.GeneratedMessage implements
-        // @@protoc_insertion_point(message_implements:com.github.im.common.connect.model.proto.ChatMessage.Group)
-        GroupOrBuilder {
-    private static final long serialVersionUID = 0L;
-      static {
-        com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
-          com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
-          /* major= */ 4,
-          /* minor= */ 28,
-          /* patch= */ 2,
-          /* suffix= */ "",
-          Group.class.getName());
-      }
-      // Use Group.newBuilder() to construct.
-      private Group(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
-        super(builder);
-      }
-      private Group() {
-        toAccounts_ =
-            com.google.protobuf.LazyStringArrayList.emptyList();
-      }
-
-      public static final com.google.protobuf.Descriptors.Descriptor
-          getDescriptor() {
-        return com.github.im.common.connect.model.proto.Chat.internal_static_com_github_im_common_connect_model_proto_ChatMessage_Group_descriptor;
-      }
-
-      @java.lang.Override
-      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
-          internalGetFieldAccessorTable() {
-        return com.github.im.common.connect.model.proto.Chat.internal_static_com_github_im_common_connect_model_proto_ChatMessage_Group_fieldAccessorTable
-            .ensureFieldAccessorsInitialized(
-                com.github.im.common.connect.model.proto.Chat.ChatMessage.Group.class, com.github.im.common.connect.model.proto.Chat.ChatMessage.Group.Builder.class);
-      }
-
-      public static final int SESSIONID_FIELD_NUMBER = 1;
-      private float sessionId_ = 0F;
-      /**
-       * <code>float sessionId = 1;</code>
-       * @return The sessionId.
-       */
-      @java.lang.Override
-      public float getSessionId() {
-        return sessionId_;
-      }
-
-      public static final int TOACCOUNTS_FIELD_NUMBER = 8;
-      @SuppressWarnings("serial")
-      private com.google.protobuf.LazyStringArrayList toAccounts_ =
-          com.google.protobuf.LazyStringArrayList.emptyList();
-      /**
-       * <pre>
-       * the receive  account
-       * </pre>
-       *
-       * <code>repeated string toAccounts = 8;</code>
-       * @return A list containing the toAccounts.
-       */
-      public com.google.protobuf.ProtocolStringList
-          getToAccountsList() {
-        return toAccounts_;
-      }
-      /**
-       * <pre>
-       * the receive  account
-       * </pre>
-       *
-       * <code>repeated string toAccounts = 8;</code>
-       * @return The count of toAccounts.
-       */
-      public int getToAccountsCount() {
-        return toAccounts_.size();
-      }
-      /**
-       * <pre>
-       * the receive  account
-       * </pre>
-       *
-       * <code>repeated string toAccounts = 8;</code>
-       * @param index The index of the element to return.
-       * @return The toAccounts at the given index.
-       */
-      public java.lang.String getToAccounts(int index) {
-        return toAccounts_.get(index);
-      }
-      /**
-       * <pre>
-       * the receive  account
-       * </pre>
-       *
-       * <code>repeated string toAccounts = 8;</code>
-       * @param index The index of the value to return.
-       * @return The bytes of the toAccounts at the given index.
-       */
-      public com.google.protobuf.ByteString
-          getToAccountsBytes(int index) {
-        return toAccounts_.getByteString(index);
-      }
-
-      private byte memoizedIsInitialized = -1;
-      @java.lang.Override
-      public final boolean isInitialized() {
-        byte isInitialized = memoizedIsInitialized;
-        if (isInitialized == 1) return true;
-        if (isInitialized == 0) return false;
-
-        memoizedIsInitialized = 1;
-        return true;
-      }
-
-      @java.lang.Override
-      public void writeTo(com.google.protobuf.CodedOutputStream output)
-                          throws java.io.IOException {
-        if (java.lang.Float.floatToRawIntBits(sessionId_) != 0) {
-          output.writeFloat(1, sessionId_);
-        }
-        for (int i = 0; i < toAccounts_.size(); i++) {
-          com.google.protobuf.GeneratedMessage.writeString(output, 8, toAccounts_.getRaw(i));
-        }
-        getUnknownFields().writeTo(output);
-      }
-
-      @java.lang.Override
-      public int getSerializedSize() {
-        int size = memoizedSize;
-        if (size != -1) return size;
-
-        size = 0;
-        if (java.lang.Float.floatToRawIntBits(sessionId_) != 0) {
-          size += com.google.protobuf.CodedOutputStream
-            .computeFloatSize(1, sessionId_);
-        }
-        {
-          int dataSize = 0;
-          for (int i = 0; i < toAccounts_.size(); i++) {
-            dataSize += computeStringSizeNoTag(toAccounts_.getRaw(i));
-          }
-          size += dataSize;
-          size += 1 * getToAccountsList().size();
-        }
-        size += getUnknownFields().getSerializedSize();
-        memoizedSize = size;
-        return size;
-      }
-
-      @java.lang.Override
-      public boolean equals(final java.lang.Object obj) {
-        if (obj == this) {
-         return true;
-        }
-        if (!(obj instanceof com.github.im.common.connect.model.proto.Chat.ChatMessage.Group)) {
-          return super.equals(obj);
-        }
-        com.github.im.common.connect.model.proto.Chat.ChatMessage.Group other = (com.github.im.common.connect.model.proto.Chat.ChatMessage.Group) obj;
-
-        if (java.lang.Float.floatToIntBits(getSessionId())
-            != java.lang.Float.floatToIntBits(
-                other.getSessionId())) return false;
-        if (!getToAccountsList()
-            .equals(other.getToAccountsList())) return false;
-        if (!getUnknownFields().equals(other.getUnknownFields())) return false;
-        return true;
-      }
-
-      @java.lang.Override
-      public int hashCode() {
-        if (memoizedHashCode != 0) {
-          return memoizedHashCode;
-        }
-        int hash = 41;
-        hash = (19 * hash) + getDescriptor().hashCode();
-        hash = (37 * hash) + SESSIONID_FIELD_NUMBER;
-        hash = (53 * hash) + java.lang.Float.floatToIntBits(
-            getSessionId());
-        if (getToAccountsCount() > 0) {
-          hash = (37 * hash) + TOACCOUNTS_FIELD_NUMBER;
-          hash = (53 * hash) + getToAccountsList().hashCode();
-        }
-        hash = (29 * hash) + getUnknownFields().hashCode();
-        memoizedHashCode = hash;
-        return hash;
-      }
-
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Group parseFrom(
-          java.nio.ByteBuffer data)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Group parseFrom(
-          java.nio.ByteBuffer data,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data, extensionRegistry);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Group parseFrom(
-          com.google.protobuf.ByteString data)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Group parseFrom(
-          com.google.protobuf.ByteString data,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data, extensionRegistry);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Group parseFrom(byte[] data)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Group parseFrom(
-          byte[] data,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data, extensionRegistry);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Group parseFrom(java.io.InputStream input)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessage
-            .parseWithIOException(PARSER, input);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Group parseFrom(
-          java.io.InputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessage
-            .parseWithIOException(PARSER, input, extensionRegistry);
-      }
-
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Group parseDelimitedFrom(java.io.InputStream input)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessage
-            .parseDelimitedWithIOException(PARSER, input);
-      }
-
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Group parseDelimitedFrom(
-          java.io.InputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessage
-            .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Group parseFrom(
-          com.google.protobuf.CodedInputStream input)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessage
-            .parseWithIOException(PARSER, input);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Group parseFrom(
-          com.google.protobuf.CodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessage
-            .parseWithIOException(PARSER, input, extensionRegistry);
-      }
-
-      @java.lang.Override
-      public Builder newBuilderForType() { return newBuilder(); }
-      public static Builder newBuilder() {
-        return DEFAULT_INSTANCE.toBuilder();
-      }
-      public static Builder newBuilder(com.github.im.common.connect.model.proto.Chat.ChatMessage.Group prototype) {
-        return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
-      }
-      @java.lang.Override
-      public Builder toBuilder() {
-        return this == DEFAULT_INSTANCE
-            ? new Builder() : new Builder().mergeFrom(this);
-      }
-
-      @java.lang.Override
-      protected Builder newBuilderForType(
-          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
-        Builder builder = new Builder(parent);
-        return builder;
-      }
-      /**
-       * Protobuf type {@code com.github.im.common.connect.model.proto.ChatMessage.Group}
-       */
-      public static final class Builder extends
-          com.google.protobuf.GeneratedMessage.Builder<Builder> implements
-          // @@protoc_insertion_point(builder_implements:com.github.im.common.connect.model.proto.ChatMessage.Group)
-          com.github.im.common.connect.model.proto.Chat.ChatMessage.GroupOrBuilder {
-        public static final com.google.protobuf.Descriptors.Descriptor
-            getDescriptor() {
-          return com.github.im.common.connect.model.proto.Chat.internal_static_com_github_im_common_connect_model_proto_ChatMessage_Group_descriptor;
-        }
-
-        @java.lang.Override
-        protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
-            internalGetFieldAccessorTable() {
-          return com.github.im.common.connect.model.proto.Chat.internal_static_com_github_im_common_connect_model_proto_ChatMessage_Group_fieldAccessorTable
-              .ensureFieldAccessorsInitialized(
-                  com.github.im.common.connect.model.proto.Chat.ChatMessage.Group.class, com.github.im.common.connect.model.proto.Chat.ChatMessage.Group.Builder.class);
-        }
-
-        // Construct using com.github.im.common.connect.model.proto.Chat.ChatMessage.Group.newBuilder()
-        private Builder() {
-
-        }
-
-        private Builder(
-            com.google.protobuf.GeneratedMessage.BuilderParent parent) {
-          super(parent);
-
-        }
-        @java.lang.Override
-        public Builder clear() {
-          super.clear();
-          bitField0_ = 0;
-          sessionId_ = 0F;
-          toAccounts_ =
-              com.google.protobuf.LazyStringArrayList.emptyList();
-          return this;
-        }
-
-        @java.lang.Override
-        public com.google.protobuf.Descriptors.Descriptor
-            getDescriptorForType() {
-          return com.github.im.common.connect.model.proto.Chat.internal_static_com_github_im_common_connect_model_proto_ChatMessage_Group_descriptor;
-        }
-
-        @java.lang.Override
-        public com.github.im.common.connect.model.proto.Chat.ChatMessage.Group getDefaultInstanceForType() {
-          return com.github.im.common.connect.model.proto.Chat.ChatMessage.Group.getDefaultInstance();
-        }
-
-        @java.lang.Override
-        public com.github.im.common.connect.model.proto.Chat.ChatMessage.Group build() {
-          com.github.im.common.connect.model.proto.Chat.ChatMessage.Group result = buildPartial();
-          if (!result.isInitialized()) {
-            throw newUninitializedMessageException(result);
-          }
-          return result;
-        }
-
-        @java.lang.Override
-        public com.github.im.common.connect.model.proto.Chat.ChatMessage.Group buildPartial() {
-          com.github.im.common.connect.model.proto.Chat.ChatMessage.Group result = new com.github.im.common.connect.model.proto.Chat.ChatMessage.Group(this);
-          if (bitField0_ != 0) { buildPartial0(result); }
-          onBuilt();
-          return result;
-        }
-
-        private void buildPartial0(com.github.im.common.connect.model.proto.Chat.ChatMessage.Group result) {
-          int from_bitField0_ = bitField0_;
-          if (((from_bitField0_ & 0x00000001) != 0)) {
-            result.sessionId_ = sessionId_;
-          }
-          if (((from_bitField0_ & 0x00000002) != 0)) {
-            toAccounts_.makeImmutable();
-            result.toAccounts_ = toAccounts_;
-          }
-        }
-
-        @java.lang.Override
-        public Builder mergeFrom(com.google.protobuf.Message other) {
-          if (other instanceof com.github.im.common.connect.model.proto.Chat.ChatMessage.Group) {
-            return mergeFrom((com.github.im.common.connect.model.proto.Chat.ChatMessage.Group)other);
-          } else {
-            super.mergeFrom(other);
-            return this;
-          }
-        }
-
-        public Builder mergeFrom(com.github.im.common.connect.model.proto.Chat.ChatMessage.Group other) {
-          if (other == com.github.im.common.connect.model.proto.Chat.ChatMessage.Group.getDefaultInstance()) return this;
-          if (other.getSessionId() != 0F) {
-            setSessionId(other.getSessionId());
-          }
-          if (!other.toAccounts_.isEmpty()) {
-            if (toAccounts_.isEmpty()) {
-              toAccounts_ = other.toAccounts_;
-              bitField0_ |= 0x00000002;
-            } else {
-              ensureToAccountsIsMutable();
-              toAccounts_.addAll(other.toAccounts_);
-            }
-            onChanged();
-          }
-          this.mergeUnknownFields(other.getUnknownFields());
-          onChanged();
-          return this;
-        }
-
-        @java.lang.Override
-        public final boolean isInitialized() {
-          return true;
-        }
-
-        @java.lang.Override
-        public Builder mergeFrom(
-            com.google.protobuf.CodedInputStream input,
-            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-            throws java.io.IOException {
-          if (extensionRegistry == null) {
-            throw new java.lang.NullPointerException();
-          }
-          try {
-            boolean done = false;
-            while (!done) {
-              int tag = input.readTag();
-              switch (tag) {
-                case 0:
-                  done = true;
-                  break;
-                case 13: {
-                  sessionId_ = input.readFloat();
-                  bitField0_ |= 0x00000001;
-                  break;
-                } // case 13
-                case 66: {
-                  java.lang.String s = input.readStringRequireUtf8();
-                  ensureToAccountsIsMutable();
-                  toAccounts_.add(s);
-                  break;
-                } // case 66
-                default: {
-                  if (!super.parseUnknownField(input, extensionRegistry, tag)) {
-                    done = true; // was an endgroup tag
-                  }
-                  break;
-                } // default:
-              } // switch (tag)
-            } // while (!done)
-          } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-            throw e.unwrapIOException();
-          } finally {
-            onChanged();
-          } // finally
-          return this;
-        }
-        private int bitField0_;
-
-        private float sessionId_ ;
-        /**
-         * <code>float sessionId = 1;</code>
-         * @return The sessionId.
-         */
-        @java.lang.Override
-        public float getSessionId() {
-          return sessionId_;
-        }
-        /**
-         * <code>float sessionId = 1;</code>
-         * @param value The sessionId to set.
-         * @return This builder for chaining.
-         */
-        public Builder setSessionId(float value) {
-
-          sessionId_ = value;
-          bitField0_ |= 0x00000001;
-          onChanged();
-          return this;
-        }
-        /**
-         * <code>float sessionId = 1;</code>
-         * @return This builder for chaining.
-         */
-        public Builder clearSessionId() {
-          bitField0_ = (bitField0_ & ~0x00000001);
-          sessionId_ = 0F;
-          onChanged();
-          return this;
-        }
-
-        private com.google.protobuf.LazyStringArrayList toAccounts_ =
-            com.google.protobuf.LazyStringArrayList.emptyList();
-        private void ensureToAccountsIsMutable() {
-          if (!toAccounts_.isModifiable()) {
-            toAccounts_ = new com.google.protobuf.LazyStringArrayList(toAccounts_);
-          }
-          bitField0_ |= 0x00000002;
-        }
-        /**
-         * <pre>
-         * the receive  account
-         * </pre>
-         *
-         * <code>repeated string toAccounts = 8;</code>
-         * @return A list containing the toAccounts.
-         */
-        public com.google.protobuf.ProtocolStringList
-            getToAccountsList() {
-          toAccounts_.makeImmutable();
-          return toAccounts_;
-        }
-        /**
-         * <pre>
-         * the receive  account
-         * </pre>
-         *
-         * <code>repeated string toAccounts = 8;</code>
-         * @return The count of toAccounts.
-         */
-        public int getToAccountsCount() {
-          return toAccounts_.size();
-        }
-        /**
-         * <pre>
-         * the receive  account
-         * </pre>
-         *
-         * <code>repeated string toAccounts = 8;</code>
-         * @param index The index of the element to return.
-         * @return The toAccounts at the given index.
-         */
-        public java.lang.String getToAccounts(int index) {
-          return toAccounts_.get(index);
-        }
-        /**
-         * <pre>
-         * the receive  account
-         * </pre>
-         *
-         * <code>repeated string toAccounts = 8;</code>
-         * @param index The index of the value to return.
-         * @return The bytes of the toAccounts at the given index.
-         */
-        public com.google.protobuf.ByteString
-            getToAccountsBytes(int index) {
-          return toAccounts_.getByteString(index);
-        }
-        /**
-         * <pre>
-         * the receive  account
-         * </pre>
-         *
-         * <code>repeated string toAccounts = 8;</code>
-         * @param index The index to set the value at.
-         * @param value The toAccounts to set.
-         * @return This builder for chaining.
-         */
-        public Builder setToAccounts(
-            int index, java.lang.String value) {
-          if (value == null) { throw new NullPointerException(); }
-          ensureToAccountsIsMutable();
-          toAccounts_.set(index, value);
-          bitField0_ |= 0x00000002;
-          onChanged();
-          return this;
-        }
-        /**
-         * <pre>
-         * the receive  account
-         * </pre>
-         *
-         * <code>repeated string toAccounts = 8;</code>
-         * @param value The toAccounts to add.
-         * @return This builder for chaining.
-         */
-        public Builder addToAccounts(
-            java.lang.String value) {
-          if (value == null) { throw new NullPointerException(); }
-          ensureToAccountsIsMutable();
-          toAccounts_.add(value);
-          bitField0_ |= 0x00000002;
-          onChanged();
-          return this;
-        }
-        /**
-         * <pre>
-         * the receive  account
-         * </pre>
-         *
-         * <code>repeated string toAccounts = 8;</code>
-         * @param values The toAccounts to add.
-         * @return This builder for chaining.
-         */
-        public Builder addAllToAccounts(
-            java.lang.Iterable<java.lang.String> values) {
-          ensureToAccountsIsMutable();
-          com.google.protobuf.AbstractMessageLite.Builder.addAll(
-              values, toAccounts_);
-          bitField0_ |= 0x00000002;
-          onChanged();
-          return this;
-        }
-        /**
-         * <pre>
-         * the receive  account
-         * </pre>
-         *
-         * <code>repeated string toAccounts = 8;</code>
-         * @return This builder for chaining.
-         */
-        public Builder clearToAccounts() {
-          toAccounts_ =
-            com.google.protobuf.LazyStringArrayList.emptyList();
-          bitField0_ = (bitField0_ & ~0x00000002);;
-          onChanged();
-          return this;
-        }
-        /**
-         * <pre>
-         * the receive  account
-         * </pre>
-         *
-         * <code>repeated string toAccounts = 8;</code>
-         * @param value The bytes of the toAccounts to add.
-         * @return This builder for chaining.
-         */
-        public Builder addToAccountsBytes(
-            com.google.protobuf.ByteString value) {
-          if (value == null) { throw new NullPointerException(); }
-          checkByteStringIsUtf8(value);
-          ensureToAccountsIsMutable();
-          toAccounts_.add(value);
-          bitField0_ |= 0x00000002;
-          onChanged();
-          return this;
-        }
-
-        // @@protoc_insertion_point(builder_scope:com.github.im.common.connect.model.proto.ChatMessage.Group)
-      }
-
-      // @@protoc_insertion_point(class_scope:com.github.im.common.connect.model.proto.ChatMessage.Group)
-      private static final com.github.im.common.connect.model.proto.Chat.ChatMessage.Group DEFAULT_INSTANCE;
-      static {
-        DEFAULT_INSTANCE = new com.github.im.common.connect.model.proto.Chat.ChatMessage.Group();
-      }
-
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Group getDefaultInstance() {
-        return DEFAULT_INSTANCE;
-      }
-
-      private static final com.google.protobuf.Parser<Group>
-          PARSER = new com.google.protobuf.AbstractParser<Group>() {
-        @java.lang.Override
-        public Group parsePartialFrom(
-            com.google.protobuf.CodedInputStream input,
-            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-            throws com.google.protobuf.InvalidProtocolBufferException {
-          Builder builder = newBuilder();
-          try {
-            builder.mergeFrom(input, extensionRegistry);
-          } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-            throw e.setUnfinishedMessage(builder.buildPartial());
-          } catch (com.google.protobuf.UninitializedMessageException e) {
-            throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
-          } catch (java.io.IOException e) {
-            throw new com.google.protobuf.InvalidProtocolBufferException(e)
-                .setUnfinishedMessage(builder.buildPartial());
-          }
-          return builder.buildPartial();
-        }
-      };
-
-      public static com.google.protobuf.Parser<Group> parser() {
-        return PARSER;
-      }
-
-      @java.lang.Override
-      public com.google.protobuf.Parser<Group> getParserForType() {
-        return PARSER;
-      }
-
-      @java.lang.Override
-      public com.github.im.common.connect.model.proto.Chat.ChatMessage.Group getDefaultInstanceForType() {
-        return DEFAULT_INSTANCE;
-      }
-
-    }
-
-    public interface SingleOrBuilder extends
-        // @@protoc_insertion_point(interface_extends:com.github.im.common.connect.model.proto.ChatMessage.Single)
-        com.google.protobuf.MessageOrBuilder {
-
-      /**
-       * <code>float toAccount = 1;</code>
-       * @return The toAccount.
-       */
-      float getToAccount();
-    }
-    /**
-     * Protobuf type {@code com.github.im.common.connect.model.proto.ChatMessage.Single}
-     */
-    public static final class Single extends
-        com.google.protobuf.GeneratedMessage implements
-        // @@protoc_insertion_point(message_implements:com.github.im.common.connect.model.proto.ChatMessage.Single)
-        SingleOrBuilder {
-    private static final long serialVersionUID = 0L;
-      static {
-        com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
-          com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
-          /* major= */ 4,
-          /* minor= */ 28,
-          /* patch= */ 2,
-          /* suffix= */ "",
-          Single.class.getName());
-      }
-      // Use Single.newBuilder() to construct.
-      private Single(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
-        super(builder);
-      }
-      private Single() {
-      }
-
-      public static final com.google.protobuf.Descriptors.Descriptor
-          getDescriptor() {
-        return com.github.im.common.connect.model.proto.Chat.internal_static_com_github_im_common_connect_model_proto_ChatMessage_Single_descriptor;
-      }
-
-      @java.lang.Override
-      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
-          internalGetFieldAccessorTable() {
-        return com.github.im.common.connect.model.proto.Chat.internal_static_com_github_im_common_connect_model_proto_ChatMessage_Single_fieldAccessorTable
-            .ensureFieldAccessorsInitialized(
-                com.github.im.common.connect.model.proto.Chat.ChatMessage.Single.class, com.github.im.common.connect.model.proto.Chat.ChatMessage.Single.Builder.class);
-      }
-
-      public static final int TOACCOUNT_FIELD_NUMBER = 1;
-      private float toAccount_ = 0F;
-      /**
-       * <code>float toAccount = 1;</code>
-       * @return The toAccount.
-       */
-      @java.lang.Override
-      public float getToAccount() {
-        return toAccount_;
-      }
-
-      private byte memoizedIsInitialized = -1;
-      @java.lang.Override
-      public final boolean isInitialized() {
-        byte isInitialized = memoizedIsInitialized;
-        if (isInitialized == 1) return true;
-        if (isInitialized == 0) return false;
-
-        memoizedIsInitialized = 1;
-        return true;
-      }
-
-      @java.lang.Override
-      public void writeTo(com.google.protobuf.CodedOutputStream output)
-                          throws java.io.IOException {
-        if (java.lang.Float.floatToRawIntBits(toAccount_) != 0) {
-          output.writeFloat(1, toAccount_);
-        }
-        getUnknownFields().writeTo(output);
-      }
-
-      @java.lang.Override
-      public int getSerializedSize() {
-        int size = memoizedSize;
-        if (size != -1) return size;
-
-        size = 0;
-        if (java.lang.Float.floatToRawIntBits(toAccount_) != 0) {
-          size += com.google.protobuf.CodedOutputStream
-            .computeFloatSize(1, toAccount_);
-        }
-        size += getUnknownFields().getSerializedSize();
-        memoizedSize = size;
-        return size;
-      }
-
-      @java.lang.Override
-      public boolean equals(final java.lang.Object obj) {
-        if (obj == this) {
-         return true;
-        }
-        if (!(obj instanceof com.github.im.common.connect.model.proto.Chat.ChatMessage.Single)) {
-          return super.equals(obj);
-        }
-        com.github.im.common.connect.model.proto.Chat.ChatMessage.Single other = (com.github.im.common.connect.model.proto.Chat.ChatMessage.Single) obj;
-
-        if (java.lang.Float.floatToIntBits(getToAccount())
-            != java.lang.Float.floatToIntBits(
-                other.getToAccount())) return false;
-        if (!getUnknownFields().equals(other.getUnknownFields())) return false;
-        return true;
-      }
-
-      @java.lang.Override
-      public int hashCode() {
-        if (memoizedHashCode != 0) {
-          return memoizedHashCode;
-        }
-        int hash = 41;
-        hash = (19 * hash) + getDescriptor().hashCode();
-        hash = (37 * hash) + TOACCOUNT_FIELD_NUMBER;
-        hash = (53 * hash) + java.lang.Float.floatToIntBits(
-            getToAccount());
-        hash = (29 * hash) + getUnknownFields().hashCode();
-        memoizedHashCode = hash;
-        return hash;
-      }
-
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Single parseFrom(
-          java.nio.ByteBuffer data)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Single parseFrom(
-          java.nio.ByteBuffer data,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data, extensionRegistry);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Single parseFrom(
-          com.google.protobuf.ByteString data)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Single parseFrom(
-          com.google.protobuf.ByteString data,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data, extensionRegistry);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Single parseFrom(byte[] data)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Single parseFrom(
-          byte[] data,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data, extensionRegistry);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Single parseFrom(java.io.InputStream input)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessage
-            .parseWithIOException(PARSER, input);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Single parseFrom(
-          java.io.InputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessage
-            .parseWithIOException(PARSER, input, extensionRegistry);
-      }
-
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Single parseDelimitedFrom(java.io.InputStream input)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessage
-            .parseDelimitedWithIOException(PARSER, input);
-      }
-
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Single parseDelimitedFrom(
-          java.io.InputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessage
-            .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Single parseFrom(
-          com.google.protobuf.CodedInputStream input)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessage
-            .parseWithIOException(PARSER, input);
-      }
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Single parseFrom(
-          com.google.protobuf.CodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessage
-            .parseWithIOException(PARSER, input, extensionRegistry);
-      }
-
-      @java.lang.Override
-      public Builder newBuilderForType() { return newBuilder(); }
-      public static Builder newBuilder() {
-        return DEFAULT_INSTANCE.toBuilder();
-      }
-      public static Builder newBuilder(com.github.im.common.connect.model.proto.Chat.ChatMessage.Single prototype) {
-        return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
-      }
-      @java.lang.Override
-      public Builder toBuilder() {
-        return this == DEFAULT_INSTANCE
-            ? new Builder() : new Builder().mergeFrom(this);
-      }
-
-      @java.lang.Override
-      protected Builder newBuilderForType(
-          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
-        Builder builder = new Builder(parent);
-        return builder;
-      }
-      /**
-       * Protobuf type {@code com.github.im.common.connect.model.proto.ChatMessage.Single}
-       */
-      public static final class Builder extends
-          com.google.protobuf.GeneratedMessage.Builder<Builder> implements
-          // @@protoc_insertion_point(builder_implements:com.github.im.common.connect.model.proto.ChatMessage.Single)
-          com.github.im.common.connect.model.proto.Chat.ChatMessage.SingleOrBuilder {
-        public static final com.google.protobuf.Descriptors.Descriptor
-            getDescriptor() {
-          return com.github.im.common.connect.model.proto.Chat.internal_static_com_github_im_common_connect_model_proto_ChatMessage_Single_descriptor;
-        }
-
-        @java.lang.Override
-        protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
-            internalGetFieldAccessorTable() {
-          return com.github.im.common.connect.model.proto.Chat.internal_static_com_github_im_common_connect_model_proto_ChatMessage_Single_fieldAccessorTable
-              .ensureFieldAccessorsInitialized(
-                  com.github.im.common.connect.model.proto.Chat.ChatMessage.Single.class, com.github.im.common.connect.model.proto.Chat.ChatMessage.Single.Builder.class);
-        }
-
-        // Construct using com.github.im.common.connect.model.proto.Chat.ChatMessage.Single.newBuilder()
-        private Builder() {
-
-        }
-
-        private Builder(
-            com.google.protobuf.GeneratedMessage.BuilderParent parent) {
-          super(parent);
-
-        }
-        @java.lang.Override
-        public Builder clear() {
-          super.clear();
-          bitField0_ = 0;
-          toAccount_ = 0F;
-          return this;
-        }
-
-        @java.lang.Override
-        public com.google.protobuf.Descriptors.Descriptor
-            getDescriptorForType() {
-          return com.github.im.common.connect.model.proto.Chat.internal_static_com_github_im_common_connect_model_proto_ChatMessage_Single_descriptor;
-        }
-
-        @java.lang.Override
-        public com.github.im.common.connect.model.proto.Chat.ChatMessage.Single getDefaultInstanceForType() {
-          return com.github.im.common.connect.model.proto.Chat.ChatMessage.Single.getDefaultInstance();
-        }
-
-        @java.lang.Override
-        public com.github.im.common.connect.model.proto.Chat.ChatMessage.Single build() {
-          com.github.im.common.connect.model.proto.Chat.ChatMessage.Single result = buildPartial();
-          if (!result.isInitialized()) {
-            throw newUninitializedMessageException(result);
-          }
-          return result;
-        }
-
-        @java.lang.Override
-        public com.github.im.common.connect.model.proto.Chat.ChatMessage.Single buildPartial() {
-          com.github.im.common.connect.model.proto.Chat.ChatMessage.Single result = new com.github.im.common.connect.model.proto.Chat.ChatMessage.Single(this);
-          if (bitField0_ != 0) { buildPartial0(result); }
-          onBuilt();
-          return result;
-        }
-
-        private void buildPartial0(com.github.im.common.connect.model.proto.Chat.ChatMessage.Single result) {
-          int from_bitField0_ = bitField0_;
-          if (((from_bitField0_ & 0x00000001) != 0)) {
-            result.toAccount_ = toAccount_;
-          }
-        }
-
-        @java.lang.Override
-        public Builder mergeFrom(com.google.protobuf.Message other) {
-          if (other instanceof com.github.im.common.connect.model.proto.Chat.ChatMessage.Single) {
-            return mergeFrom((com.github.im.common.connect.model.proto.Chat.ChatMessage.Single)other);
-          } else {
-            super.mergeFrom(other);
-            return this;
-          }
-        }
-
-        public Builder mergeFrom(com.github.im.common.connect.model.proto.Chat.ChatMessage.Single other) {
-          if (other == com.github.im.common.connect.model.proto.Chat.ChatMessage.Single.getDefaultInstance()) return this;
-          if (other.getToAccount() != 0F) {
-            setToAccount(other.getToAccount());
-          }
-          this.mergeUnknownFields(other.getUnknownFields());
-          onChanged();
-          return this;
-        }
-
-        @java.lang.Override
-        public final boolean isInitialized() {
-          return true;
-        }
-
-        @java.lang.Override
-        public Builder mergeFrom(
-            com.google.protobuf.CodedInputStream input,
-            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-            throws java.io.IOException {
-          if (extensionRegistry == null) {
-            throw new java.lang.NullPointerException();
-          }
-          try {
-            boolean done = false;
-            while (!done) {
-              int tag = input.readTag();
-              switch (tag) {
-                case 0:
-                  done = true;
-                  break;
-                case 13: {
-                  toAccount_ = input.readFloat();
-                  bitField0_ |= 0x00000001;
-                  break;
-                } // case 13
-                default: {
-                  if (!super.parseUnknownField(input, extensionRegistry, tag)) {
-                    done = true; // was an endgroup tag
-                  }
-                  break;
-                } // default:
-              } // switch (tag)
-            } // while (!done)
-          } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-            throw e.unwrapIOException();
-          } finally {
-            onChanged();
-          } // finally
-          return this;
-        }
-        private int bitField0_;
-
-        private float toAccount_ ;
-        /**
-         * <code>float toAccount = 1;</code>
-         * @return The toAccount.
-         */
-        @java.lang.Override
-        public float getToAccount() {
-          return toAccount_;
-        }
-        /**
-         * <code>float toAccount = 1;</code>
-         * @param value The toAccount to set.
-         * @return This builder for chaining.
-         */
-        public Builder setToAccount(float value) {
-
-          toAccount_ = value;
-          bitField0_ |= 0x00000001;
-          onChanged();
-          return this;
-        }
-        /**
-         * <code>float toAccount = 1;</code>
-         * @return This builder for chaining.
-         */
-        public Builder clearToAccount() {
-          bitField0_ = (bitField0_ & ~0x00000001);
-          toAccount_ = 0F;
-          onChanged();
-          return this;
-        }
-
-        // @@protoc_insertion_point(builder_scope:com.github.im.common.connect.model.proto.ChatMessage.Single)
-      }
-
-      // @@protoc_insertion_point(class_scope:com.github.im.common.connect.model.proto.ChatMessage.Single)
-      private static final com.github.im.common.connect.model.proto.Chat.ChatMessage.Single DEFAULT_INSTANCE;
-      static {
-        DEFAULT_INSTANCE = new com.github.im.common.connect.model.proto.Chat.ChatMessage.Single();
-      }
-
-      public static com.github.im.common.connect.model.proto.Chat.ChatMessage.Single getDefaultInstance() {
-        return DEFAULT_INSTANCE;
-      }
-
-      private static final com.google.protobuf.Parser<Single>
-          PARSER = new com.google.protobuf.AbstractParser<Single>() {
-        @java.lang.Override
-        public Single parsePartialFrom(
-            com.google.protobuf.CodedInputStream input,
-            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-            throws com.google.protobuf.InvalidProtocolBufferException {
-          Builder builder = newBuilder();
-          try {
-            builder.mergeFrom(input, extensionRegistry);
-          } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-            throw e.setUnfinishedMessage(builder.buildPartial());
-          } catch (com.google.protobuf.UninitializedMessageException e) {
-            throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
-          } catch (java.io.IOException e) {
-            throw new com.google.protobuf.InvalidProtocolBufferException(e)
-                .setUnfinishedMessage(builder.buildPartial());
-          }
-          return builder.buildPartial();
-        }
-      };
-
-      public static com.google.protobuf.Parser<Single> parser() {
-        return PARSER;
-      }
-
-      @java.lang.Override
-      public com.google.protobuf.Parser<Single> getParserForType() {
-        return PARSER;
-      }
-
-      @java.lang.Override
-      public com.github.im.common.connect.model.proto.Chat.ChatMessage.Single getDefaultInstanceForType() {
-        return DEFAULT_INSTANCE;
-      }
-
-    }
-
     private int bitField0_;
     public static final int MSGID_FIELD_NUMBER = 1;
     private long msgId_ = 0L;
@@ -1795,17 +618,6 @@ public final class Chat {
     @java.lang.Override
     public int getSeq() {
       return seq_;
-    }
-
-    public static final int SESSIONID_FIELD_NUMBER = 5;
-    private long sessionId_ = 0L;
-    /**
-     * <code>int64 sessionId = 5;</code>
-     * @return The sessionId.
-     */
-    @java.lang.Override
-    public long getSessionId() {
-      return sessionId_;
     }
 
     public static final int CONTENT_FIELD_NUMBER = 3;
@@ -1848,14 +660,53 @@ public final class Chat {
     }
 
     public static final int CONVERSATIONID_FIELD_NUMBER = 9;
-    private int conversationId_ = 0;
+    private long conversationId_ = 0L;
     /**
-     * <code>int32 conversationId = 9;</code>
+     * <code>int64 conversationId = 9;</code>
      * @return The conversationId.
      */
     @java.lang.Override
-    public int getConversationId() {
+    public long getConversationId() {
       return conversationId_;
+    }
+
+    public static final int CONVERSATIONNAME_FIELD_NUMBER = 10;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object conversationName_ = "";
+    /**
+     * <code>string conversationName = 10;</code>
+     * @return The conversationName.
+     */
+    @java.lang.Override
+    public java.lang.String getConversationName() {
+      java.lang.Object ref = conversationName_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        conversationName_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string conversationName = 10;</code>
+     * @return The bytes for conversationName.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getConversationNameBytes() {
+      java.lang.Object ref = conversationName_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        conversationName_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
     }
 
     public static final int FROMACCOUNTINFO_FIELD_NUMBER = 2;
@@ -1882,32 +733,6 @@ public final class Chat {
     @java.lang.Override
     public com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getFromAccountInfoOrBuilder() {
       return fromAccountInfo_ == null ? com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : fromAccountInfo_;
-    }
-
-    public static final int TOACCOUNTINFO_FIELD_NUMBER = 8;
-    private com.github.im.common.connect.model.proto.Account.AccountInfo toAccountInfo_;
-    /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-     * @return Whether the toAccountInfo field is set.
-     */
-    @java.lang.Override
-    public boolean hasToAccountInfo() {
-      return ((bitField0_ & 0x00000002) != 0);
-    }
-    /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-     * @return The toAccountInfo.
-     */
-    @java.lang.Override
-    public com.github.im.common.connect.model.proto.Account.AccountInfo getToAccountInfo() {
-      return toAccountInfo_ == null ? com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : toAccountInfo_;
-    }
-    /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-     */
-    @java.lang.Override
-    public com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getToAccountInfoOrBuilder() {
-      return toAccountInfo_ == null ? com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : toAccountInfo_;
     }
 
     public static final int CLIENTTIMESTAMP_FIELD_NUMBER = 7;
@@ -1948,32 +773,6 @@ public final class Chat {
     @java.lang.Override public com.github.im.common.connect.model.proto.Chat.MessageType getType() {
       com.github.im.common.connect.model.proto.Chat.MessageType result = com.github.im.common.connect.model.proto.Chat.MessageType.forNumber(type_);
       return result == null ? com.github.im.common.connect.model.proto.Chat.MessageType.UNRECOGNIZED : result;
-    }
-
-    public static final int CHAT_FIELD_NUMBER = 10;
-    private com.google.protobuf.Any chat_;
-    /**
-     * <code>.google.protobuf.Any chat = 10;</code>
-     * @return Whether the chat field is set.
-     */
-    @java.lang.Override
-    public boolean hasChat() {
-      return ((bitField0_ & 0x00000004) != 0);
-    }
-    /**
-     * <code>.google.protobuf.Any chat = 10;</code>
-     * @return The chat.
-     */
-    @java.lang.Override
-    public com.google.protobuf.Any getChat() {
-      return chat_ == null ? com.google.protobuf.Any.getDefaultInstance() : chat_;
-    }
-    /**
-     * <code>.google.protobuf.Any chat = 10;</code>
-     */
-    @java.lang.Override
-    public com.google.protobuf.AnyOrBuilder getChatOrBuilder() {
-      return chat_ == null ? com.google.protobuf.Any.getDefaultInstance() : chat_;
     }
 
     public static final int MESSAGESSTATUS_FIELD_NUMBER = 11;
@@ -2020,23 +819,17 @@ public final class Chat {
       if (seq_ != 0) {
         output.writeInt32(4, seq_);
       }
-      if (sessionId_ != 0L) {
-        output.writeInt64(5, sessionId_);
-      }
       if (type_ != com.github.im.common.connect.model.proto.Chat.MessageType.TEXT.getNumber()) {
         output.writeEnum(6, type_);
       }
       if (clientTimeStamp_ != 0) {
         output.writeSInt32(7, clientTimeStamp_);
       }
-      if (((bitField0_ & 0x00000002) != 0)) {
-        output.writeMessage(8, getToAccountInfo());
+      if (conversationId_ != 0L) {
+        output.writeInt64(9, conversationId_);
       }
-      if (conversationId_ != 0) {
-        output.writeInt32(9, conversationId_);
-      }
-      if (((bitField0_ & 0x00000004) != 0)) {
-        output.writeMessage(10, getChat());
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(conversationName_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 10, conversationName_);
       }
       if (messagesStatus_ != com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus.REJECT.getNumber()) {
         output.writeEnum(11, messagesStatus_);
@@ -2068,10 +861,6 @@ public final class Chat {
         size += com.google.protobuf.CodedOutputStream
           .computeInt32Size(4, seq_);
       }
-      if (sessionId_ != 0L) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeInt64Size(5, sessionId_);
-      }
       if (type_ != com.github.im.common.connect.model.proto.Chat.MessageType.TEXT.getNumber()) {
         size += com.google.protobuf.CodedOutputStream
           .computeEnumSize(6, type_);
@@ -2080,17 +869,12 @@ public final class Chat {
         size += com.google.protobuf.CodedOutputStream
           .computeSInt32Size(7, clientTimeStamp_);
       }
-      if (((bitField0_ & 0x00000002) != 0)) {
+      if (conversationId_ != 0L) {
         size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(8, getToAccountInfo());
+          .computeInt64Size(9, conversationId_);
       }
-      if (conversationId_ != 0) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeInt32Size(9, conversationId_);
-      }
-      if (((bitField0_ & 0x00000004) != 0)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(10, getChat());
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(conversationName_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(10, conversationName_);
       }
       if (messagesStatus_ != com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus.REJECT.getNumber()) {
         size += com.google.protobuf.CodedOutputStream
@@ -2119,32 +903,22 @@ public final class Chat {
           != other.getMsgId()) return false;
       if (getSeq()
           != other.getSeq()) return false;
-      if (getSessionId()
-          != other.getSessionId()) return false;
       if (!getContent()
           .equals(other.getContent())) return false;
       if (getConversationId()
           != other.getConversationId()) return false;
+      if (!getConversationName()
+          .equals(other.getConversationName())) return false;
       if (hasFromAccountInfo() != other.hasFromAccountInfo()) return false;
       if (hasFromAccountInfo()) {
         if (!getFromAccountInfo()
             .equals(other.getFromAccountInfo())) return false;
-      }
-      if (hasToAccountInfo() != other.hasToAccountInfo()) return false;
-      if (hasToAccountInfo()) {
-        if (!getToAccountInfo()
-            .equals(other.getToAccountInfo())) return false;
       }
       if (getClientTimeStamp()
           != other.getClientTimeStamp()) return false;
       if (getServerTimeStamp()
           != other.getServerTimeStamp()) return false;
       if (type_ != other.type_) return false;
-      if (hasChat() != other.hasChat()) return false;
-      if (hasChat()) {
-        if (!getChat()
-            .equals(other.getChat())) return false;
-      }
       if (messagesStatus_ != other.messagesStatus_) return false;
       if (!getUnknownFields().equals(other.getUnknownFields())) return false;
       return true;
@@ -2162,20 +936,16 @@ public final class Chat {
           getMsgId());
       hash = (37 * hash) + SEQ_FIELD_NUMBER;
       hash = (53 * hash) + getSeq();
-      hash = (37 * hash) + SESSIONID_FIELD_NUMBER;
-      hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
-          getSessionId());
       hash = (37 * hash) + CONTENT_FIELD_NUMBER;
       hash = (53 * hash) + getContent().hashCode();
       hash = (37 * hash) + CONVERSATIONID_FIELD_NUMBER;
-      hash = (53 * hash) + getConversationId();
+      hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
+          getConversationId());
+      hash = (37 * hash) + CONVERSATIONNAME_FIELD_NUMBER;
+      hash = (53 * hash) + getConversationName().hashCode();
       if (hasFromAccountInfo()) {
         hash = (37 * hash) + FROMACCOUNTINFO_FIELD_NUMBER;
         hash = (53 * hash) + getFromAccountInfo().hashCode();
-      }
-      if (hasToAccountInfo()) {
-        hash = (37 * hash) + TOACCOUNTINFO_FIELD_NUMBER;
-        hash = (53 * hash) + getToAccountInfo().hashCode();
       }
       hash = (37 * hash) + CLIENTTIMESTAMP_FIELD_NUMBER;
       hash = (53 * hash) + getClientTimeStamp();
@@ -2183,10 +953,6 @@ public final class Chat {
       hash = (53 * hash) + getServerTimeStamp();
       hash = (37 * hash) + TYPE_FIELD_NUMBER;
       hash = (53 * hash) + type_;
-      if (hasChat()) {
-        hash = (37 * hash) + CHAT_FIELD_NUMBER;
-        hash = (53 * hash) + getChat().hashCode();
-      }
       hash = (37 * hash) + MESSAGESSTATUS_FIELD_NUMBER;
       hash = (53 * hash) + messagesStatus_;
       hash = (29 * hash) + getUnknownFields().hashCode();
@@ -2324,8 +1090,6 @@ public final class Chat {
         if (com.google.protobuf.GeneratedMessage
                 .alwaysUseFieldBuilders) {
           getFromAccountInfoFieldBuilder();
-          getToAccountInfoFieldBuilder();
-          getChatFieldBuilder();
         }
       }
       @java.lang.Override
@@ -2334,27 +1098,17 @@ public final class Chat {
         bitField0_ = 0;
         msgId_ = 0L;
         seq_ = 0;
-        sessionId_ = 0L;
         content_ = "";
-        conversationId_ = 0;
+        conversationId_ = 0L;
+        conversationName_ = "";
         fromAccountInfo_ = null;
         if (fromAccountInfoBuilder_ != null) {
           fromAccountInfoBuilder_.dispose();
           fromAccountInfoBuilder_ = null;
         }
-        toAccountInfo_ = null;
-        if (toAccountInfoBuilder_ != null) {
-          toAccountInfoBuilder_.dispose();
-          toAccountInfoBuilder_ = null;
-        }
         clientTimeStamp_ = 0;
         serverTimeStamp_ = 0;
         type_ = 0;
-        chat_ = null;
-        if (chatBuilder_ != null) {
-          chatBuilder_.dispose();
-          chatBuilder_ = null;
-        }
         messagesStatus_ = 0;
         return this;
       }
@@ -2396,13 +1150,13 @@ public final class Chat {
           result.seq_ = seq_;
         }
         if (((from_bitField0_ & 0x00000004) != 0)) {
-          result.sessionId_ = sessionId_;
-        }
-        if (((from_bitField0_ & 0x00000008) != 0)) {
           result.content_ = content_;
         }
-        if (((from_bitField0_ & 0x00000010) != 0)) {
+        if (((from_bitField0_ & 0x00000008) != 0)) {
           result.conversationId_ = conversationId_;
+        }
+        if (((from_bitField0_ & 0x00000010) != 0)) {
+          result.conversationName_ = conversationName_;
         }
         int to_bitField0_ = 0;
         if (((from_bitField0_ & 0x00000020) != 0)) {
@@ -2412,27 +1166,15 @@ public final class Chat {
           to_bitField0_ |= 0x00000001;
         }
         if (((from_bitField0_ & 0x00000040) != 0)) {
-          result.toAccountInfo_ = toAccountInfoBuilder_ == null
-              ? toAccountInfo_
-              : toAccountInfoBuilder_.build();
-          to_bitField0_ |= 0x00000002;
-        }
-        if (((from_bitField0_ & 0x00000080) != 0)) {
           result.clientTimeStamp_ = clientTimeStamp_;
         }
-        if (((from_bitField0_ & 0x00000100) != 0)) {
+        if (((from_bitField0_ & 0x00000080) != 0)) {
           result.serverTimeStamp_ = serverTimeStamp_;
         }
-        if (((from_bitField0_ & 0x00000200) != 0)) {
+        if (((from_bitField0_ & 0x00000100) != 0)) {
           result.type_ = type_;
         }
-        if (((from_bitField0_ & 0x00000400) != 0)) {
-          result.chat_ = chatBuilder_ == null
-              ? chat_
-              : chatBuilder_.build();
-          to_bitField0_ |= 0x00000004;
-        }
-        if (((from_bitField0_ & 0x00000800) != 0)) {
+        if (((from_bitField0_ & 0x00000200) != 0)) {
           result.messagesStatus_ = messagesStatus_;
         }
         result.bitField0_ |= to_bitField0_;
@@ -2456,22 +1198,21 @@ public final class Chat {
         if (other.getSeq() != 0) {
           setSeq(other.getSeq());
         }
-        if (other.getSessionId() != 0L) {
-          setSessionId(other.getSessionId());
-        }
         if (!other.getContent().isEmpty()) {
           content_ = other.content_;
-          bitField0_ |= 0x00000008;
+          bitField0_ |= 0x00000004;
           onChanged();
         }
-        if (other.getConversationId() != 0) {
+        if (other.getConversationId() != 0L) {
           setConversationId(other.getConversationId());
+        }
+        if (!other.getConversationName().isEmpty()) {
+          conversationName_ = other.conversationName_;
+          bitField0_ |= 0x00000010;
+          onChanged();
         }
         if (other.hasFromAccountInfo()) {
           mergeFromAccountInfo(other.getFromAccountInfo());
-        }
-        if (other.hasToAccountInfo()) {
-          mergeToAccountInfo(other.getToAccountInfo());
         }
         if (other.getClientTimeStamp() != 0) {
           setClientTimeStamp(other.getClientTimeStamp());
@@ -2481,9 +1222,6 @@ public final class Chat {
         }
         if (other.type_ != 0) {
           setTypeValue(other.getTypeValue());
-        }
-        if (other.hasChat()) {
-          mergeChat(other.getChat());
         }
         if (other.messagesStatus_ != 0) {
           setMessagesStatusValue(other.getMessagesStatusValue());
@@ -2528,7 +1266,7 @@ public final class Chat {
               } // case 18
               case 26: {
                 content_ = input.readStringRequireUtf8();
-                bitField0_ |= 0x00000008;
+                bitField0_ |= 0x00000004;
                 break;
               } // case 26
               case 32: {
@@ -2536,48 +1274,34 @@ public final class Chat {
                 bitField0_ |= 0x00000002;
                 break;
               } // case 32
-              case 40: {
-                sessionId_ = input.readInt64();
-                bitField0_ |= 0x00000004;
-                break;
-              } // case 40
               case 48: {
                 type_ = input.readEnum();
-                bitField0_ |= 0x00000200;
+                bitField0_ |= 0x00000100;
                 break;
               } // case 48
               case 56: {
                 clientTimeStamp_ = input.readSInt32();
-                bitField0_ |= 0x00000080;
-                break;
-              } // case 56
-              case 66: {
-                input.readMessage(
-                    getToAccountInfoFieldBuilder().getBuilder(),
-                    extensionRegistry);
                 bitField0_ |= 0x00000040;
                 break;
-              } // case 66
+              } // case 56
               case 72: {
-                conversationId_ = input.readInt32();
-                bitField0_ |= 0x00000010;
+                conversationId_ = input.readInt64();
+                bitField0_ |= 0x00000008;
                 break;
               } // case 72
               case 82: {
-                input.readMessage(
-                    getChatFieldBuilder().getBuilder(),
-                    extensionRegistry);
-                bitField0_ |= 0x00000400;
+                conversationName_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000010;
                 break;
               } // case 82
               case 88: {
                 messagesStatus_ = input.readEnum();
-                bitField0_ |= 0x00000800;
+                bitField0_ |= 0x00000200;
                 break;
               } // case 88
               case 96: {
                 serverTimeStamp_ = input.readSInt32();
-                bitField0_ |= 0x00000100;
+                bitField0_ |= 0x00000080;
                 break;
               } // case 96
               default: {
@@ -2661,38 +1385,6 @@ public final class Chat {
         return this;
       }
 
-      private long sessionId_ ;
-      /**
-       * <code>int64 sessionId = 5;</code>
-       * @return The sessionId.
-       */
-      @java.lang.Override
-      public long getSessionId() {
-        return sessionId_;
-      }
-      /**
-       * <code>int64 sessionId = 5;</code>
-       * @param value The sessionId to set.
-       * @return This builder for chaining.
-       */
-      public Builder setSessionId(long value) {
-
-        sessionId_ = value;
-        bitField0_ |= 0x00000004;
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>int64 sessionId = 5;</code>
-       * @return This builder for chaining.
-       */
-      public Builder clearSessionId() {
-        bitField0_ = (bitField0_ & ~0x00000004);
-        sessionId_ = 0L;
-        onChanged();
-        return this;
-      }
-
       private java.lang.Object content_ = "";
       /**
        * <code>string content = 3;</code>
@@ -2736,7 +1428,7 @@ public final class Chat {
           java.lang.String value) {
         if (value == null) { throw new NullPointerException(); }
         content_ = value;
-        bitField0_ |= 0x00000008;
+        bitField0_ |= 0x00000004;
         onChanged();
         return this;
       }
@@ -2746,7 +1438,7 @@ public final class Chat {
        */
       public Builder clearContent() {
         content_ = getDefaultInstance().getContent();
-        bitField0_ = (bitField0_ & ~0x00000008);
+        bitField0_ = (bitField0_ & ~0x00000004);
         onChanged();
         return this;
       }
@@ -2760,39 +1452,111 @@ public final class Chat {
         if (value == null) { throw new NullPointerException(); }
         checkByteStringIsUtf8(value);
         content_ = value;
-        bitField0_ |= 0x00000008;
+        bitField0_ |= 0x00000004;
         onChanged();
         return this;
       }
 
-      private int conversationId_ ;
+      private long conversationId_ ;
       /**
-       * <code>int32 conversationId = 9;</code>
+       * <code>int64 conversationId = 9;</code>
        * @return The conversationId.
        */
       @java.lang.Override
-      public int getConversationId() {
+      public long getConversationId() {
         return conversationId_;
       }
       /**
-       * <code>int32 conversationId = 9;</code>
+       * <code>int64 conversationId = 9;</code>
        * @param value The conversationId to set.
        * @return This builder for chaining.
        */
-      public Builder setConversationId(int value) {
+      public Builder setConversationId(long value) {
 
         conversationId_ = value;
+        bitField0_ |= 0x00000008;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>int64 conversationId = 9;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearConversationId() {
+        bitField0_ = (bitField0_ & ~0x00000008);
+        conversationId_ = 0L;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object conversationName_ = "";
+      /**
+       * <code>string conversationName = 10;</code>
+       * @return The conversationName.
+       */
+      public java.lang.String getConversationName() {
+        java.lang.Object ref = conversationName_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          conversationName_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string conversationName = 10;</code>
+       * @return The bytes for conversationName.
+       */
+      public com.google.protobuf.ByteString
+          getConversationNameBytes() {
+        java.lang.Object ref = conversationName_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          conversationName_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string conversationName = 10;</code>
+       * @param value The conversationName to set.
+       * @return This builder for chaining.
+       */
+      public Builder setConversationName(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        conversationName_ = value;
         bitField0_ |= 0x00000010;
         onChanged();
         return this;
       }
       /**
-       * <code>int32 conversationId = 9;</code>
+       * <code>string conversationName = 10;</code>
        * @return This builder for chaining.
        */
-      public Builder clearConversationId() {
+      public Builder clearConversationName() {
+        conversationName_ = getDefaultInstance().getConversationName();
         bitField0_ = (bitField0_ & ~0x00000010);
-        conversationId_ = 0;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string conversationName = 10;</code>
+       * @param value The bytes for conversationName to set.
+       * @return This builder for chaining.
+       */
+      public Builder setConversationNameBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        conversationName_ = value;
+        bitField0_ |= 0x00000010;
         onChanged();
         return this;
       }
@@ -2918,127 +1682,6 @@ public final class Chat {
         return fromAccountInfoBuilder_;
       }
 
-      private com.github.im.common.connect.model.proto.Account.AccountInfo toAccountInfo_;
-      private com.google.protobuf.SingleFieldBuilder<
-          com.github.im.common.connect.model.proto.Account.AccountInfo, com.github.im.common.connect.model.proto.Account.AccountInfo.Builder, com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder> toAccountInfoBuilder_;
-      /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-       * @return Whether the toAccountInfo field is set.
-       */
-      public boolean hasToAccountInfo() {
-        return ((bitField0_ & 0x00000040) != 0);
-      }
-      /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-       * @return The toAccountInfo.
-       */
-      public com.github.im.common.connect.model.proto.Account.AccountInfo getToAccountInfo() {
-        if (toAccountInfoBuilder_ == null) {
-          return toAccountInfo_ == null ? com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : toAccountInfo_;
-        } else {
-          return toAccountInfoBuilder_.getMessage();
-        }
-      }
-      /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-       */
-      public Builder setToAccountInfo(com.github.im.common.connect.model.proto.Account.AccountInfo value) {
-        if (toAccountInfoBuilder_ == null) {
-          if (value == null) {
-            throw new NullPointerException();
-          }
-          toAccountInfo_ = value;
-        } else {
-          toAccountInfoBuilder_.setMessage(value);
-        }
-        bitField0_ |= 0x00000040;
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-       */
-      public Builder setToAccountInfo(
-          com.github.im.common.connect.model.proto.Account.AccountInfo.Builder builderForValue) {
-        if (toAccountInfoBuilder_ == null) {
-          toAccountInfo_ = builderForValue.build();
-        } else {
-          toAccountInfoBuilder_.setMessage(builderForValue.build());
-        }
-        bitField0_ |= 0x00000040;
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-       */
-      public Builder mergeToAccountInfo(com.github.im.common.connect.model.proto.Account.AccountInfo value) {
-        if (toAccountInfoBuilder_ == null) {
-          if (((bitField0_ & 0x00000040) != 0) &&
-            toAccountInfo_ != null &&
-            toAccountInfo_ != com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance()) {
-            getToAccountInfoBuilder().mergeFrom(value);
-          } else {
-            toAccountInfo_ = value;
-          }
-        } else {
-          toAccountInfoBuilder_.mergeFrom(value);
-        }
-        if (toAccountInfo_ != null) {
-          bitField0_ |= 0x00000040;
-          onChanged();
-        }
-        return this;
-      }
-      /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-       */
-      public Builder clearToAccountInfo() {
-        bitField0_ = (bitField0_ & ~0x00000040);
-        toAccountInfo_ = null;
-        if (toAccountInfoBuilder_ != null) {
-          toAccountInfoBuilder_.dispose();
-          toAccountInfoBuilder_ = null;
-        }
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-       */
-      public com.github.im.common.connect.model.proto.Account.AccountInfo.Builder getToAccountInfoBuilder() {
-        bitField0_ |= 0x00000040;
-        onChanged();
-        return getToAccountInfoFieldBuilder().getBuilder();
-      }
-      /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-       */
-      public com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getToAccountInfoOrBuilder() {
-        if (toAccountInfoBuilder_ != null) {
-          return toAccountInfoBuilder_.getMessageOrBuilder();
-        } else {
-          return toAccountInfo_ == null ?
-              com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : toAccountInfo_;
-        }
-      }
-      /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-       */
-      private com.google.protobuf.SingleFieldBuilder<
-          com.github.im.common.connect.model.proto.Account.AccountInfo, com.github.im.common.connect.model.proto.Account.AccountInfo.Builder, com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder> 
-          getToAccountInfoFieldBuilder() {
-        if (toAccountInfoBuilder_ == null) {
-          toAccountInfoBuilder_ = new com.google.protobuf.SingleFieldBuilder<
-              com.github.im.common.connect.model.proto.Account.AccountInfo, com.github.im.common.connect.model.proto.Account.AccountInfo.Builder, com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder>(
-                  getToAccountInfo(),
-                  getParentForChildren(),
-                  isClean());
-          toAccountInfo_ = null;
-        }
-        return toAccountInfoBuilder_;
-      }
-
       private int clientTimeStamp_ ;
       /**
        * <code>sint32 clientTimeStamp = 7;</code>
@@ -3056,7 +1699,7 @@ public final class Chat {
       public Builder setClientTimeStamp(int value) {
 
         clientTimeStamp_ = value;
-        bitField0_ |= 0x00000080;
+        bitField0_ |= 0x00000040;
         onChanged();
         return this;
       }
@@ -3065,7 +1708,7 @@ public final class Chat {
        * @return This builder for chaining.
        */
       public Builder clearClientTimeStamp() {
-        bitField0_ = (bitField0_ & ~0x00000080);
+        bitField0_ = (bitField0_ & ~0x00000040);
         clientTimeStamp_ = 0;
         onChanged();
         return this;
@@ -3088,7 +1731,7 @@ public final class Chat {
       public Builder setServerTimeStamp(int value) {
 
         serverTimeStamp_ = value;
-        bitField0_ |= 0x00000100;
+        bitField0_ |= 0x00000080;
         onChanged();
         return this;
       }
@@ -3097,7 +1740,7 @@ public final class Chat {
        * @return This builder for chaining.
        */
       public Builder clearServerTimeStamp() {
-        bitField0_ = (bitField0_ & ~0x00000100);
+        bitField0_ = (bitField0_ & ~0x00000080);
         serverTimeStamp_ = 0;
         onChanged();
         return this;
@@ -3118,7 +1761,7 @@ public final class Chat {
        */
       public Builder setTypeValue(int value) {
         type_ = value;
-        bitField0_ |= 0x00000200;
+        bitField0_ |= 0x00000100;
         onChanged();
         return this;
       }
@@ -3140,7 +1783,7 @@ public final class Chat {
         if (value == null) {
           throw new NullPointerException();
         }
-        bitField0_ |= 0x00000200;
+        bitField0_ |= 0x00000100;
         type_ = value.getNumber();
         onChanged();
         return this;
@@ -3150,131 +1793,10 @@ public final class Chat {
        * @return This builder for chaining.
        */
       public Builder clearType() {
-        bitField0_ = (bitField0_ & ~0x00000200);
+        bitField0_ = (bitField0_ & ~0x00000100);
         type_ = 0;
         onChanged();
         return this;
-      }
-
-      private com.google.protobuf.Any chat_;
-      private com.google.protobuf.SingleFieldBuilder<
-          com.google.protobuf.Any, com.google.protobuf.Any.Builder, com.google.protobuf.AnyOrBuilder> chatBuilder_;
-      /**
-       * <code>.google.protobuf.Any chat = 10;</code>
-       * @return Whether the chat field is set.
-       */
-      public boolean hasChat() {
-        return ((bitField0_ & 0x00000400) != 0);
-      }
-      /**
-       * <code>.google.protobuf.Any chat = 10;</code>
-       * @return The chat.
-       */
-      public com.google.protobuf.Any getChat() {
-        if (chatBuilder_ == null) {
-          return chat_ == null ? com.google.protobuf.Any.getDefaultInstance() : chat_;
-        } else {
-          return chatBuilder_.getMessage();
-        }
-      }
-      /**
-       * <code>.google.protobuf.Any chat = 10;</code>
-       */
-      public Builder setChat(com.google.protobuf.Any value) {
-        if (chatBuilder_ == null) {
-          if (value == null) {
-            throw new NullPointerException();
-          }
-          chat_ = value;
-        } else {
-          chatBuilder_.setMessage(value);
-        }
-        bitField0_ |= 0x00000400;
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>.google.protobuf.Any chat = 10;</code>
-       */
-      public Builder setChat(
-          com.google.protobuf.Any.Builder builderForValue) {
-        if (chatBuilder_ == null) {
-          chat_ = builderForValue.build();
-        } else {
-          chatBuilder_.setMessage(builderForValue.build());
-        }
-        bitField0_ |= 0x00000400;
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>.google.protobuf.Any chat = 10;</code>
-       */
-      public Builder mergeChat(com.google.protobuf.Any value) {
-        if (chatBuilder_ == null) {
-          if (((bitField0_ & 0x00000400) != 0) &&
-            chat_ != null &&
-            chat_ != com.google.protobuf.Any.getDefaultInstance()) {
-            getChatBuilder().mergeFrom(value);
-          } else {
-            chat_ = value;
-          }
-        } else {
-          chatBuilder_.mergeFrom(value);
-        }
-        if (chat_ != null) {
-          bitField0_ |= 0x00000400;
-          onChanged();
-        }
-        return this;
-      }
-      /**
-       * <code>.google.protobuf.Any chat = 10;</code>
-       */
-      public Builder clearChat() {
-        bitField0_ = (bitField0_ & ~0x00000400);
-        chat_ = null;
-        if (chatBuilder_ != null) {
-          chatBuilder_.dispose();
-          chatBuilder_ = null;
-        }
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>.google.protobuf.Any chat = 10;</code>
-       */
-      public com.google.protobuf.Any.Builder getChatBuilder() {
-        bitField0_ |= 0x00000400;
-        onChanged();
-        return getChatFieldBuilder().getBuilder();
-      }
-      /**
-       * <code>.google.protobuf.Any chat = 10;</code>
-       */
-      public com.google.protobuf.AnyOrBuilder getChatOrBuilder() {
-        if (chatBuilder_ != null) {
-          return chatBuilder_.getMessageOrBuilder();
-        } else {
-          return chat_ == null ?
-              com.google.protobuf.Any.getDefaultInstance() : chat_;
-        }
-      }
-      /**
-       * <code>.google.protobuf.Any chat = 10;</code>
-       */
-      private com.google.protobuf.SingleFieldBuilder<
-          com.google.protobuf.Any, com.google.protobuf.Any.Builder, com.google.protobuf.AnyOrBuilder> 
-          getChatFieldBuilder() {
-        if (chatBuilder_ == null) {
-          chatBuilder_ = new com.google.protobuf.SingleFieldBuilder<
-              com.google.protobuf.Any, com.google.protobuf.Any.Builder, com.google.protobuf.AnyOrBuilder>(
-                  getChat(),
-                  getParentForChildren(),
-                  isClean());
-          chat_ = null;
-        }
-        return chatBuilder_;
       }
 
       private int messagesStatus_ = 0;
@@ -3292,7 +1814,7 @@ public final class Chat {
        */
       public Builder setMessagesStatusValue(int value) {
         messagesStatus_ = value;
-        bitField0_ |= 0x00000800;
+        bitField0_ |= 0x00000200;
         onChanged();
         return this;
       }
@@ -3314,7 +1836,7 @@ public final class Chat {
         if (value == null) {
           throw new NullPointerException();
         }
-        bitField0_ |= 0x00000800;
+        bitField0_ |= 0x00000200;
         messagesStatus_ = value.getNumber();
         onChanged();
         return this;
@@ -3324,7 +1846,7 @@ public final class Chat {
        * @return This builder for chaining.
        */
       public Builder clearMessagesStatus() {
-        bitField0_ = (bitField0_ & ~0x00000800);
+        bitField0_ = (bitField0_ & ~0x00000200);
         messagesStatus_ = 0;
         onChanged();
         return this;
@@ -3386,16 +1908,6 @@ public final class Chat {
   private static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_com_github_im_common_connect_model_proto_ChatMessage_fieldAccessorTable;
-  private static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_com_github_im_common_connect_model_proto_ChatMessage_Group_descriptor;
-  private static final 
-    com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_com_github_im_common_connect_model_proto_ChatMessage_Group_fieldAccessorTable;
-  private static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_com_github_im_common_connect_model_proto_ChatMessage_Single_descriptor;
-  private static final 
-    com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_com_github_im_common_connect_model_proto_ChatMessage_Single_fieldAccessorTable;
 
   public static com.google.protobuf.Descriptors.FileDescriptor
       getDescriptor() {
@@ -3407,29 +1919,24 @@ public final class Chat {
     java.lang.String[] descriptorData = {
       "\n\rMessage.proto\022(com.github.im.common.co" +
       "nnect.model.proto\032\031google/protobuf/any.p" +
-      "roto\032\rAccount.proto\"\273\005\n\013ChatMessage\022\r\n\005m" +
-      "sgId\030\001 \001(\003\022\013\n\003seq\030\004 \001(\005\022\021\n\tsessionId\030\005 \001" +
-      "(\003\022\017\n\007content\030\003 \001(\t\022\026\n\016conversationId\030\t " +
-      "\001(\005\022N\n\017fromAccountInfo\030\002 \001(\01325.com.githu" +
-      "b.im.common.connect.model.proto.AccountI" +
-      "nfo\022L\n\rtoAccountInfo\030\010 \001(\01325.com.github." +
-      "im.common.connect.model.proto.AccountInf" +
-      "o\022\027\n\017clientTimeStamp\030\007 \001(\021\022\027\n\017serverTime" +
-      "Stamp\030\014 \001(\021\022C\n\004type\030\006 \001(\01625.com.github.i" +
-      "m.common.connect.model.proto.MessageType" +
-      "\022\"\n\004chat\030\n \001(\0132\024.google.protobuf.Any\022\\\n\016" +
-      "messagesStatus\030\013 \001(\0162D.com.github.im.com" +
-      "mon.connect.model.proto.ChatMessage.Mess" +
-      "agesStatus\032.\n\005Group\022\021\n\tsessionId\030\001 \001(\002\022\022" +
-      "\n\ntoAccounts\030\010 \003(\t\032\033\n\006Single\022\021\n\ttoAccoun" +
-      "t\030\001 \001(\002\"p\n\016MessagesStatus\022\n\n\006REJECT\020\000\022\013\n" +
-      "\007OFFLINE\020\001\022\014\n\010SENTFAIL\020\007\022\013\n\007HISTORY\020\n\022\010\n" +
-      "\004READ\020\003\022\n\n\006UNREAD\020\002\022\010\n\004SENT\020\005\022\n\n\006UNSENT\020" +
-      "\013*-\n\024MessageOperationType\022\010\n\004SEND\020\000\022\013\n\007R" +
-      "ECEIVE\020\001*F\n\013MessageType\022\010\n\004TEXT\020\000\022\014\n\010MAR" +
-      "KDOWN\020\005\022\010\n\004FILE\020\001\022\n\n\006STREAM\020\002\022\t\n\005VIDEO\020\003" +
-      "B0\n(com.github.im.common.connect.model.p" +
-      "rotoB\004Chatb\006proto3"
+      "roto\032\rAccount.proto\"\203\004\n\013ChatMessage\022\r\n\005m" +
+      "sgId\030\001 \001(\003\022\013\n\003seq\030\004 \001(\005\022\017\n\007content\030\003 \001(\t" +
+      "\022\026\n\016conversationId\030\t \001(\003\022\030\n\020conversation" +
+      "Name\030\n \001(\t\022N\n\017fromAccountInfo\030\002 \001(\01325.co" +
+      "m.github.im.common.connect.model.proto.A" +
+      "ccountInfo\022\027\n\017clientTimeStamp\030\007 \001(\021\022\027\n\017s" +
+      "erverTimeStamp\030\014 \001(\021\022C\n\004type\030\006 \001(\01625.com" +
+      ".github.im.common.connect.model.proto.Me" +
+      "ssageType\022\\\n\016messagesStatus\030\013 \001(\0162D.com." +
+      "github.im.common.connect.model.proto.Cha" +
+      "tMessage.MessagesStatus\"p\n\016MessagesStatu" +
+      "s\022\n\n\006REJECT\020\000\022\013\n\007OFFLINE\020\001\022\014\n\010SENTFAIL\020\007" +
+      "\022\013\n\007HISTORY\020\n\022\010\n\004READ\020\003\022\n\n\006UNREAD\020\002\022\010\n\004S" +
+      "ENT\020\005\022\n\n\006UNSENT\020\013*-\n\024MessageOperationTyp" +
+      "e\022\010\n\004SEND\020\000\022\013\n\007RECEIVE\020\001*F\n\013MessageType\022" +
+      "\010\n\004TEXT\020\000\022\014\n\010MARKDOWN\020\005\022\010\n\004FILE\020\001\022\n\n\006STR" +
+      "EAM\020\002\022\t\n\005VIDEO\020\003B0\n(com.github.im.common" +
+      ".connect.model.protoB\004Chatb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -3442,19 +1949,7 @@ public final class Chat {
     internal_static_com_github_im_common_connect_model_proto_ChatMessage_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_com_github_im_common_connect_model_proto_ChatMessage_descriptor,
-        new java.lang.String[] { "MsgId", "Seq", "SessionId", "Content", "ConversationId", "FromAccountInfo", "ToAccountInfo", "ClientTimeStamp", "ServerTimeStamp", "Type", "Chat", "MessagesStatus", });
-    internal_static_com_github_im_common_connect_model_proto_ChatMessage_Group_descriptor =
-      internal_static_com_github_im_common_connect_model_proto_ChatMessage_descriptor.getNestedTypes().get(0);
-    internal_static_com_github_im_common_connect_model_proto_ChatMessage_Group_fieldAccessorTable = new
-      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-        internal_static_com_github_im_common_connect_model_proto_ChatMessage_Group_descriptor,
-        new java.lang.String[] { "SessionId", "ToAccounts", });
-    internal_static_com_github_im_common_connect_model_proto_ChatMessage_Single_descriptor =
-      internal_static_com_github_im_common_connect_model_proto_ChatMessage_descriptor.getNestedTypes().get(1);
-    internal_static_com_github_im_common_connect_model_proto_ChatMessage_Single_fieldAccessorTable = new
-      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-        internal_static_com_github_im_common_connect_model_proto_ChatMessage_Single_descriptor,
-        new java.lang.String[] { "ToAccount", });
+        new java.lang.String[] { "MsgId", "Seq", "Content", "ConversationId", "ConversationName", "FromAccountInfo", "ClientTimeStamp", "ServerTimeStamp", "Type", "MessagesStatus", });
     descriptor.resolveAllFeaturesImmutable();
     com.google.protobuf.AnyProto.getDescriptor();
     com.github.im.common.connect.model.proto.Account.getDescriptor();

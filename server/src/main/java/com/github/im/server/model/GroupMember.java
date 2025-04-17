@@ -1,8 +1,7 @@
 package com.github.im.server.model;
 
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -10,6 +9,9 @@ import java.time.LocalDateTime;
 @Table(name = "group_members")
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString(exclude = {"conversation", "user"})
 public class GroupMember {
 
     @Id

@@ -1,10 +1,9 @@
-package com.github.im.server.model.enums;
+package com.github.im.enums;
 
 
 public enum ConversationStatus {
 
     ACTIVE,
-
     ACHEIVED,
     DELETED ,
     INACTIVE

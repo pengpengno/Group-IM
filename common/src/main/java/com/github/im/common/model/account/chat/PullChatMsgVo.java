@@ -23,15 +23,6 @@ public class PullChatMsgVo implements Serializable {
     private PageVo pageVo;
 
 
-//
-//    public PageRequest getPageRequest(){
-//        if (pageVo != null  &&  getPageVo().pageSize() > 0 && getPageVo().pageNumber() >= 0){
-//            PageRequest of = PageRequest.of(getPageVo().pageNumber(), getPageVo().pageSize());
-//            return of;
-//        }
-//        return null;
-//    }
-
 
 
 

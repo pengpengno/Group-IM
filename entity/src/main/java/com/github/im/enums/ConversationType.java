@@ -1,4 +1,4 @@
-package com.github.im.server.model.enums;
+package com.github.im.enums;
 
 public enum ConversationType {
     GROUP,

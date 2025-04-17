@@ -1,10 +1,12 @@
 package com.github.im.server.service;
 
+import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.dto.session.MessageDTO;
 import com.github.im.enums.MessageStatus;
 import com.github.im.enums.MessageType;
 import com.github.im.server.model.Message;
 import com.github.im.server.repository.MessageRepository;
+import com.github.im.server.utils.EnumsTransUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,8 +29,8 @@ public class MessageService {
     }
 
     // 获取会话中的所有消息
-    public List<MessageDTO> getMessages(Long sessionId) {
-        List<Message> messages = messageRepository.findBySessionId(sessionId);
+    public List<MessageDTO> getMessages(Long conversationId) {
+        List<Message> messages = messageRepository.findByConversation_ConversationId(conversationId);
         return messages.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
@@ -47,8 +49,19 @@ public class MessageService {
         });
     }
 
+
+    public Message saveMessage(final Chat.ChatMessage chatMessage) {
+        Message message = new Message();
+        message.setConversation(message.getConversation());
+        message.setContent(chatMessage.getContent());
+        message.setFromAccountId(chatMessage.getFromAccountInfo().getUserId());
+        message.setType(EnumsTransUtil.convertMessageType(chatMessage.getType()));
+        message.setStatus(EnumsTransUtil.convertMessageStatus(chatMessage.getMessagesStatus()));
+        return messageRepository.save(message);
+    }
+
     // 将 Message 实体类转换为 DTO
     private MessageDTO convertToDTO(Message message) {
-        return new MessageDTO(message.getMsgId(), message.getSessionId(), message.getContent(), message.getFromAccountId(), message.getToAccountId(), message.getType(), message.getStatus(), message.getTimestamp());
+        return new MessageDTO(message.getMsgId(), message.getMsgId(), message.getContent(), message.getFromAccountId(), message.getToAccountId(), message.getType(), message.getStatus(), message.getTimestamp());
     }
 }

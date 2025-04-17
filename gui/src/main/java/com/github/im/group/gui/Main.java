@@ -3,6 +3,7 @@ package com.github.im.group.gui;
 import com.github.im.group.gui.controller.Display;
 import com.github.im.group.gui.controller.LoginView;
 import com.github.im.group.gui.controller.desktop.DesktopLoginView;
+import com.github.im.group.gui.util.CssLoaderUtil;
 import com.github.im.group.gui.util.FxmlLoader;
 import com.gluonhq.attach.display.DisplayService;
 import com.gluonhq.attach.util.Platform;
@@ -23,6 +24,7 @@ import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
+import org.checkerframework.checker.units.qual.C;
 import org.scenicview.ScenicView;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
@@ -116,7 +118,11 @@ public class Main extends Application {
             primaryStage.getIcons().add(new Image(iconResource.getInputStream()));
         }
         if(stylesResource.exists()){
-            primaryStage.getScene().getStylesheets().add(stylesResource.getURL().toExternalForm());
+
+            var scene = primaryStage.getScene();
+            CssLoaderUtil.loadCss(scene,"css/styles.css");
+            CssLoaderUtil.loadCss(scene,"css/chat.css");
+//            scene.getStylesheets().add(stylesResource.getURL().toExternalForm());
         }
 
         primaryStage.setResizable(true);

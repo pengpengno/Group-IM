@@ -59,7 +59,7 @@ public class ReactiveConnectionManager {
     /**
      * 判断是否 存在了 sink
      * @param ATTR {@link BindAttr#getBindAttr(Account.AccountInfo)}
-     * @return
+     * @return 存在返回true  不存在返回false
      */
     public static boolean isSubscribe(BindAttr<String> ATTR) {
         return BASE_MESSAGE_SINKS.containsKey(ATTR);
@@ -85,34 +85,10 @@ public class ReactiveConnectionManager {
 
     }
 
-//    public static void addChatMessage(Chat.ChatMessage chatMessage) {
-//        var toAccountInfo = chatMessage.getToAccountInfo();
-//        toAccountInfo.getAccount();
-//
-//        chatMessageSinks.putIfAbsent(toAccountInfo.getAccount(), Sinks.many().multicast().onBackpressureBuffer());
-//
-//        chatMessageSinks.get(toAccountInfo.getAccount()).tryEmitNext(chatMessage).orThrow();
-//    }
-
-//    /**
-//     * 获取指定用户的 聊天channel
-//     * @param accountInfo
-//     * @return
-//     */
-//    public static Flux<Chat.ChatMessage> getChatMessages(Account.AccountInfo accountInfo) {
-//
-//        var account = accountInfo.getAccountName();
-//
-//        chatMessageSinks.putIfAbsent(account, Sinks.many().multicast().onBackpressureBuffer());
-//
-//        return chatMessageSinks.get(account).asFlux();
-//    }
 
     /**
      * 取消订阅
-     * @param accountInfo
      */
-//    public static void unSubscribe(Account.AccountInfo accountInfo) {
     public static void unSubscribe(BindAttr<String> ATTR) {
 
         if (ATTR == null){

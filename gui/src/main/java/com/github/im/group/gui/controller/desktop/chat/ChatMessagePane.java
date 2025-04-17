@@ -25,6 +25,7 @@ import javafx.scene.layout.VBox;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.fxmisc.richtext.InlineCssTextArea;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -32,6 +33,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.net.URL;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 /**
@@ -50,11 +52,14 @@ import java.util.ResourceBundle;
 public class ChatMessagePane extends BorderPane implements Initializable {
 
 
-    private JFXTextArea messageSendArea; // message send area
 
     @Getter
     @Setter
     private UserInfo toAccountInfo;
+
+    @Getter
+    @Setter
+    private Long conversationId ;
 
     private VBox messageDisplayArea; // 设置每条消息之间的间距
 
@@ -62,34 +67,15 @@ public class ChatMessagePane extends BorderPane implements Initializable {
 
     private SendMessagePane sendMessagePane;
 
+    private InlineCssTextArea messageSendArea; // message send area
+//    private JFXTextArea messageSendArea; // message send area
 
     @Autowired
     private EventBus bus;
 
-    @Autowired
-    private ReactiveClientAction clientAction;
 
 
 
-    /**
-     * chat toolbox
-     * <ul>
-     *     <li>emoji</li>
-     *     <li>file</li>
-     *     <li>screen print / capture</li>
-     *     <li>history</li>
-     * </ul>
-     */
-    public static  class ChatToolBoxPane extends GridPane {
-
-        private MFXButton emojiButton;
-        private MFXButton fileButton;
-        private MFXButton screenPrintButton;
-        private MFXButton historyButton;
-
-
-
-    }
 
     /**
      * send message pane
@@ -150,8 +136,7 @@ public class ChatMessagePane extends BorderPane implements Initializable {
      */
     public Mono<Void>  receiveChatMessageEvent() {
         return bus.asFlux().ofType(Chat.ChatMessage.class )
-                .filter(chatmessage -> chatmessage.getToAccountInfo().getAccount()
-                        .equals(getToAccountInfo().getUsername()))
+                .filter(chatmessage -> Objects.equals(chatmessage.getConversationId(), getConversationId()))
                 .doOnNext(chatmessage -> {
                     var fromAccountInfo = chatmessage.getFromAccountInfo();
                     var account = fromAccountInfo.getAccount();
@@ -173,15 +158,13 @@ public class ChatMessagePane extends BorderPane implements Initializable {
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Message cannot be blank")))
                 .flatMap(message -> {
                     // 获取目标用户信息
-                    return Mono.justOrEmpty(getToAccountInfo())
-                            .switchIfEmpty(Mono.error(new IllegalArgumentException("Target user is not selected")))
+                    return Mono.justOrEmpty(getConversationId())
+                            .switchIfEmpty(Mono.error(new IllegalArgumentException("Target Conversation is not selected")))
                             .map(userInfo -> {
-                                var accountInfo = Account.AccountInfo.newBuilder()
-                                        .setUserId(userInfo.getUserId())
-                                        .setAccount(userInfo.getUsername())
-                                        .build();
+
                                 var chatMessage = Chat.ChatMessage.newBuilder()
-                                        .setToAccountInfo(accountInfo)
+//                                        .setToAccountInfo(accountInfo)
+                                        .setConversationId(conversationId)
                                         .setFromAccountInfo(UserInfoContext.getAccountInfo())
                                         .setContent(message)
                                         .build();
@@ -255,7 +238,8 @@ public class ChatMessagePane extends BorderPane implements Initializable {
 
         // Initialize send message area
 //        messageSendArea = new MFXTextField();
-        messageSendArea = new JFXTextArea();
+        messageSendArea = new InlineCssTextArea();
+//        messageSendArea = new JFXTextArea();
 
         // Create a scroll pane for message display area
         scrollPane = new MFXScrollPane(messageDisplayArea);
@@ -277,6 +261,18 @@ public class ChatMessagePane extends BorderPane implements Initializable {
         // Vbox 每次变动都会滚动到最底部
         messageDisplayArea.heightProperty().addListener((observable, oldValue, newValue) -> {
             scrollPane.setVvalue(1.0); // Scroll to the bottom
+        });
+
+        // 回车触发发送事件
+        messageSendArea.setOnKeyPressed(event -> {
+            switch (event.getCode()) {
+                case ENTER -> {
+                    if (!event.isShiftDown()) { // 按下 Shift + Enter 允许换行
+                        event.consume(); // 阻止默认回车行为
+                        sendMessage().subscribe();
+                    }
+                }
+            }
         });
 
         this.setTop(scrollPane);

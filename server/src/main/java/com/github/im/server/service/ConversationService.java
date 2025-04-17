@@ -1,19 +1,23 @@
 package com.github.im.server.service;
 
 import com.github.im.conversation.ConversationRes;
-import com.github.im.conversation.GroupInfoDTO;
+import com.github.im.server.mapstruct.GroupMemberMapper;
 import com.github.im.server.model.Conversation;
+import com.github.im.server.model.GroupMember;
 import com.github.im.server.model.User;
-import com.github.im.server.model.enums.ConversationStatus;
-import com.github.im.server.model.enums.ConversationType;
+import com.github.im.enums.ConversationStatus;
+import com.github.im.enums.ConversationType;
 import com.github.im.server.repository.ConversationRepository;
 import com.github.im.server.mapstruct.ConversationMapper;
 import com.github.im.dto.user.UserInfo;
 
+import com.github.im.server.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -23,6 +27,9 @@ import java.util.stream.Collectors;
 public class ConversationService {
 
     private final ConversationRepository conversationRepository;
+    private final UserRepository userRepository ;
+    private final ConversationMapper conversationsMapper;
+    private final GroupMemberMapper groupMemberMapper;
     private final GroupMemberService groupMemberService;
 
     /**
@@ -56,12 +63,12 @@ public class ConversationService {
             groupMemberService.addMemberToGroup(group.getConversationId(), memberInfo.getUserId());
         }
 
-        return ConversationMapper.INSTANCE.toDTO(group);
+        return conversationsMapper.toDTO(group);
     }
 
     /**
      * 创建或获取私聊会话
-     * @param userId1 第一个用户ID
+     * @param userId1 第一个用户ID  group creator
      * @param userId2 第二个用户ID
      * @return 私聊会话的DTO
      */
@@ -71,22 +78,32 @@ public class ConversationService {
         Optional<Conversation> existingConversation = conversationRepository.findPrivateChatBetweenUsers(userId1, userId2
                 ,ConversationType.PRIVATE_CHAT ,ConversationStatus.ACTIVE);
         if (existingConversation.isPresent()) {
-            return ConversationMapper.INSTANCE.toDTO(existingConversation.get());
+            var conversation = existingConversation.get();
+            var members = conversation.getMembers();
+            return conversationsMapper.toDTO(conversation);
         } else {
             // 创建新的私聊会话
             Conversation newConversation = Conversation.builder()
                     .conversationType(ConversationType.PRIVATE_CHAT)
                     .status(ConversationStatus.ACTIVE)
+                    .createdBy(userRepository.findById(userId1).orElseThrow(()-> new UsernameNotFoundException("User not found")))
                     .build();
 
             // 保存会话
             newConversation = conversationRepository.save(newConversation);
+            var members = newConversation.getMembers();
 
             // 添加成员
             groupMemberService.addMemberToGroup(newConversation.getConversationId(), userId1);
             groupMemberService.addMemberToGroup(newConversation.getConversationId(), userId2);
 
-            return ConversationMapper.INSTANCE.toDTO(newConversation);
+            newConversation = conversationRepository.findById(newConversation.getConversationId()).get();
+            /**
+             * 这里私聊不会 保存  群组的名称 , 在 客户端 互相使用 对方的名称来展示
+             */
+            var dto = conversationsMapper.toDTO(newConversation);
+//            dto.setGroupName(newConversation.getGroupName());
+            return dto;
         }
     }
 
@@ -96,7 +113,7 @@ public class ConversationService {
      * @return 群组信息
      */
     public Optional<ConversationRes> getGroupById(Long groupId) {
-        return conversationRepository.findById(groupId).map(ConversationMapper.INSTANCE::toDTO);
+        return conversationRepository.findById(groupId).map(conversationsMapper::toDTO);
     }
 
     /**
@@ -105,7 +122,7 @@ public class ConversationService {
      * @return 群组信息
      */
     public Optional<ConversationRes> getGroupByName(String groupName) {
-        return conversationRepository.findByGroupName(groupName).map(ConversationMapper.INSTANCE::toDTO);
+        return conversationRepository.findByGroupName(groupName).map(conversationsMapper::toDTO);
     }
 
     /**
@@ -115,7 +132,7 @@ public class ConversationService {
      */
     public List<ConversationRes> getGroupsByUserId(Long userId) {
         return conversationRepository.findByMembers_User_UserId(userId).stream()
-                .map(ConversationMapper.INSTANCE::toDTO)
+                .map(conversationsMapper::toDTO)
                 .collect(Collectors.toList());
     }
 
@@ -139,9 +156,34 @@ public class ConversationService {
      * @param userId 用户ID
      * @return 用户正在进行的群组
      */
+    @Transactional
     public List<ConversationRes> getActiveConversationsByUserId(Long userId) {
         return conversationRepository.findActiveConversationsByUserId(userId, ConversationStatus.ACTIVE).stream()
-                .map(ConversationMapper.INSTANCE::toDTO)
+                .map(conversationsMapper::toDTO)
                 .collect(Collectors.toList());
+    }
+
+
+
+    /**
+     * 根据群组ID获取群组成员信息
+     *
+     * @param groupId 群组ID，用于标识特定的群组
+     * @return 群组成员的 UserInfo 对象列表如果群组不存在或成员为空，则返回空列表
+     */
+    @Transactional
+    public List<UserInfo> getMembersByGroupId(Long groupId) {
+        // 尝试通过群组ID查找群组信息
+        Optional<Conversation> group = conversationRepository.findById(groupId);
+
+        // 检查是否找到了对应的群组
+        if (group.isPresent()) {
+            // 如果群组存在，则将群组成员转换为 UserInfo 对象列表并返回
+            var conversation = group.get();
+            var members = conversation.getMembers();
+            return groupMemberMapper.toUserInfoList(members);
+        }
+        // 如果没有找到群组，则返回空列表
+        return Collections.emptyList();
     }
 }

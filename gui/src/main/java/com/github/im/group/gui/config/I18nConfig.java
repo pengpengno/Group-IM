@@ -16,12 +16,12 @@ import org.springframework.context.support.ResourceBundleMessageSource;
 public class I18nConfig {
 
 
-    @Bean
-    public MessageSource messageSource() {
-
-        ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
-        messageSource.setBasename("messages");
-        messageSource.setDefaultEncoding("UTF-8"); // 关键设置
-        return messageSource;
-    }
+//    @Bean
+//    public MessageSource messageSource() {
+//
+//        ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
+//        messageSource.setBasename("messages");
+//        messageSource.setDefaultEncoding("UTF-8"); // 关键设置
+//        return messageSource;
+//    }
 }

@@ -1,0 +1,18 @@
+.message-bubble {
+    -fx-background-color: #2196f3;
+    -fx-background-radius: 15;
+    -fx-padding: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 4, 0, 0, 0);
+}
+
+.sent-message-bubble {
+    -fx-background-color: #4caf50;
+}
+
+.inline-css-text-area {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+    -fx-font-size: 14px;
+    -fx-text-fill: white;
+}
