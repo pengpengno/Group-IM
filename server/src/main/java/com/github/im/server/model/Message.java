@@ -34,8 +34,6 @@ public class Message {
 
     private Long fromAccountId;  // 发送方ID
 
-    private Long toAccountId;  // 接收方ID
-
     @Enumerated(EnumType.STRING)
     private MessageType type;  // 消息类型
 
@@ -44,11 +42,11 @@ public class Message {
 
     private LocalDateTime timestamp;  // 消息时间戳
 
-    public Message(Long sessionId, String content, Long fromAccountId, Long toAccountId, MessageType type, MessageStatus status) {
+    public Message(Long sessionId, String content, Long fromAccountId,  MessageType type, MessageStatus status) {
 //        this.sessionId = sessionId;
         this.content = content;
         this.fromAccountId = fromAccountId;
-        this.toAccountId = toAccountId;
+//        this.toAccountId = toAccountId;
         this.type = type;
         this.status = status;
         this.timestamp = LocalDateTime.now();

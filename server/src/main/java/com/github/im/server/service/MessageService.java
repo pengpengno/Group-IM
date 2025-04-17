@@ -4,9 +4,12 @@ import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.dto.session.MessageDTO;
 import com.github.im.enums.MessageStatus;
 import com.github.im.enums.MessageType;
+import com.github.im.server.mapstruct.MessageMapper;
+import com.github.im.server.model.Conversation;
 import com.github.im.server.model.Message;
 import com.github.im.server.repository.MessageRepository;
 import com.github.im.server.utils.EnumsTransUtil;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,15 +18,16 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class MessageService {
 
-    @Autowired
-    private MessageRepository messageRepository;
+    private final MessageRepository messageRepository;
+    private final MessageMapper messageMapper;
 
     // 发送消息
     @Transactional
     public MessageDTO sendMessage(Long sessionId, String content, Long fromAccountId, Long toAccountId, MessageType type) {
-        Message message = new Message(sessionId, content, fromAccountId, toAccountId, type, MessageStatus.UNREAD);
+        Message message = new Message(sessionId, content, fromAccountId,type, MessageStatus.UNREAD);
         messageRepository.save(message);
         return convertToDTO(message);
     }
@@ -52,7 +56,9 @@ public class MessageService {
 
     public Message saveMessage(final Chat.ChatMessage chatMessage) {
         Message message = new Message();
-        message.setConversation(message.getConversation());
+        var conversation = new Conversation();
+        conversation.setConversationId(chatMessage.getConversationId());
+        message.setConversation(conversation);
         message.setContent(chatMessage.getContent());
         message.setFromAccountId(chatMessage.getFromAccountInfo().getUserId());
         message.setType(EnumsTransUtil.convertMessageType(chatMessage.getType()));
@@ -62,6 +68,6 @@ public class MessageService {
 
     // 将 Message 实体类转换为 DTO
     private MessageDTO convertToDTO(Message message) {
-        return new MessageDTO(message.getMsgId(), message.getMsgId(), message.getContent(), message.getFromAccountId(), message.getToAccountId(), message.getType(), message.getStatus(), message.getTimestamp());
+        return messageMapper.toDTO(message);
     }
 }
