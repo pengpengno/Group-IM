@@ -2,18 +2,24 @@ package com.github.im.server.service;
 
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.dto.session.MessageDTO;
+import com.github.im.dto.session.MessageSearchRequest;
 import com.github.im.enums.MessageStatus;
 import com.github.im.enums.MessageType;
 import com.github.im.server.mapstruct.MessageMapper;
 import com.github.im.server.model.Conversation;
 import com.github.im.server.model.Message;
+import com.github.im.server.model.User;
 import com.github.im.server.repository.MessageRepository;
 import com.github.im.server.utils.EnumsTransUtil;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,26 +28,35 @@ import java.util.stream.Collectors;
 public class MessageService {
 
     private final MessageRepository messageRepository;
+    
     private final MessageMapper messageMapper;
 
-    // 发送消息
+    @PersistenceContext
+    private EntityManager entityManager;
+
+
+    // 批量发送消息
     @Transactional
-    public MessageDTO sendMessage(Long sessionId, String content, Long fromAccountId, Long toAccountId, MessageType type) {
-        Message message = new Message(sessionId, content, fromAccountId,type, MessageStatus.UNREAD);
-        messageRepository.save(message);
-        return convertToDTO(message);
+    public List<MessageDTO> sendMessages(List<MessageDTO> messages) {
+        List<Message> entities = messages.stream()
+                .map(messageMapper::toEntity)
+                .collect(Collectors.toList());
+        List<Message> savedMessages = messageRepository.saveAll(entities);
+        return savedMessages.stream()
+                .map(messageMapper::toDTO)
+                .collect(Collectors.toList());
     }
 
-    // 获取会话中的所有消息
-    public List<MessageDTO> getMessages(Long conversationId) {
-        List<Message> messages = messageRepository.findByConversation_ConversationId(conversationId);
-        return messages.stream().map(this::convertToDTO).collect(Collectors.toList());
+    // 拉取历史消息
+    public Page<MessageDTO> pullHistoryMessages(Long sessionId, Long fromMessageId, Long toMessageId, LocalDateTime startTime, LocalDateTime endTime, Pageable pageable) {
+        return messageRepository.findHistoryMessages(sessionId, fromMessageId, toMessageId, startTime, endTime, pageable)
+                .map(messageMapper::toDTO);
     }
 
-    // 获取某个用户的所有消息
-    public List<MessageDTO> getMessagesByUser(Long fromAccountId) {
-        List<Message> messages = messageRepository.findByFromAccountId(fromAccountId);
-        return messages.stream().map(this::convertToDTO).collect(Collectors.toList());
+    // 搜索消息
+    public Page<MessageDTO> searchMessages(MessageSearchRequest request, Pageable pageable) {
+        return messageRepository.searchMessages(request.getKeyword(), request.getSessionId(), pageable)
+                .map(messageMapper::toDTO);
     }
 
     // 标记消息为已读
@@ -53,21 +68,21 @@ public class MessageService {
         });
     }
 
-
-    public Message saveMessage(final Chat.ChatMessage chatMessage) {
-        Message message = new Message();
-        var conversation = new Conversation();
-        conversation.setConversationId(chatMessage.getConversationId());
-        message.setConversation(conversation);
+//    @Transactional
+    public void saveMessage(Chat.ChatMessage chatMessage) {
+        var message = new Message();
+        var proxy = entityManager.getReference(Conversation.class, chatMessage.getConversationId());
+        message.setConversation(proxy);
         message.setContent(chatMessage.getContent());
-        message.setFromAccountId(chatMessage.getFromAccountInfo().getUserId());
+
+        var userProxy = entityManager.getReference(User.class,chatMessage.getFromAccountInfo().getUserId());
+
+        message.setFromAccountId(userProxy);
         message.setType(EnumsTransUtil.convertMessageType(chatMessage.getType()));
-        message.setStatus(EnumsTransUtil.convertMessageStatus(chatMessage.getMessagesStatus()));
-        return messageRepository.save(message);
+        message.setStatus(MessageStatus.UNREAD);
+        message.setTimestamp(LocalDateTime.now());
+        messageRepository.save(message);
     }
 
-    // 将 Message 实体类转换为 DTO
-    private MessageDTO convertToDTO(Message message) {
-        return messageMapper.toDTO(message);
-    }
+
 }

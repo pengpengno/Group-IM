@@ -20,6 +20,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Lookup;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
@@ -62,6 +63,8 @@ public class ChatMainPane extends GridPane implements Initializable {
 
     private final FriendShipEndpoint friendShipEndpoint;
     private final ConversationEndpoint conversationEndpoint;
+
+    private final ApplicationContext applicationContext;
 
     /**
      * 更新会话列表
@@ -117,8 +120,8 @@ public class ChatMainPane extends GridPane implements Initializable {
             // 将新的会话ID添加到会话ID集合中
             conversationIdSet.add(conversationId);
 
-
         });
+
     }
 
 
@@ -150,24 +153,6 @@ public class ChatMainPane extends GridPane implements Initializable {
         }
     }
 
-//    public void updateConversations(UserInfo contract ) {
-//
-//        Platform.runLater(() -> {
-////            conversationList.getItems().clear();
-//            log.debug("add new Conversation username = {}",contract.getUsername());
-//            var conversationInfoCard = new ConversationInfoCard(contract);
-//            conversationInfoCard.setOnMouseClicked(mouseEvent -> {
-//                    log.debug("click chatInfo pane");
-//                    var chatMessagePane = getChatMessagePane(contract);
-//                    switchChatPane(chatMessagePane);
-//                });
-//            conversationList.getItems().add(conversationInfoCard);
-//
-//        });
-//
-//    }
-
-
     /**
      * 加载会话列表
      */
@@ -177,7 +162,6 @@ public class ChatMainPane extends GridPane implements Initializable {
                     return conversationEndpoint.getActiveConversationsByUserId(e.getUserId())
                     .doOnNext(actions -> {
                         actions.stream().forEach(action -> updateConversations(action));
-
                     })
                     .doOnError(throwable -> {
                         log.error("load conversation error",throwable);
@@ -264,7 +248,8 @@ public class ChatMainPane extends GridPane implements Initializable {
         // 初始化
         conversationList = new ListView<>();
 
-        currentChatPane = new ChatMessagePane();
+//        currentChatPane = new ChatMessagePane();
+        currentChatPane = applicationContext.getBean(ChatMessagePane.class);
 
         this.add(currentChatPane,1,0);
 

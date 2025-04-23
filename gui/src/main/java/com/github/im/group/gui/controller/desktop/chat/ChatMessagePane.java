@@ -5,7 +5,9 @@ import com.github.im.common.connect.connection.client.ReactiveClientAction;
 import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.model.proto.Chat;
+import com.github.im.dto.session.MessageDTO;
 import com.github.im.dto.user.UserInfo;
+import com.github.im.group.gui.api.MessageEndpoint;
 import com.github.im.group.gui.connect.handler.EventBus;
 import com.github.im.group.gui.context.UserInfoContext;
 import com.jfoenix.controls.JFXTextArea;
@@ -23,6 +25,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.fxmisc.richtext.InlineCssTextArea;
@@ -49,8 +52,8 @@ import java.util.ResourceBundle;
 @Component
 @Scope("prototype")
 @Slf4j
+@RequiredArgsConstructor
 public class ChatMessagePane extends BorderPane implements Initializable {
-
 
 
     @Getter
@@ -68,12 +71,10 @@ public class ChatMessagePane extends BorderPane implements Initializable {
     private SendMessagePane sendMessagePane;
 
     private InlineCssTextArea messageSendArea; // message send area
-//    private JFXTextArea messageSendArea; // message send area
 
-    @Autowired
-    private EventBus bus;
+    private final EventBus bus;
 
-
+    private final MessageEndpoint messageEndpoint;
 
 
 
@@ -130,6 +131,7 @@ public class ChatMessagePane extends BorderPane implements Initializable {
     }
 
 
+
     /**
      * receive chat message Event
      * @return chat message event mono
@@ -146,7 +148,19 @@ public class ChatMessagePane extends BorderPane implements Initializable {
                 ;
     }
 
-    /**
+    public void addMessage(MessageDTO messageDTO){
+        Platform.runLater(()->{
+            // 判断fromAccountId 是否和当前用户的id
+            if(messageDTO.getFromAccountId().equals(UserInfoContext.getCurrentUser().getUserId())){
+                addMessageBubble(messageDTO.getContent());
+            }else{
+                // 如果不是当前用户的id，则添加消息气泡
+                addMessageBubble(messageDTO.getFromAccount().getUsername(), messageDTO.getContent());
+            }
+        });
+    }
+
+                           /**
      * 发送消息
      *
      * @return
@@ -203,7 +217,7 @@ public class ChatMessagePane extends BorderPane implements Initializable {
      *
      * @param message            The message content
      */
-    private   void addMessageBubble( String message) {
+    private  void addMessageBubble( String message) {
         Platform.runLater(() -> messageDisplayArea.getChildren().add(new ChatBubblePane(message)));
     }
 
@@ -212,7 +226,7 @@ public class ChatMessagePane extends BorderPane implements Initializable {
      * @param sender message sender
      * @param message  message content
      */
-    private  void addMessageBubble( String sender , String message) {
+    private void addMessageBubble( String sender , String message) {
         Platform.runLater(() -> messageDisplayArea.getChildren().add(new ChatBubblePane(sender,message)));
     }
 
@@ -274,6 +288,13 @@ public class ChatMessagePane extends BorderPane implements Initializable {
                 }
             }
         });
+
+
+//        this.setOnMouseClicked(event -> {
+//            if (event.getClickCount() == 2) {
+//                sendMessage().subscribe();
+//            }
+//        });
 
         this.setTop(scrollPane);
         this.setCenter(messageSendArea);

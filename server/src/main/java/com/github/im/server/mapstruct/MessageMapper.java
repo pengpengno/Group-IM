@@ -5,10 +5,19 @@ import com.github.im.dto.session.MessageDTO;
 import com.github.im.server.model.Conversation;
 import com.github.im.server.model.Message;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring",uses = {GroupMemberMapper.class})
 public interface MessageMapper {
 
 
+    @Mapping(source = "conversation.conversationId", target = "conversationId")
+    @Mapping(source = "fromAccountId.userId", target = "fromAccountId")
     MessageDTO toDTO(Message message);
+
+
+
+    @Mapping(source = "conversationId", target = "conversation.conversationId")
+    @Mapping(source = "fromAccountId", target = "fromAccountId.userId")
+    Message toEntity(MessageDTO messageDTO);
 }

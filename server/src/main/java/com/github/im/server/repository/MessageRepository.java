@@ -1,19 +1,31 @@
 package com.github.im.server.repository;
 
-import com.github.im.enums.MessageStatus;
 import com.github.im.server.model.Message;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-import java.util.List;
+import java.time.LocalDateTime;
 
 public interface MessageRepository extends JpaRepository<Message, Long> {
 
-    // 根据会话ID查询所有消息
-    List<Message> findByConversation_ConversationId(Long conversationId);
+    @Query("SELECT m FROM Message m WHERE m.conversation.conversationId = :sessionId " +
+           "AND (:fromMessageId IS NULL OR m.msgId > :fromMessageId) " +
+           "AND (:toMessageId IS NULL OR m.msgId < :toMessageId) " +
+           "AND (:startTime IS NULL OR m.timestamp >= :startTime) " +
+           "AND (:endTime IS NULL OR m.timestamp <= :endTime)")
+    Page<Message> findHistoryMessages(@Param("sessionId") Long sessionId,
+                                      @Param("fromMessageId") Long fromMessageId,
+                                      @Param("toMessageId") Long toMessageId,
+                                      @Param("startTime") LocalDateTime startTime,
+                                      @Param("endTime") LocalDateTime endTime,
+                                      Pageable pageable);
 
-    // 获取某个账户的所有消息
-    List<Message> findByFromAccountId(Long fromAccountId);
-
-    // 根据状态查询消息
-    List<Message> findByStatus(MessageStatus status);
+    @Query("SELECT m FROM Message m WHERE m.conversation.conversationId = :sessionId " +
+           "AND m.content LIKE %:keyword%")
+    Page<Message> searchMessages(@Param("keyword") String keyword,
+                                 @Param("sessionId") Long sessionId,
+                                 Pageable pageable);
 }

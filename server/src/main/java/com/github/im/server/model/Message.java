@@ -20,11 +20,6 @@ public class Message {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long msgId;  // 消息ID
 
-//    private Long sessionId;  // 会话ID
-
-
-//    private Long conversationId;  // 会话ID
-
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "conversation_id",referencedColumnName = "conversationId" , nullable = false)
@@ -32,7 +27,10 @@ public class Message {
 
     private String content;  // 消息内容
 
-    private Long fromAccountId;  // 发送方ID
+//    private Long fromAccountId;  // 发送方ID
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "from_account_id",referencedColumnName = "userId" , nullable = false)
+    private User fromAccountId;
 
     @Enumerated(EnumType.STRING)
     private MessageType type;  // 消息类型
@@ -42,14 +40,12 @@ public class Message {
 
     private LocalDateTime timestamp;  // 消息时间戳
 
-    public Message(Long sessionId, String content, Long fromAccountId,  MessageType type, MessageStatus status) {
-//        this.sessionId = sessionId;
-        this.content = content;
-        this.fromAccountId = fromAccountId;
-//        this.toAccountId = toAccountId;
-        this.type = type;
-        this.status = status;
-        this.timestamp = LocalDateTime.now();
+    private LocalDateTime createTime;  // 消息创建时间
+
+
+    @PrePersist
+    protected void onPersist() {
+        createTime = LocalDateTime.now();;
     }
 
 

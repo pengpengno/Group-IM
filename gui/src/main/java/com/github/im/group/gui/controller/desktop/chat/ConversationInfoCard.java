@@ -50,11 +50,6 @@ public class ConversationInfoCard extends StackPane {
 
         }
 
-//        nameText.textProperty().set(userInfo.getUsername());
-//        var image = AvatarGenerator.generateSquareAvatarWithRoundedCorners(userInfo.getUsername(), 30);
-//        avatar= new ImageView(image);
-//
-//        this.getChildren().addAll(nameText,avatar);
 
     }
 
