@@ -125,7 +125,6 @@ public class ChatBubblePane extends HBox {
 
     private static void adjustTextAreaHeight(TextArea textArea) {
 
-
         // 计算文本的高度
         double textHeight = textArea.getFont().getSize() * textArea.getText().split("\n").length + 10;
 

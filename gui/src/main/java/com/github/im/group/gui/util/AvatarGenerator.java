@@ -15,7 +15,28 @@ import javafx.scene.text.TextAlignment;
  */
 public class AvatarGenerator {
 
-    // 圆形头像
+    // 头像的缓存处理， 每次根据name 生成一次 ，优先从缓存中读取，不存在啧创建
+    private static final java.util.Map<String, Image> avatarCache = new java.util.HashMap<>();
+    private static final int CACHE_SIZE = 100;
+
+
+    public static Image generateCircleAvatarCache(String name, double size, Color color) {
+        if (avatarCache.containsKey(name)) {
+            return avatarCache.get(name);
+        } else {
+            Image avatar = generateCircleAvatar(name, size, color);
+            avatarCache.put(name, avatar);
+            if (avatarCache.size() > CACHE_SIZE) {
+                // 移除最旧的缓存项
+                String oldestKey = avatarCache.keySet().iterator().next();
+                avatarCache.remove(oldestKey);
+            }
+            return avatar;
+        }
+
+    }
+
+        // 圆形头像
     public static Image generateCircleAvatar(String name, double size, Color color) {
         // 解析名字
         String displayText = getAvatarText(name);
@@ -50,7 +71,22 @@ public class AvatarGenerator {
         return canvas.snapshot(null, null);
     }
 
+    private static Image generateSquareAvatarWithRoundedCornersCache(String name, double size, Color color) {
+        if (avatarCache.containsKey(name)) {
+            return avatarCache.get(name);
+        } else {
+            Image avatar = generateSquareAvatarWithRoundedCorners(name, size, color);
+            avatarCache.put(name, avatar);
+            if (avatarCache.size() > CACHE_SIZE) {
+                // 移除最旧的缓存项
+                String oldestKey = avatarCache.keySet().iterator().next();
+                avatarCache.remove(oldestKey);
+            }
+            return avatar;
+        }
+    }
     // 正方形圆角头像
+
     public static Image generateSquareAvatarWithRoundedCorners(String name, double size, Color color) {
         // 解析名字
         String displayText = getAvatarText(name);
@@ -86,12 +122,32 @@ public class AvatarGenerator {
         return canvas.snapshot(null, null);
     }
 
+    /**
+     * 生成圆形头像的方法
+     * 此方法重载了另一个具有更多参数的generateCircleAvatar方法，提供了一个简化版本的接口
+     * 使用此方法时，可以选择不提供第三个参数，此时将使用默认设置生成头像
+     * 主要用途是创建具有指定名称和大小的圆形头像，适用于需要简化头像生成过程的场景
+     *
+     * @param name 头像显示的名称，通常用于标识用户或角色
+     * @param size 头像的大小，表示直径长度
+     * @return 返回生成的圆形头像对象
+     */
     public static Image generateCircleAvatar(String name, double size) {
-        return generateCircleAvatar(name, size, null);
+            return generateCircleAvatarCache(name, size, null);
     }
 
+
+    /**
+     * 生成一个带有圆角的正方形头像
+     * 此方法重载了另一个具有更多参数的方法，提供了一个简化版本的接口
+     * 使用场景例如：当需要根据用户名称快速生成一个固定样式的头像时
+     *
+     * @param name 用户名，将显示在头像上
+     * @param size 头像的大小，单位为像素
+     * @return 返回一个带有圆角的正方形头像对象
+     */
     public static Image generateSquareAvatarWithRoundedCorners(String name, double size) {
-        return generateSquareAvatarWithRoundedCorners(name, size, null);
+        return generateSquareAvatarWithRoundedCornersCache(name, size, null);
     }
 
     private static String getAvatarText(String name) {

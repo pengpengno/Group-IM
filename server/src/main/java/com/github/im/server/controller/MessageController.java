@@ -1,18 +1,24 @@
 package com.github.im.server.controller;
 
+import com.github.im.dto.PageResult;
 import com.github.im.dto.session.MessageDTO;
+import com.github.im.dto.session.MessagePullRequest;
 import com.github.im.dto.session.MessageSearchRequest;
-import com.github.im.enums.MessageType;
 import com.github.im.server.service.MessageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.data.web.PagedModel;
+import org.springframework.data.web.PagedResourcesAssembler;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/messages")
@@ -29,16 +35,25 @@ public class MessageController {
     }
 
     // 拉取历史消息
-    @GetMapping("/pull")
-    public ResponseEntity<Page<MessageDTO>> pullHistoryMessages(@RequestParam Long sessionId,
-                                                                @RequestParam(required = false) Long fromMessageId,
-                                                                @RequestParam(required = false) Long toMessageId,
-                                                                @RequestParam(required = false) LocalDateTime startTime,
-                                                                @RequestParam(required = false) LocalDateTime endTime,
-                                                                @PageableDefault(size = 50) Pageable pageable) {
-        Page<MessageDTO> messages = messageService.pullHistoryMessages(sessionId, fromMessageId, toMessageId, startTime, endTime, pageable);
-        return ResponseEntity.ok(messages);
+    @PostMapping("/pull")
+    public ResponseEntity<PagedModel<MessageDTO>> pullHistoryMessages(@RequestBody MessagePullRequest request,
+                                                                PagedResourcesAssembler<MessageDTO> assembler ) {
+        Pageable pageable = PageRequest.of(
+                request.getPage(),
+                request.getSize(),
+                Sort.by(Optional.ofNullable(request.getSort()).orElse("createTime")).descending()
+        );
+
+        Page<MessageDTO> messages = messageService.pullHistoryMessages(
+                request.getConversationId(),
+                request.getStartTime(),
+                request.getEndTime(),
+                pageable
+        );
+//        return ResponseEntity.ok(messages);
+        return ResponseEntity.ok(new PagedModel<>(messages));
     }
+
 
     // 标记消息为已读
     @PostMapping("/mark-as-read")

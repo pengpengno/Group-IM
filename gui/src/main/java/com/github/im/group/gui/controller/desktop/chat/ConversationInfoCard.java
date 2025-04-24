@@ -12,6 +12,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.text.Text;
 import lombok.Getter;
 import org.springframework.util.CollectionUtils;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 
@@ -38,6 +39,13 @@ public class ConversationInfoCard extends StackPane {
 
     }
 
+    public void setClickAction(Mono<Void> clickAction) {
+        this.setOnMouseClicked(event -> {
+            if (clickAction != null) {
+                clickAction.subscribe();
+            }
+        });
+    }
 
     public ConversationInfoCard(ConversationRes item) {
 

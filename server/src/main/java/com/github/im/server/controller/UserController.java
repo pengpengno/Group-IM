@@ -6,6 +6,7 @@ import com.github.im.dto.user.UserInfo;
 import com.github.im.server.model.User;
 import com.github.im.server.service.UserService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -42,7 +43,7 @@ public class UserController {
 
     // 用户登录
     @PostMapping("/login")
-    public ResponseEntity<UserInfo> loginUser(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<UserInfo> loginUser(@RequestBody @NotNull(message = "request not be null") LoginRequest loginRequest) {
         Optional<UserInfo> userInfo = userService.loginUser(loginRequest);
         // 登录失败
         return userInfo.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());

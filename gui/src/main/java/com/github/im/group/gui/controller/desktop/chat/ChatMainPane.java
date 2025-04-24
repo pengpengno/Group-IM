@@ -1,11 +1,14 @@
 package com.github.im.group.gui.controller.desktop.chat;
 
 import com.github.im.conversation.ConversationRes;
+import com.github.im.dto.session.MessageDTO;
+import com.github.im.dto.session.MessagePullRequest;
 import com.github.im.dto.user.FriendshipDTO;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.enums.ConversationType;
 import com.github.im.group.gui.api.ConversationEndpoint;
 import com.github.im.group.gui.api.FriendShipEndpoint;
+import com.github.im.group.gui.api.MessageEndpoint;
 import com.github.im.group.gui.context.UserInfoContext;
 import jakarta.annotation.PostConstruct;
 import javafx.application.Platform;
@@ -21,6 +24,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Lookup;
 import org.springframework.context.ApplicationContext;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.web.PagedModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
@@ -28,7 +34,9 @@ import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * Description:
@@ -63,6 +71,10 @@ public class ChatMainPane extends GridPane implements Initializable {
 
     private final FriendShipEndpoint friendShipEndpoint;
     private final ConversationEndpoint conversationEndpoint;
+    private final MessageEndpoint messagesEndpoint;
+
+
+
 
     private final ApplicationContext applicationContext;
 
@@ -114,6 +126,9 @@ public class ChatMainPane extends GridPane implements Initializable {
                 var chatMessagePane = getChatMessagePane(conversationId);
                 switchChatPane(chatMessagePane);
             });
+            // 点击拉取 历史会话
+            conversationInfoCard.setClickAction(loadHistoryMessages(conversationId));
+
 
             // 将新的会话卡片添加到会话列表中
             conversationList.getItems().add(conversationInfoCard);
@@ -169,6 +184,36 @@ public class ChatMainPane extends GridPane implements Initializable {
                             .then()
                     ;
                 });
+    }
+
+    public Mono<Void> loadHistoryMessages(Long conversationId) {
+        if(conversationId == null){
+            return Mono.empty();
+        }
+        var messagePullRequest = new MessagePullRequest();
+        messagePullRequest.setConversationId(conversationId);
+        var chatMessagePane = getChatMessagePane(conversationId);
+
+//        var entityModelPagedModel = ;
+        return Mono.fromCallable(() -> messagesEndpoint.pullHistoryMessages(messagePullRequest))
+                .map(model-> model.getContent())
+                .doOnNext(models -> chatMessagePane.addMessages(models))
+                .then();
+
+//        var collect = entityModelPagedModel.getContent()
+//                .stream().map(e -> e.getContent())
+//                .collect(Collectors.toList());
+//        chatMessagePane.addMessages(collect);
+//        return  entityModelPagedModel
+//                .doOnNext(e->{
+//
+//                    chatMessagePane.addMessages(e.stream().toList());
+//                })
+//                .doOnError(throwable -> {
+//                    log.error("load history messages error",throwable);
+//                })
+//                .then()
+//;
     }
 
 
@@ -263,10 +308,8 @@ public class ChatMainPane extends GridPane implements Initializable {
         col2.setHgrow(javafx.scene.layout.Priority.ALWAYS);  // 让第 1 列可以自动扩展
 
 
-        UserInfoContext.subscribeUserInfoSink().flatMap(e->{
-            return loadConversation(e);
-        }).subscribe();
-//        loadConversation().subscribe();
+
+        UserInfoContext.subscribeUserInfoSink().flatMap(this::loadConversation).subscribe();
 
 
     }

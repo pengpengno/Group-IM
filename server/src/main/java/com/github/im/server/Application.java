@@ -8,14 +8,18 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.web.context.WebServerInitializedEvent;
 import org.springframework.context.ApplicationListener;
+import org.springframework.data.web.config.EnableSpringDataWebSupport;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
 
+import static org.springframework.data.web.config.EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO;
+
 @SpringBootApplication(scanBasePackages = {"com.github.im.server", "com.github.im.common"})
 @Slf4j
 @EnableAsync
+//@EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO)
 public class Application {
 
     public static void main(String[] args) {

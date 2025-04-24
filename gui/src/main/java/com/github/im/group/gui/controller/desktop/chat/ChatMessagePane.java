@@ -36,13 +36,18 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.net.URL;
+import java.util.List;
 import java.util.Objects;
 import java.util.ResourceBundle;
 
 /**
- * Description:
+ * Description: ChatMessagePane for every  conversation , every one is  independent.
+ *
+ * include following components:
  * <p>
- *     chat message pane , include  message send area , messageDisplay Area;
+ *     <ul>
+ *         <li>{@link SendMessagePane} </li>
+ *     </ul>
  * </p>
  *
  * @author pengpeng
@@ -64,9 +69,9 @@ public class ChatMessagePane extends BorderPane implements Initializable {
     @Setter
     private Long conversationId ;
 
-    private VBox messageDisplayArea; // 设置每条消息之间的间距
+    private VBox messageDisplayArea; // 消息展示区域
 
-    private MFXScrollPane scrollPane; // 设置每条消息之间的间距
+    private MFXScrollPane scrollPane; // 消息滚动条
 
     private SendMessagePane sendMessagePane;
 
@@ -148,19 +153,35 @@ public class ChatMessagePane extends BorderPane implements Initializable {
                 ;
     }
 
+    /**
+     * 添加消息
+     * 此方法用于在用户界面上添加新的消息气泡它首先检查消息的发送者是否是当前用户，
+     * 然后根据结果决定是显示在 左边（其他用户）还是右边（当前用户）
+     *
+     * @param messageDTO 包含消息详细信息的数据传输对象
+     */
     public void addMessage(MessageDTO messageDTO){
         Platform.runLater(()->{
             // 判断fromAccountId 是否和当前用户的id
             if(messageDTO.getFromAccountId().equals(UserInfoContext.getCurrentUser().getUserId())){
+                // 如果是当前用户的id，只添加消息内容的气泡
                 addMessageBubble(messageDTO.getContent());
             }else{
-                // 如果不是当前用户的id，则添加消息气泡
+                // 如果不是当前用户的id，则添加包含发送者用户名和消息内容的气泡
                 addMessageBubble(messageDTO.getFromAccount().getUsername(), messageDTO.getContent());
             }
         });
     }
 
-                           /**
+    public void addMessages(List<MessageDTO> messageDTOs){
+        Platform.runLater(()->{
+            messageDTOs.forEach(dto->addMessage(dto));
+        });
+    }
+
+
+
+    /**
      * 发送消息
      *
      * @return
@@ -191,7 +212,6 @@ public class ChatMessagePane extends BorderPane implements Initializable {
                                 return ClientToolkit.reactiveClientAction()
                                         .sendMessage(baseChatMessage)
                                         .subscribeOn(Schedulers.boundedElastic()) // 网络请求放入后台线程池
-
                                         .doOnSuccess(response -> {
                                             // 更新 UI
                                             Platform.runLater(() -> {
@@ -281,20 +301,19 @@ public class ChatMessagePane extends BorderPane implements Initializable {
         messageSendArea.setOnKeyPressed(event -> {
             switch (event.getCode()) {
                 case ENTER -> {
-                    if (!event.isShiftDown()) { // 按下 Shift + Enter 允许换行
+                    if (event.isShiftDown()) {
+                        // 允许 Shift + Enter 插入换行
+                        messageSendArea.insertText(messageSendArea.getCaretPosition(), "\n");
+                    } else {
                         event.consume(); // 阻止默认回车行为
                         sendMessage().subscribe();
                     }
+
                 }
             }
         });
 
 
-//        this.setOnMouseClicked(event -> {
-//            if (event.getClickCount() == 2) {
-//                sendMessage().subscribe();
-//            }
-//        });
 
         this.setTop(scrollPane);
         this.setCenter(messageSendArea);

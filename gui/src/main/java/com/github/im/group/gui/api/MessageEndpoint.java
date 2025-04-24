@@ -1,11 +1,15 @@
 package com.github.im.group.gui.api;
 
+import com.github.im.dto.PageResult;
 import com.github.im.dto.session.MessageDTO;
+import com.github.im.dto.session.MessagePullRequest;
 import com.github.im.dto.session.MessageSearchRequest;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.dto.user.UserRegisterRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.service.annotation.HttpExchange;
@@ -24,15 +28,9 @@ public interface MessageEndpoint {
     Mono<List<MessageDTO>> sendMessage(@RequestBody List<MessageDTO> messages);
 
     // 拉取历史消息
-    @GetExchange("/pull")
-    Mono<Page<MessageDTO>> pullHistoryMessages(
-        @RequestParam Long sessionId,
-        @RequestParam(required = false) Long fromMessageId,
-        @RequestParam(required = false) Long toMessageId,
-        @RequestParam(required = false) LocalDateTime startTime,
-        @RequestParam(required = false) LocalDateTime endTime,
-        @RequestParam Pageable pageable
-    );
+    @PostExchange("/pull")
+    PageResult<MessageDTO> pullHistoryMessages(@RequestBody MessagePullRequest request);
+
 
     // 标记消息为已读
     @PostExchange("/mark-as-read")
@@ -40,7 +38,7 @@ public interface MessageEndpoint {
 
     // 搜索消息
     @PostExchange("/search")
-    Mono<Page<MessageDTO>> searchMessages(
+    Mono<PagedModel<MessageDTO>> searchMessages(
         @RequestBody MessageSearchRequest request,
         @RequestParam Pageable pageable
     );

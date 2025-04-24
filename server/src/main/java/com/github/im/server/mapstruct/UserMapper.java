@@ -8,13 +8,11 @@ import org.mapstruct.factory.Mappers;
 
 import java.util.List;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface UserMapper {
     UserMapper INSTANCE = Mappers.getMapper(UserMapper.class);
 
-    // Map User entity to UserInfo DTO
-//    @Mapping(source = "userId", target = "id")
-//    @Mapping(source = "avatarUrl", target = "avatar")
+
     UserInfo userToUserInfo(User user);
     List<UserInfo> usersToUserInfos(List<User> user);
 

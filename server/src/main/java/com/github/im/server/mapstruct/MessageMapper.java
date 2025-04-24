@@ -7,12 +7,14 @@ import com.github.im.server.model.Message;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper(componentModel = "spring",uses = {GroupMemberMapper.class})
+@Mapper(componentModel = "spring",uses = {GroupMemberMapper.class, UserMapper.class})
 public interface MessageMapper {
 
 
     @Mapping(source = "conversation.conversationId", target = "conversationId")
     @Mapping(source = "fromAccountId.userId", target = "fromAccountId")
+    @Mapping(source = "fromAccountId.username", target = "fromAccount.username")
+    @Mapping(source = "fromAccountId.userId", target = "fromAccount.userId")
     MessageDTO toDTO(Message message);
 
 

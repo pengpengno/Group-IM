@@ -7,7 +7,7 @@ import reactor.core.publisher.Flux;
 /**
  * Description:
  *
- * event bus contains
+ * 所有由 Server 发送来的 消息通过 EventBus 接收
  * <ul>
  *     <li>{@link com.github.im.common.connect.model.proto.Chat}</li>
  * </ul>
