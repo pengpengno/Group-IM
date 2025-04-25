@@ -1,10 +1,15 @@
 package com.github.im.group.gui.util;
 
+import io.github.palexdev.mfxcore.utils.fx.SwingFXUtils;
+import javafx.scene.image.Image;
+
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 
@@ -13,7 +18,19 @@ import java.io.IOException;
  */
 //@Slf4j
 public class ImageUtil {
+    // Image => byte[]
+    public static byte[] imageToBytes(Image image, String format) throws IOException {
+        BufferedImage bufferedImage = SwingFXUtils.fromFXImage(image, null);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(bufferedImage, format, baos);
+        return baos.toByteArray();
+    }
 
+    // byte[] => Image
+    public static Image bytesToImage(byte[] bytes) {
+        ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+        return new Image(bais);
+    }
 
 
     /***

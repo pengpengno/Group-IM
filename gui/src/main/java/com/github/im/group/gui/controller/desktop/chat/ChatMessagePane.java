@@ -1,8 +1,6 @@
 package com.github.im.group.gui.controller.desktop.chat;
 
 import com.github.im.common.connect.connection.client.ClientToolkit;
-import com.github.im.common.connect.connection.client.ReactiveClientAction;
-import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.dto.session.MessageDTO;
@@ -10,7 +8,7 @@ import com.github.im.dto.user.UserInfo;
 import com.github.im.group.gui.api.MessageEndpoint;
 import com.github.im.group.gui.connect.handler.EventBus;
 import com.github.im.group.gui.context.UserInfoContext;
-import com.jfoenix.controls.JFXTextArea;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.FoldableStyledArea;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXScrollPane;
 import io.github.palexdev.materialfx.enums.ButtonType;
@@ -20,16 +18,21 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.fxmisc.richtext.GenericStyledArea;
 import org.fxmisc.richtext.InlineCssTextArea;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.fxmisc.richtext.model.ReadOnlyStyledDocument;
+import org.reactfx.util.Either;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
@@ -75,7 +78,8 @@ public class ChatMessagePane extends BorderPane implements Initializable {
 
     private SendMessagePane sendMessagePane;
 
-    private InlineCssTextArea messageSendArea; // message send area
+//    private InlineCssTextArea messageSendArea; // message send area
+    private FoldableStyledArea messageSendArea; // message send area
 
     private final EventBus bus;
 
@@ -271,9 +275,44 @@ public class ChatMessagePane extends BorderPane implements Initializable {
 
 
         // Initialize send message area
-//        messageSendArea = new MFXTextField();
-        messageSendArea = new InlineCssTextArea();
-//        messageSendArea = new JFXTextArea();
+        messageSendArea = new FoldableStyledArea();
+
+
+        // 粘贴监听
+        messageSendArea.setOnKeyPressed(event -> {
+
+//            Clipboard clipboard = Clipboard.getSystemClipboard();
+            switch (event.getCode()) {
+                case V:
+                    if (event.isControlDown()) {
+                        Clipboard clipboard = Clipboard.getSystemClipboard();
+                        if (clipboard.hasImage()) {
+                            Image image = clipboard.getImage();
+                            ImageView imageView = new ImageView(image);
+                            imageView.setFitWidth(200);
+
+                            imageView.setPreserveRatio(true);
+                            this.messageSendArea.insertImage(image);
+
+                        }
+                    }
+                    break;
+            }
+        });
+
+
+        messageSendArea.setOnKeyReleased(event -> {
+            if (event.isControlDown() && event.getCode() == KeyCode.V) {
+                Clipboard clipboard = Clipboard.getSystemClipboard();
+                if (clipboard.hasImage()) {
+                    Image image = clipboard.getImage();
+                    if (image != null) {
+                        messageSendArea.insertImage(image); // 你已有的方法
+                        event.consume(); // 阻止默认粘贴行为（可选）
+                    }
+                }
+            }
+        });
 
         // Create a scroll pane for message display area
         scrollPane = new MFXScrollPane(messageDisplayArea);

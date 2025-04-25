@@ -1,7 +1,7 @@
 package com.github.im.group.gui.controller.desktop.chat;
 
 import com.github.im.conversation.ConversationRes;
-import com.github.im.dto.session.MessageDTO;
+import com.github.im.dto.PageResult;
 import com.github.im.dto.session.MessagePullRequest;
 import com.github.im.dto.user.FriendshipDTO;
 import com.github.im.dto.user.UserInfo;
@@ -13,20 +13,13 @@ import com.github.im.group.gui.context.UserInfoContext;
 import jakarta.annotation.PostConstruct;
 import javafx.application.Platform;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Lookup;
 import org.springframework.context.ApplicationContext;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.web.PagedModel;
-import org.springframework.hateoas.EntityModel;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
@@ -34,9 +27,7 @@ import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * Description:
@@ -193,27 +184,12 @@ public class ChatMainPane extends GridPane implements Initializable {
         var messagePullRequest = new MessagePullRequest();
         messagePullRequest.setConversationId(conversationId);
         var chatMessagePane = getChatMessagePane(conversationId);
-
-//        var entityModelPagedModel = ;
+        // TODO 拉取最新消息 msgId 与 本地 对应的MsgId 就视作 已经最新
         return Mono.fromCallable(() -> messagesEndpoint.pullHistoryMessages(messagePullRequest))
-                .map(model-> model.getContent())
-                .doOnNext(models -> chatMessagePane.addMessages(models))
+                .map(PageResult::getContent)
+                .doOnNext(chatMessagePane::addMessages)
                 .then();
 
-//        var collect = entityModelPagedModel.getContent()
-//                .stream().map(e -> e.getContent())
-//                .collect(Collectors.toList());
-//        chatMessagePane.addMessages(collect);
-//        return  entityModelPagedModel
-//                .doOnNext(e->{
-//
-//                    chatMessagePane.addMessages(e.stream().toList());
-//                })
-//                .doOnError(throwable -> {
-//                    log.error("load history messages error",throwable);
-//                })
-//                .then()
-//;
     }
 
 
@@ -343,9 +319,6 @@ public class ChatMainPane extends GridPane implements Initializable {
             });
         });
     }
-
-
-
 
 
 
