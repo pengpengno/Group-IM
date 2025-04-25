@@ -1,6 +1,9 @@
 package com.github.im.group.gui.controller.desktop.chat;
 
+import com.github.im.dto.file.FileUploadResponse;
+import com.github.im.group.gui.api.FileEndpoint;
 import com.github.im.group.gui.context.UserInfoContext;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.RichTextMessageArea;
 import com.github.im.group.gui.util.AvatarGenerator;
 import com.jfoenix.controls.JFXTextArea;
 import io.github.palexdev.materialfx.controls.MFXTextField;
@@ -8,6 +11,7 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -19,6 +23,18 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import org.fxmisc.richtext.GenericStyledArea;
 import org.fxmisc.richtext.InlineCssTextArea;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.MultipartBodyBuilder;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
+
+import java.io.File;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Description:
@@ -45,11 +61,41 @@ public class ChatBubblePane extends HBox {
 
     private Label senderLabel;
 
+    private RichTextMessageArea senderTextField;
 
-//    private TextArea senderTextField;
-    private InlineCssTextArea senderTextField;
-//    private Text senderTextField;
+    private ProgressBar progressBar;
+    private Label statusLabel;
 
+    private FileEndpoint fileEndpoint;
+
+    private void uploadWithProgress(File file, UUID uploaderId) {
+        WebClient client = WebClient.builder().baseUrl("http://localhost:8080").build();
+
+        long totalBytes = file.length();
+        Flux<DataBuffer> bufferFlux = DataBufferUtils.read(file.toPath(), new DefaultDataBufferFactory(), 4096);
+
+        AtomicLong uploaded = new AtomicLong(0);
+
+        bufferFlux = bufferFlux.map(dataBuffer -> {
+            uploaded.addAndGet(dataBuffer.readableByteCount());
+            double progress = uploaded.get() / (double) totalBytes;
+            Platform.runLater(() -> {
+                progressBar.setProgress(progress);
+                statusLabel.setText(String.format("上传中：%.2f%%", progress * 100));
+            });
+            return dataBuffer;
+        });
+
+        MultipartBodyBuilder bodyBuilder = new MultipartBodyBuilder();
+//        bodyBuilder.part("file", bufferFlux, DataBuffer.class)
+        bodyBuilder.part("file", bufferFlux, MediaType.APPLICATION_OCTET_STREAM)
+                .filename(file.getName())
+                .header(HttpHeaders.CONTENT_DISPOSITION, "form-data; name=file; filename=" + file.getName());
+
+        bodyBuilder.part("uploaderId", uploaderId.toString());
+//        fileEndpoint.upload(bodyBuilder.build())
+
+    }
 
     /**
      *
@@ -57,7 +103,7 @@ public class ChatBubblePane extends HBox {
      * @param name  sender
      * @param isSent  isCurrentSender , if true , the avatar is on the right side
      */
-    private void init(String message, String name , boolean isSent) {
+    private void init(Object message, String name , boolean isSent) {
 
         this.setSpacing(10);
         this.setPadding(new Insets(10));
@@ -67,15 +113,18 @@ public class ChatBubblePane extends HBox {
         avatar.setFitWidth(40);
         avatar.setFitHeight(40);
 
-        senderTextField = new InlineCssTextArea();
+        senderTextField = new RichTextMessageArea();
         senderTextField.setEditable(false);
-        senderTextField.appendText(message);
+        if(message instanceof String strContent){
+            senderTextField.appendText(strContent);
+
+        }
+        else if(message instanceof Image imageContent){
+            senderTextField.insertImage(imageContent);
+        }
         senderTextField.setWrapText(true);
         senderTextField.setMaxWidth(250);
 
-        // 动态调整高度
-        senderTextField.textProperty().addListener((obs, oldText, newText) -> adjustTextAreaHeight(senderTextField));
-        adjustTextAreaHeight(senderTextField); // 初始调整
 
         HBox messageBubble = new HBox(senderTextField);
         messageBubble.setPadding(new Insets(10));
@@ -92,8 +141,6 @@ public class ChatBubblePane extends HBox {
 
         messageBox.getChildren().add(messageBubble);
 
-//        messageBox.getChildren().add(senderTextField);
-//
         if (isSent) {
             this.getChildren().addAll(messageBox, avatar);
         } else {
@@ -107,7 +154,7 @@ public class ChatBubblePane extends HBox {
     }
 
 
-    protected ChatBubblePane(String message){
+    protected ChatBubblePane(Object message){
 
         var currentUser = UserInfoContext.getCurrentUser();
 
@@ -117,8 +164,20 @@ public class ChatBubblePane extends HBox {
 
     }
 
-    public ChatBubblePane(String sender, String message) {
-        init(message, sender, false);
+    public ChatBubblePane(String sender, Object message) {
+        if (sender == null || sender.isEmpty() || sender.equals(UserInfoContext.getCurrentUser().getUsername())){
+            var currentUser = UserInfoContext.getCurrentUser();
+
+            this.sender = currentUser.getUsername();
+
+            init(message, sender, true);
+        }
+
+        else{
+            this.sender = sender;
+            init(message, sender, false);
+
+        }
     }
 
 
@@ -133,12 +192,12 @@ public class ChatBubblePane extends HBox {
         textArea.setPrefHeight(newHeight);
     }
 
-    private void adjustTextAreaHeight(InlineCssTextArea textArea) {
-        Platform.runLater(() -> {
-            double textHeight = computeTextHeight(textArea);
-            textArea.setPrefHeight(textHeight); // 设置合适的高度
-        });
-    }
+//    private void adjustTextAreaHeight(InlineCssTextArea textArea) {
+//        Platform.runLater(() -> {
+//            double textHeight = computeTextHeight(textArea);
+//            textArea.setPrefHeight(textHeight); // 设置合适的高度
+//        });
+//    }
 
     /**
      * 计算 InlineCssTextArea 需要的高度

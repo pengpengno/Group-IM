@@ -16,11 +16,14 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
-public class FoldableStyledArea extends GenericStyledArea<ParStyle, Either<String, LinkedImage>, TextStyle> {
+/**
+ * 富文本 消息 文本编辑框
+ */
+public class RichTextMessageArea extends GenericStyledArea<ParStyle, Either<String, LinkedImage>, TextStyle> {
     private final static TextOps<String, TextStyle> styledTextOps = SegmentOps.styledTextOps();
     private final static LinkedImageOps<TextStyle> linkedImageOps = new LinkedImageOps<>();
 
-    public FoldableStyledArea()
+    public RichTextMessageArea()
     {
         super(
             ParStyle.EMPTY,                                                 // default paragraph style
@@ -35,6 +38,7 @@ public class FoldableStyledArea extends GenericStyledArea<ParStyle, Either<Strin
                 Codec.styledSegmentCodec(Codec.eitherCodec(Codec.STRING_CODEC,
                                 LinkedImage.codec()),
                         TextStyle.CODEC));
+
         this.setParagraphGraphicFactory( new BulletFactory( this ) );  // and folded paragraph indicator
     }
 

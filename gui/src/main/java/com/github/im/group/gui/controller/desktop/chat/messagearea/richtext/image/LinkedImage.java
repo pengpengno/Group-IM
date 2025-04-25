@@ -51,6 +51,10 @@ public interface LinkedImage {
     }
 
 
+    default Image getImage() {
+        return null;
+    }
+
 
     static <S> Codec<LinkedImage> codec() {
         return new Codec<LinkedImage>() {
@@ -91,6 +95,10 @@ public interface LinkedImage {
                 }
             }
         };
+    }
+
+    default public byte[] getBytes(){
+        return new byte[0];
     }
 
     boolean isReal();

@@ -24,7 +24,17 @@ public class UserInfoContext {
 
     private static final Sinks.Many<UserInfo> userInfoSink  = Sinks.many().multicast().onBackpressureBuffer();;
 
+    private static UserInfo userInfo;
+    private static Account.AccountInfo accountInfo;
 
+
+    static {
+        userInfoSink.asFlux()
+                .subscribe(userInfo -> {
+                    UserInfoContext.userInfo = userInfo;
+                    accountInfo = getAccountInfo(userInfo);
+                });
+    }
     // 设置当前用户
     public static void setCurrentUser(UserInfo user) {
         currentUserThreadLocal.set(user);
@@ -46,19 +56,20 @@ public class UserInfoContext {
 
     public static Account.AccountInfo getAccountInfo() {
 
+        return accountInfo;
+//        return Optional.ofNullable(getCurrentUser()).map(userInfo -> getAccountInfo(userInfo)).orElse( Account.AccountInfo.newBuilder().build());
 
-        return Optional.ofNullable(getCurrentUser()).map(userInfo -> {
-            // 获取当前用户信息
-            // ...
-            Account.AccountInfo accountInfo = Account.AccountInfo.newBuilder()
-                    .setUserId(userInfo.getUserId())
-                    .setAccount(userInfo.getUsername())
-                    .setAccountName(userInfo.getUsername())
-                    .setEMail(userInfo.getEmail())
-                    .build();
-            return accountInfo;
-        }).orElse( Account.AccountInfo.newBuilder().build());
+    }
 
+    private  static Account.AccountInfo getAccountInfo(UserInfo userInfo) {
+        // 获取当前用户信息
+        Account.AccountInfo accountInfo = Account.AccountInfo.newBuilder()
+                .setUserId(userInfo.getUserId())
+                .setAccount(userInfo.getUsername())
+                .setAccountName(userInfo.getUsername())
+                .setEMail(userInfo.getEmail())
+                .build();
+        return accountInfo;
     }
 
     // 清除当前用户

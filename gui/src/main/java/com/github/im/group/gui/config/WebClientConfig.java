@@ -90,6 +90,13 @@ public class WebClientConfig {
         return webClient.createClient(ConversationEndpoint.class);
     }
 
+    @Bean
+    @ConditionalOnMissingBean(FileEndpoint.class)
+    public FileEndpoint fileEndpoint(@Autowired HttpServiceProxyFactory webClient) {
+        return webClient.createClient(FileEndpoint.class);
+    }
+
+
 
 
 }

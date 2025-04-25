@@ -19,11 +19,11 @@ import java.util.function.IntFunction;
 
 public class BulletFactory implements IntFunction<Node>
 {
-    private FoldableStyledArea area;
+    private RichTextMessageArea area;
 
     private static final Font DEFAULT_FONT = Font.font("monospace", FontPosture.ITALIC, 13);
 
-    public BulletFactory( FoldableStyledArea area )
+    public BulletFactory( RichTextMessageArea area )
     {
         area.getParagraphs().sizeProperty().addListener( (ob,ov,nv) -> {
             if ( nv <= ov ) Platform.runLater( () -> deleteParagraphCheck() );

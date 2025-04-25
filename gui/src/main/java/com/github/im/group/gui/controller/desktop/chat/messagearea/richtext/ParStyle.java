@@ -15,7 +15,7 @@ import static javafx.scene.text.TextAlignment.*;
 /**
  * Holds information about the style of a paragraph.
  */
-class ParStyle {
+public class ParStyle {
 
     public static final ParStyle EMPTY = new ParStyle();
 

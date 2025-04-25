@@ -31,6 +31,15 @@ import reactor.core.publisher.Mono;
 @Component
 public class WebClientFilter implements ExchangeFilterFunction {
 
+
+    private UserInfo currentUser ;
+
+
+    public WebClientFilter() {
+        UserInfoContext.subscribeUserInfoSink().subscribe(userInfo -> {
+            currentUser = userInfo;
+        });
+    }
     @Override
     public ExchangeFilterFunction andThen(ExchangeFilterFunction afterFilter) {
         return ExchangeFilterFunction.super.andThen(afterFilter);
@@ -44,7 +53,7 @@ public class WebClientFilter implements ExchangeFilterFunction {
     @Override
     public Mono<ClientResponse> filter(ClientRequest request, ExchangeFunction next) {
 
-        var currentUser = UserInfoContext.getCurrentUser();// 从上下文获取 token
+//        var currentUser = UserInfoContext.getCurrentUser();// 从上下文获取 token
 
         if (currentUser != null) {
             var token = currentUser.getToken();

@@ -1,8 +1,11 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image;
 
+import com.github.im.group.gui.util.ImageUtil;
 import javafx.scene.Node;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+
+import java.io.IOException;
 
 
 /**
@@ -12,6 +15,8 @@ import javafx.scene.image.ImageView;
 public class StreamImage implements LinkedImage {
 
     private final Image image;
+
+    private String format;
 
     private byte[] imageData;
 
@@ -39,6 +44,19 @@ public class StreamImage implements LinkedImage {
         return String.format("StreamImage[path=%s]", "");
     }
 
+
+    @Override
+    public byte[] getBytes() {
+        if(imageData == null){
+            try {
+                imageData = ImageUtil.imageToBytes(image,"png");
+            } catch (IOException e) {
+                return null;
+            }
+        }
+        return imageData;
+    }
+
     @Override
     public Node createNode() {
         ImageView imageView = new ImageView(image);
@@ -46,7 +64,8 @@ public class StreamImage implements LinkedImage {
         imageView.setPreserveRatio(true);
 
         imageView.setOnMouseClicked(event-> {
-            // 双击放大查看
+            //TODO  双击放大查看
+
         });
 
         return imageView;

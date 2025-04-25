@@ -83,4 +83,7 @@ enum MessageType{
 
   VIDEO = 3 ;
 
+  IMAGE = 6;
+
+
 }

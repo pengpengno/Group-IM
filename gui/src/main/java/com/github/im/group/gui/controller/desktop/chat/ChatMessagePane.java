@@ -1,14 +1,19 @@
 package com.github.im.group.gui.controller.desktop.chat;
 
+import com.alibaba.ttl.threadpool.agent.internal.javassist.bytecode.ByteArray;
 import com.github.im.common.connect.connection.client.ClientToolkit;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.dto.session.MessageDTO;
 import com.github.im.dto.user.UserInfo;
+import com.github.im.enums.MessageType;
+import com.github.im.group.gui.api.FileEndpoint;
 import com.github.im.group.gui.api.MessageEndpoint;
 import com.github.im.group.gui.connect.handler.EventBus;
 import com.github.im.group.gui.context.UserInfoContext;
-import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.FoldableStyledArea;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.RichTextMessageArea;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image.LinkedImage;
+import com.github.im.group.gui.util.ImageUtil;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXScrollPane;
 import io.github.palexdev.materialfx.enums.ButtonType;
@@ -28,20 +33,29 @@ import javafx.scene.layout.VBox;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.fxmisc.richtext.GenericStyledArea;
-import org.fxmisc.richtext.InlineCssTextArea;
-import org.fxmisc.richtext.model.ReadOnlyStyledDocument;
 import org.reactfx.util.Either;
 import org.springframework.context.annotation.Scope;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StreamUtils;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
-import java.util.List;
-import java.util.Objects;
-import java.util.ResourceBundle;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.*;
 
 /**
  * Description: ChatMessagePane for every  conversation , every one is  independent.
@@ -79,12 +93,17 @@ public class ChatMessagePane extends BorderPane implements Initializable {
     private SendMessagePane sendMessagePane;
 
 //    private InlineCssTextArea messageSendArea; // message send area
-    private FoldableStyledArea messageSendArea; // message send area
+    private RichTextMessageArea messageSendArea; // message send area
 
     private final EventBus bus;
 
     private final MessageEndpoint messageEndpoint;
+    private final FileEndpoint fileEndpoint;
 
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
+
+    }
 
 
     /**
@@ -141,22 +160,100 @@ public class ChatMessagePane extends BorderPane implements Initializable {
 
 
 
+
     /**
-     * receive chat message Event
-     * @return chat message event mono
+     * 1. 订阅 EventBus，按 conversationId 过滤，串行处理每条消息
      */
-    public Mono<Void>  receiveChatMessageEvent() {
-        return bus.asFlux().ofType(Chat.ChatMessage.class )
-                .filter(chatmessage -> Objects.equals(chatmessage.getConversationId(), getConversationId()))
-                .doOnNext(chatmessage -> {
-                    var fromAccountInfo = chatmessage.getFromAccountInfo();
-                    var account = fromAccountInfo.getAccount();
-                    addMessageBubble(account, chatmessage.getContent()); // 添加消息气泡
-                })
-                .then()
-                ;
+    public Mono<Void> receiveChatMessageEvent() {
+        return bus.asFlux()
+                .ofType(Chat.ChatMessage.class)
+                .filter(cm -> Objects.equals(cm.getConversationId(), getConversationId()))
+                .concatMap(this::handleIncomingChatMessage)
+                .then();
     }
 
+    /**
+     * 2. 路由到不同类型处理
+     */
+    private Mono<Void> handleIncomingChatMessage(Chat.ChatMessage cm) {
+        String sender = cm.getFromAccountInfo().getAccount();
+        switch (cm.getType()) {
+            case TEXT:
+                return showTextBubble(sender, cm.getContent());
+            case STREAM:
+            case VIDEO:
+                return showResourceBubble(sender, cm.getContent());
+            default:
+                return Mono.empty();  // 未知类型忽略
+        }
+    }
+
+    /**
+     * 3a. 文本消息：直接在 UI 线程添加气泡
+     */
+    private Mono<Void> showTextBubble(String sender, String text) {
+        return Mono.fromRunnable(() ->
+                Platform.runLater(() -> {
+                    addMessageBubble(sender, text);
+                    scrollPane.setVvalue(1.0);
+                })
+        );
+    }
+
+    /**
+     * 3b. 资源消息（图片/视频）：下载 → 转 Image → UI 显示 → 本地保存
+     */
+    private Mono<Void> showResourceBubble(String sender, String fileId) {
+        UUID id = UUID.fromString(fileId);
+
+        return fileEndpoint.downloadFile(id)                      // Mono<ResponseEntity<Resource>>
+                .flatMap(response -> {
+                    Resource res = response.getBody();
+                    if (res == null) return Mono.empty();
+
+                    // 3b-1. 取文件名、类型、长度
+                    HttpHeaders headers = response.getHeaders();
+                    String filename = Optional.ofNullable(headers.getContentDisposition())
+                            .map(ContentDisposition::getFilename)
+                            .orElse(id.toString());
+                    MediaType mime = headers.getContentType();
+                    long length = headers.getContentLength();
+
+                    // 3b-2. 异步转为 JavaFX Image
+                    Mono<Image> imageMono = Mono.fromCallable(() -> {
+                        byte[] bytes = StreamUtils.copyToByteArray(res.getInputStream());
+                        return ImageUtil.bytesToImage(bytes);
+                    }).subscribeOn(Schedulers.boundedElastic());
+
+                    // 3b-3. UI 显示气泡
+                    Mono<Void> uiMono = imageMono.doOnNext(img ->
+                            Platform.runLater(() -> {
+                                addMessageBubble(sender, img);
+                                scrollPane.setVvalue(1.0);
+                            })
+                    ).then();
+
+                    // 3b-4. 后台写盘
+                    Mono<Void> saveMono = Mono.fromRunnable(() -> {
+                        Path target = Paths.get("downloads", filename);
+                        try {
+                            Files.createDirectories(target.getParent());
+                            try (InputStream in = res.getInputStream()) {
+                                Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+                            }
+                        } catch (IOException ex) {
+                            log.warn("下载文件保存失败: {}", filename, ex);
+                        }
+                    }).subscribeOn(Schedulers.boundedElastic()).then();
+
+                    // 3b-5. 串联显示与保存
+                    return uiMono.then(saveMono);
+                })
+                .onErrorResume(err -> {
+                    log.error("资源消息处理失败 fileId=" + fileId, err);
+                    return Mono.empty();
+                });
+    }
     /**
      * 添加消息
      * 此方法用于在用户界面上添加新的消息气泡它首先检查消息的发送者是否是当前用户，
@@ -164,17 +261,22 @@ public class ChatMessagePane extends BorderPane implements Initializable {
      *
      * @param messageDTO 包含消息详细信息的数据传输对象
      */
-    public void addMessage(MessageDTO messageDTO){
-        Platform.runLater(()->{
-            // 判断fromAccountId 是否和当前用户的id
-            if(messageDTO.getFromAccountId().equals(UserInfoContext.getCurrentUser().getUserId())){
-                // 如果是当前用户的id，只添加消息内容的气泡
-                addMessageBubble(messageDTO.getContent());
-            }else{
-                // 如果不是当前用户的id，则添加包含发送者用户名和消息内容的气泡
-                addMessageBubble(messageDTO.getFromAccount().getUsername(), messageDTO.getContent());
-            }
-        });
+    public void addMessage(MessageDTO messageDTO) {
+        handleMessageDTO(messageDTO)
+                .subscribe();  // fire-and-forget
+    }
+
+    private Mono<Void> handleMessageDTO(MessageDTO dto) {
+//        String me = UserInfoContext.getCurrentUser().getUserId().toString();
+        String sender = dto.getFromAccount().getUsername();
+        var content = dto.getContent();
+        if (dto.getType() == MessageType.TEXT) {
+            String text = content;
+            return showTextBubble(sender , text);
+        } else {
+            // 资源消息同上
+            return showResourceBubble(sender,content);
+        }
     }
 
     public void addMessages(List<MessageDTO> messageDTOs){
@@ -183,57 +285,90 @@ public class ChatMessagePane extends BorderPane implements Initializable {
         });
     }
 
+    private Mono<List<Either<String, LinkedImage>>> collectSegments() {
+        var doc = messageSendArea.getDocument();
+        List<Either<String, LinkedImage>> segments = new ArrayList<>();
+        doc.getParagraphs().forEach(par -> par.getSegments().forEach(segments::add));
+        if (segments.isEmpty()) {
+            return Mono.error(new IllegalArgumentException("Message cannot be blank"));
+        }
+        return Mono.just(segments);
+    }
+    private Flux<Void> sendSegmentsSequentially(List<Either<String, LinkedImage>> segments) {
+        return Flux.fromIterable(segments)
+                .concatMap(this::sendSegment);
+    }
+    private Mono<Void> sendSegment(Either<String, LinkedImage> segment) {
+        return segment.isLeft() ? sendTextSegment(segment.getLeft())
+                : sendImageSegment(segment.getRight());
+    }
+
+    private Mono<Void> sendTextSegment(String text) {
+        if (text.isBlank()) return Mono.empty();
+        var msg = Chat.ChatMessage.newBuilder()
+                .setConversationId(getConversationId())
+                .setFromAccountInfo(UserInfoContext.getAccountInfo())
+                .setType(Chat.MessageType.TEXT)
+                .setContent(text)
+                .build();
+
+        var pkg = BaseMessage.BaseMessagePkg.newBuilder().setMessage(msg).build();
+
+        return ClientToolkit.reactiveClientAction()
+                .sendMessage(pkg)
+                .doOnTerminate(() -> Platform.runLater(() -> {
+                    addMessageBubble(text);
+                    scrollPane.setVvalue(1.0);
+                }))
+                .then();
+    }
+    private Mono<Void> sendImageSegment(LinkedImage img) {
+        var uuid = UUID.randomUUID();
+        ByteArrayResource resource = new ByteArrayResource(img.getBytes()) {
+            @Override public String getFilename() { return "image.jpg"; }
+        };
+
+        return fileEndpoint.upload(resource, uuid)
+                .flatMap(resp -> {
+                    var msg = Chat.ChatMessage.newBuilder()
+                            .setConversationId(getConversationId())
+                            .setFromAccountInfo(UserInfoContext.getAccountInfo())
+                            .setType(img.isReal() ? Chat.MessageType.FILE : Chat.MessageType.STREAM)
+                            .setContent(resp.getId().toString())
+                            .build();
+                    var pkg = BaseMessage.BaseMessagePkg.newBuilder().setMessage(msg).build();
+
+                    return ClientToolkit.reactiveClientAction()
+                            .sendMessage(pkg)
+                            .doOnTerminate(() -> Platform.runLater(() -> {
+                                addMessageBubble(img.getImage());
+                                scrollPane.setVvalue(1.0);
+                            }))
+                            .then();
+                });
+    }
+
+
+
+
 
 
     /**
      * 发送消息
-     *
-     * @return
+     * 此处需要作 消息的拆分发送；
+     * 当消息是富文本时 ，需要将 文件、 图片、 视频等资源与文字进行拆分，然后分别发送给服务器。
      */
     private Mono<Void> sendMessage() {
-        // 获取输入消息
-        return Mono.defer(()-> Mono.fromCallable(()->messageSendArea.getText()))
-                .filter(message -> !message.isBlank()) // 过滤空消息
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("Message cannot be blank")))
-                .flatMap(message -> {
-                    // 获取目标用户信息
-                    return Mono.justOrEmpty(getConversationId())
-                            .switchIfEmpty(Mono.error(new IllegalArgumentException("Target Conversation is not selected")))
-                            .map(userInfo -> {
-
-                                var chatMessage = Chat.ChatMessage.newBuilder()
-//                                        .setToAccountInfo(accountInfo)
-                                        .setConversationId(conversationId)
-                                        .setFromAccountInfo(UserInfoContext.getAccountInfo())
-                                        .setContent(message)
-                                        .build();
-                                return BaseMessage.BaseMessagePkg.newBuilder()
-                                        .setMessage(chatMessage)
-                                        .build();
-                            })
-                            .flatMap(baseChatMessage -> {
-                                // 发送消息
-                                return ClientToolkit.reactiveClientAction()
-                                        .sendMessage(baseChatMessage)
-                                        .subscribeOn(Schedulers.boundedElastic()) // 网络请求放入后台线程池
-                                        .doOnSuccess(response -> {
-                                            // 更新 UI
-                                            Platform.runLater(() -> {
-                                                addMessageBubble(message); // 添加消息气泡
-                                                messageSendArea.clear();   // 清空输入框
-                                                scrollPane.setVvalue(1.0); // 滚动到底部
-                                            });
-                                        });
-                            });
-                })
+        return Mono.defer(this::collectSegments)
+                .flatMapMany(this::sendSegmentsSequentially)
                 .then()
+                .doOnSuccess(v -> Platform.runLater(messageSendArea::clear))
                 .onErrorResume(e -> {
-                    log.error("Failed to send message: {}", e.getMessage());
-                    return Mono.empty(); // 忽略错误，或者显示提示
-                })
-                .checkpoint()
-                ;
+                    log.error("Failed to send rich message: {}", e.getMessage(), e);
+                    return Mono.empty();
+                });
     }
+
 
 
     /**
@@ -241,7 +376,7 @@ public class ChatMessagePane extends BorderPane implements Initializable {
      *
      * @param message            The message content
      */
-    private  void addMessageBubble( String message) {
+    private  void addMessageBubble(Object message) {
         Platform.runLater(() -> messageDisplayArea.getChildren().add(new ChatBubblePane(message)));
     }
 
@@ -250,23 +385,20 @@ public class ChatMessagePane extends BorderPane implements Initializable {
      * @param sender message sender
      * @param message  message content
      */
-    private void addMessageBubble( String sender , String message) {
+    private void addMessageBubble( String sender , Object message) {
         Platform.runLater(() -> messageDisplayArea.getChildren().add(new ChatBubblePane(sender,message)));
     }
 
 
-
-
-
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
-
-    }
-
     @PostConstruct
     public void initialize() {
         // 监听聊天消息事件
-        receiveChatMessageEvent().subscribe();
+        receiveChatMessageEvent()
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                        null,
+                        err -> log.error("消息接收流程异常", err)
+                );;
 
 
         // Initialize message display area
@@ -275,32 +407,10 @@ public class ChatMessagePane extends BorderPane implements Initializable {
 
 
         // Initialize send message area
-        messageSendArea = new FoldableStyledArea();
+        messageSendArea = new RichTextMessageArea();
 
 
         // 粘贴监听
-        messageSendArea.setOnKeyPressed(event -> {
-
-//            Clipboard clipboard = Clipboard.getSystemClipboard();
-            switch (event.getCode()) {
-                case V:
-                    if (event.isControlDown()) {
-                        Clipboard clipboard = Clipboard.getSystemClipboard();
-                        if (clipboard.hasImage()) {
-                            Image image = clipboard.getImage();
-                            ImageView imageView = new ImageView(image);
-                            imageView.setFitWidth(200);
-
-                            imageView.setPreserveRatio(true);
-                            this.messageSendArea.insertImage(image);
-
-                        }
-                    }
-                    break;
-            }
-        });
-
-
         messageSendArea.setOnKeyReleased(event -> {
             if (event.isControlDown() && event.getCode() == KeyCode.V) {
                 Clipboard clipboard = Clipboard.getSystemClipboard();

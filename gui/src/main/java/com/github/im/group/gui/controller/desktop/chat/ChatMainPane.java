@@ -285,7 +285,8 @@ public class ChatMainPane extends GridPane implements Initializable {
 
 
 
-        UserInfoContext.subscribeUserInfoSink().flatMap(this::loadConversation).subscribe();
+        UserInfoContext.subscribeUserInfoSink()
+                .flatMap(this::loadConversation).subscribe();
 
 
     }

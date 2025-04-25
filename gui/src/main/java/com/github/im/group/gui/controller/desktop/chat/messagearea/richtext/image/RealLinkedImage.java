@@ -16,6 +16,8 @@ public class RealLinkedImage implements LinkedImage {
 
     private final String imagePath;
 
+    private Image image;
+
     /**
      * Creates a new linked image object.
      *
@@ -31,6 +33,11 @@ public class RealLinkedImage implements LinkedImage {
         }
 
         this.imagePath = imagePath;
+    }
+
+    @Override
+    public Image getImage() {
+        return image;
     }
 
     @Override
@@ -51,7 +58,7 @@ public class RealLinkedImage implements LinkedImage {
     @Override
     public Node createNode() {
         Image image = new Image("file:" + imagePath); // XXX: No need to create new Image objects each time -
-                                                      // could be cached in the model layer
+        this.image =       image ;                       // could be cached in the model layer
         return new ImageView(image);
     }
 }
