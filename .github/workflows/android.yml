@@ -62,11 +62,11 @@ jobs:
         run: cp -r gui/target/gluonfx/aarch64-android/gvm/*.apk staging
 
 #        run: cp -r target/gluonfx/aarch64-android/gvm/HelloGluon.* staging
-      - name: Delete Old Artifacts
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh api repos/pengpengno/Group/actions/artifacts --method DELETE
+#      - name: Delete Old Artifacts
+#        env:
+#          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        run: |
+#          gh api repos/pengpengno/Group/actions/artifacts --method DELETE
 
       - name: Upload
         uses: actions/upload-artifact@v4
