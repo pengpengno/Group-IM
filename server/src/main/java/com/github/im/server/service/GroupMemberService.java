@@ -1,14 +1,13 @@
     package com.github.im.server.service;
 
     import com.github.im.server.model.Conversation;
-    import com.github.im.server.model.GroupMember;
+    import com.github.im.server.model.ConversationMember;
     import com.github.im.server.model.User;
     import com.github.im.server.repository.ConversationRepository;
     import com.github.im.server.repository.GroupMemberRepository;
     import jakarta.validation.constraints.NotEmpty;
     import jakarta.validation.constraints.NotNull;
     import lombok.RequiredArgsConstructor;
-    import org.springframework.beans.factory.annotation.Autowired;
     import org.springframework.stereotype.Service;
     import org.springframework.transaction.annotation.Transactional;
     import org.springframework.validation.annotation.Validated;
@@ -34,7 +33,7 @@
          * @param ConversationId 群组ID
          * @return 群组成员列表
          */
-        public List<GroupMember> getMembersByConversationId(Long ConversationId) {
+        public List<ConversationMember> getMembersByConversationId(Long ConversationId) {
             return groupMemberRepository.findByConversationId(ConversationId);
         }
 
@@ -43,7 +42,7 @@
          * @param userId 用户ID
          * @return 用户的群组成员列表
          */
-        public List<GroupMember> getGroupsByUserId(Long userId) {
+        public List<ConversationMember> getGroupsByUserId(Long userId) {
             return groupMemberRepository.findByUserId(userId);
         }
 
@@ -53,7 +52,7 @@
          * @param userId 用户ID
          * @return 成员信息
          */
-        public Optional<GroupMember> getMemberByGroupIdAndUserId(Long ConversationId, Long userId) {
+        public Optional<ConversationMember> getMemberByGroupIdAndUserId(Long ConversationId, Long userId) {
             return groupMemberRepository.findByConversationIdAndUserId(ConversationId, userId);
         }
 
@@ -65,10 +64,10 @@
          * @return 添加后的群组成员
          */
         @Transactional
-        public GroupMember addMemberToGroup(@NotNull(message = "Group ID cannot be null") Long groupId,
-                                            @NotNull(message = "add memberUserid not be null" )Long userId) {
+        public ConversationMember addMemberToGroup(@NotNull(message = "Group ID cannot be null") Long groupId,
+                                                   @NotNull(message = "add memberUserid not be null" )Long userId) {
 
-            var groupMember = GroupMember.builder()
+            var groupMember = ConversationMember.builder()
                     .conversation(Conversation.builder().conversationId(groupId).build())
                     .user(User.builder().userId(userId).build())
                     .joinedAt(LocalDateTime.now())
@@ -91,15 +90,15 @@
                     .orElseThrow(() -> new IllegalArgumentException("Group not found"));
 
             // 批量保存用户成员
-            List<GroupMember> groupMembers = userIds.stream()
-                    .map(userId -> GroupMember.builder()
+            List<ConversationMember> conversationMembers = userIds.stream()
+                    .map(userId -> ConversationMember.builder()
                             .conversation(group)
                             .user(User.builder().userId(userId).build()).build())
                     .collect(Collectors.toList());
 
-            groupMemberRepository.saveAll(groupMembers); // 批量保存成员
+            groupMemberRepository.saveAll(conversationMembers); // 批量保存成员
 
-            return groupMembers.size();  // 返回添加的成员数量
+            return conversationMembers.size();  // 返回添加的成员数量
         }
 
         /**
@@ -110,7 +109,7 @@
          */
         @Transactional
         public void removeMemberFromGroup(Long groupId, Long userId) {
-            Optional<GroupMember> groupMemberOptional = groupMemberRepository.findByConversationIdAndUserId(groupId, userId);
+            Optional<ConversationMember> groupMemberOptional = groupMemberRepository.findByConversationIdAndUserId(groupId, userId);
             groupMemberOptional.ifPresent(groupMember -> groupMemberRepository.delete(groupMember));
         }
 

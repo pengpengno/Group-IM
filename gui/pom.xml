@@ -46,6 +46,12 @@
             <artifactId>spring-boot-starter-hateoas</artifactId>
         </dependency>
 
+        <!-- JavaCV -->
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>javacv-platform</artifactId>
+            <version>1.5.10</version>
+        </dependency>
         <!-- https://mvnrepository.com/artifact/org.springframework.experimental/spring-aot -->
 <!--        <dependency>-->
 <!--            <groupId>org.springframework.experimental</groupId>-->

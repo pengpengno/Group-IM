@@ -30,7 +30,7 @@ public class Conversation {
 
     @OneToMany(mappedBy = "conversation",fetch = FetchType.LAZY)
 //    @ManyToOne(fetch = FetchType.LAZY)
-    private List<GroupMember> members;
+    private List<ConversationMember> members;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)

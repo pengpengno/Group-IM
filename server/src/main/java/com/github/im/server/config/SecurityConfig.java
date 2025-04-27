@@ -70,7 +70,12 @@ public class SecurityConfig  {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/users/register",
-                                "/api/users/login"
+                                "/api/users/login",
+                                "/static/**",
+                                "/socket.io/**",
+                                "/signaling"  , // 信令服务器
+                                "/ws"  , // 信令服务器
+                                "/webrtc/**"   // 信令服务器
                         )
                         .permitAll()
                         .anyRequest()

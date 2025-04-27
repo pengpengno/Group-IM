@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString(exclude = {"conversation", "user"})
-public class GroupMember {
+public class ConversationMember {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,11 +42,11 @@ public class GroupMember {
 
     private LocalDateTime leftAt;
 
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.joinedAt = LocalDateTime.now();
-    }
+//
+//    @PreUpdate
+//    protected void onUpdate() {
+//        this.joinedAt = LocalDateTime.now();
+//    }
 
     @PrePersist
     protected void onPersist() {

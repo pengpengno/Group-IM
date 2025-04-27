@@ -9,6 +9,7 @@ import com.github.im.common.connect.enums.ConnectTypeEnums;
  * @description  connect 系统模块的默认值
  * @date 2023/1/10
  */
+@Deprecated
 public class ConnectionDefaultValue {
 
     private static ConnectTypeEnums DEFAULT_CONNECT_TYPE =  ConnectTypeEnums.TCP;

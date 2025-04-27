@@ -26,9 +26,7 @@ import java.util.stream.Collectors;
  * 实际使用 还是通过 {@code  MessageDispatcher.getInstance()} 来使用即可
  */
 @Slf4j
-//@Component
 public class MessageDispatcher {
-//public class MessageDispatcher implements ApplicationContextAware {
 
 
 

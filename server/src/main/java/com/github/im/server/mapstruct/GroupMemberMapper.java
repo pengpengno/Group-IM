@@ -2,7 +2,7 @@ package com.github.im.server.mapstruct;
 
 import com.github.im.dto.GroupMemberDTO;
 import com.github.im.dto.user.UserInfo;
-import com.github.im.server.model.GroupMember;
+import com.github.im.server.model.ConversationMember;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
@@ -13,18 +13,18 @@ import java.util.List;
 public interface GroupMemberMapper {
     GroupMemberMapper INSTANCE = Mappers.getMapper(GroupMemberMapper.class);
 
-    GroupMemberDTO groupMemberToGroupMemberDTO(GroupMember groupMember);
+    GroupMemberDTO groupMemberToGroupMemberDTO(ConversationMember conversationMember);
 
 
-    GroupMember groupMemberDTOToGroupMember(GroupMemberDTO groupMemberDTO);
+    ConversationMember groupMemberDTOToGroupMember(GroupMemberDTO groupMemberDTO);
 
 
     @Mapping(source = "user.userId", target = "userId")
     @Mapping(source = "user.username", target = "username")
     @Mapping(source = "user.email", target = "email")
-    UserInfo toUserInfo(GroupMember groupMember);
+    UserInfo toUserInfo(ConversationMember conversationMember);
 
-    List<UserInfo> toUserInfoList(List<GroupMember> members);
+    List<UserInfo> toUserInfoList(List<ConversationMember> members);
 
 
 }

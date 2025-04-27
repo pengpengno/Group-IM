@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit;
  * @description
  * @date 2023/2/3
  */
+@Deprecated
 public class ClientThreadPool {
 
     private static ExecutorService executorService;
