@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WebRTC Screen Share Meeting</title>
+    <style>
+        body { font-family: Arial; }
+        #localVideo, #remoteVideo { width: 45%; height: 300px; background: black; }
+    </style>
+</head>
+<body>
+
+<h2>WebRTC Screen Share Meeting</h2>
+
+<div>
+    Room: <input id="roomInput" placeholder="Enter room name" />
+    Name: <input id="nameInput" placeholder="Enter your name" />
+    <button id="joinButton">Join Meeting</button>
+</div>
+
+<br/>
+
+<video id="localVideo" autoplay muted></video>
+<video id="remoteVideo" autoplay></video>
+
+<br/>
+
+<button id="startAudioBtn" disabled>Enable Microphone</button>
+<button id="startScreenBtn" disabled>Start Screen Sharing</button>
+<button id="stopScreenBtn" disabled>Stop Screen Sharing</button>
+<button id="leaveBtn" disabled>Leave Meeting</button>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>WebRTC Conference Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="style.css" rel="stylesheet">
+    <script src="adapter.js"></script>
+    <script src="chatclient.js"></script>
+</head>
+<body>
+
+<div id="login-page">
+    <h2>Enter your username</h2>
+    <input id="name" type="text" maxlength="12" required placeholder="Username">
+    <button onclick="login()">Login</button>
+</div>
+
+<div id="conference-page" class="hidden">
+    <div id="video-section">
+        <div id="main-speaker">
+            <video id="received_video" autoplay playsinline>Received video</video>
+        </div>
+        <div id="other-participants">
+            <video id="local_video" autoplay muted playsinline>Local video</video>
+            <!-- 动态添加更多 participant 窗口 -->
+        </div>
+    </div>
+
+    <div id="bottom-menu">
+<!--        <ul class="userlistbox"></ul>-->
+<!--        <input type="button" id="send" name="send" value="Send" onclick="handleSendButton()" disabled>-->
+
+        <button onclick="toggleMute()">🎤 Mute</button>
+        <button onclick="toggleCamera()">🎥 Video</button>
+        <button onclick="shareScreen()">🖥️ Share Screen</button>
+        <button onclick="invite()">📨 Invite</button>
+        <button onclick="toggleChat()">💬 Chat</button>
+        <button onclick="toggleMemberList()">👥 Members</button>
+        <button onclick="startRecording()">⏺️ Record</button>
+        <button onclick="hangUpCall()">❌ Hang Up</button>
+    </div>
+
+    <div id="sidebar" class="hidden">
+        <div id="chatbox"   class="chatbox hidden">
+            <h3>Chat</h3>
+            <div id="chat-messages"></div>
+            <input id="text" type="text" placeholder="Type a message..." onkeyup="handleKey(event)">
+<!--            <input type="button" id="send" name="send" value="Send" onclick="handleSendButton()" disabled>-->
+
+            <button id="send" onclick="handleSendButton()">Send</button>
+        </div>
+
+        <div id="memberlist" class="hidden">
+            <h3>Members</h3>
+            <ul id="userlist" class ="userlistbox"></ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    let localStream = null;
+    let screenStream = null;
+    let isCameraOn = true;
+    let isSharingScreen = false;
+    // 登录逻辑
+    function login() {
+            const username = document.getElementById('name').value.trim();
+            if (!username) {
+                alert('Username is required!');
+                return;
+            }
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('conference-page').classList.remove('hidden');
+
+            connect(); // 调用 登录
+        }
+
+    function toggleChat() {
+        const sidebar = document.getElementById('sidebar');
+        const chatbox = document.getElementById('chatbox');
+        const memberlist = document.getElementById('memberlist');
+
+        // 显示 sidebar
+        sidebar.style.display = 'block';
+        chatbox.classList.toggle('hidden');
+
+        // 隐藏成员列表
+        memberlist.classList.add('hidden');
+
+        // 如果聊天和成员都隐藏了，则 sidebar 彻底消失
+        checkSidebar();
+    }
+
+        function toggleMemberList() {
+            const sidebar = document.getElementById('sidebar');
+            const memberlist = document.getElementById('memberlist');
+            const chatbox = document.getElementById('chatbox');
+
+            // 显示 sidebar
+            sidebar.style.display = 'block';
+            memberlist.classList.toggle('hidden');
+
+            // 隐藏聊天框
+            chatbox.classList.add('hidden');
+
+<!--            if (!memberlist.classList.contains('hidden')) {-->
+<!--                refreshUserList(); // 更新成员列表-->
+<!--            }-->
+
+            // 如果聊天和成员都隐藏了，则 sidebar 彻底消失
+            checkSidebar();
+        }
+
+        // 检查 sidebar 是否该隐藏
+        function checkSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const chatbox = document.getElementById('chatbox');
+            const memberlist = document.getElementById('memberlist');
+
+            if (chatbox.classList.contains('hidden') && memberlist.classList.contains('hidden')) {
+                sidebar.style.display = 'none'; // 彻底隐藏
+            }
+        }
+
+         // 刷新成员列表
+        function refreshUserList() {
+            const userlist = document.getElementById('userlist');
+            userlist.innerHTML = ''; // 清空列表
+
+            // 假设 allUsers 存储在线用户列表
+            if (typeof allUsers !== 'undefined' && Array.isArray(allUsers)) {
+                // 遍历用户列表
+                allUsers.forEach(username => {
+                    const li = document.createElement('li');
+                    li.textContent = username;
+
+                    // 为当前用户（自己）添加特殊样式
+                    if (username === document.getElementById('name').value.trim()) {
+                        li.classList.add('you');
+                    }
+
+                    userlist.appendChild(li);
+                });
+            } else {
+                const li = document.createElement('li');
+                li.textContent = 'No users online';
+                userlist.appendChild(li);
+            }
+        }
+
+
+        // 以下是按钮对应的基础动作（只是简单示例，可以结合chatclient.js实际完善）
+        function toggleMute() {
+          console.log("Toggling mute...");
+        }
+
+        // 切换摄像头开关
+        async function toggleCamera() {
+            if (!localStream) {
+                await startCamera();
+                isCameraOn = true;
+                return;
+            }
+
+            const videoTrack = localStream.getVideoTracks()[0];
+            if (videoTrack.enabled) {
+                videoTrack.enabled = false;
+                isCameraOn = false;
+            } else {
+                videoTrack.enabled = true;
+                isCameraOn = true;
+            }
+        }
+
+            // 开始屏幕共享
+        async function shareScreen() {
+            if (isSharingScreen) {
+                // 停止共享，恢复摄像头
+                const videoTrack = localStream.getVideoTracks()[0];
+                const sender = myPeerConnection.getSenders().find(s => s.track.kind === 'video');
+                if (sender) {
+                    sender.replaceTrack(videoTrack);
+                }
+                const localVideo = document.getElementById('local_video');
+                localVideo.srcObject = localStream;
+
+                isSharingScreen = false;
+            } else {
+                try {
+                    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                    const screenTrack = screenStream.getVideoTracks()[0];
+                    const localVideo = document.getElementById('local_video');
+                    localVideo.srcObject = screenStream;
+                    // myPeerConnection 如果为空就 不用 共享本地
+                    if (myPeerConnection) {
+                        const sender = myPeerConnection.getSenders().find(s => s.track.kind === 'video');
+                        if (sender) {
+                            sender.replaceTrack(screenTrack);
+                        }
+                    }
+<!--                    const sender = myPeerConnection.getSenders().find(s => s.track.kind === 'video');-->
+<!--                    if (sender) {-->
+<!--                        sender.replaceTrack(screenTrack);-->
+<!--                    }-->
+
+
+
+                    // 监听停止共享事件
+                    screenTrack.onended = () => {
+                        shareScreen(); // 自动恢复摄像头
+                    };
+
+                    isSharingScreen = true;
+                } catch (e) {
+                    console.error('Error sharing screen', e);
+                }
+            }
+        }
+
+<!--        function invite() {-->
+<!--          const inviteLink = window.location.href;-->
+<!--          navigator.clipboard.writeText(inviteLink);-->
+<!--          alert("Invitation link copied to clipboard!");-->
+<!--        }-->
+
+        function startRecording() {
+          console.log("Starting recording...");
+        }
+        function hangUpCall() {
+          console.log("Hanging up...");
+        }
+
+
+    // 启用本地摄像头流
+    async function startCamera() {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            const localVideo = document.getElementById('local_video');
+            localVideo.srcObject = localStream;
+
+            // 如果有Peer连接，替换视频轨道
+            if (myPeerConnection) {
+                const videoTrack = localStream.getVideoTracks()[0];
+                const sender = myPeerConnection.getSenders().find(s => s.track.kind === 'video');
+                if (sender) {
+                    sender.replaceTrack(videoTrack);
+                }
+            }
+        } catch (e) {
+            console.error('Error accessing camera', e);
+        }
+    }
+</script>
+
+<style>
+    /* 临时放一版简洁版CSS，style.css里也可以分出去 */
+    .hidden { display: none; }
+    #video-section {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 10px;
+    }
+    #main-speaker {
+      flex: 2;
+      background-color: black;
+      position: relative;
+    }
+    #main-speaker video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    #other-participants {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    #other-participants video {
+      width: 100px;
+      height: 75px;
+      object-fit: cover;
+      background-color: black;
+    }
+    #bottom-menu {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #333;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+    #bottom-menu button {
+      background: #555;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    #bottom-menu button:hover {
+      background: #777;
+    }
+    #sidebar {
+      position: fixed;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 300px;
+      background: #f0f0f0;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    /* 成员列表样式 */
+    #userlist li {
+        background-color: #f0f0f0; /* 更温和的背景色 */
+        color: #333; /* 白色字体 */
+        padding: 10px;
+        margin-bottom: 5px;
+        border-radius: 5px;
+        font-size: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    #userlist li.you {
+        background-color: #4caf50; /* 自己的用户名背景色为绿色 */
+        color: white; /* 自己的用户名文字为白色 */
+        font-weight: bold; /* 自己的名字加粗 */
+    }
+
+</style>
+
+</body>
+</html>

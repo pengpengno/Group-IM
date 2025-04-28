@@ -74,7 +74,12 @@ public class SecurityConfig  {
                                 "/static/**",
                                 "/socket.io/**",
                                 "/signaling"  , // 信令服务器
+                                "/ws/**"  , // 信令服务器
+                                "/ws/*"  , // 信令服务器
+                                "/meeting/**"  , // 信令服务器
                                 "/ws"  , // 信令服务器
+                                "/rtc"  , // 信令服务器
+                                "/rtc/*"  , // 信令服务器
                                 "/webrtc/**"   // 信令服务器
                         )
                         .permitAll()

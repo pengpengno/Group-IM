@@ -1,0 +1,28 @@
+@startuml
+participant "Client A" as A
+participant "Signaling Server" as Signaling
+participant "TURN Server" as TURN
+participant "Client B" as B
+
+A -> Signaling : Send Offer (SDP)
+Signaling -> B : Deliver Offer (SDP)
+
+B -> Signaling : Send Answer (SDP)
+Signaling -> A : Deliver Answer (SDP)
+
+A -> Signaling : Send ICE Candidate
+Signaling -> B : Deliver ICE Candidate
+
+B -> Signaling : Send ICE Candidate
+Signaling -> A : Deliver ICE Candidate
+
+A -> B : Try Direct PeerConnection
+B -> A : Try Direct PeerConnection
+
+alt "P2P success"
+  A <-> B : Exchange media directly (RTP/SRTP)
+else "P2P failed"
+  A -> TURN : Relay media
+  B -> TURN : Relay media
+end
+@enduml
