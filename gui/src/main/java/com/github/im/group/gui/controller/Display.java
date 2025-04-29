@@ -128,6 +128,7 @@ public class Display   {
         if (!DISPLAY_VIEW_MAP.containsKey(displayClass.getName())){
             registerView(displayClass);
         }
+
         AppManager.getInstance().switchView(displayClass.getName());
     }
     /**

@@ -14,6 +14,7 @@ public class MessageDTO {
     private Long conversationId;  // 会话ID
     private String content;
     private Long fromAccountId;
+    private Long sequenceId;
 
     private UserInfo fromAccount;
 

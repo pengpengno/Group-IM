@@ -28,17 +28,15 @@
     </div>
 
     <div id="bottom-menu">
-<!--        <ul class="userlistbox"></ul>-->
-<!--        <input type="button" id="send" name="send" value="Send" onclick="handleSendButton()" disabled>-->
-
-        <button onclick="toggleMute()">🎤 Mute</button>
-        <button onclick="toggleCamera()">🎥 Video</button>
-        <button onclick="shareScreen()">🖥️ Share Screen</button>
-        <button onclick="invite()">📨 Invite</button>
-        <button onclick="toggleChat()">💬 Chat</button>
-        <button onclick="toggleMemberList()">👥 Members</button>
-        <button onclick="startRecording()">⏺️ Record</button>
-        <button onclick="hangUpCall()">❌ Hang Up</button>
+        <button onclick="toggleMute()" id="muteButton" class="inactive">🎤 Mute</button>
+        <button onclick="toggleCamera()" id="cameraButton" class="inactive">🎥 Video</button>
+        <button onclick="shareScreen()" id="screenButton" class="inactive">🖥️ Share Screen</button>
+        <button onclick="invite()" id="inviteButton" class="inactive">📨 Invite</button>
+        <button onclick="toggleChat()" id="chatButton" class="inactive">💬 Chat</button>
+        <button onclick="toggleMemberList()" id="membersButton" class="inactive">👥 Members</button>
+        <button onclick="startRecording()" id="recordButton" class="inactive">⏺️ Record</button>
+<!--        <button onclick="hangUpCall()" id="hangup-button" class="inactive">❌ Hang Up</button>-->
+        <button onclick="hangUpCall()" id="hangup-button" class="inactive">❌ Hang Up</button>
     </div>
 
     <div id="sidebar" class="hidden">
@@ -104,9 +102,6 @@
             // 隐藏聊天框
             chatbox.classList.add('hidden');
 
-<!--            if (!memberlist.classList.contains('hidden')) {-->
-<!--                refreshUserList(); // 更新成员列表-->
-<!--            }-->
 
             // 如果聊天和成员都隐藏了，则 sidebar 彻底消失
             checkSidebar();
@@ -199,13 +194,6 @@
                             sender.replaceTrack(screenTrack);
                         }
                     }
-<!--                    const sender = myPeerConnection.getSenders().find(s => s.track.kind === 'video');-->
-<!--                    if (sender) {-->
-<!--                        sender.replaceTrack(screenTrack);-->
-<!--                    }-->
-
-
-
                     // 监听停止共享事件
                     screenTrack.onended = () => {
                         shareScreen(); // 自动恢复摄像头
@@ -217,12 +205,6 @@
                 }
             }
         }
-
-<!--        function invite() {-->
-<!--          const inviteLink = window.location.href;-->
-<!--          navigator.clipboard.writeText(inviteLink);-->
-<!--          alert("Invitation link copied to clipboard!");-->
-<!--        }-->
 
         function startRecording() {
           console.log("Starting recording...");
@@ -330,10 +312,17 @@
 
     #userlist li.you {
         background-color: #4caf50; /* 自己的用户名背景色为绿色 */
-        color: white; /* 自己的用户名文字为白色 */
+        color: black; /* 自己的用户名文字为白色 */
         font-weight: bold; /* 自己的名字加粗 */
     }
 
+    /* 激活和非激活按钮状态 */
+    .active {
+        background-color: #4caf50;
+    }
+    .inactive {
+        background-color: #888;
+    }
 </style>
 
 </body>

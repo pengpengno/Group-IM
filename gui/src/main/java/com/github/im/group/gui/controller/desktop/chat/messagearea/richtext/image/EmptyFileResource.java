@@ -1,9 +1,9 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image;
 
-import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image.LinkedImage;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.FileResource;
 import javafx.scene.Node;
 
-public class EmptyLinkedImage implements LinkedImage {
+public class EmptyFileResource implements FileResource {
 
     @Override
     public boolean isReal() {
@@ -11,7 +11,7 @@ public class EmptyLinkedImage implements LinkedImage {
     }
 
     @Override
-    public String getImagePath() {
+    public String getFilePath() {
         return "";
     }
 

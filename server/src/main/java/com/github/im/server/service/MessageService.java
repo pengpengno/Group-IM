@@ -33,6 +33,8 @@ public class MessageService {
     
     private final MessageMapper messageMapper;
 
+    private final ConversationSequenceService conversationSequenceService;
+
     @PersistenceContext
     private EntityManager entityManager;
 
@@ -52,7 +54,6 @@ public class MessageService {
     // 拉取历史消息
     @Transactional(readOnly = true)
     public Page<MessageDTO> pullHistoryMessages(Long sessionId,  LocalDateTime startTime, LocalDateTime endTime, Pageable pageable) {
-//        return messageRepository.findHistoryMessages(sessionId, startTime, endTime, pageable)
           return messageRepository.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("conversation").get("conversationId"), sessionId));
@@ -83,19 +84,20 @@ public class MessageService {
     }
 
 //    @Transactional
-    public void saveMessage(Chat.ChatMessage chatMessage) {
+    public Message saveMessage(Chat.ChatMessage chatMessage) {
         var message = new Message();
         var proxy = entityManager.getReference(Conversation.class, chatMessage.getConversationId());
         message.setConversation(proxy);
         message.setContent(chatMessage.getContent());
 
         var userProxy = entityManager.getReference(User.class,chatMessage.getFromAccountInfo().getUserId());
-
+        // 生成 会话中的消息序列
+        message.setSequenceId(conversationSequenceService.nextSequence(chatMessage.getConversationId()));
         message.setFromAccountId(userProxy);
         message.setType(EnumsTransUtil.convertMessageType(chatMessage.getType()));
         message.setStatus(MessageStatus.UNREAD);
         message.setTimestamp(LocalDateTime.now());
-        messageRepository.save(message);
+        return messageRepository.save(message);
     }
 
 

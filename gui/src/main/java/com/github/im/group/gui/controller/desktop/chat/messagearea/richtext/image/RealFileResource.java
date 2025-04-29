@@ -1,5 +1,6 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image;
 
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.FileResource;
 import javafx.scene.Node;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -12,7 +13,7 @@ import java.io.File;
  * When rendered in the rich text editor, the image is loaded from the
  * specified file.
  */
-public class RealLinkedImage implements LinkedImage {
+public class RealFileResource implements FileResource {
 
     private final String imagePath;
 
@@ -23,7 +24,7 @@ public class RealLinkedImage implements LinkedImage {
      *
      * @param imagePath The path to the image file.
      */
-    public RealLinkedImage(String imagePath) {
+    public RealFileResource(String imagePath) {
 
         // if the image is below the current working directory,
         // then store as relative path name.
@@ -46,7 +47,7 @@ public class RealLinkedImage implements LinkedImage {
     }
 
     @Override
-    public String getImagePath() {
+    public String getFilePath() {
         return imagePath;
     }
 

@@ -1,6 +1,5 @@
 package com.github.im.group.gui.controller.desktop.chat;
 
-import com.alibaba.ttl.threadpool.agent.internal.javassist.bytecode.ByteArray;
 import com.github.im.common.connect.connection.client.ClientToolkit;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.model.proto.Chat;
@@ -12,7 +11,10 @@ import com.github.im.group.gui.api.MessageEndpoint;
 import com.github.im.group.gui.connect.handler.EventBus;
 import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.RichTextMessageArea;
-import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image.LinkedImage;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.FileResource;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.FileDisplay;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.LocalFileInfo;
+import com.github.im.group.gui.util.ClipboardUtils;
 import com.github.im.group.gui.util.ImageUtil;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXScrollPane;
@@ -24,7 +26,6 @@ import javafx.beans.binding.Bindings;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.AnchorPane;
@@ -33,7 +34,6 @@ import javafx.scene.layout.VBox;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.reactfx.util.Either;
 import org.springframework.context.annotation.Scope;
@@ -48,6 +48,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -90,13 +91,12 @@ public class ChatMessagePane extends BorderPane implements Initializable {
 
     private MFXScrollPane scrollPane; // 消息滚动条
 
-    private SendMessagePane sendMessagePane;
+    private SendMessagePane sendMessagePane;  // 消息发送区域
 
-//    private InlineCssTextArea messageSendArea; // message send area
     private RichTextMessageArea messageSendArea; // message send area
 
-    private final EventBus bus;
 
+    private final EventBus bus;
     private final MessageEndpoint messageEndpoint;
     private final FileEndpoint fileEndpoint;
 
@@ -182,6 +182,8 @@ public class ChatMessagePane extends BorderPane implements Initializable {
                 return showTextBubble(sender, cm.getContent());
             case STREAM:
             case VIDEO:
+            case IMAGE:
+            case FILE:
                 return showResourceBubble(sender, cm.getContent());
             default:
                 return Mono.empty();  // 未知类型忽略
@@ -281,24 +283,32 @@ public class ChatMessagePane extends BorderPane implements Initializable {
 
     public void addMessages(List<MessageDTO> messageDTOs){
         Platform.runLater(()->{
-            messageDTOs.forEach(dto->addMessage(dto));
+            messageDTOs.stream()
+                    .sorted((e1,e2)-> {
+                        if(e1.getSequenceId() != null && e2.getSequenceId() != null){
+                           return e1.getSequenceId().compareTo(e2.getSequenceId());
+                        }else {
+                            return 0;
+                        }
+                    }) // 根据服务端的消息保障时序性
+                    .forEach(dto->addMessage(dto));
         });
     }
 
-    private Mono<List<Either<String, LinkedImage>>> collectSegments() {
+    private Mono<List<Either<String, FileResource>>> collectSegments() {
         var doc = messageSendArea.getDocument();
-        List<Either<String, LinkedImage>> segments = new ArrayList<>();
+        List<Either<String, FileResource>> segments = new ArrayList<>();
         doc.getParagraphs().forEach(par -> par.getSegments().forEach(segments::add));
         if (segments.isEmpty()) {
             return Mono.error(new IllegalArgumentException("Message cannot be blank"));
         }
         return Mono.just(segments);
     }
-    private Flux<Void> sendSegmentsSequentially(List<Either<String, LinkedImage>> segments) {
+    private Flux<Void> sendSegmentsSequentially(List<Either<String, FileResource>> segments) {
         return Flux.fromIterable(segments)
                 .concatMap(this::sendSegment);
     }
-    private Mono<Void> sendSegment(Either<String, LinkedImage> segment) {
+    private Mono<Void> sendSegment(Either<String, FileResource> segment) {
         return segment.isLeft() ? sendTextSegment(segment.getLeft())
                 : sendImageSegment(segment.getRight());
     }
@@ -322,7 +332,7 @@ public class ChatMessagePane extends BorderPane implements Initializable {
                 }))
                 .then();
     }
-    private Mono<Void> sendImageSegment(LinkedImage img) {
+    private Mono<Void> sendImageSegment(FileResource img) {
         var uuid = UUID.randomUUID();
         ByteArrayResource resource = new ByteArrayResource(img.getBytes()) {
             @Override public String getFilename() { return "image.jpg"; }
@@ -409,17 +419,27 @@ public class ChatMessagePane extends BorderPane implements Initializable {
         // Initialize send message area
         messageSendArea = new RichTextMessageArea();
 
-
         // 粘贴监听
         messageSendArea.setOnKeyReleased(event -> {
             if (event.isControlDown() && event.getCode() == KeyCode.V) {
-                Clipboard clipboard = Clipboard.getSystemClipboard();
-                if (clipboard.hasImage()) {
-                    Image image = clipboard.getImage();
-                    if (image != null) {
-                        messageSendArea.insertImage(image); // 你已有的方法
-                        event.consume(); // 阻止默认粘贴行为（可选）
-                    }
+                var imageFromClipboard = ClipboardUtils.getImageFromClipboard();
+                if (imageFromClipboard != null){
+                    messageSendArea.insertImage(imageFromClipboard); // 插入图片
+                    event.consume(); // 阻止默认粘贴行为（可选）
+                }
+
+                var filesFromClipboard = ClipboardUtils.getFilesFromClipboard();
+                final var containsFile = !filesFromClipboard.isEmpty();  //存在文件
+                if (containsFile){
+                    filesFromClipboard.stream().forEach(file -> {
+                        if (file.isFile()){
+                            var localFileInfo = new LocalFileInfo(file.toPath());
+                            var fileDisplay = new FileDisplay(localFileInfo);
+                            messageSendArea.insertFile(fileDisplay); // 插入文件
+                        }
+                    });
+
+
                 }
             }
         });

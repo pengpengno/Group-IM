@@ -64,6 +64,7 @@ public class ChatBubblePane extends HBox {
     private RichTextMessageArea senderTextField;
 
     private ProgressBar progressBar;
+
     private Label statusLabel;
 
     private FileEndpoint fileEndpoint;
@@ -181,23 +182,6 @@ public class ChatBubblePane extends HBox {
     }
 
 
-
-    private static void adjustTextAreaHeight(TextArea textArea) {
-
-        // 计算文本的高度
-        double textHeight = textArea.getFont().getSize() * textArea.getText().split("\n").length + 10;
-
-        // 设置高度（确保在最小和最大高度范围内）
-        double newHeight = Math.min(Math.max(textHeight, textArea.getMinHeight()), textArea.getMaxHeight());
-        textArea.setPrefHeight(newHeight);
-    }
-
-//    private void adjustTextAreaHeight(InlineCssTextArea textArea) {
-//        Platform.runLater(() -> {
-//            double textHeight = computeTextHeight(textArea);
-//            textArea.setPrefHeight(textHeight); // 设置合适的高度
-//        });
-//    }
 
     /**
      * 计算 InlineCssTextArea 需要的高度

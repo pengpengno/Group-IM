@@ -7,6 +7,7 @@ import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.dto.user.UserInfo;
+import com.github.im.server.model.Message;
 import com.github.im.server.service.ConversationService;
 import com.github.im.server.service.MessageService;
 import lombok.RequiredArgsConstructor;
@@ -44,8 +45,16 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
         final var chatMessage = message.getMessage();
 
 
-        // 先将信息 存储
-        messageService.saveMessage(chatMessage);
+
+        var saveMessage = messageService.saveMessage(chatMessage);
+        // 复制一份 用于推送到各个客户端
+        final var newChatMessage = Chat.ChatMessage.newBuilder(chatMessage)
+                .setSequenceId(saveMessage.getSequenceId())
+                .build();
+
+        final var newBaseMessage = BaseMessage.BaseMessagePkg.newBuilder(message)
+                .setMessage(newChatMessage)
+                .build();
 
         var conversationId = chatMessage.getConversationId();
         var membersByGroupId = conversationService.getMembersByGroupId(conversationId);
@@ -57,10 +66,10 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
                         .forEach(member -> {
                     var bindAttr = BindAttr.getBindAttr(member.getUsername());
 
-                    ReactiveConnectionManager.addBaseMessage(bindAttr, message);
+                    ReactiveConnectionManager.addBaseMessage(bindAttr, newBaseMessage);
                 });
             });
-
+//        TODO  1.  QOS ACK 2. Encryption
 
 
     }

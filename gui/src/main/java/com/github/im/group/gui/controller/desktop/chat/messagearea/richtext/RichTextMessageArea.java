@@ -1,6 +1,5 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext;
 
-import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image.LinkedImage;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image.LinkedImageOps;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image.StreamImage;
 import javafx.scene.Node;
@@ -11,6 +10,8 @@ import org.fxmisc.richtext.StyledTextArea;
 import org.fxmisc.richtext.TextExt;
 import org.fxmisc.richtext.model.*;
 import org.reactfx.util.Either;
+
+import java.io.File;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
@@ -19,7 +20,7 @@ import java.util.function.UnaryOperator;
 /**
  * 富文本 消息 文本编辑框
  */
-public class RichTextMessageArea extends GenericStyledArea<ParStyle, Either<String, LinkedImage>, TextStyle> {
+public class RichTextMessageArea extends GenericStyledArea<ParStyle, Either<String, FileResource>, TextStyle> {
     private final static TextOps<String, TextStyle> styledTextOps = SegmentOps.styledTextOps();
     private final static LinkedImageOps<TextStyle> linkedImageOps = new LinkedImageOps<>();
 
@@ -36,17 +37,17 @@ public class RichTextMessageArea extends GenericStyledArea<ParStyle, Either<Stri
         this.setStyleCodecs(
                 ParStyle.CODEC,
                 Codec.styledSegmentCodec(Codec.eitherCodec(Codec.STRING_CODEC,
-                                LinkedImage.codec()),
+                                FileResource.codec()),
                         TextStyle.CODEC));
 
         this.setParagraphGraphicFactory( new BulletFactory( this ) );  // and folded paragraph indicator
     }
 
-    private static Node createNode(StyledSegment<Either<String, LinkedImage>, TextStyle> seg,
+    private static Node createNode(StyledSegment<Either<String, FileResource>, TextStyle> seg,
                                    BiConsumer<? super TextExt, TextStyle> applyStyle ) {
         return seg.getSegment().unify(
                 text -> StyledTextArea.createStyledTextNode(text, seg.getStyle(), applyStyle),
-                LinkedImage::createNode
+                FileResource::createNode
         );
     }
 
@@ -89,8 +90,22 @@ public class RichTextMessageArea extends GenericStyledArea<ParStyle, Either<Stri
      */
     public void insertImage( Image image) {
         if (image != null) {
-            ReadOnlyStyledDocument<ParStyle, Either<String, LinkedImage>, TextStyle> ros =
+            ReadOnlyStyledDocument<ParStyle, Either<String, FileResource>, TextStyle> ros =
                     ReadOnlyStyledDocument.fromSegment(Either.right(new StreamImage(image)),
+                            ParStyle.EMPTY, TextStyle.EMPTY, this.getSegOps());
+            this.replaceSelection(ros);
+        }
+    }
+
+
+    /**
+     * 插入文件
+     * @param file
+     */
+    public void insertFile(FileResource file) {
+        if (file != null) {
+            ReadOnlyStyledDocument<ParStyle, Either<String, FileResource>, TextStyle> ros =
+                    ReadOnlyStyledDocument.fromSegment(Either.right(file),
                             ParStyle.EMPTY, TextStyle.EMPTY, this.getSegOps());
             this.replaceSelection(ros);
         }

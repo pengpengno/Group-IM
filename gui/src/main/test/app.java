@@ -1,3 +1,5 @@
+import com.github.im.group.gui.controller.desktop.chat.messagearea.hyperlink.HyperlinkDemo;
+
 /**
  * Description:
  * <p>
@@ -9,6 +11,6 @@
  */
 public class app {
     public static void main(String[] args) {
-        CameraStreamSender.main(args);
+        HyperlinkDemo.main(args);
     }
 }

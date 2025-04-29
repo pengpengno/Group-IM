@@ -300,11 +300,21 @@ public final class Account {
       com.google.protobuf.MessageOrBuilder {
 
     /**
+     * <pre>
+     * *
+     * {&#64;link UserInfo#getUsername}
+     * </pre>
+     *
      * <code>string account = 1;</code>
      * @return The account.
      */
     java.lang.String getAccount();
     /**
+     * <pre>
+     * *
+     * {&#64;link UserInfo#getUsername}
+     * </pre>
+     *
      * <code>string account = 1;</code>
      * @return The bytes for account.
      */
@@ -397,6 +407,11 @@ public final class Account {
     @SuppressWarnings("serial")
     private volatile java.lang.Object account_ = "";
     /**
+     * <pre>
+     * *
+     * {&#64;link UserInfo#getUsername}
+     * </pre>
+     *
      * <code>string account = 1;</code>
      * @return The account.
      */
@@ -414,6 +429,11 @@ public final class Account {
       }
     }
     /**
+     * <pre>
+     * *
+     * {&#64;link UserInfo#getUsername}
+     * </pre>
+     *
      * <code>string account = 1;</code>
      * @return The bytes for account.
      */
@@ -929,6 +949,11 @@ public final class Account {
 
       private java.lang.Object account_ = "";
       /**
+       * <pre>
+       * *
+       * {&#64;link UserInfo#getUsername}
+       * </pre>
+       *
        * <code>string account = 1;</code>
        * @return The account.
        */
@@ -945,6 +970,11 @@ public final class Account {
         }
       }
       /**
+       * <pre>
+       * *
+       * {&#64;link UserInfo#getUsername}
+       * </pre>
+       *
        * <code>string account = 1;</code>
        * @return The bytes for account.
        */
@@ -962,6 +992,11 @@ public final class Account {
         }
       }
       /**
+       * <pre>
+       * *
+       * {&#64;link UserInfo#getUsername}
+       * </pre>
+       *
        * <code>string account = 1;</code>
        * @param value The account to set.
        * @return This builder for chaining.
@@ -975,6 +1010,11 @@ public final class Account {
         return this;
       }
       /**
+       * <pre>
+       * *
+       * {&#64;link UserInfo#getUsername}
+       * </pre>
+       *
        * <code>string account = 1;</code>
        * @return This builder for chaining.
        */
@@ -985,6 +1025,11 @@ public final class Account {
         return this;
       }
       /**
+       * <pre>
+       * *
+       * {&#64;link UserInfo#getUsername}
+       * </pre>
+       *
        * <code>string account = 1;</code>
        * @param value The bytes for account to set.
        * @return This builder for chaining.

@@ -177,19 +177,35 @@ public class ChatMainPane extends GridPane implements Initializable {
                 });
     }
 
+    /**
+     * 加载历史消息
+     * 根据会话ID加载对应的历史消息如果会话ID为空，则返回空的Mono对象
+     *
+     * @param conversationId 会话ID，用于标识特定的会话
+     * @return 返回Mono<Void>，表示异步操作没有返回值
+     */
     public Mono<Void> loadHistoryMessages(Long conversationId) {
+        // 检查会话ID是否为空，如果为空则返回空的Mono对象
         if(conversationId == null){
             return Mono.empty();
         }
+
+        // 创建消息拉取请求对象，并设置会话ID
         var messagePullRequest = new MessagePullRequest();
         messagePullRequest.setConversationId(conversationId);
+
+        // 获取聊天消息面板
         var chatMessagePane = getChatMessagePane(conversationId);
+
         // TODO 拉取最新消息 msgId 与 本地 对应的MsgId 就视作 已经最新
+
+        // 从消息端点拉取历史消息，并处理消息
         return Mono.fromCallable(() -> messagesEndpoint.pullHistoryMessages(messagePullRequest))
                 .map(PageResult::getContent)
                 .doOnNext(chatMessagePane::addMessages)
-                .then();
-
+                .then()
+                .cache()//缓存这个操作就行了  后续的调用不执行
+                ;
     }
 
 

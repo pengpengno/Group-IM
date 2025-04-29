@@ -21,6 +21,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build jar
+        shell: cmd
+        run: .\mvnw install -DskipTests
+
+
       - name: Make staging directory
         run: mkdir staging
 
@@ -29,9 +34,12 @@ jobs:
         with:
           gluon-license: ${{ secrets.GLUON_LICENSE }}
 
-      - name: Gluon Build and Package
+#      - name: Gluon Build and Package
+#        shell: cmd
+#        run: .\mvnw -Pdesktop gluonfx:build gluonfx:package
+      - name: Gluon Build
         shell: cmd
-        run: .\mvnw -Pdesktop gluonfx:build gluonfx:package
+        run: .\mvnw -Pdesktop gluonfx:build gluonfx:link gluonfx:package -f gui/pom.xml -DskipTests
 
       - name: Copy native bundles to staging
         run: |

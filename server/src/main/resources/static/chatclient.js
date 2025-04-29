@@ -423,6 +423,11 @@ function handleUserlistMsg(msg) {
   msg.users.forEach(function(username) {
     var item = document.createElement("li");
     item.appendChild(document.createTextNode(username));
+
+    // 为当前用户添加 .you 类以实现高亮显示
+    if (username === document.getElementById('name').value.trim()) {
+      item.classList.add('you');
+    }
     item.addEventListener("click", invite, false);
 
     listElem.appendChild(item);

@@ -21,6 +21,11 @@ public class BindAttr<T> {
         return attr;
     }
 
+    /**
+     * 构造用于与 连接 绑定的对象
+     * @param account
+     * @return BindAttr
+     */
     public static BindAttr<String> getBindAttr(String account) {
         return getBindAttr(account,PlatformType.DESKTOP);
     }

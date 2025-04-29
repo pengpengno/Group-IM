@@ -36,6 +36,8 @@ public class Conversation {
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
 
+
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
