@@ -1,6 +1,8 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image;
 
-import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.FileResource;
+import cn.hutool.core.io.file.FileNameUtil;
+import com.github.im.common.connect.model.proto.Chat;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.MessageNode;
 import javafx.scene.Node;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -13,18 +15,24 @@ import java.io.File;
  * When rendered in the rich text editor, the image is loaded from the
  * specified file.
  */
-public class RealFileResource implements FileResource {
+public class SystemPathImage implements MessageNode {
 
     private final String imagePath;
 
     private Image image;
+
+
+    @Override
+    public String getDescription() {
+        return FileNameUtil.getName(imagePath);
+    }
 
     /**
      * Creates a new linked image object.
      *
      * @param imagePath The path to the image file.
      */
-    public RealFileResource(String imagePath) {
+    public SystemPathImage(String imagePath) {
 
         // if the image is below the current working directory,
         // then store as relative path name.
@@ -36,14 +44,11 @@ public class RealFileResource implements FileResource {
         this.imagePath = imagePath;
     }
 
-    @Override
-    public Image getImage() {
-        return image;
-    }
+
 
     @Override
-    public boolean isReal() {
-        return true;
+    public Chat.MessageType getType() {
+        return Chat.MessageType.IMAGE;
     }
 
     @Override
@@ -59,7 +64,7 @@ public class RealFileResource implements FileResource {
     @Override
     public Node createNode() {
         Image image = new Image("file:" + imagePath); // XXX: No need to create new Image objects each time -
-        this.image =       image ;                       // could be cached in the model layer
+        this.image =  image ;                       // could be cached in the model layer
         return new ImageView(image);
     }
 }

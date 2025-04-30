@@ -1,4 +1,11 @@
 spring:
+  webflux:
+    multipart:
+      max-in-memory-size: 10MB   # 超过这个大小的内容将写入磁盘临时文件
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
   thymeleaf:
     cache: false  # 开发环境禁用环境，便于调试
   resources:

@@ -32,7 +32,6 @@ import java.util.ResourceBundle;
  */
 
 @Component
-//public class AbstractMenuButton extends MFXRectangleToggleNode  implements MenuButton, ApplicationContextAware {
 public class AbstractMenuButton extends MFXRectangleToggleNode  implements MenuButton, ApplicationContextAware {
 
     static final ResourceBundle menuBundle = ResourceBundle.getBundle("i18n.menu.button");

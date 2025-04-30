@@ -63,9 +63,6 @@ public class MobileLoginView implements LoginView {
                     log.error("Login attempt failed", throwable);
                 }).block()
                 ;
-
-//        loginLifecycle.loginCallBack(userInfo);
-
     }
 
 

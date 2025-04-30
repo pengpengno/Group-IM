@@ -61,8 +61,6 @@ public class MobileMainHomeView {
     @FXML
     public void initialize() {
         // 加载好友列表并设置到主界面
-//        chatMainPane.loadFriendList();
-//        rootpane.setCenter(chatMainPane);
 
         // 关闭窗口
         closeIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> Platform.exit());

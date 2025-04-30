@@ -38,12 +38,6 @@ public class ChatButton extends AbstractMenuButton {
         });
 
 
-//        this.addEventHandler(ActionEvent.ACTION ,event -> {
-//            log.info("ActionEvent.ACTION ");
-//            trigger();
-//
-//        });
-
     }
 
     private void trigger() {

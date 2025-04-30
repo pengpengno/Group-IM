@@ -1,18 +1,23 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image;
 
-import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.FileResource;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.MessageNode;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.FileNode;
 import org.fxmisc.richtext.model.NodeSegmentOpsBase;
 
 
-public class LinkedImageOps<S> extends NodeSegmentOpsBase<FileResource, S> {
+public class LinkedImageOps<S> extends NodeSegmentOpsBase<MessageNode, S> {
 
     public LinkedImageOps() {
-        super(new EmptyFileResource());
+        super(new EmptyMessageNode());
     }
 
     @Override
-    public int length(FileResource fileResource) {
-        return fileResource.isReal() ? 1 : 0;
+    public int length(MessageNode mDefaultNode) {
+        if (mDefaultNode instanceof  EmptyMessageNode){
+            return 0;
+        }
+
+        return 1;
     }
 
 }

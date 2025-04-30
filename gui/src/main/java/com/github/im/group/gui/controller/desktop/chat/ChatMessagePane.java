@@ -4,18 +4,23 @@ import com.github.im.common.connect.connection.client.ClientToolkit;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.dto.session.MessageDTO;
+import com.github.im.dto.session.MessagePayLoad;
 import com.github.im.dto.user.UserInfo;
-import com.github.im.enums.MessageType;
 import com.github.im.group.gui.api.FileEndpoint;
 import com.github.im.group.gui.api.MessageEndpoint;
 import com.github.im.group.gui.connect.handler.EventBus;
 import com.github.im.group.gui.context.UserInfoContext;
+import com.github.im.group.gui.controller.desktop.MessageWrapper;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.RichTextMessageArea;
-import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.FileResource;
-import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.FileDisplay;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.MessageNode;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.FileNode;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.LocalFileInfo;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.RemoteFileInfo;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.RemoteFileService;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image.StreamImage;
+import com.github.im.group.gui.controller.desktop.menu.impl.ChatButton;
 import com.github.im.group.gui.util.ClipboardUtils;
-import com.github.im.group.gui.util.ImageUtil;
+import com.github.im.group.gui.util.PathFileUtil;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXScrollPane;
 import io.github.palexdev.materialfx.enums.ButtonType;
@@ -25,37 +30,33 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
-import javafx.scene.image.Image;
-import javafx.scene.input.Clipboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.reactfx.util.Either;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Scope;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.Resource;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StreamUtils;
+import org.springframework.web.reactive.function.BodyExtractors;
+import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.util.*;
 
 /**
@@ -76,7 +77,7 @@ import java.util.*;
 @Scope("prototype")
 @Slf4j
 @RequiredArgsConstructor
-public class ChatMessagePane extends BorderPane implements Initializable {
+public class ChatMessagePane extends BorderPane implements Initializable  {
 
 
     @Getter
@@ -97,8 +98,13 @@ public class ChatMessagePane extends BorderPane implements Initializable {
 
 
     private final EventBus bus;
-    private final MessageEndpoint messageEndpoint;
+
     private final FileEndpoint fileEndpoint;
+
+    private final WebClient webClient;
+
+    private final ApplicationContext applicationContext;
+
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -176,31 +182,43 @@ public class ChatMessagePane extends BorderPane implements Initializable {
      * 2. 路由到不同类型处理
      */
     private Mono<Void> handleIncomingChatMessage(Chat.ChatMessage cm) {
-        String sender = cm.getFromAccountInfo().getAccount();
-        switch (cm.getType()) {
-            case TEXT:
-                return showTextBubble(sender, cm.getContent());
-            case STREAM:
-            case VIDEO:
-            case IMAGE:
-            case FILE:
-                return showResourceBubble(sender, cm.getContent());
-            default:
-                return Mono.empty();  // 未知类型忽略
-        }
+
+        log.debug("receive message from {}",cm.getFromAccountInfo().getAccount());
+
+
+        return Mono.fromSupplier(() -> {
+            log.debug("receive message from {}",cm.getFromAccountInfo().getAccount());
+            String sender = cm.getFromAccountInfo().getAccount();
+
+            var messageWrapper = new MessageWrapper(cm);
+            return messageWrapper;
+        })
+        .flatMap(messageWrapper -> {
+//            addMessageBubble(messageWrapper);
+            return Mono.fromRunnable(()-> {
+                addMessageBubble(messageWrapper);
+                //TODO
+                scrollPane.setVvalue(1.0);
+            });
+        })
+        ;
+
+
+
     }
 
     /**
      * 3a. 文本消息：直接在 UI 线程添加气泡
      */
-    private Mono<Void> showTextBubble(String sender, String text) {
-        return Mono.fromRunnable(() ->
-                Platform.runLater(() -> {
-                    addMessageBubble(sender, text);
-                    scrollPane.setVvalue(1.0);
-                })
-        );
-    }
+//    private Mono<Void> showTextBubble(String sender, String text) {
+//        return Mono.fromRunnable(() ->
+//                Platform.runLater(() -> {
+//                    addMessageBubble(sender, text);
+//                    //TODO
+//                    scrollPane.setVvalue(1.0);
+//                })
+//        );
+//    }
 
     /**
      * 3b. 资源消息（图片/视频）：下载 → 转 Image → UI 显示 → 本地保存
@@ -208,53 +226,41 @@ public class ChatMessagePane extends BorderPane implements Initializable {
     private Mono<Void> showResourceBubble(String sender, String fileId) {
         UUID id = UUID.fromString(fileId);
 
-        return fileEndpoint.downloadFile(id)                      // Mono<ResponseEntity<Resource>>
-                .flatMap(response -> {
-                    Resource res = response.getBody();
-                    if (res == null) return Mono.empty();
+       return  webClient.get()
+                .uri("/api/files/download/{fileId}", id)
+                .accept(MediaType.APPLICATION_OCTET_STREAM)
+                .exchangeToMono(response -> {
+                    Flux<DataBuffer> body = response.body(BodyExtractors.toDataBuffers());
+                    HttpHeaders headers = response.headers().asHttpHeaders();
 
-                    // 3b-1. 取文件名、类型、长度
-                    HttpHeaders headers = response.getHeaders();
-                    String filename = Optional.ofNullable(headers.getContentDisposition())
+                    String filename = Optional.of(headers.getContentDisposition())
                             .map(ContentDisposition::getFilename)
-                            .orElse(id.toString());
-                    MediaType mime = headers.getContentType();
-                    long length = headers.getContentLength();
+                            .orElse(fileId);
 
-                    // 3b-2. 异步转为 JavaFX Image
-                    Mono<Image> imageMono = Mono.fromCallable(() -> {
-                        byte[] bytes = StreamUtils.copyToByteArray(res.getInputStream());
-                        return ImageUtil.bytesToImage(bytes);
-                    }).subscribeOn(Schedulers.boundedElastic());
+                    Path path = Paths.get("downloads");
 
-                    // 3b-3. UI 显示气泡
-                    Mono<Void> uiMono = imageMono.doOnNext(img ->
-                            Platform.runLater(() -> {
-                                addMessageBubble(sender, img);
-                                scrollPane.setVvalue(1.0);
-                            })
-                    ).then();
+                    Path targetPath = PathFileUtil.resolveUniqueFilename(path, filename);
 
-                    // 3b-4. 后台写盘
-                    Mono<Void> saveMono = Mono.fromRunnable(() -> {
-                        Path target = Paths.get("downloads", filename);
-                        try {
-                            Files.createDirectories(target.getParent());
-                            try (InputStream in = res.getInputStream()) {
-                                Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
-                            }
-                        } catch (IOException ex) {
-                            log.warn("下载文件保存失败: {}", filename, ex);
-                        }
-                    }).subscribeOn(Schedulers.boundedElastic()).then();
-
-                    // 3b-5. 串联显示与保存
-                    return uiMono.then(saveMono);
-                })
-                .onErrorResume(err -> {
-                    log.error("资源消息处理失败 fileId=" + fileId, err);
-                    return Mono.empty();
+                    return DataBufferUtils.write(body, targetPath, StandardOpenOption.CREATE_NEW)
+                            .doOnTerminate(() -> log.info("下载完成: {}", filename))
+                            .doOnError(e -> log.warn("保存失败", e))
+                            .subscribeOn(Schedulers.boundedElastic())
+                            .then(Mono.fromRunnable(()-> {
+                                Platform.runLater(() -> {
+                                    var messageType = PathFileUtil.getMessageType(targetPath.toFile().getName());
+                                    switch(messageType){
+                                        case IMAGE:
+                                            addMessageBubble(sender, new StreamImage(targetPath));
+                                            break;
+                                        case FILE:
+                                            addMessageBubble(sender, applicationContext.getBean(FileNode.class,new LocalFileInfo(targetPath)));
+                                            break;
+                                    }
+                                    scrollPane.setVvalue(1.0);
+                                });
+                            }));
                 });
+
     }
     /**
      * 添加消息
@@ -263,25 +269,55 @@ public class ChatMessagePane extends BorderPane implements Initializable {
      *
      * @param messageDTO 包含消息详细信息的数据传输对象
      */
-    public void addMessage(MessageDTO messageDTO) {
+    public void addMessage(MessageDTO<MessagePayLoad> messageDTO) {
         handleMessageDTO(messageDTO)
                 .subscribe();  // fire-and-forget
     }
 
-    private Mono<Void> handleMessageDTO(MessageDTO dto) {
-//        String me = UserInfoContext.getCurrentUser().getUserId().toString();
-        String sender = dto.getFromAccount().getUsername();
-        var content = dto.getContent();
-        if (dto.getType() == MessageType.TEXT) {
-            String text = content;
-            return showTextBubble(sender , text);
-        } else {
-            // 资源消息同上
-            return showResourceBubble(sender,content);
-        }
+    private Mono<Void> handleMessageDTO(MessageDTO<MessagePayLoad> dto) {
+
+//        String sender = dto.getFromAccount().getUsername();
+//        var content = dto.getContent();
+//        var messageWrapper = new MessageWrapper(dto);
+
+
+        return Mono.fromSupplier(() -> {
+                    log.debug("receive message from {}",dto);
+//                    String sender = cm.getFromAccountInfo().getAccount();
+
+                    var messageWrapper = new MessageWrapper(dto);
+                    return messageWrapper;
+                })
+                .flatMap(messageWrapper -> {
+                    return Mono.fromRunnable(()-> {
+                        addMessageBubble(messageWrapper);
+                        scrollPane.setVvalue(1.0);
+                    });
+                })
+                ;
+//        Platform.runLater(() -> {
+//            addMessageBubble(messageWrapper);
+//            //TODO
+//            scrollPane.setVvalue(1.0);
+//        });
+
+//        switch(dto.getType()){
+//            case TEXT:
+//                return showTextBubble(sender , content);
+//            case FILE:
+////                TODO 处理文件消息
+//                /**
+//                 * 1. 构建 MessageNode 对象
+//                 */
+//
+//                return showResourceBubble(sender,content);
+//            default:
+//                return Mono.empty();
+//        }
+
     }
 
-    public void addMessages(List<MessageDTO> messageDTOs){
+    public void addMessages(List<MessageDTO<MessagePayLoad>> messageDTOs){
         Platform.runLater(()->{
             messageDTOs.stream()
                     .sorted((e1,e2)-> {
@@ -295,22 +331,23 @@ public class ChatMessagePane extends BorderPane implements Initializable {
         });
     }
 
-    private Mono<List<Either<String, FileResource>>> collectSegments() {
+    private Mono<List<Either<String, MessageNode>>> collectSegments() {
         var doc = messageSendArea.getDocument();
-        List<Either<String, FileResource>> segments = new ArrayList<>();
+        List<Either<String, MessageNode>> segments = new ArrayList<>();
         doc.getParagraphs().forEach(par -> par.getSegments().forEach(segments::add));
         if (segments.isEmpty()) {
             return Mono.error(new IllegalArgumentException("Message cannot be blank"));
         }
         return Mono.just(segments);
     }
-    private Flux<Void> sendSegmentsSequentially(List<Either<String, FileResource>> segments) {
+    private Flux<Void> sendSegmentsSequentially(List<Either<String, MessageNode>> segments) {
         return Flux.fromIterable(segments)
                 .concatMap(this::sendSegment);
     }
-    private Mono<Void> sendSegment(Either<String, FileResource> segment) {
-        return segment.isLeft() ? sendTextSegment(segment.getLeft())
-                : sendImageSegment(segment.getRight());
+    private Mono<Void> sendSegment(Either<String, MessageNode> segment) {
+        return segment.isLeft() ?
+                  sendTextSegment(segment.getLeft())
+                : sendFileResourceSegment(segment.getRight());
     }
 
     private Mono<Void> sendTextSegment(String text) {
@@ -327,15 +364,16 @@ public class ChatMessagePane extends BorderPane implements Initializable {
         return ClientToolkit.reactiveClientAction()
                 .sendMessage(pkg)
                 .doOnTerminate(() -> Platform.runLater(() -> {
-                    addMessageBubble(text);
+                    var messageWrapper = new MessageWrapper(msg);
+                    addMessageBubble(messageWrapper);
                     scrollPane.setVvalue(1.0);
                 }))
                 .then();
     }
-    private Mono<Void> sendImageSegment(FileResource img) {
+    private Mono<Void> sendFileResourceSegment(MessageNode messageNode) {
         var uuid = UUID.randomUUID();
-        ByteArrayResource resource = new ByteArrayResource(img.getBytes()) {
-            @Override public String getFilename() { return "image.jpg"; }
+        ByteArrayResource resource = new ByteArrayResource(messageNode.getBytes()) {
+            @Override public String getFilename() { return messageNode.getDescription(); }
         };
 
         return fileEndpoint.upload(resource, uuid)
@@ -343,22 +381,21 @@ public class ChatMessagePane extends BorderPane implements Initializable {
                     var msg = Chat.ChatMessage.newBuilder()
                             .setConversationId(getConversationId())
                             .setFromAccountInfo(UserInfoContext.getAccountInfo())
-                            .setType(img.isReal() ? Chat.MessageType.FILE : Chat.MessageType.STREAM)
+                            .setType(messageNode.getType())
                             .setContent(resp.getId().toString())
                             .build();
+
                     var pkg = BaseMessage.BaseMessagePkg.newBuilder().setMessage(msg).build();
 
                     return ClientToolkit.reactiveClientAction()
                             .sendMessage(pkg)
                             .doOnTerminate(() -> Platform.runLater(() -> {
-                                addMessageBubble(img.getImage());
+                                addMessageBubble(messageNode);
                                 scrollPane.setVvalue(1.0);
                             }))
                             .then();
                 });
     }
-
-
 
 
 
@@ -398,97 +435,112 @@ public class ChatMessagePane extends BorderPane implements Initializable {
     private void addMessageBubble( String sender , Object message) {
         Platform.runLater(() -> messageDisplayArea.getChildren().add(new ChatBubblePane(sender,message)));
     }
+    private void addMessageBubble( MessageWrapper messageWrapper) {
+        Platform.runLater(() -> messageDisplayArea.getChildren().add(new ChatBubblePane(messageWrapper)));
+    }
+
 
 
     @PostConstruct
     public void initialize() {
-        // 监听聊天消息事件
+        setupMessageListener();
+        setupMessageDisplayArea();
+        setupMessageSendArea();
+        setupScrollPane();
+        setupSendPane();
+        setupLayout();
+        setupClipboardAndKeyHandlers();
+    }
+
+    /** 监听聊天消息事件 */
+    private void setupMessageListener() {
         receiveChatMessageEvent()
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                         null,
                         err -> log.error("消息接收流程异常", err)
-                );;
+                );
+    }
 
-
-        // Initialize message display area
+    /** 初始化消息展示区域（VBox） */
+    private void setupMessageDisplayArea() {
         messageDisplayArea = new VBox(10);
-        messageDisplayArea.setPadding(new Insets(10)); // 设置内边距
+        messageDisplayArea.setPadding(new Insets(10));
+        VBox.setVgrow(messageDisplayArea, Priority.ALWAYS);
 
+        // 消息区域变动时滚动到底部
+        messageDisplayArea.heightProperty().addListener((obs, oldVal, newVal) -> {
+            scrollPane.setVvalue(1.0);
+        });
+    }
 
-        // Initialize send message area
+    /** 初始化发送消息输入框 */
+    private void setupMessageSendArea() {
         messageSendArea = new RichTextMessageArea();
+        messageSendArea.setWrapText(true);
 
-        // 粘贴监听
-        messageSendArea.setOnKeyReleased(event -> {
-            if (event.isControlDown() && event.getCode() == KeyCode.V) {
-                var imageFromClipboard = ClipboardUtils.getImageFromClipboard();
-                if (imageFromClipboard != null){
-                    messageSendArea.insertImage(imageFromClipboard); // 插入图片
-                    event.consume(); // 阻止默认粘贴行为（可选）
-                }
-
-                var filesFromClipboard = ClipboardUtils.getFilesFromClipboard();
-                final var containsFile = !filesFromClipboard.isEmpty();  //存在文件
-                if (containsFile){
-                    filesFromClipboard.stream().forEach(file -> {
-                        if (file.isFile()){
-                            var localFileInfo = new LocalFileInfo(file.toPath());
-                            var fileDisplay = new FileDisplay(localFileInfo);
-                            messageSendArea.insertFile(fileDisplay); // 插入文件
-                        }
-                    });
-
-
-                }
-            }
-        });
-
-        // Create a scroll pane for message display area
-        scrollPane = new MFXScrollPane(messageDisplayArea);
-        scrollPane.setFitToWidth(true);
-        ScrollUtils.addSmoothScrolling(scrollPane);
-
-
-        scrollPane.setPrefHeight(300);
-
-        messageSendArea.setPrefHeight(200); // 设置组件的最小高度
-
-        // Create a SendMessagePane instance and place it in the bottom-right corner
-
-        sendMessagePane = new SendMessagePane(sendMessage());
-        sendMessagePane.setPrefHeight(50);
-
-        sendMessagePane.prefHeightProperty().bind(Bindings.multiply(this.heightProperty(), 0.1));
-
-        // Vbox 每次变动都会滚动到最底部
-        messageDisplayArea.heightProperty().addListener((observable, oldValue, newValue) -> {
-            scrollPane.setVvalue(1.0); // Scroll to the bottom
-        });
-
-        // 回车触发发送事件
         messageSendArea.setOnKeyPressed(event -> {
             switch (event.getCode()) {
                 case ENTER -> {
                     if (event.isShiftDown()) {
-                        // 允许 Shift + Enter 插入换行
                         messageSendArea.insertText(messageSendArea.getCaretPosition(), "\n");
                     } else {
-                        event.consume(); // 阻止默认回车行为
+                        event.consume(); // 阻止默认行为
                         sendMessage().subscribe();
                     }
-
                 }
             }
         });
+    }
 
+    /** 初始化 ScrollPane 包裹 messageDisplayArea */
+    private void setupScrollPane() {
+        scrollPane = new MFXScrollPane(messageDisplayArea);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefHeight(300);
+        ScrollUtils.addSmoothScrolling(scrollPane);
+    }
 
+    /** 初始化发送区域面板 */
+    private void setupSendPane() {
+        sendMessagePane = new SendMessagePane(sendMessage());
+        sendMessagePane.setPrefHeight(50);
+        sendMessagePane.prefHeightProperty().bind(
+                Bindings.multiply(this.heightProperty(), 0.1)
+        );
+    }
 
+    /** 设置整体布局 */
+    private void setupLayout() {
         this.setTop(scrollPane);
         this.setCenter(messageSendArea);
         this.setBottom(sendMessagePane);
-
     }
+
+    /** 设置剪贴板粘贴监听和处理 */
+    private void setupClipboardAndKeyHandlers() {
+        messageSendArea.setOnKeyReleased(event -> {
+            if (event.isControlDown() && event.getCode() == KeyCode.V) {
+                var imageFromClipboard = ClipboardUtils.getImageFromClipboard();
+                if (imageFromClipboard != null) {
+                    messageSendArea.insertNode(new StreamImage(imageFromClipboard));
+                    event.consume();
+                }
+
+                var filesFromClipboard = ClipboardUtils.getFilesFromClipboard();
+                if (!filesFromClipboard.isEmpty()) {
+                    filesFromClipboard.stream()
+                            .filter(e->e.isFile())
+                            .forEach(file -> {
+                                var localFileInfo = new LocalFileInfo(file.toPath());
+                                var fileNode = new FileNode(localFileInfo);
+                                messageSendArea.insertNode(fileNode);
+                            });
+                }
+            }
+        });
+    }
+
 
 
 }

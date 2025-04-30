@@ -51,6 +51,18 @@ public class FileStorageService {
         Files.createDirectories(chunkTempDir);
     }
 
+
+    /**
+     * 获取文件信息
+     * @param id 文件 id
+     * @return FileResource
+     * @throws FileNotFoundException 查询不到文件id 则抛出文件不存在异常
+     */
+    public FileResource getFileResourceById(String id ) throws FileNotFoundException {
+        return repository.findById(UUID.fromString(id)).orElseThrow(() -> new FileNotFoundException("File not found: " + id));
+    }
+
+
     /**
      * 存储单文件（小文件直传）
      */

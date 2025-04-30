@@ -66,10 +66,6 @@ public class Main extends Application {
         // **延迟初始化 AppManager**
         appManager = AppManager.initialize((scene)->postInit(scene));
 
-
-
-
-//        MaterialDesignIcon.MIC_NONE
     }
 
     public void postInit(Scene scene) {

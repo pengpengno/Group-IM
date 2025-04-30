@@ -1,8 +1,6 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file;
 
 import cn.hutool.core.io.file.FileNameUtil;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.file.PathUtils;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
@@ -19,8 +17,6 @@ import java.nio.file.Path;
  * @since 2025/4/29
  */
 public class LocalFileInfo implements FileInfo{
-
-
 
 
     private final Path path ;

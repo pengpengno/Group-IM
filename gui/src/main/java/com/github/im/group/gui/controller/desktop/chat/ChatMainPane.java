@@ -18,8 +18,10 @@ import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Lookup;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
@@ -47,27 +49,31 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ChatMainPane extends GridPane implements Initializable {
+public class ChatMainPane extends GridPane implements Initializable, ApplicationContextAware {
 
 
-//    private ListView<ChatInfoPane> conversationList;
     private ListView<ConversationInfoCard> conversationList;
 
 
-    private Set<Long> conversationIdSet = ConcurrentHashMap.newKeySet();
+    private  Set<Long> conversationIdSet = ConcurrentHashMap.newKeySet();
 
     private ChatMessagePane currentChatPane;
 
-    private ConcurrentHashMap<String, ChatMessagePane>  chatPaneMap = new ConcurrentHashMap<>();
+    private  ConcurrentHashMap<String, ChatMessagePane>  chatPaneMap = new ConcurrentHashMap<>();
 
-    private final FriendShipEndpoint friendShipEndpoint;
     private final ConversationEndpoint conversationEndpoint;
     private final MessageEndpoint messagesEndpoint;
 
 
 
 
-    private final ApplicationContext applicationContext;
+    private  ApplicationContext applicationContext;
+
+
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        this.applicationContext = applicationContext;
+    }
 
     /**
      * 更新会话列表
@@ -167,7 +173,7 @@ public class ChatMainPane extends GridPane implements Initializable {
                 .flatMap(e-> {
                     return conversationEndpoint.getActiveConversationsByUserId(e.getUserId())
                     .doOnNext(actions -> {
-                        actions.stream().forEach(action -> updateConversations(action));
+                        actions.forEach(action -> updateConversations(action));
                     })
                     .doOnError(throwable -> {
                         log.error("load conversation error",throwable);

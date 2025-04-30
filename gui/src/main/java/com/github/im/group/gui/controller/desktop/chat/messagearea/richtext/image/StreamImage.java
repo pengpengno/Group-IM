@@ -1,42 +1,64 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image;
 
-import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.FileResource;
+import com.github.im.common.connect.model.proto.Chat;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.MessageNode;
 import com.github.im.group.gui.util.ImageUtil;
+import com.github.im.group.gui.util.PathFileUtil;
 import javafx.scene.Node;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import lombok.Getter;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.UUID;
 
 
 /**
  * A custom object which contains image file stream .
  * When rendered in the rich text editor, the image is loaded from the dataInputStream
  */
-public class StreamImage implements FileResource {
+public class StreamImage implements MessageNode {
 
-    private final Image image;
+    @Getter
+    private  Image image;
 
     private String format;
 
     private byte[] imageData;
+
+    private Path path;
 
     public StreamImage(Image image) {
         this.image = image;
     }
 
 
-    public Image getImage() {
-        return image ;
+    public StreamImage(Path path) {
+        this.path = path;
+    }
+
+
+
+    @Override
+    public String getDescription() {
+        if (path != null) {
+            // 存在路径就 返回路径的文件名称
+            return path.getFileName().toString();
+        }
+        return UUID.randomUUID().toString()+".png";
     }
 
     @Override
-    public boolean isReal() {
-        return true;
+    public Chat.MessageType getType() {
+        return Chat.MessageType.IMAGE;
     }
 
     @Override
     public String getFilePath() {
+        if (path != null){
+            return PathFileUtil.toAbsolutePath(path);
+        }
         return "";
     }
 
@@ -60,6 +82,10 @@ public class StreamImage implements FileResource {
 
     @Override
     public Node createNode() {
+        if (path != null){
+            image = new Image("file:" + path);
+        }
+
         ImageView imageView = new ImageView(image);
         imageView.setFitWidth(100);
         imageView.setPreserveRatio(true);

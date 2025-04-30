@@ -1,39 +1,53 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file;
 
-import cn.hutool.core.io.file.FileNameUtil;
+import com.github.im.dto.session.FileMeta;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.FileInfo;
+import lombok.Getter;
 import org.springframework.core.io.Resource;
+import reactor.core.publisher.Mono;
 
-import java.nio.file.Path;
+public class RemoteFileInfo implements FileInfo {
+    @Getter
+    private final FileMeta fileMeta;
+    private final String fileId;
+    private Resource resource;
 
-/**
- * Description:
- * <p>
- * </p>
- *
- * @author pengpeng
- * @version 1.0
- * @since 2025/4/29
- */
-public class RemoteFileInfo implements FileInfo{
 
+    private RemoteFileInfo() {
+        this.fileMeta = null;
+        this.fileId = null;
+    }
+
+    public RemoteFileInfo(FileMeta fileMeta, String fileId) {
+        this.fileMeta = fileMeta;
+        this.fileId = fileId;
+    }
 
     @Override
     public String getName() {
-        return FileNameUtil.getName("");
-    }
-
-    @Override
-    public Resource getFileResource() {
-        return null;
-    }
-
-    @Override
-    public String getPath() {
-        return null;
+        return fileMeta.getFilename();
     }
 
     @Override
     public long getSize() {
-        return 0;
+        return fileMeta.getFileSize();
+    }
+
+    @Override
+    public String getPath() {
+        return fileId;
+    }
+
+    @Override
+    public Resource getFileResource() {
+        return resource;
+    }
+
+    public void setDownload(Mono  downloadMono){
+
+    }
+
+    public void setResource(Resource resource) {
+        this.resource = resource;
     }
 }

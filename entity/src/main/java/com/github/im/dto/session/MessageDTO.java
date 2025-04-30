@@ -8,7 +8,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-public class MessageDTO {
+public class MessageDTO<T extends MessagePayLoad> {
 
     private Long msgId;
     private Long conversationId;  // 会话ID
@@ -21,5 +21,12 @@ public class MessageDTO {
     private MessageType type;
     private MessageStatus status;
     private LocalDateTime timestamp;
+
+    // 消息拓展体
+    /**
+     *   当消息类型 不为文本{@link MessageType#TEXT }，正常文件 就传入原值即可
+     *   且需要一些 额外的拓展信息时，传入此字段
+     */
+    private T payload;
 
 }

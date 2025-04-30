@@ -1,34 +1,34 @@
 package com.github.im.group.gui.controller.desktop.chat;
 
-import com.github.im.dto.file.FileUploadResponse;
-import com.github.im.group.gui.api.FileEndpoint;
 import com.github.im.group.gui.context.UserInfoContext;
+import com.github.im.group.gui.controller.desktop.MessageWrapper;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.MessageNodeService;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.MessageNode;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.RichTextMessageArea;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.FileNode;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.RemoteFileInfo;
 import com.github.im.group.gui.util.AvatarGenerator;
-import com.jfoenix.controls.JFXTextArea;
-import io.github.palexdev.materialfx.controls.MFXTextField;
+import jakarta.annotation.Resource;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
-import javafx.scene.control.TextArea;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Text;
-import javafx.scene.text.TextFlow;
+import lombok.RequiredArgsConstructor;
 import org.fxmisc.richtext.GenericStyledArea;
-import org.fxmisc.richtext.InlineCssTextArea;
+import org.springframework.context.annotation.Scope;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
+import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
@@ -49,12 +49,15 @@ import java.util.concurrent.atomic.AtomicLong;
  * @version 1.0
  * @since 2025/1/14
  */
+@Scope("prototype")
+@Component
+//@RequiredArgsConstructor
 public class ChatBubblePane extends HBox {
 
 
     private String sender;
 
-    private String message;
+//    private String message;
 
     // 创建头像
     private ImageView avatar ;
@@ -67,7 +70,11 @@ public class ChatBubblePane extends HBox {
 
     private Label statusLabel;
 
-    private FileEndpoint fileEndpoint;
+    private MessageWrapper messageWrapper;  // 消息主体
+
+    @Resource
+    private MessageNodeService messageNodeService;
+
 
     private void uploadWithProgress(File file, UUID uploaderId) {
         WebClient client = WebClient.builder().baseUrl("http://localhost:8080").build();
@@ -98,6 +105,17 @@ public class ChatBubblePane extends HBox {
 
     }
 
+
+    public ChatBubblePane(MessageWrapper messageWrapper) {
+        this.sender = UserInfoContext.getCurrentUser().getUsername();
+        var senderAccount = messageWrapper.getSenderAccount();
+        // 判断是否为当前用户
+        var isCurrentSender = sender.equals(senderAccount);
+        init(messageWrapper, sender, isCurrentSender);
+    }
+
+
+
     /**
      *
      * @param message message text
@@ -105,6 +123,8 @@ public class ChatBubblePane extends HBox {
      * @param isSent  isCurrentSender , if true , the avatar is on the right side
      */
     private void init(Object message, String name , boolean isSent) {
+        this.setMaxWidth(Double.MAX_VALUE); // 允许外层VBox控制宽度
+        HBox.setHgrow(this, Priority.ALWAYS); // 允许自己在HBox中扩展
 
         this.setSpacing(10);
         this.setPadding(new Insets(10));
@@ -116,20 +136,43 @@ public class ChatBubblePane extends HBox {
 
         senderTextField = new RichTextMessageArea();
         senderTextField.setEditable(false);
+
+
         if(message instanceof String strContent){
             senderTextField.appendText(strContent);
-
         }
-        else if(message instanceof Image imageContent){
-            senderTextField.insertImage(imageContent);
+        // 如果直接是 消息节点那么直接添加即可
+        else if (message instanceof MessageNode messageNode){
+            senderTextField.insertNode(messageNode);
         }
-        senderTextField.setWrapText(true);
-        senderTextField.setMaxWidth(250);
+        // 如果是 推送来的 MessageWrapper ，优先构造出属性 ，
+        else if (message instanceof MessageWrapper messageWrapper){
+            switch (messageWrapper.getMessageType()) {
+                case TEXT -> senderTextField.appendText(messageWrapper.getContent());
 
+                case FILE -> {
+                     messageNodeService.createMessageNode(messageWrapper)
+                            .subscribe(node -> senderTextField.insertNode(node));
+
+                }
+
+            }
+        }
+
+
+        senderTextField.setMaxWidth(400); // 限定最大宽度，控制文本换行
+        senderTextField.setPrefHeight(Region.USE_COMPUTED_SIZE); // 允许自动高度
+        VBox.setVgrow(senderTextField, Priority.ALWAYS);
 
         HBox messageBubble = new HBox(senderTextField);
         messageBubble.setPadding(new Insets(10));
         messageBubble.getStyleClass().add("message-bubble");
+        messageBubble.setAlignment(Pos.TOP_LEFT); // 让文本从上往下布局
+        messageBubble.setMaxWidth(400);
+        messageBubble.setFillHeight(true); // 垂直拉伸
+        HBox.setHgrow(senderTextField, Priority.ALWAYS);
+
+
         if (isSent) {
             messageBubble.getStyleClass().add("sent-message-bubble");
         }
@@ -138,9 +181,18 @@ public class ChatBubblePane extends HBox {
         HBox.setHgrow(senderTextField, Priority.ALWAYS);  // 允许扩展
 
         VBox messageBox = new VBox(5);
-        VBox.setVgrow(senderTextField, Priority.ALWAYS);
-
         messageBox.getChildren().add(messageBubble);
+        // 关键点：让 messageBox 占满宽度
+        messageBox.setMaxWidth(Double.MAX_VALUE);
+        VBox.setVgrow(messageBox, Priority.ALWAYS);
+        VBox.setVgrow(messageBubble, Priority.ALWAYS); //
+
+        senderTextField.setWrapText(true);  // 启用自动换行
+        senderTextField.textProperty().addListener((obs, oldText, newText) -> {
+            double newHeight = computeTextHeight(senderTextField);
+            senderTextField.setPrefHeight(newHeight);
+        });
+
 
         if (isSent) {
             this.getChildren().addAll(messageBox, avatar);
@@ -153,6 +205,7 @@ public class ChatBubblePane extends HBox {
     private ChatBubblePane(){
 
     }
+
 
 
     protected ChatBubblePane(Object message){
@@ -186,10 +239,10 @@ public class ChatBubblePane extends HBox {
     /**
      * 计算 InlineCssTextArea 需要的高度
      */
-    private double computeTextHeight(InlineCssTextArea textArea) {
-        int lines = textArea.getText().split("\n").length;  // 计算文本行数
-        double lineHeight = 18; // 估算单行高度（可根据字体调整）
-        return Math.max(40, lines * lineHeight + 10); // 最小高度 40
+    private double computeTextHeight(GenericStyledArea textArea) {
+        int lines = textArea.getParagraphs().size();
+        double lineHeight = 20;
+        return Math.max(40, lines * lineHeight + 10);
     }
 
 

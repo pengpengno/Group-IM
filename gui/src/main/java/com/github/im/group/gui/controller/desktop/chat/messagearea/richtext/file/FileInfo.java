@@ -1,7 +1,8 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file;
 
-import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.FileResource;
 import org.springframework.core.io.Resource;
+
+import java.util.ResourceBundle;
 
 /**
  * Description: 用户封装文件信息
@@ -33,6 +34,8 @@ public interface FileInfo  {
     public String getPath();
 
     public long getSize();
+
+
 
 
 

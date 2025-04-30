@@ -27,7 +27,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Component
 @Slf4j
-//public class FxmlLoader{
 public class FxmlLoader implements ApplicationContextAware {
 
 

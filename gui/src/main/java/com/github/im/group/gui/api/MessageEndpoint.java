@@ -2,6 +2,7 @@ package com.github.im.group.gui.api;
 
 import com.github.im.dto.PageResult;
 import com.github.im.dto.session.MessageDTO;
+import com.github.im.dto.session.MessagePayLoad;
 import com.github.im.dto.session.MessagePullRequest;
 import com.github.im.dto.session.MessageSearchRequest;
 import com.github.im.dto.user.UserInfo;
@@ -10,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedModel;
 import org.springframework.hateoas.EntityModel;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.service.annotation.HttpExchange;
@@ -23,13 +25,13 @@ import java.util.List;
 @HttpExchange(url = "/api/messages")
 public interface MessageEndpoint {
 
-    // 发送消息
-    @PostExchange("/send")
-    Mono<List<MessageDTO>> sendMessage(@RequestBody List<MessageDTO> messages);
+    //  根据 MessageId 查询消息更多的详细信息
+    @PostExchange("/{msgId}")
+    Mono<MessageDTO<MessagePayLoad>> getMessageById(@PathVariable Long msgId);
 
     // 拉取历史消息
     @PostExchange("/pull")
-    PageResult<MessageDTO> pullHistoryMessages(@RequestBody MessagePullRequest request);
+    PageResult<MessageDTO<MessagePayLoad>> pullHistoryMessages(@RequestBody MessagePullRequest request);
 
 
     // 标记消息为已读
@@ -38,7 +40,7 @@ public interface MessageEndpoint {
 
     // 搜索消息
     @PostExchange("/search")
-    Mono<PagedModel<MessageDTO>> searchMessages(
+    Mono<PagedModel<MessageDTO<MessagePayLoad>>> searchMessages(
         @RequestBody MessageSearchRequest request,
         @RequestParam Pageable pageable
     );

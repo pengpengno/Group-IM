@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
@@ -74,9 +76,13 @@ public class FileUploadController {
         // 读取文件字节
         byte[] fileData = fileStorageService.loadFileAsBytes(fileResource);
 
+        var originalName = fileResource.getOriginalName();
+        String encodedFilename = URLEncoder.encode(originalName, StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+
         // 设置响应头
         return ResponseEntity.ok()
-                .header("Content-Disposition", "attachment; filename=\"" + fileResource.getOriginalName() + "\"")
+                .header("Content-Disposition",
+                        "attachment; filename=\"file\"; filename*=UTF-8''" + encodedFilename)
                 .header("Content-Type", fileResource.getContentType())
                 .body(fileData);
     }

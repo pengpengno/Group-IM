@@ -1,12 +1,12 @@
 package com.github.im.server.service;
 
 import com.github.im.common.connect.model.proto.Chat;
-import com.github.im.dto.session.MessageDTO;
-import com.github.im.dto.session.MessageSearchRequest;
+import com.github.im.dto.session.*;
 import com.github.im.enums.MessageStatus;
 import com.github.im.enums.MessageType;
 import com.github.im.server.mapstruct.MessageMapper;
 import com.github.im.server.model.Conversation;
+import com.github.im.server.model.FileResource;
 import com.github.im.server.model.Message;
 import com.github.im.server.model.User;
 import com.github.im.server.repository.MessageRepository;
@@ -15,6 +15,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -33,27 +34,23 @@ public class MessageService {
     
     private final MessageMapper messageMapper;
 
+    private final FileStorageService fileStorageService;
+
     private final ConversationSequenceService conversationSequenceService;
 
     @PersistenceContext
     private EntityManager entityManager;
 
-
-    // 批量发送消息
-    @Transactional
-    public List<MessageDTO> sendMessages(List<MessageDTO> messages) {
-        List<Message> entities = messages.stream()
-                .map(messageMapper::toEntity)
-                .collect(Collectors.toList());
-        List<Message> savedMessages = messageRepository.saveAll(entities);
-        return savedMessages.stream()
-                .map(messageMapper::toDTO)
-                .collect(Collectors.toList());
+    @Transactional(readOnly = true)
+    public MessageDTO<MessagePayLoad> getMessageById(Long msgId) {
+        return messageRepository.findById(msgId)
+                .map(this::convertMessage)
+                .orElseThrow(()-> new IllegalStateException("消息不存在"));
     }
 
     // 拉取历史消息
     @Transactional(readOnly = true)
-    public Page<MessageDTO> pullHistoryMessages(Long sessionId,  LocalDateTime startTime, LocalDateTime endTime, Pageable pageable) {
+    public Page<MessageDTO<MessagePayLoad>> pullHistoryMessages(Long sessionId,  LocalDateTime startTime, LocalDateTime endTime, Pageable pageable) {
           return messageRepository.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("conversation").get("conversationId"), sessionId));
@@ -65,13 +62,13 @@ public class MessageService {
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         }, pageable)
-        .map(messageMapper::toDTO);
+        .map(this::convertMessage);
     }
 
     // 搜索消息
-    public Page<MessageDTO> searchMessages(MessageSearchRequest request, Pageable pageable) {
+    public Page<MessageDTO<MessagePayLoad>> searchMessages(MessageSearchRequest request, Pageable pageable) {
         return messageRepository.searchMessages(request.getKeyword(), request.getSessionId(), pageable)
-                .map(messageMapper::toDTO);
+                .map(this::convertMessage);
     }
 
     // 标记消息为已读
@@ -100,5 +97,30 @@ public class MessageService {
         return messageRepository.save(message);
     }
 
+
+    @SneakyThrows
+    private MessageDTO<MessagePayLoad> convertMessage(Message message) {
+
+        var type = message.getType();
+        MessageDTO<MessagePayLoad> dto = messageMapper.toDTO(message);
+
+        switch(type) {
+            case TEXT:
+                dto.setPayload(new DefaultMessagePayLoad(message.getContent()));
+                return dto;
+            case FILE:
+                var fileResourceById = fileStorageService.getFileResourceById(message.getContent());
+                var fileMeta = FileMeta.builder()
+                        .filename(fileResourceById.getOriginalName())
+                        .fileSize(fileResourceById.getSize())
+                        .contentType(fileResourceById.getContentType())
+                        .hash(fileResourceById.getHash())
+                        .build();
+                dto.setPayload(fileMeta);
+                return dto;
+            default:
+                return messageMapper.toDTO(message);
+        }
+    }
 
 }

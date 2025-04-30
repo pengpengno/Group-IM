@@ -31,19 +31,25 @@ import java.time.Duration;
 public class WebClientConfig {
 
     @Bean
-    @LoadBalanced
-    public HttpServiceProxyFactory webClient(@Autowired ServerConnectProperties serverConnectProperties, @Autowired WebClientFilter authFilter) {
+    public WebClient webClient(@Autowired ServerConnectProperties serverConnectProperties, @Autowired WebClientFilter authFilter) {
+
         var httpClient = HttpClient.create()
 //                .secure(SslProvider.defaultClientProvider()) // 启用 HTTPS
                 .baseUrl(serverConnectProperties.getRest().getHost())
 //                .protocol(HttpClient.H2) // 强制 HTTP/2
                 .responseTimeout(Duration.ofSeconds(10));
 
-        var webClient = WebClient.builder()
+        return    WebClient.builder()
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
-//                .baseUrl(serverConnectProperties.getRest().getHost())
                 .filter(authFilter)
                 .build();
+
+    }
+
+    @Bean
+    @LoadBalanced
+//    public HttpServiceProxyFactory httpServiceProxyFactory(@Autowired ServerConnectProperties serverConnectProperties, @Autowired WebClientFilter authFilter) {
+    public HttpServiceProxyFactory httpServiceProxyFactory(@Autowired WebClient webClient) {
 
         WebClientAdapter adapter = WebClientAdapter.create(webClient);
 
