@@ -3,13 +3,8 @@ package com.github.im.group.gui.controller.desktop;
 import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.dto.user.LoginRequest;
 import com.github.im.group.gui.api.UserEndpoint;
-import com.github.im.group.gui.controller.Display;
 import com.github.im.group.gui.controller.LoginView;
-import com.github.im.group.gui.controller.MainHomeView;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
-import com.github.im.group.gui.util.FxView;
-import com.github.im.group.gui.util.FxmlLoader;
-import com.gluonhq.charm.glisten.control.AppBar;
 import com.gluonhq.charm.glisten.mvc.View;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import jakarta.annotation.PostConstruct;
@@ -18,13 +13,11 @@ import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.StackPane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,6 +30,7 @@ import java.util.ResourceBundle;
 @Slf4j
 @RequiredArgsConstructor
 public class DesktopLoginView extends View implements Initializable, LoginView {
+//public class DesktopLoginView  implements Initializable, LoginView {
 
     @Override
     public PlatformType  getPlatform() {
@@ -79,10 +73,7 @@ public class DesktopLoginView extends View implements Initializable, LoginView {
     }
 
 
-    @Override
-    protected void updateAppBar(AppBar appBar) {
-        super.updateAppBar(appBar);
-    }
+
 
     @PostConstruct
     public void init() {

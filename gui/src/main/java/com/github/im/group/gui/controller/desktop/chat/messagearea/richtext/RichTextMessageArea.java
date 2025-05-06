@@ -1,6 +1,7 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext;
 
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image.LinkedImageOps;
+import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import org.fxmisc.richtext.GenericStyledArea;
@@ -89,11 +90,13 @@ public class RichTextMessageArea extends GenericStyledArea<ParStyle, Either<Stri
      */
     public void insertNode(MessageNode node) {
         if (node != null) {
+            Platform.runLater(()-> {
+                ReadOnlyStyledDocument<ParStyle, Either<String, MessageNode>, TextStyle> ros =
+                        ReadOnlyStyledDocument.fromSegment(Either.right(node),
+                                ParStyle.EMPTY, TextStyle.EMPTY, this.getSegOps());
+                this.replaceSelection(ros);
+            });
 
-            ReadOnlyStyledDocument<ParStyle, Either<String, MessageNode>, TextStyle> ros =
-                    ReadOnlyStyledDocument.fromSegment(Either.right(node),
-                            ParStyle.EMPTY, TextStyle.EMPTY, this.getSegOps());
-            this.replaceSelection(ros);
 
         }
     }

@@ -1,7 +1,6 @@
 .message-bubble {
     -fx-background-color: #2196f3;
     -fx-background-radius: 15;
-    -fx-padding: 10;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 4, 0, 0, 0);
 }
 

@@ -133,6 +133,12 @@ public class FileStorageService {
         }
     }
 
+
+    /***
+     * 找不到的抛出 {@link FileNotFoundException } 异常
+     * @param fileId 文件 id
+     * @return FileResource
+     */
     @SneakyThrows
     public FileResource getFile(UUID fileId) {
         return repository.findById(fileId)

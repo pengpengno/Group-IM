@@ -13,12 +13,14 @@ import com.github.im.group.gui.util.FxmlLoader;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.mvc.View;
 import javafx.application.Platform;
+import javafx.scene.Scene;
 import javafx.stage.Stage;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
+
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * Description:
@@ -30,24 +32,43 @@ import java.util.concurrent.ConcurrentHashMap;
  * @version 1.0
  * @since 2024/11/6
  */
-@Component
+//@Component
 @Slf4j
-public class Display   {
-//public class Display  implements ApplicationContextAware {
-
+public class DisplayManager {
 
 
     @Getter
     @Setter
     private static Stage primaryStage;
 
+    @Getter
+    @Setter
+    private static Scene primaryScene;
+    /**
+     * postInit
+     */
+    private static Consumer<Scene> postInit ;
+
     private static final String DESKTOP_PATH = "desktop/";
     private static final String FXML_PATH  = "fxml/";
     private static final String MOBILE_PATH = "mobile/";
     private static final String FXML_SUFFIX = ".fxml";
 
+    /**
+     * 存放 对应的 Gluon 中的展示图层
+     */
     public static final ConcurrentHashMap<String,View> DISPLAY_VIEW_MAP = new ConcurrentHashMap<>();
-    public static final ConcurrentHashMap<Class,Object> DISPLAY_CONTROLLER_MAP = new ConcurrentHashMap<>();
+    /**
+     * 缓存 FXML 加载后的 Scene 节点
+     */
+    public static final ConcurrentHashMap<Class<?>, Scene> DISPLAY_SCENE_MAP = new ConcurrentHashMap<>();
+
+    /**
+     * 存放 页面的控制器 Controller
+     */
+    public static final ConcurrentHashMap<Class<?>,Object> DISPLAY_CONTROLLER_MAP = new ConcurrentHashMap<>();
+
+
 
 
 
@@ -57,7 +78,17 @@ public class Display   {
         }
         return registerView(displayClass);
     }
-    public  static <T extends PlatformView> T registerView(Class<T> displayClass) {
+
+
+    /**
+     * 注册一个平台视图
+     * 此方法用于注册一个特定平台的视图，通过加载FXML文件并创建视图实例
+     *
+     * @param displayClass 视图类，必须带有FxView注解
+     * @param <T> 视图类的类型，继承自PlatformView
+     * @return 返回创建的视图实例，如果注册失败则返回null
+     */
+    public static <T extends PlatformView> T registerView(Class<T> displayClass) {
 
         // 获取当前平台信息
         var currentPlatform = com.gluonhq.attach.util.Platform.getCurrent();
@@ -94,13 +125,31 @@ public class Display   {
 
         // 创建并注册视图
         var viewName = displayClass.getName();
-        if (!DISPLAY_VIEW_MAP.containsKey(viewName)) {
+//        if (!DISPLAY_VIEW_MAP.containsKey(viewName)) {
+//            try {
+//                View view = new View(parent);
+//
+//                var instance = AppManager.getInstance();
+//                if(instance!= null){
+//                    instance.addViewFactory(viewName, () -> view);
+//                }
+//                DISPLAY_VIEW_MAP.putIfAbsent(viewName, view);
+//                log.info("View registered successfully: {}", viewName);
+//            } catch (Exception e) {
+//                log.error("Failed to register view {}: ", viewName, e);
+//                return null;
+//            }
+//        }
+
+        if (!DISPLAY_SCENE_MAP.containsKey(displayClass)) {
             try {
-                View view = new View(parent);
-                AppManager.getInstance().addViewFactory(viewName, () -> view);
+                var value = new Scene(parent);
+                DISPLAY_SCENE_MAP.putIfAbsent(displayClass, value);
+//                View view = new View(parent);
+//                AppManager.getInstance().addViewFactory(viewName, () -> view);
                 log.info("View registered successfully: {}", viewName);
             } catch (Exception e) {
-                log.error("Failed to register view {}: {}", viewName, e.getMessage());
+                log.error("Failed to register view {}: ", viewName, e);
                 return null;
             }
         }
@@ -119,21 +168,67 @@ public class Display   {
     }
 
     /**
+     *
+     * @param displayClass
+     */
+    public static void start(Class<? extends PlatformView> displayClass) {
+        registerView(displayClass);
+        start();
+    }
+
+    public static void start() {
+        Platform.runLater(() -> {
+            var primaryStage = getPrimaryStage();
+            if (primaryStage != null) {
+                var primaryScene = getPrimaryScene();
+                if (primaryScene != null){
+                    postInit.accept(primaryScene);
+                }
+                if (!primaryStage.isShowing()){
+                    primaryStage.show();
+                }
+            }
+        });
+    }
+
+    /**
      * 切换 view
      *  不存在 的View 就先register 在  switch
      * @param displayClass 展示的view
      */
+    static void switchView(Class<? extends PlatformView> displayClass){
+        final boolean isFirst = primaryStage == null;
 
-    public static  void switchView(Class<? extends PlatformView> displayClass){
-        if (!DISPLAY_VIEW_MAP.containsKey(displayClass.getName())){
+        if (!DISPLAY_SCENE_MAP.containsKey(displayClass)){
             registerView(displayClass);
         }
+        var scene = DISPLAY_SCENE_MAP.get(displayClass);
 
-        AppManager.getInstance().switchView(displayClass.getName());
+//        if(isFirst && postInit != null){
+        if( postInit != null){
+            postInit.accept(scene);
+        }
+
+        var primaryStage = getPrimaryStage();
+        primaryStage.setScene(scene);
+        setPrimaryScene(scene);
+
+        if (!primaryStage.isShowing()){
+            primaryStage.show();
+        }
+
+
+//        AppManager.getInstance().switchView(displayClass.getName());
+
     }
+
+    public static void initialize(Consumer<Scene> postInit) {
+        DisplayManager.postInit = postInit;
+    }
+
     /**
      * 展示当前窗体
-     * 此处使用的事 Gluon 的组件来渲染 窗体
+     * 此处使用来渲染 窗体
      * @param displayClass
      */
     public static void display(Class<? extends PlatformView> displayClass){

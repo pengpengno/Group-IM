@@ -5,6 +5,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -53,8 +54,8 @@ public class FxmlLoader implements ApplicationContextAware {
 
 //
     @Override
-    public void setApplicationContext(ApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
+    public void setApplicationContext(@NonNull ApplicationContext applicationContext) {
+        FxmlLoader.applicationContext = applicationContext;
     }
 
 
@@ -107,17 +108,7 @@ public class FxmlLoader implements ApplicationContextAware {
     }
 
 
-    /**
-     * 获取 Controller 实体
-     * @param clazz
-     * @return
-     * @param <T>
-     */
-    public  <T>  T getController( Class<T> clazz) {
 
-        return getFxmlLoader(clazz).getController();
-
-    }
 
     /***
      * 获取单例的 Stage
@@ -179,6 +170,7 @@ public class FxmlLoader implements ApplicationContextAware {
 
     /**
      * 加载fxml
+     * 这里会使用 Spring  注册其中 的bean
      * @param urlPath url 路径
      * @return 返回加载的 parent 不存在返回空
      */
@@ -189,7 +181,7 @@ public class FxmlLoader implements ApplicationContextAware {
             Assert.notNull(urlPath, "FXML file not found for the specified class!");
 
             FXMLLoader fxmlLoader = new FXMLLoader(classPathResource.getURL());
-
+            // 从spring 中构造
             fxmlLoader.setControllerFactory(applicationContext::getBean);
 
             Parent load = fxmlLoader.load();

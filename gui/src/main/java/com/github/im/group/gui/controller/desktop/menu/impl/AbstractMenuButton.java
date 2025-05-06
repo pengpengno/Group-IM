@@ -8,6 +8,7 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
+import lombok.NonNull;
 import lombok.Setter;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
@@ -46,7 +47,7 @@ public class AbstractMenuButton extends MFXRectangleToggleNode  implements MenuB
     private ToggleGroup group;
 
     @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+    public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
     }
 

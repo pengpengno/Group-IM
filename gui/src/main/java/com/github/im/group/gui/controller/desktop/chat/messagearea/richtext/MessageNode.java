@@ -183,6 +183,7 @@ public interface MessageNode {
                 }
                 else if (messageNode instanceof StreamImage stream) {
                     os.writeByte(2); // type 2
+//                    imageCodec().encode(os,stream.getImage());
                     imageCodec().encode(os,stream.getImage());
                 }
                 else if (messageNode instanceof FileNode fileNode) {
@@ -228,7 +229,9 @@ public interface MessageNode {
      * 返回文件的绝对路径
      * @return The path of the image to render.
      */
-    String getFilePath();
+    default String getFilePath(){
+        return null;
+    };
 
     Node createNode();
 }

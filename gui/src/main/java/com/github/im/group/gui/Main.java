@@ -1,31 +1,22 @@
 package com.github.im.group.gui;
 
-import com.github.im.group.gui.controller.Display;
+import com.github.im.group.gui.controller.DisplayManager;
 import com.github.im.group.gui.controller.LoginView;
-import com.github.im.group.gui.controller.desktop.DesktopLoginView;
 import com.github.im.group.gui.util.CssLoaderUtil;
-import com.github.im.group.gui.util.FxmlLoader;
 import com.gluonhq.attach.display.DisplayService;
 import com.gluonhq.attach.util.Platform;
 import com.gluonhq.charm.glisten.application.AppManager;
-import com.gluonhq.charm.glisten.application.MobileApplication;
-import com.gluonhq.charm.glisten.control.AppBar;
-import com.gluonhq.charm.glisten.mvc.View;
-import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
+import com.google.inject.Inject;
 import io.github.palexdev.materialfx.theming.JavaFXThemes;
 import io.github.palexdev.materialfx.theming.MaterialFXStylesheets;
 import io.github.palexdev.materialfx.theming.UserAgentBuilder;
-import jakarta.inject.Inject;
 import javafx.application.Application;
 import javafx.geometry.Dimension2D;
 import javafx.scene.Scene;
-import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
-import org.checkerframework.checker.units.qual.C;
-import org.scenicview.ScenicView;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.core.io.ClassPathResource;
@@ -43,16 +34,19 @@ import java.io.IOException;
 //@SpringBootApplication
 @Slf4j
 public class Main extends Application {
-
-    @Inject
+//
+//    @Inject
     private AppManager appManager;
 
-    public void initApp() {
+    /**
+     * 启动Spring 环境
+     */
+    public void initSpringEnv() {
         log.info("application init ");
-//        var springApplication = new SpringApplication(Main.class);
         var springApplication = new SpringApplication(SpringBootApp.class);
         springApplication.setWebApplicationType(WebApplicationType.NONE);
         springApplication.setMainApplicationClass(SpringBootApp.class);
+        springApplication.setHeadless(false); // 启用图形化界面
         springApplication.run();
         String mainRunner = System.getProperty("sun.java.command");
         if ("org.springframework.boot.SpringApplicationAotProcessor".equals(mainRunner)) {
@@ -61,16 +55,15 @@ public class Main extends Application {
             log.info("Simple run for Spring AOT");
             return;
         }
-
-//        System.setProperty("javafx.platform", "DESKTOP");
+//
         // **延迟初始化 AppManager**
-        appManager = AppManager.initialize((scene)->postInit(scene));
+//        appManager = AppManager.initialize((scene)->postInit(scene));
 
     }
 
     public void postInit(Scene scene) {
 
-        Display.display(LoginView.class);
+        DisplayManager.display(LoginView.class);
 
 //         桌面端处理
         if (Platform.isDesktop()) {
@@ -83,15 +76,15 @@ public class Main extends Application {
 
 //        AppViewManager.registerViewsAndDrawer();
 
-
-
     }
 
     @Override
     public void start(Stage primaryStage) throws IOException {
 
+        log.info("start application ");
 
 //        CSSFX.start();
+        DisplayManager.setPrimaryStage(primaryStage);
 
 
         UserAgentBuilder.builder()
@@ -106,53 +99,36 @@ public class Main extends Application {
         primaryStage.initStyle(StageStyle.UNDECORATED);
         primaryStage.setTitle("IM Platform");
 
-
-        // 设置图标
-        var iconResource = new ClassPathResource("images/icon.png");
-        var stylesResource = new ClassPathResource("css/styles.png");
-        if (iconResource.exists()){
-            primaryStage.getIcons().add(new Image(iconResource.getInputStream()));
-        }
-        if(stylesResource.exists()){
-
-            var scene = primaryStage.getScene();
-            CssLoaderUtil.loadCss(scene,"css/styles.css");
-            CssLoaderUtil.loadCss(scene,"css/chat.css");
-//            scene.getStylesheets().add(stylesResource.getURL().toExternalForm());
-        }
-
         primaryStage.setResizable(true);
+        var iconResource = new ClassPathResource("images/icon.png");
 
-        initApp();
-
-
-        appManager.start(primaryStage);
-
-
-        Display.setPrimaryStage(primaryStage);
-
-        final double[] offsetX = {0}, offsetY = {0};
-        var appBar = AppManager.getInstance().getAppBar();
-
-        appBar.setOnMousePressed(event -> {
-            offsetX[0] = event.getSceneX();
-            offsetY[0] = event.getSceneY();
-        });
-
-        appBar.setOnMouseDragged(mouseEvent -> {
-
-            if (!primaryStage.isMaximized()) {
-                primaryStage.setX(mouseEvent.getScreenX() - offsetX[0]);
-                primaryStage.setY(mouseEvent.getScreenY() - offsetY[0]);
+        if (iconResource.exists()){
+            try {
+                primaryStage.getIcons().add(new Image(iconResource.getInputStream()));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-        });
+        }
+        initSpringEnv();
+//        DisplayManager.registerView(LoginView.class);
+//        DisplayManager.initialize(scene-> {
+//            // 设置图标
+////            scene.getStylesheets()
+////                    .add(getClass()
+////                    .getResource("/com/gluonhq/charm/glisten/assets/theme.css").toExternalForm());
+//
+//            CssLoaderUtil.loadCss(scene,"css/styles.css");
+//            CssLoaderUtil.loadCss(scene,"css/chat.css");
+//
+//        });
+        primaryStage.setWidth(800);
+        primaryStage.setHeight(600);
+        DisplayManager.display(LoginView.class);
+//        DisplayManager.start();
+//        appManager.start(primaryStage);
 
 
-        appBar.setNavIcon(MaterialDesignIcon.MENU.button(e -> System.out.println("nav icon")));
-//        ScenicView.show(primaryStage.getScene());
 
-        // **手动取消全屏**
-        primaryStage.setFullScreen(false);
 
 
     }

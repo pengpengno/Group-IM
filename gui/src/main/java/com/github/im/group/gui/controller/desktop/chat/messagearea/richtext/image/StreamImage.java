@@ -21,7 +21,7 @@ import java.util.UUID;
 public class StreamImage implements MessageNode {
 
     @Getter
-    private  Image image;
+    private Image image;
 
     private String format;
 
@@ -82,17 +82,33 @@ public class StreamImage implements MessageNode {
 
     @Override
     public Node createNode() {
-        if (path != null){
+        if (path != null ){
             image = new Image("file:" + path);
         }
 
         ImageView imageView = new ImageView(image);
-        imageView.setFitWidth(100);
+//        imageView.setFitWidth(100);
+//        imageView.setPreserveRatio(true);
+
+
+        // 最大宽度或高度，避免图像过大
+        double maxWidth = 300;
+        double maxHeight = 300;
+
+        double imageWidth = image.getWidth();
+        double imageHeight = image.getHeight();
+
+        // 缩放比例
+        double widthRatio = maxWidth / imageWidth;
+        double heightRatio = maxHeight / imageHeight;
+        double scale = Math.min(1.0, Math.min(widthRatio, heightRatio));
+
+        imageView.setFitWidth(imageWidth * scale);
+        imageView.setFitHeight(imageHeight * scale);
         imageView.setPreserveRatio(true);
 
         imageView.setOnMouseClicked(event-> {
             //TODO  双击放大查看
-
             if (event.getClickCount() == 2) {
                 showImageInNewWindow();
             }

@@ -47,6 +47,10 @@ public class MessageNodeService {
 
     /**
      * 创建 消息节点 ，对于文本类型得直接返回 {@code Optional.empty() }
+     * <ul>
+     *     <li>{@link MessageType#TEXT } 直接返回</li>
+     *     <li>{@link MessageType#FILE } 文件类型构建</li>
+     * </ul>
      * @param messageWrapper 消息包装器
      * @return 消息节点
      */
@@ -55,11 +59,11 @@ public class MessageNodeService {
             return Mono.empty();
         }
 
-
         return remoteFileService.initFileInfo(messageWrapper)
                 .flatMap(remoteFileInfo -> {
                     FileMeta fileMeta = remoteFileInfo.getFileMeta();
                     var contentType = PathFileUtil.getMessageType(fileMeta.getFilename());
+                    log.debug("文件类型 {}", contentType);
                     var bean = applicationContext.getBean(FileNode.class, remoteFileInfo);
 
                     if (contentType == Chat.MessageType.IMAGE) {

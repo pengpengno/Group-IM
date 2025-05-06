@@ -41,3 +41,6 @@ build/
 
 ### Mac OS ###
 .DS_Store
+# File Folder
+./downloads
+./uploads

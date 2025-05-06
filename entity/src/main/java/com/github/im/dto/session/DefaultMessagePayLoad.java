@@ -1,5 +1,7 @@
 package com.github.im.dto.session;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
@@ -18,8 +20,8 @@ public class DefaultMessagePayLoad implements MessagePayLoad{
     private final String content;
 
 
-
-    public DefaultMessagePayLoad(String content) {
+    @JsonCreator
+    public DefaultMessagePayLoad(@JsonProperty("content") String content) {
         this.content = content;
     }
 

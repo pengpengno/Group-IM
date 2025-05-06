@@ -6,6 +6,7 @@ import com.github.im.group.gui.controller.desktop.MessageWrapper;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -72,7 +73,6 @@ public class RemoteFileService {
      */
     public Mono<org.springframework.core.io.Resource> download(final RemoteFileInfo fileInfo) {
         UUID id = UUID.fromString(fileInfo.getPath());
-        var outputStream = new ByteArrayOutputStream();
 
         return webClient.get()
                 .uri("/api/files/download/{fileId}", id)
@@ -85,13 +85,31 @@ public class RemoteFileService {
                             .map(ContentDisposition::getFilename)
                             .orElse(id.toString());
 
-                    return DataBufferUtils.write(body, outputStream)
-                            .doOnTerminate(() -> {
-                                log.info("下载完成: {}", filename);
+                    return DataBufferUtils.join(response.bodyToFlux(DataBuffer.class))
+                            .flatMap(buffer -> {
+                                try {
+                                    // 限制最大文件大小 100MB
+                                    int maxSize = 100 * 1024 * 1024;
+                                    if (buffer.readableByteCount() > maxSize) {
+                                        DataBufferUtils.release(buffer);
+                                        return Mono.error(new IllegalStateException("文件过大，超过限制"));
+                                    }
 
-                            })
-                            .subscribeOn(Schedulers.boundedElastic())
-                            .then(Mono.just(new ByteArrayResource(outputStream.toByteArray())));
+                                    byte[] data = new byte[buffer.readableByteCount()];
+                                    buffer.read(data);
+                                    return Mono.just(new ByteArrayResource(data));
+                                } finally {
+                                    DataBufferUtils.release(buffer); // 避免内存泄漏
+                                    log.info("下载完成: {}", filename);
+                                }
+                            });
+//                    return DataBufferUtils.write(body, outputStream)
+//                            .doOnTerminate(() -> {
+//                                log.info("下载完成: {}", filename);
+//
+//                            })
+//                            .subscribeOn(Schedulers.boundedElastic())
+//                            .then(Mono.just(new ByteArrayResource(outputStream.toByteArray())));
                 });
     }
 

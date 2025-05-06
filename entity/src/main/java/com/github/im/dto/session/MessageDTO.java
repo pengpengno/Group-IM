@@ -1,5 +1,8 @@
 package com.github.im.dto.session;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.enums.MessageStatus;
 import com.github.im.enums.MessageType;
@@ -8,6 +11,8 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
+//@JsonDeserialize(using = MessageDTODeserializer.class)
+
 public class MessageDTO<T extends MessagePayLoad> {
 
     private Long msgId;

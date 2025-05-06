@@ -3,7 +3,7 @@ package com.github.im.group.gui.controller.desktop;
 import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.dto.user.RegistrationRequest;
 import com.github.im.group.gui.api.UserEndpoint;
-import com.github.im.group.gui.controller.Display;
+import com.github.im.group.gui.controller.DisplayManager;
 import com.github.im.group.gui.controller.LoginView;
 import com.github.im.group.gui.controller.RegisterView;
 import javafx.application.Platform;
@@ -67,7 +67,7 @@ public class DesktopRegisterView extends VBox implements Initializable, Register
     @FXML
     private void backToLogin() {
 
-        Display.display(DesktopLoginView.class);
+        DisplayManager.display(DesktopLoginView.class);
 
     }
 
@@ -95,7 +95,7 @@ public class DesktopRegisterView extends VBox implements Initializable, Register
                     alert.setHeaderText(null);
                     alert.setContentText("您的注册已成功！欢迎您！");
                     alert.showAndWait();
-                    Display.display(LoginView.class);
+                    DisplayManager.display(LoginView.class);
 
                 });
 

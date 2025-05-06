@@ -7,6 +7,7 @@ import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.Mess
 import com.github.im.group.gui.util.FileIconUtil;
 import com.github.im.group.gui.util.PathFileUtil;
 import io.github.palexdev.materialfx.controls.MFXButton;
+import jakarta.annotation.Resource;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -21,6 +22,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -39,6 +41,7 @@ import java.util.ResourceBundle;
 @Component
 @Scope("prototype")
 @Slf4j
+//@RequiredArgsConstructor
 public class FileNode implements MessageNode {
 
     static final ResourceBundle menuBundle = ResourceBundle.getBundle("i18n.menu.button");
@@ -49,7 +52,8 @@ public class FileNode implements MessageNode {
     private boolean  exists ; // 文件是否存在
 
     MessageWrapper messageWrapper;
-    private RemoteFileService remoteFileService;
+    @Resource
+    private  RemoteFileService remoteFileService;
 
 
     public FileNode(FileInfo fileInfo) {
@@ -120,11 +124,14 @@ public class FileNode implements MessageNode {
             // 双击打开文件
             container.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2) {
+                    /***
+                     * Note That: it must invoke under System.getProperty("java.awt.headless") == false
+                     */
                     try {
                         // gluon 环境中使用 好像有点问题
                         Desktop.getDesktop().open(file);
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        log.error("",e);
                     }
                 }
             });
@@ -138,7 +145,6 @@ public class FileNode implements MessageNode {
                     if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
                         Desktop.getDesktop().open(file);
                     } else {
-                        // 可以提示用户不支持打开文件 或者 fallback 到其他方式
                         System.out.println("当前环境不支持打开文件");
                     }
                 } catch (Exception ex) {
@@ -152,8 +158,7 @@ public class FileNode implements MessageNode {
                     if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
                         Desktop.getDesktop().open(file.getParentFile());
                     } else {
-                        // 可以提示用户不支持打开文件 或者 fallback 到其他方式
-                        System.out.println("当前环境不支持打开文件");
+                        System.out.println("当前环境不支持打开文件夹");
                     }
                 } catch (Exception ex) {
                     ex.printStackTrace();
@@ -161,6 +166,9 @@ public class FileNode implements MessageNode {
             });
 
             contextMenu.getItems().addAll(openItem, openFolderItem);
+            // 展示
+            container.setOnContextMenuRequested(e -> contextMenu.show(container, e.getScreenX(), e.getScreenY()));
+
             return container;
 
         }else if (fileInfo instanceof  RemoteFileInfo remoteFileInfo){
@@ -217,7 +225,7 @@ public class FileNode implements MessageNode {
                         });
             });
 
-
+            container.getChildren().add(button);
 
             return container ;
         }

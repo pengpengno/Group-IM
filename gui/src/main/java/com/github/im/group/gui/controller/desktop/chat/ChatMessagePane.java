@@ -11,6 +11,7 @@ import com.github.im.group.gui.api.MessageEndpoint;
 import com.github.im.group.gui.connect.handler.EventBus;
 import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.desktop.MessageWrapper;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.MessageNodeService;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.RichTextMessageArea;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.MessageNode;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.FileNode;
@@ -55,6 +56,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import java.io.File;
 import java.net.URL;
 import java.nio.file.*;
 import java.util.*;
@@ -100,8 +102,7 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
     private final EventBus bus;
 
     private final FileEndpoint fileEndpoint;
-
-    private final WebClient webClient;
+    private final MessageNodeService messageNodeService;
 
     private final ApplicationContext applicationContext;
 
@@ -208,61 +209,6 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
     }
 
     /**
-     * 3a. 文本消息：直接在 UI 线程添加气泡
-     */
-//    private Mono<Void> showTextBubble(String sender, String text) {
-//        return Mono.fromRunnable(() ->
-//                Platform.runLater(() -> {
-//                    addMessageBubble(sender, text);
-//                    //TODO
-//                    scrollPane.setVvalue(1.0);
-//                })
-//        );
-//    }
-
-    /**
-     * 3b. 资源消息（图片/视频）：下载 → 转 Image → UI 显示 → 本地保存
-     */
-    private Mono<Void> showResourceBubble(String sender, String fileId) {
-        UUID id = UUID.fromString(fileId);
-
-       return  webClient.get()
-                .uri("/api/files/download/{fileId}", id)
-                .accept(MediaType.APPLICATION_OCTET_STREAM)
-                .exchangeToMono(response -> {
-                    Flux<DataBuffer> body = response.body(BodyExtractors.toDataBuffers());
-                    HttpHeaders headers = response.headers().asHttpHeaders();
-
-                    String filename = Optional.of(headers.getContentDisposition())
-                            .map(ContentDisposition::getFilename)
-                            .orElse(fileId);
-
-                    Path path = Paths.get("downloads");
-
-                    Path targetPath = PathFileUtil.resolveUniqueFilename(path, filename);
-
-                    return DataBufferUtils.write(body, targetPath, StandardOpenOption.CREATE_NEW)
-                            .doOnTerminate(() -> log.info("下载完成: {}", filename))
-                            .doOnError(e -> log.warn("保存失败", e))
-                            .subscribeOn(Schedulers.boundedElastic())
-                            .then(Mono.fromRunnable(()-> {
-                                Platform.runLater(() -> {
-                                    var messageType = PathFileUtil.getMessageType(targetPath.toFile().getName());
-                                    switch(messageType){
-                                        case IMAGE:
-                                            addMessageBubble(sender, new StreamImage(targetPath));
-                                            break;
-                                        case FILE:
-                                            addMessageBubble(sender, applicationContext.getBean(FileNode.class,new LocalFileInfo(targetPath)));
-                                            break;
-                                    }
-                                    scrollPane.setVvalue(1.0);
-                                });
-                            }));
-                });
-
-    }
-    /**
      * 添加消息
      * 此方法用于在用户界面上添加新的消息气泡它首先检查消息的发送者是否是当前用户，
      * 然后根据结果决定是显示在 左边（其他用户）还是右边（当前用户）
@@ -276,45 +222,16 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
 
     private Mono<Void> handleMessageDTO(MessageDTO<MessagePayLoad> dto) {
 
-//        String sender = dto.getFromAccount().getUsername();
-//        var content = dto.getContent();
-//        var messageWrapper = new MessageWrapper(dto);
-
 
         return Mono.fromSupplier(() -> {
                     log.debug("receive message from {}",dto);
-//                    String sender = cm.getFromAccountInfo().getAccount();
-
-                    var messageWrapper = new MessageWrapper(dto);
-                    return messageWrapper;
+                    return new MessageWrapper(dto);
                 })
-                .flatMap(messageWrapper -> {
-                    return Mono.fromRunnable(()-> {
-                        addMessageBubble(messageWrapper);
-                        scrollPane.setVvalue(1.0);
-                    });
-                })
+                .flatMap(messageWrapper -> Mono.fromRunnable(()-> {
+                    addMessageBubble(messageWrapper);
+                    scrollPane.setVvalue(1.0);
+                }))
                 ;
-//        Platform.runLater(() -> {
-//            addMessageBubble(messageWrapper);
-//            //TODO
-//            scrollPane.setVvalue(1.0);
-//        });
-
-//        switch(dto.getType()){
-//            case TEXT:
-//                return showTextBubble(sender , content);
-//            case FILE:
-////                TODO 处理文件消息
-//                /**
-//                 * 1. 构建 MessageNode 对象
-//                 */
-//
-//                return showResourceBubble(sender,content);
-//            default:
-//                return Mono.empty();
-//        }
-
     }
 
     public void addMessages(List<MessageDTO<MessagePayLoad>> messageDTOs){
@@ -327,14 +244,15 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
                             return 0;
                         }
                     }) // 根据服务端的消息保障时序性
-                    .forEach(dto->addMessage(dto));
+                    .forEach(this::addMessage);
         });
     }
+
 
     private Mono<List<Either<String, MessageNode>>> collectSegments() {
         var doc = messageSendArea.getDocument();
         List<Either<String, MessageNode>> segments = new ArrayList<>();
-        doc.getParagraphs().forEach(par -> par.getSegments().forEach(segments::add));
+        doc.getParagraphs().forEach(par -> segments.addAll(par.getSegments()));
         if (segments.isEmpty()) {
             return Mono.error(new IllegalArgumentException("Message cannot be blank"));
         }
@@ -370,6 +288,12 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
                 }))
                 .then();
     }
+
+    /**
+     * 文件段落的处理
+     * @param messageNode
+     * @return Mono
+     */
     private Mono<Void> sendFileResourceSegment(MessageNode messageNode) {
         var uuid = UUID.randomUUID();
         ByteArrayResource resource = new ByteArrayResource(messageNode.getBytes()) {
@@ -424,7 +348,10 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
      * @param message            The message content
      */
     private  void addMessageBubble(Object message) {
-        Platform.runLater(() -> messageDisplayArea.getChildren().add(new ChatBubblePane(message)));
+        var chatBubblePane = applicationContext.getBean(ChatBubblePane.class, message);
+
+        Platform.runLater(() -> messageDisplayArea.getChildren()
+                .add(chatBubblePane));
     }
 
     /**
@@ -433,10 +360,16 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
      * @param message  message content
      */
     private void addMessageBubble( String sender , Object message) {
-        Platform.runLater(() -> messageDisplayArea.getChildren().add(new ChatBubblePane(sender,message)));
+        var chatBubblePane = applicationContext.getBean(ChatBubblePane.class, sender ,message);
+        Platform.runLater(() -> messageDisplayArea.getChildren().add(chatBubblePane));
     }
     private void addMessageBubble( MessageWrapper messageWrapper) {
-        Platform.runLater(() -> messageDisplayArea.getChildren().add(new ChatBubblePane(messageWrapper)));
+        var chatBubblePane = applicationContext
+                .getBean(ChatBubblePane.class, messageWrapper,
+                        messageNodeService.createMessageNode(messageWrapper));
+
+
+        Platform.runLater(() -> messageDisplayArea.getChildren().add(chatBubblePane));
     }
 
 
@@ -530,7 +463,7 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
                 var filesFromClipboard = ClipboardUtils.getFilesFromClipboard();
                 if (!filesFromClipboard.isEmpty()) {
                     filesFromClipboard.stream()
-                            .filter(e->e.isFile())
+                            .filter(File::isFile)
                             .forEach(file -> {
                                 var localFileInfo = new LocalFileInfo(file.toPath());
                                 var fileNode = new FileNode(localFileInfo);

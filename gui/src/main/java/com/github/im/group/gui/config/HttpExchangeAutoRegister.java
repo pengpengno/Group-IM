@@ -58,6 +58,9 @@ public class HttpExchangeAutoRegister implements ApplicationContextAware {
     @SneakyThrows
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
 
+        /***
+         * 因为 apk ANDROID 端需要使用 Graalvm 编译 ，但是 目前不支持，所以暂时不使用扫描bean 自动注册得方式
+         */
 //        var isAotStarter = AotDetector.useGeneratedArtifacts();
 //        if(isAotStarter){
 //            // 判断下是否AOT 启动，则不注册

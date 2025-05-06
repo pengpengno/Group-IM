@@ -29,7 +29,7 @@
  *             |
  *             v
  * +----------------------------+
- * |   Display View with AppManager |
+ * |   DisplayManager View with AppManager |
  * +----------------------------+
  *             |
  *             v

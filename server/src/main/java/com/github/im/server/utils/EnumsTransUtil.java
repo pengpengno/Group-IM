@@ -94,6 +94,7 @@ public class EnumsTransUtil {
         switch (messageType) {
             case TEXT:
                 return MessageType.TEXT;
+            case IMAGE:
             case FILE:
                 return MessageType.FILE;
             case STREAM:

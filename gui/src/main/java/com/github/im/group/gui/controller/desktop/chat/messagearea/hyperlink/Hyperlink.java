@@ -1,10 +1,36 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.hyperlink;
 
-public class Hyperlink {
+import com.github.im.common.connect.model.proto.Chat;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.MessageNode;
+import javafx.scene.Node;
+
+public class Hyperlink implements MessageNode {
 
     private final String originalDisplayedText;
     private final String displayedText;
     private final String link;
+
+
+    @Override
+    public String getDescription() {
+        return originalDisplayedText;
+    }
+
+    @Override
+    public byte[] getBytes() {
+        return MessageNode.super.getBytes();
+    }
+
+    @Override
+    public Chat.MessageType getType() {
+        return MessageNode.super.getType();
+    }
+
+
+    @Override
+    public Node createNode() {
+        return null;
+    }
 
     Hyperlink(String originalDisplayedText, String displayedText, String link) {
         this.originalDisplayedText = originalDisplayedText;

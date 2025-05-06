@@ -3,11 +3,9 @@ package com.github.im.group.gui.controller.desktop.chat;
 import com.github.im.conversation.ConversationRes;
 import com.github.im.dto.PageResult;
 import com.github.im.dto.session.MessagePullRequest;
-import com.github.im.dto.user.FriendshipDTO;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.enums.ConversationType;
 import com.github.im.group.gui.api.ConversationEndpoint;
-import com.github.im.group.gui.api.FriendShipEndpoint;
 import com.github.im.group.gui.api.MessageEndpoint;
 import com.github.im.group.gui.context.UserInfoContext;
 import jakarta.annotation.PostConstruct;
@@ -16,23 +14,23 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Lookup;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
-
 import java.net.URL;
-import java.util.List;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Description:
+ * Description:  Chat 页面的主体
  * <p>
  *     chat mould main pane
  *     include
@@ -49,29 +47,36 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+//public class ChatMainPane extends GridPane implements Initializable {
 public class ChatMainPane extends GridPane implements Initializable, ApplicationContextAware {
+
 
 
     private ListView<ConversationInfoCard> conversationList;
 
 
-    private  Set<Long> conversationIdSet = ConcurrentHashMap.newKeySet();
+    private Set<Long> conversationIdSet = ConcurrentHashMap.newKeySet();
 
     private ChatMessagePane currentChatPane;
 
-    private  ConcurrentHashMap<String, ChatMessagePane>  chatPaneMap = new ConcurrentHashMap<>();
-
-    private final ConversationEndpoint conversationEndpoint;
-    private final MessageEndpoint messagesEndpoint;
-
-
-
-
-    private  ApplicationContext applicationContext;
+    private ConcurrentHashMap<String, ChatMessagePane>  chatPaneMap = new ConcurrentHashMap<>();
+    @Autowired
+    private  ConversationEndpoint conversationEndpoint;
+//    private  ConversationEndpoint conversationEndpoint;
+    @Autowired
+    private  MessageEndpoint messagesEndpoint;
+//    private  MessageEndpoint messagesEndpoint;
 
 
+    private ApplicationContext applicationContext;
+
+//    public ChatMainPane(){
+//        super();
+//    }
+//
+//
     @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+    public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
     }
 
@@ -210,7 +215,7 @@ public class ChatMainPane extends GridPane implements Initializable, Application
                 .map(PageResult::getContent)
                 .doOnNext(chatMessagePane::addMessages)
                 .then()
-                .cache()//缓存这个操作就行了  后续的调用不执行
+//                .cache()//缓存这个操作就行了  后续的调用不执行
                 ;
     }
 
@@ -326,22 +331,22 @@ public class ChatMainPane extends GridPane implements Initializable, Application
      * 更新 好友列表
      * @param friendships
      */
-    private void updateFriendList(List<FriendshipDTO> friendships) {
-        Platform.runLater(() -> {
-            conversationList.getItems().clear();
-            friendships.forEach(friendship -> {
-                var friendUserInfo = friendship.getFriendUserInfo();
+//    private void updateFriendList(List<FriendshipDTO> friendships) {
+//        Platform.runLater(() -> {
+//            conversationList.getItems().clear();
+//            friendships.forEach(friendship -> {
+//                var friendUserInfo = friendship.getFriendUserInfo();
+////                var chatInfoPane = new ConversationInfoCard(friendUserInfo);
 //                var chatInfoPane = new ConversationInfoCard(friendUserInfo);
-                var chatInfoPane = new ConversationInfoCard(friendUserInfo);
-                chatInfoPane.setOnMouseClicked(mouseEvent -> {
-                    log.debug("click chatInfo pane");
-                    var chatMessagePane = getChatMessagePane(friendUserInfo);
-                    switchChatPane(chatMessagePane);
-                });
-                conversationList.getItems().add(chatInfoPane);
-            });
-        });
-    }
+//                chatInfoPane.setOnMouseClicked(mouseEvent -> {
+//                    log.debug("click chatInfo pane");
+//                    var chatMessagePane = getChatMessagePane(friendUserInfo);
+//                    switchChatPane(chatMessagePane);
+//                });
+//                conversationList.getItems().add(chatInfoPane);
+//            });
+//        });
+//    }
 
 
 

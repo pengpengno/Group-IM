@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.io.FileNotFoundException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -43,7 +44,14 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
     }
 
-
+    // 处理文件异常
+    @ExceptionHandler(FileNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleExceptions(FileNotFoundException ex) {
+        Map<String, String> errors = new HashMap<>();
+        errors.put("message",ex.getMessage());
+        log.error(" error processing  ",ex);
+        return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
+    }
 
     // 处理所有验证异常
     @ExceptionHandler(Exception.class)

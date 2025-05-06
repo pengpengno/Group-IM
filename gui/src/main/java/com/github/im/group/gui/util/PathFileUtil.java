@@ -56,13 +56,15 @@ public class PathFileUtil {
         fileName = fileName.toLowerCase();
         if (fileName.endsWith(".png") || fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) {
             return Chat.MessageType.IMAGE;
-        } else if (fileName.endsWith(".mp4")) {
-            return Chat.MessageType.VIDEO;
-        } else if (fileName.endsWith(".txt")) {
-            return Chat.MessageType.TEXT;
-        } else if (fileName.endsWith(".md")) {
-            return Chat.MessageType.MARKDOWN;
-        } else {
+        }
+//        else if (fileName.endsWith(".mp4")) {
+//            return Chat.MessageType.VIDEO;
+//        } else if (fileName.endsWith(".txt")) {
+//            return Chat.MessageType.TEXT;
+//        } else if (fileName.endsWith(".md")) {
+//            return Chat.MessageType.MARKDOWN;
+//        }
+        else {
             return Chat.MessageType.FILE;
         }
     }

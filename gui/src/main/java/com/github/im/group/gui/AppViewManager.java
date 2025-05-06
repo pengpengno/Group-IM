@@ -42,6 +42,9 @@ import java.util.ResourceBundle;
 
 import static com.gluonhq.charm.glisten.afterburner.AppView.Flag.*;
 
+/**
+ * 官方 Demo 代码 示例
+ */
 public class AppViewManager {
 
     private static final AppViewRegistry REGISTRY = new AppViewRegistry();

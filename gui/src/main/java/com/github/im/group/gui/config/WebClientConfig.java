@@ -48,7 +48,6 @@ public class WebClientConfig {
 
     @Bean
     @LoadBalanced
-//    public HttpServiceProxyFactory httpServiceProxyFactory(@Autowired ServerConnectProperties serverConnectProperties, @Autowired WebClientFilter authFilter) {
     public HttpServiceProxyFactory httpServiceProxyFactory(@Autowired WebClient webClient) {
 
         WebClientAdapter adapter = WebClientAdapter.create(webClient);
@@ -64,7 +63,6 @@ public class WebClientConfig {
      * {@link HttpExchangeAutoRegister endpoint 注册器}  ,如上方式可以自动化的注册但是 无法 兼容 graalvm 编译的情况
      * 细节支持 有待研究
      */
-
     @Bean
     @ConditionalOnMissingBean(UserEndpoint.class)
     public UserEndpoint userEndpoint(@Autowired HttpServiceProxyFactory webClient) {

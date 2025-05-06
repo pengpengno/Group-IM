@@ -4,8 +4,10 @@ import cn.hutool.core.io.file.FileNameUtil;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
+import java.awt.*;
 import java.io.File;
 import java.nio.file.Path;
+import java.util.function.Consumer;
 
 /**
  * Description:
@@ -20,6 +22,17 @@ public class LocalFileInfo implements FileInfo{
 
 
     private final Path path ;
+
+
+//    private final Consumer<Path> pathConsumer =  path-> {
+//        try {
+//            File file = getFile();
+//            // gluon 环境中使用 好像有点问题
+//            Desktop.getDesktop().open(file);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    };
     public File getFile() {
         return  path.toFile();
     }
@@ -27,6 +40,8 @@ public class LocalFileInfo implements FileInfo{
     public LocalFileInfo(Path path) {
         this.path = path;
     }
+
+
 
 
     @Override

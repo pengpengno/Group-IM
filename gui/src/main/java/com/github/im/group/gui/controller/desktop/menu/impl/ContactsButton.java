@@ -1,6 +1,6 @@
 package com.github.im.group.gui.controller.desktop.menu.impl;
 
-import com.github.im.group.gui.controller.Display;
+import com.github.im.group.gui.controller.DisplayManager;
 import com.github.im.group.gui.controller.MainHomeView;
 import com.github.im.group.gui.controller.desktop.DesktopMainView;
 import com.github.im.group.gui.controller.desktop.contract.ContractMainPane;
@@ -37,7 +37,7 @@ public class ContactsButton extends AbstractMenuButton{
             log.info("click  Contacts ");
             EventType<? extends MouseEvent> eventType = event.getEventType();
 
-            var controller = Display.getController(MainHomeView.class);
+            var controller = DisplayManager.getController(MainHomeView.class);
 
             contractMainPane.initialize();
 
