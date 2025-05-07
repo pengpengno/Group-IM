@@ -29,10 +29,10 @@ jobs:
       - name: Make staging directory
         run: mkdir staging
 
-      - name: Gluon License
-        uses: gluonhq/gluon-build-license@v1
-        with:
-          gluon-license: ${{ secrets.GLUON_LICENSE }}
+#      - name: Gluon License
+#        uses: gluonhq/gluon-build-license@v1
+#        with:
+#          gluon-license: ${{ secrets.GLUON_LICENSE }}
 
 #      - name: Gluon Build and Package
 #        shell: cmd
@@ -43,8 +43,8 @@ jobs:
 
       - name: Copy native bundles to staging
         run: |
-          cp -r target/gluonfx/x86_64-windows/HelloGluon.exe staging
-          cp -r target/gluonfx/x86_64-windows/HelloGluon-1.0.msi staging
+          cp -r target/gluonfx/x86_64-windows/*.exe staging
+          cp -r target/gluonfx/x86_64-windows/*.msi staging
 
       - name: Upload
         uses: actions/upload-artifact@v4
