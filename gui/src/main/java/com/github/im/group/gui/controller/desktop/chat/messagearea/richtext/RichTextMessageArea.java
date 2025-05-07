@@ -1,15 +1,25 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext;
 
+import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image.LinkedImageOps;
+import com.sun.javafx.tk.Toolkit;
 import javafx.application.Platform;
+import javafx.scene.Group;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
+import lombok.Getter;
 import org.fxmisc.richtext.GenericStyledArea;
 import org.fxmisc.richtext.StyledTextArea;
 import org.fxmisc.richtext.TextExt;
 import org.fxmisc.richtext.model.*;
 import org.reactfx.util.Either;
+import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
@@ -22,12 +32,19 @@ public class RichTextMessageArea extends GenericStyledArea<ParStyle, Either<Stri
     private final static TextOps<String, TextStyle> styledTextOps = SegmentOps.styledTextOps();
     private final static LinkedImageOps<TextStyle> linkedImageOps = new LinkedImageOps<>();
 
+
+    @Getter
+    private final static int fontSize = 12;
+
+    @Getter
+    private final static Font font = Font.font("Serif", fontSize);
+
     public RichTextMessageArea()
     {
         super(
             ParStyle.EMPTY,                                                 // default paragraph style
             (paragraph, style) -> paragraph.setStyle(style.toCss()),        // paragraph style setter
-            TextStyle.EMPTY.updateFontSize(12).updateFontFamily("Serif").updateTextColor(Color.BLACK),  // default segment style
+            TextStyle.EMPTY.updateFontSize(fontSize).updateFontFamily(font.getFamily()).updateTextColor(Color.BLACK),  // default segment style
             styledTextOps._or(linkedImageOps, (s1, s2) -> Optional.empty()),                            // segment operations
             seg -> createNode(seg, (text, style) -> text.setStyle(style.toCss())));                     // Node creator and segment style setter
 
@@ -99,5 +116,66 @@ public class RichTextMessageArea extends GenericStyledArea<ParStyle, Either<Stri
 
 
         }
+    }
+
+
+    /***
+     * 根据富文本中的内容自动计算 其高度
+     * @return 返回prefHeight
+     */
+    public double computePrefHeight(){
+        final var textArea = this;
+
+        Font font = RichTextMessageArea.getFont();
+        double lineHeight = Toolkit.getToolkit()
+                .getFontLoader()
+                .getFontMetrics(font)
+                .getLineHeight();
+
+        double width = textArea.getWidth() > 0 ? textArea.getWidth() : 400;
+
+        Text helper = new Text();
+        helper.setFont(font);
+        helper.setWrappingWidth(width);
+        new Scene(new Group(helper)); // 必须放入 Scene 才能正确计算
+        helper.applyCss();
+
+        var doc = textArea.getDocument();
+        List<Either<String, MessageNode>> segments = new ArrayList<>();
+        doc.getParagraphs().forEach(par -> segments.addAll(par.getSegments()));
+        if (segments.isEmpty()) {
+            return 0;
+        }
+        if(segments.size() ==1){
+            // 当段落为1 的时候 且为文件类型
+            var stringMessageNodeEither = segments.get(0);
+            var isFileNode = stringMessageNodeEither.isRight();
+            if(isFileNode){
+                var messageNode = stringMessageNodeEither.getRight();
+                var fileType = messageNode.getType();
+                if(fileType == Chat.MessageType.IMAGE){
+                    return 100;
+                }
+            }
+        }
+        int wrapLines = 0;
+        for (Paragraph<?, ?, ?> paragraph : textArea.getParagraphs()) {
+
+            String text = paragraph.getText();
+            if (text.isEmpty()) {
+                wrapLines += 1;
+                continue;
+            }
+
+            helper.setText(text);
+            double paraHeight = helper.getLayoutBounds().getHeight();
+            wrapLines += Math.max(1, (int) Math.ceil(paraHeight / lineHeight));
+        }
+
+        // 5. 设置最大高度限制（如不超过 300px）
+        double maxHeight = 300;
+
+        double totalHeight = wrapLines * lineHeight + 10; // padding 可调整
+        return Math.min(totalHeight, maxHeight);
     }
 }

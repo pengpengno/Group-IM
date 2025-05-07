@@ -1,5 +1,6 @@
 package com.github.im.group.gui.controller.desktop.chat;
 
+import com.github.im.dto.user.UserInfo;
 import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.desktop.MessageWrapper;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.MessageNodeService;
@@ -8,19 +9,26 @@ import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.Rich
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.FileNode;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.RemoteFileInfo;
 import com.github.im.group.gui.util.AvatarGenerator;
+import com.sun.javafx.tk.Toolkit;
 import jakarta.annotation.Resource;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Group;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.fxmisc.richtext.GenericStyledArea;
+import org.fxmisc.richtext.model.Paragraph;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -51,14 +59,11 @@ import java.util.concurrent.atomic.AtomicLong;
  * @version 1.0
  * @since 2025/1/14
  */
-//@Scope("prototype")
-//@Component
-//@RequiredArgsConstructor
-//public class ChatBubblePane extends HBox {
 public class ChatBubblePane extends GridPane {
 
 
-    private String sender;
+
+    private UserInfo senderUser;
 
     // 创建头像
     private ImageView avatar ;
@@ -113,18 +118,13 @@ public class ChatBubblePane extends GridPane {
     public ChatBubblePane(MessageWrapper messageWrapper,Mono<MessageNode> nodeMono) {
         this.messageNodeMono = nodeMono;
         this.messageWrapper = messageWrapper;
-        this.sender = UserInfoContext.getCurrentUser().getUsername();
+
+        UserInfo currentUser = UserInfoContext.getCurrentUser();
         var senderAccount = messageWrapper.getSenderAccount();
+        senderUser = messageWrapper.getUserInfo();
         // 判断是否为当前用户
-        var isCurrentSender = sender.equals(senderAccount);
-        init(messageWrapper, sender, isCurrentSender);
-    }
-    public ChatBubblePane(MessageWrapper messageWrapper) {
-        this.sender = UserInfoContext.getCurrentUser().getUsername();
-        var senderAccount = messageWrapper.getSenderAccount();
-        // 判断是否为当前用户
-        var isCurrentSender = sender.equals(senderAccount);
-        init(messageWrapper, sender, isCurrentSender);
+        var isCurrentSender = currentUser.getUsername().equals(senderAccount);
+        init(messageWrapper, currentUser.getUsername(), isCurrentSender);
     }
 
 
@@ -136,30 +136,16 @@ public class ChatBubblePane extends GridPane {
      * @param isSent  isCurrentSender , if true , the avatar is on the right side
      */
     private void init(Object message, String name , boolean isSent) {
-//        this.setMaxWidth(Double.MAX_VALUE); // 允许外层VBox控制宽度
-//        HBox.setHgrow(this, Priority.ALWAYS); // 允许自己在HBox中扩展
-        // 背景 黑色
-        this.setBackground(new Background(new BackgroundFill(javafx.scene.paint.Color.BLACK, null, null)));
-//        this.setSpacing(10);
-//        this.setPadding(new Insets(10));
-//        this.setAlignment(isSent ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
         this.setHgap(10);
         this.setMaxWidth(Double.MAX_VALUE);
         this.setPrefWidth(400); // 控制最大宽度
         // 构造空白填充列
         var columnConstraints = new ColumnConstraints();
-//        columnConstraints.setPrefWidth(40);
         columnConstraints.setPercentWidth(20);
         // 构造消息展示列 ，宽度等于 剩余宽度
 
         var messageColumn = new ColumnConstraints();
-//        messageColumn.setPercentWidth().bind(this.widthProperty().subtract(columnConstraints.getPrefWidth()));
         messageColumn.setPercentWidth(80);
-//                .bind(this.widthProperty().subtract(columnConstraints.getPrefWidth()));
-//        columnConstraints.setPrefWidth(40);
-
-
-
 
         avatar = new ImageView(AvatarGenerator.generateCircleAvatar(name, 100));
         avatar.setFitWidth(40);
@@ -168,7 +154,7 @@ public class ChatBubblePane extends GridPane {
         senderTextField = new RichTextMessageArea();
         senderTextField.setEditable(false);
 
-        senderTextField.setBackground(new Background(new BackgroundFill(Color.BLUE, null, null)));
+//        senderTextField.setBackground(new Background(new BackgroundFill(Color.BLUE, null, null)));
 
         if(message instanceof String strContent){
             senderTextField.appendText(strContent);
@@ -190,138 +176,112 @@ public class ChatBubblePane extends GridPane {
             }
         }
 
+        // 头像和名称的Box
+        var avatarAndNameBox = new VBox(5);
+        senderLabel = new Label(name);
+        senderLabel.setFont(Font.font("Arial", 15));
 
-//        senderTextField.setMaxWidth(400); // 限定最大宽度，控制文本换行
-//        senderTextField.setPrefHeight(Region.USE_COMPUTED_SIZE); // 允许自动高度
-//        VBox.setVgrow(senderTextField, Priority.ALWAYS);
-
-//        HBox messageBubble = new HBox(senderTextField);
-//        messageBubble.setPadding(new Insets(5));
-//        messageBubble.getStyleClass().add("message-bubble");
-//        messageBubble.setAlignment(Pos.TOP_LEFT); // 让文本从上往下布局
-//        messageBubble.setFillHeight(true); // 垂直拉伸
-//        messageBubble.setBackground(new Background(new BackgroundFill(Color.RED, null, null)));
-
-//        HBox.setHgrow(senderTextField, Priority.ALWAYS);
-
-
-//        if (isSent) {
-//            messageBubble.getStyleClass().add("sent-message-bubble");
-//        }
-//        HBox.setHgrow(senderTextField, Priority.ALWAYS);  // 允许扩展
+        avatarAndNameBox.getChildren().addAll(senderLabel, avatar);
+        avatarAndNameBox.setAlignment(isSent ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
 
         HBox messageBox = new HBox(10);
-//        messageBox.set
-        messageBox.setBackground(new Background(new BackgroundFill(Color.GREEN, null, null)));
         messageBox.setAlignment(isSent ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
-//        messageBox.setHgrow(senderTextField, Priority.ALWAYS);
-        senderTextField.setPrefWidth(170);
+
         if(isSent){
-            messageBox.getChildren().addAll(senderTextField,avatar);
+            messageBox.getChildren().addAll(senderTextField,avatarAndNameBox);
         }
         else{
-            messageBox.getChildren().addAll(avatar, senderTextField);
+            messageBox.getChildren().addAll(avatarAndNameBox, senderTextField);
         }
-//        VBox.setVgrow(senderTextField, Priority.ALWAYS);              // 允许 VBox 分配多余高度
-//        senderTextField.setMaxHeight(Double.MAX_VALUE);               // 控件自己也允许拉伸
-//        senderTextField.setMaxWidth(Double.MAX_VALUE);                // 宽度也要允许拉伸
-//        messageBox.getChildren().addAll(senderTextField, avatar);
 
-//        var button = new Button("1111");
-//        button.setBackground(new Background(new BackgroundFill(Color.BLUE, null, null)));
-//
-//        messageBox.getChildren().add(button);
-//        HBox.setHgrow(button, Priority.ALWAYS);
-
-//        VBox.set(button, Priority.ALWAYS);              // 允许 VBox 分配多余高度
-
-//        button.setMaxHeight(Double.MAX_VALUE);               // 控件自己也允许拉伸
-//        button.setMaxWidth(Double.MAX_VALUE);                // 宽度也要允许拉伸
-//        // 关键点：让 messageBox 占满宽度
-//
-//        messageBox.setMaxWidth(Double.MAX_VALUE);
-//
-//        messageBox.setBackground(new Background(new BackgroundFill(Color.GREEN, null, null)));
-//
-//        VBox.setVgrow(messageBox, Priority.ALWAYS);
-//        VBox.setVgrow(messageBubble, Priority.ALWAYS); //
-
-//        senderTextField.setWrapText(true);  // 启用自动换行
-//        senderTextField.textProperty().addListener((obs, oldText, newText) -> {
-//            double newHeight = computeTextHeight(senderTextField);
-//            senderTextField.setPrefHeight(newHeight);
-//        });
-//        senderTextField.setPrefWidth(150);
-//        senderTextField.setMaxWidth(180);
-//        var region = new Region();
-//        region.setPrefWidth(10);
-//        region.setMaxWidth(10);
-        // 绿色
-//        region.setBackground(new Background(new BackgroundFill(Color.GREEN, null, null)));
-
-//        HBox.setHgrow(region, Priority.ALWAYS);
-//        this.getChildren().add(region);
         if (isSent) {
             this.getColumnConstraints().add(columnConstraints);
             this.getColumnConstraints().add(messageColumn);
 
-//            this.add(senderTextField,1,0);
             this.add(messageBox,1,0);
-//            this.getChildren().addAll(messageBox, avatar);
-//            this.getChildren().addAll(messageBubble, avatar);
-//            this.getChildren().addAll(senderTextField, avatar);
         } else {
             this.getColumnConstraints().add(messageColumn);
             this.getColumnConstraints().add(columnConstraints);
 
-//            this.getChildren().addAll(avatar, messageBox);
             this.add(messageBox,0,0);
-//            this.add(senderTextField,0,0);
-//            this.getChildren().addAll(avatar, messageBubble);
-//            this.getChildren().addAll(avatar, senderTextField);
         }
+
+        senderTextField.setPrefWidth(400);
+        senderTextField.setPrefHeight(senderTextField.computePrefHeight());
+
         System.out.println("line  length" + senderTextField.getPrefWidth());
     }
 
+    /**
+     * 计算 InlineCssTextArea 或 GenericStyledArea 所需的高度（粗略估算）。
+     */
+    private double computeTextHeight(RichTextMessageArea textArea) {
+        // 1. 获取字体行高（从样式或默认字体）
+        Font font = RichTextMessageArea.getFont();
+        double lineHeight = Toolkit.getToolkit().getFontLoader().getFontMetrics(font).getLineHeight();
 
+        // 2. 获取当前行数
+        int paragraphCount = textArea.getParagraphs().size();
 
-
-    protected ChatBubblePane(Object message){
-
-        var currentUser = UserInfoContext.getCurrentUser();
-
-        this.sender = currentUser.getUsername();
-
-        init(message, sender, true);
-
-    }
-
-    public ChatBubblePane(String sender, Object message) {
-        if (sender == null || sender.isEmpty() || sender.equals(UserInfoContext.getCurrentUser().getUsername())){
-            var currentUser = UserInfoContext.getCurrentUser();
-
-            this.sender = currentUser.getUsername();
-
-            init(message, sender, true);
+        // 3. 考虑每段文本的换行（折行）——可以通过内容长度和宽度估算
+        double width = textArea.getWidth() > 0 ? textArea.getWidth() : 400; // 默认宽度防止为 0
+        int wrapLines = 0;
+        for (Paragraph<?, ?, ?> paragraph : textArea.getParagraphs()) {
+            String text = paragraph.getText();
+            Text helper = new Text(text);
+            helper.setFont(font);
+            helper.setWrappingWidth(width);
+            new Scene(new Group(helper)); // 必须附加到 Scene 才能计算布局
+            helper.applyCss();
+            double paraHeight = helper.getLayoutBounds().getHeight();
+            wrapLines += Math.max(1, (int) Math.ceil(paraHeight / lineHeight));
         }
 
-        else{
-            this.sender = sender;
-            init(message, sender, false);
+        // 4. 总高度 = 行数 * 行高 + padding
+        double totalHeight = wrapLines * lineHeight + 10; // 加一点 padding
 
-        }
+        // 5. 设置最大高度限制（如不超过 300px）
+        double maxHeight = 300;
+        return Math.min(totalHeight, maxHeight);
     }
 
 
+    /**
+     * 计算 InlineCssTextArea 或 GenericStyledArea 所需的高度（粗略估算）。
+     * 支持自动根据内容换行，设置最小最大高度。
+     */
+    private double computeTextHeight(RichTextMessageArea textArea, double maxWidth, double minHeight, double maxHeight) {
+        Font font = RichTextMessageArea.getFont();
+        double lineHeight = Toolkit.getToolkit()
+                .getFontLoader()
+                .getFontMetrics(font)
+                .getLineHeight();
 
-//    /**
-//     * 计算 InlineCssTextArea 需要的高度
-//     */
-//    private double computeTextHeight(GenericStyledArea textArea) {
-//        int lines = textArea.getParagraphs().size();
-//        double lineHeight = 20;
-//        return Math.max(40, lines * lineHeight + 10);
-//    }
+        double width = textArea.getWidth() > 0 ? textArea.getWidth() : maxWidth;
+
+        Text helper = new Text();
+        helper.setFont(font);
+        helper.setWrappingWidth(width);
+        new Scene(new Group(helper)); // 必须放入 Scene 才能正确计算
+        helper.applyCss();
+
+        int wrapLines = 0;
+        for (Paragraph<?, ?, ?> paragraph : textArea.getParagraphs()) {
+            String text = paragraph.getText();
+            if (text.isEmpty()) {
+                wrapLines += 1;
+                continue;
+            }
+
+            helper.setText(text);
+            double paraHeight = helper.getLayoutBounds().getHeight();
+            wrapLines += Math.max(1, (int) Math.ceil(paraHeight / lineHeight));
+        }
+
+        double totalHeight = wrapLines * lineHeight + 10; // padding 可调整
+        return Math.max(minHeight, Math.min(totalHeight, maxHeight));
+    }
+
 
 
 

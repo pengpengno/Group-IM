@@ -47,7 +47,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-//public class ChatMainPane extends GridPane implements Initializable {
 public class ChatMainPane extends GridPane implements Initializable, ApplicationContextAware {
 
 
@@ -62,19 +61,12 @@ public class ChatMainPane extends GridPane implements Initializable, Application
     private ConcurrentHashMap<String, ChatMessagePane>  chatPaneMap = new ConcurrentHashMap<>();
     @Autowired
     private  ConversationEndpoint conversationEndpoint;
-//    private  ConversationEndpoint conversationEndpoint;
     @Autowired
     private  MessageEndpoint messagesEndpoint;
-//    private  MessageEndpoint messagesEndpoint;
 
 
     private ApplicationContext applicationContext;
 
-//    public ChatMainPane(){
-//        super();
-//    }
-//
-//
     @Override
     public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
@@ -248,21 +240,7 @@ public class ChatMainPane extends GridPane implements Initializable, Application
             return newChatPane;
         }
     }
-    public ChatMessagePane getChatMessagePane (UserInfo userInfo) {
 
-        var username = userInfo.getUsername();
-
-        if (chatPaneMap.containsKey(username)){
-            return chatPaneMap.get(username);
-        }else{
-            var newChatPane = createChatMessagePane();
-//            newChatPane.initialize();
-            newChatPane.setToAccountInfo(userInfo);
-            chatPaneMap.putIfAbsent(username, newChatPane);
-            return newChatPane;
-        }
-
-    }
 
     @Lookup
     protected ChatMessagePane createChatMessagePane() {
@@ -310,11 +288,8 @@ public class ChatMainPane extends GridPane implements Initializable, Application
         ColumnConstraints col2 = new ColumnConstraints();
         col2.setHgrow(javafx.scene.layout.Priority.ALWAYS);  // 让第 1 列可以自动扩展
 
-
-
         UserInfoContext.subscribeUserInfoSink()
                 .flatMap(this::loadConversation).subscribe();
-
 
     }
 
@@ -325,28 +300,6 @@ public class ChatMainPane extends GridPane implements Initializable, Application
 
     }
 
-
-
-    /**
-     * 更新 好友列表
-     * @param friendships
-     */
-//    private void updateFriendList(List<FriendshipDTO> friendships) {
-//        Platform.runLater(() -> {
-//            conversationList.getItems().clear();
-//            friendships.forEach(friendship -> {
-//                var friendUserInfo = friendship.getFriendUserInfo();
-////                var chatInfoPane = new ConversationInfoCard(friendUserInfo);
-//                var chatInfoPane = new ConversationInfoCard(friendUserInfo);
-//                chatInfoPane.setOnMouseClicked(mouseEvent -> {
-//                    log.debug("click chatInfo pane");
-//                    var chatMessagePane = getChatMessagePane(friendUserInfo);
-//                    switchChatPane(chatMessagePane);
-//                });
-//                conversationList.getItems().add(chatInfoPane);
-//            });
-//        });
-//    }
 
 
 

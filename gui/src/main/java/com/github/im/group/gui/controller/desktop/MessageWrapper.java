@@ -3,6 +3,7 @@ package com.github.im.group.gui.controller.desktop;
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.dto.session.MessageDTO;
 import com.github.im.dto.session.MessagePayLoad;
+import com.github.im.dto.user.UserInfo;
 import com.github.im.enums.MessageType;
 import com.github.im.group.gui.util.EnumsTransUtil;
 import jakarta.validation.constraints.NotNull;
@@ -27,6 +28,22 @@ public class MessageWrapper implements AbstractMessageHelper{
 
     }
 
+
+    public UserInfo  getUserInfo(){
+        if (message != null){
+            if (message.hasFromAccountInfo()){
+                var userInfo = new UserInfo();
+                userInfo.setUserId(message.getFromAccountInfo().getUserId());
+                userInfo.setUsername(message.getFromAccountInfo().getAccount());
+                userInfo.setEmail(message.getFromAccountInfo().getEMail());
+                return userInfo;
+            }
+        }
+        if (messageDTO != null){
+            return messageDTO.getFromAccount();
+        }
+        return null;
+    }
     public MessageWrapper(@NotNull Chat.ChatMessage message) {
         if (message == null){
             throw new IllegalArgumentException("message is null");

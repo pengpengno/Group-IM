@@ -31,11 +31,9 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
+import javafx.scene.control.Alert;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -97,6 +95,7 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
     private SendMessagePane sendMessagePane;  // 消息发送区域
 
     private RichTextMessageArea messageSendArea; // message send area
+    StackPane messageAreaWithButton;
 
 
     private final EventBus bus;
@@ -104,7 +103,6 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
     private final FileEndpoint fileEndpoint;
     private final MessageNodeService messageNodeService;
 
-    private final ApplicationContext applicationContext;
 
 
     @Override
@@ -301,6 +299,14 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
         };
 
         return fileEndpoint.upload(resource, uuid)
+                .onErrorResume(e -> {
+                    log.error("Failed to upload file", e);
+                    Platform.runLater(() -> {
+                        Alert alert = new Alert(Alert.AlertType.ERROR, "文件发送失败：" + e.getMessage());
+                        alert.showAndWait();
+                    });
+                    return Mono.empty();
+                })
                 .flatMap(resp -> {
                     var msg = Chat.ChatMessage.newBuilder()
                             .setConversationId(getConversationId())
@@ -346,29 +352,10 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
 
     /**
      * Adds a new message bubble to the display area on the JavaFX Application Thread.
-     *
-     * @param message            The message content
+     * @param messageWrapper message wrapper
      */
-//    private  void addMessageBubble(Object message) {
-//        var chatBubblePane = applicationContext.getBean(ChatBubblePane.class, message);
-//
-//        Platform.runLater(() -> messageDisplayArea.getChildren()
-//                .add(chatBubblePane));
-//    }
-
-    /**
-     * Adds a new message bubble to the display area on the JavaFX Application Thread.
-     * @param sender message sender
-     * @param message  message content
-     */
-//    private void addMessageBubble( String sender , Object message) {
-//        var chatBubblePane = applicationContext.getBean(ChatBubblePane.class, sender ,message);
-//        Platform.runLater(() -> messageDisplayArea.getChildren().add(chatBubblePane));
-//    }
     private void addMessageBubble( MessageWrapper messageWrapper) {
-//        var chatBubblePane = applicationContext
-//                .getBean(ChatBubblePane.class, messageWrapper,
-//                        messageNodeService.createMessageNode(messageWrapper));
+
         var chatBubblePane = new ChatBubblePane(messageWrapper, messageNodeService.createMessageNode(messageWrapper));
 
         Platform.runLater(() -> messageDisplayArea.getChildren().add(chatBubblePane));
@@ -412,6 +399,24 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
     /** 初始化发送消息输入框 */
     private void setupMessageSendArea() {
         messageSendArea = new RichTextMessageArea();
+
+        // 2. 创建浮层按钮
+        MFXButton floatingSendButton = new MFXButton("发送");
+        floatingSendButton.setButtonType(ButtonType.RAISED);
+        floatingSendButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
+        floatingSendButton.setOnAction(event -> sendMessage().subscribe());
+
+        // 3. 创建 StackPane 作为容器
+        messageAreaWithButton = new StackPane();
+        messageAreaWithButton.getChildren().addAll(messageSendArea, floatingSendButton);
+
+        // 4. 设置按钮定位在右下角
+        StackPane.setMargin(floatingSendButton, new Insets(0, 10, 10, 0));
+        StackPane.setAlignment(floatingSendButton, javafx.geometry.Pos.BOTTOM_RIGHT);
+
+//        // 5. 添加到底部区域
+//        this.setBottom(messageAreaWithButton);
+
         messageSendArea.setWrapText(true);
 
         messageSendArea.setOnKeyPressed(event -> {
@@ -448,8 +453,9 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
     /** 设置整体布局 */
     private void setupLayout() {
         this.setTop(scrollPane);
-        this.setCenter(messageSendArea);
-        this.setBottom(sendMessagePane);
+//        this.setCenter(messageSendArea);
+//        this.setBottom(sendMessagePane);
+        this.setBottom(messageAreaWithButton);
     }
 
     /** 设置剪贴板粘贴监听和处理 */
