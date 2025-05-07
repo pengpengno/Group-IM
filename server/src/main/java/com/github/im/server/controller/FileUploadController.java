@@ -2,6 +2,7 @@ package com.github.im.server.controller;
 
 import com.github.im.dto.file.ChunkCheckResponse;
 import com.github.im.dto.file.FileUploadResponse;
+import com.github.im.dto.session.FileMeta;
 import com.github.im.server.model.FileResource;
 import com.github.im.server.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
@@ -30,8 +31,16 @@ public class FileUploadController {
     @PostMapping("/upload")
     public ResponseEntity<FileUploadResponse> upload(@RequestParam("file") MultipartFile file,
                                                      @RequestParam("uploaderId") UUID uploaderId) throws IOException {
-        FileResource fileInfo = fileStorageService.storeFile(file, uploaderId);
-        return ResponseEntity.ok(new FileUploadResponse(fileInfo.getId(), fileInfo.getOriginalName(), fileInfo.getStoragePath()));
+        var fileInfo = fileStorageService.storeFile(file, uploaderId);
+
+//        var fileMeta = FileMeta.builder()
+//                .filename(fileInfo.getOriginalName())
+//                .fileSize(fileInfo.getSize())
+//                .contentType(fileInfo.getContentType())
+//                .hash(fileInfo.getHash())
+//                .build();
+
+        return ResponseEntity.ok(fileInfo);
     }
 
     /**
@@ -54,8 +63,8 @@ public class FileUploadController {
     public ResponseEntity<FileUploadResponse> merge(@RequestParam("fileHash") String fileHash,
                                                     @RequestParam("fileName") String fileName,
                                                     @RequestParam("uploaderId") UUID uploaderId) throws IOException {
-        FileResource file = fileStorageService.mergeChunks(fileHash, fileName, uploaderId);
-        return ResponseEntity.ok(new FileUploadResponse(file.getId(), file.getOriginalName(), file.getStoragePath()));
+        var file = fileStorageService.mergeChunks(fileHash, fileName, uploaderId);
+        return ResponseEntity.ok(file);
     }
 
     /**

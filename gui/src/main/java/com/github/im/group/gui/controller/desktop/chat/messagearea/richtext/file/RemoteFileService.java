@@ -50,6 +50,9 @@ public class RemoteFileService {
         // 如果直接获取失败，则尝试通过消息ID从远程获取完整消息内容
         var chatMessage = wrapper.getMessage();
         if (chatMessage != null) {
+            if(chatMessage.getMsgId() != 0){
+
+            }
             return messageEndpoint.getMessageById(chatMessage.getMsgId())
                     .map(msg -> {
                         // 再次尝试获取 FileMeta 信息并创建 RemoteFileInfo 对象

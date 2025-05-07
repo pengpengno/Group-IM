@@ -1,13 +1,18 @@
 package com.github.im.group.gui.controller.desktop;
 
 import com.github.im.common.connect.model.proto.Chat;
+import com.github.im.dto.session.FileMeta;
 import com.github.im.dto.session.MessageDTO;
 import com.github.im.dto.session.MessagePayLoad;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.enums.MessageType;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.MessageNode;
 import com.github.im.group.gui.util.EnumsTransUtil;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
+import lombok.Setter;
+
+import java.util.Optional;
 
 /**
  * Description: 消息的帮助类 ，用来再客户端解决不同 message 数据结构间的抽象处理
@@ -24,10 +29,26 @@ public class MessageWrapper implements AbstractMessageHelper{
     private Chat.ChatMessage message;
     private MessageDTO<MessagePayLoad> messageDTO;
 
+
+    private FileMeta fileMeta;
+
+    /**
+     * 文件类型 在上传完毕后，智慧返回其
+     */
+    @Setter
+    private MessageNode messageNode;
+
     private MessageWrapper(){
 
     }
 
+    /**
+     * 用于 直接返回消息的节点 ， 通常情况下 本地上传的文件 不需要再次构建 直接复用即可
+     * @return
+     */
+    public Optional<MessageNode> getMessageNode(){
+        return Optional.ofNullable(messageNode);
+    }
 
     public UserInfo  getUserInfo(){
         if (message != null){

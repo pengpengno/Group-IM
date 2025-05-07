@@ -139,6 +139,9 @@ public class ChatBubblePane extends GridPane {
         this.setHgap(10);
         this.setMaxWidth(Double.MAX_VALUE);
         this.setPrefWidth(400); // 控制最大宽度
+        final var paddingTopAndBottom  = 10;
+        this.setPadding(new Insets(paddingTopAndBottom,0,paddingTopAndBottom,0));
+
         // 构造空白填充列
         var columnConstraints = new ColumnConstraints();
         columnConstraints.setPercentWidth(20);
@@ -154,7 +157,6 @@ public class ChatBubblePane extends GridPane {
         senderTextField = new RichTextMessageArea();
         senderTextField.setEditable(false);
 
-//        senderTextField.setBackground(new Background(new BackgroundFill(Color.BLUE, null, null)));
 
         if(message instanceof String strContent){
             senderTextField.appendText(strContent);
@@ -179,7 +181,8 @@ public class ChatBubblePane extends GridPane {
         // 头像和名称的Box
         var avatarAndNameBox = new VBox(5);
         senderLabel = new Label(name);
-        senderLabel.setFont(Font.font("Arial", 15));
+        senderLabel.setFont(Font.font("Arial", 18));
+        senderLabel.setTextFill(Color.GRAY); // 设置为标准灰色
 
         avatarAndNameBox.getChildren().addAll(senderLabel, avatar);
         avatarAndNameBox.setAlignment(isSent ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
@@ -206,6 +209,8 @@ public class ChatBubblePane extends GridPane {
             this.add(messageBox,0,0);
         }
 
+
+//        this.set
         senderTextField.setPrefWidth(400);
         senderTextField.setPrefHeight(senderTextField.computePrefHeight());
 

@@ -164,8 +164,6 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
     }
 
 
-
-
     /**
      * 1. 订阅 EventBus，按 conversationId 过滤，串行处理每条消息
      */
@@ -181,22 +179,17 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
      * 2. 路由到不同类型处理
      */
     private Mono<Void> handleIncomingChatMessage(Chat.ChatMessage cm) {
-
         log.debug("receive message from {}",cm.getFromAccountInfo().getAccount());
-
 
         return Mono.fromSupplier(() -> {
             log.debug("receive message from {}",cm.getFromAccountInfo().getAccount());
-            String sender = cm.getFromAccountInfo().getAccount();
 
             var messageWrapper = new MessageWrapper(cm);
             return messageWrapper;
         })
         .flatMap(messageWrapper -> {
-//            addMessageBubble(messageWrapper);
             return Mono.fromRunnable(()-> {
                 addMessageBubble(messageWrapper);
-                //TODO
                 scrollPane.setVvalue(1.0);
             });
         })
@@ -205,7 +198,6 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
 
 
     }
-
     /**
      * 添加消息
      * 此方法用于在用户界面上添加新的消息气泡它首先检查消息的发送者是否是当前用户，
@@ -218,18 +210,30 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
                 .subscribe();  // fire-and-forget
     }
 
+
+    /**
+     * 处理MessageDTO对象，该对象包含MessagePayLoad类型的负载
+     * 本方法负责接收并处理消息，包括将消息包装、添加消息气泡以及滚动到消息末尾
+     *
+     * @param dto 包含消息负载的MessageDTO对象
+     * @return Mono<Void> 表示异步处理过程
+     */
     private Mono<Void> handleMessageDTO(MessageDTO<MessagePayLoad> dto) {
-
-
+        // 使用Mono从Supplier创建一个异步数据流，用于处理接收到的消息
         return Mono.fromSupplier(() -> {
-                    log.debug("receive message from {}",dto);
-                    return new MessageWrapper(dto);
-                })
-                .flatMap(messageWrapper -> Mono.fromRunnable(()-> {
-                    addMessageBubble(messageWrapper);
-                    scrollPane.setVvalue(1.0);
-                }))
-                ;
+            // 记录日志，指示接收到消息的来源
+            log.debug("receive message from {}",dto);
+            // 将接收到的MessageDTO对象包装为MessageWrapper对象
+            return new MessageWrapper(dto);
+        })
+        // 使用flatMap操作符，将消息包装操作与后续的异步操作连接起来
+        .flatMap(messageWrapper -> Mono.fromRunnable(()-> {
+            // 添加消息气泡，用于在界面上展示消息
+            addMessageBubble(messageWrapper);
+            // 设置滚动面板的垂直滚动条值为1.0，滚动到消息末尾
+            scrollPane.setVvalue(1.0);
+        }))
+        ;
     }
 
     public void addMessages(List<MessageDTO<MessagePayLoad>> messageDTOs){
@@ -292,7 +296,7 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
      * @param messageNode
      * @return Mono
      */
-    private Mono<Void> sendFileResourceSegment(MessageNode messageNode) {
+    private Mono<Void> sendFileResourceSegment(final MessageNode messageNode) {
         var uuid = UUID.randomUUID();
         ByteArrayResource resource = new ByteArrayResource(messageNode.getBytes()) {
             @Override public String getFilename() { return messageNode.getDescription(); }
@@ -308,6 +312,7 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
                     return Mono.empty();
                 })
                 .flatMap(resp -> {
+
                     var msg = Chat.ChatMessage.newBuilder()
                             .setConversationId(getConversationId())
                             .setFromAccountInfo(UserInfoContext.getAccountInfo())
@@ -316,6 +321,11 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
                             .build();
 
                     var messageWrapper = new MessageWrapper(msg);
+                    //  本地的上传完毕后 添加到 wrapper 中后续直接复用
+                    /**
+                     * {@link MessageNodeService#createMessageNode(MessageWrapper)}
+                     */
+                    messageWrapper.setMessageNode(messageNode);
 
                     var pkg = BaseMessage.BaseMessagePkg.newBuilder().setMessage(msg).build();
 
@@ -354,9 +364,9 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
      * Adds a new message bubble to the display area on the JavaFX Application Thread.
      * @param messageWrapper message wrapper
      */
-    private void addMessageBubble( MessageWrapper messageWrapper) {
-
-        var chatBubblePane = new ChatBubblePane(messageWrapper, messageNodeService.createMessageNode(messageWrapper));
+    private void addMessageBubble(final MessageWrapper messageWrapper) {
+        var chatBubblePane = new ChatBubblePane(messageWrapper,
+                messageNodeService.createMessageNode(messageWrapper));
 
         Platform.runLater(() -> messageDisplayArea.getChildren().add(chatBubblePane));
     }

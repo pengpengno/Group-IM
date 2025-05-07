@@ -1,7 +1,9 @@
 package com.github.im.server.service;
 
 import cn.hutool.core.io.file.FileNameUtil;
+import com.github.im.dto.file.FileUploadResponse;
 import com.github.im.server.config.FileUploadProperties;
+import com.github.im.server.mapstruct.FileMapper;
 import com.github.im.server.model.FileResource;
 import com.github.im.server.model.enums.FileStatus;
 import com.github.im.server.model.enums.StorageType;
@@ -37,6 +39,8 @@ public class FileStorageService {
     private final FileUploadProperties properties;
     private final FileResourceRepository repository;
 
+    private final FileMapper fileMapper;
+
     private Path baseDir;
     private Path chunkTempDir;
 
@@ -66,7 +70,7 @@ public class FileStorageService {
     /**
      * 存储单文件（小文件直传）
      */
-    public FileResource storeFile(MultipartFile file, UUID uploaderId) throws IOException {
+    public FileUploadResponse storeFile(MultipartFile file, UUID uploaderId) throws IOException {
         String originalName = file.getOriginalFilename();
         String ext = FileNameUtil.extName(originalName);
         String contentType = file.getContentType();
@@ -97,7 +101,9 @@ public class FileStorageService {
         info.setUploaderId(uploaderId);
         info.setStatus(FileStatus.NORMAL);
 
-        return repository.save(info);
+        var save = repository.save(info);
+        return fileMapper.toDTO(save);
+//        return save;
     }
 
     /**
@@ -173,7 +179,7 @@ public class FileStorageService {
     /**
      * 合并所有分片并保存为最终文件
      */
-    public FileResource mergeChunks(String fileHash, String originalName, UUID uploaderId) throws IOException {
+    public FileUploadResponse mergeChunks(String fileHash, String originalName, UUID uploaderId) throws IOException {
         String ext = FileNameUtil.extName(originalName);
         String contentType = Files.probeContentType(Paths.get(originalName));
         String relative = DateTimeFormatter.ofPattern("yyyy/MM/dd")
@@ -218,8 +224,9 @@ public class FileStorageService {
         info.setUploaderId(uploaderId);
         info.setStatus(FileStatus.NORMAL);
 
-        return repository.save(info);
-    }
+
+        var save = repository.save(info);
+        return fileMapper.toDTO(save);    }
 
     /**
      * 将配置路径解析为绝对路径：如果已是绝对，则原样；否则以 user.dir 为基准

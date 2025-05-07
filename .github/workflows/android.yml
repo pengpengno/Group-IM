@@ -61,8 +61,8 @@ jobs:
       - name: Copy packages to staging
         run: |
              cp -r gui/target/gluonfx/aarch64-android/gvm/*.apk staging
-             cp -r gui/target/gluonfx/x86_64-windows/*.exe staging
-             cp -r gui/target/gluonfx/x86_64-windows/*.msi staging
+#             cp -r gui/target/gluonfx/x86_64-windows/*.exe staging
+#             cp -r gui/target/gluonfx/x86_64-windows/*.msi staging
             
 
 #        run: cp -r target/gluonfx/aarch64-android/gvm/HelloGluon.* staging

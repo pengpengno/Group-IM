@@ -23,7 +23,7 @@ jobs:
 
       - name: Build jar
         shell: cmd
-        run: .\mvnw install -DskipTests
+        run: mvn install -DskipTests
 
 
       - name: Make staging directory
@@ -36,10 +36,10 @@ jobs:
 
 #      - name: Gluon Build and Package
 #        shell: cmd
-#        run: .\mvnw -Pdesktop gluonfx:build gluonfx:package
+#        run: mvn -Pdesktop gluonfx:build gluonfx:package
       - name: Gluon Build
         shell: cmd
-        run: .\mvnw -Pdesktop gluonfx:build gluonfx:link gluonfx:package -f gui/pom.xml -DskipTests
+        run: mvn -Pdesktop gluonfx:build gluonfx:link gluonfx:package -f gui/pom.xml -DskipTests
 
       - name: Copy native bundles to staging
         run: |

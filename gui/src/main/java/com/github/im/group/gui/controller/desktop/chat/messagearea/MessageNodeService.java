@@ -54,12 +54,15 @@ public class MessageNodeService {
      * @param messageWrapper 消息包装器
      * @return 消息节点
      */
-    public Mono<MessageNode> createMessageNode(MessageWrapper messageWrapper) {
+    public Mono<MessageNode> createMessageNode(final MessageWrapper messageWrapper) {
         if (messageWrapper.getMessageType() != MessageType.FILE) {
             return Mono.empty();
         }
+        // 如果是本地上传的文件  ， 那么直接复用 已有的messageNode
 
-        return remoteFileService.initFileInfo(messageWrapper)
+        var messageNodeOpt = messageWrapper.getMessageNode();
+        return messageNodeOpt.map(Mono::just)  // 如果是
+                .orElseGet(() -> remoteFileService.initFileInfo(messageWrapper)
                 .flatMap(remoteFileInfo -> {
                     FileMeta fileMeta = remoteFileInfo.getFileMeta();
                     var contentType = PathFileUtil.getMessageType(fileMeta.getFilename());
@@ -75,14 +78,15 @@ public class MessageNodeService {
                                     } catch (IOException e) {
                                         log.error("图片转换失败", e);
 //                                        return  new FileNode(remoteFileInfo);
-                                        return  bean;
+                                        return bean;
                                     }
                                 });
                     }
 
-                    return  Mono.just(bean);
+                    return Mono.just(bean);
 
-                });
+                }));
+
     }
 
 
