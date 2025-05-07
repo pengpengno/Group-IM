@@ -49,10 +49,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class ChatMainPane extends GridPane implements Initializable, ApplicationContextAware {
 
-
-
     private ListView<ConversationInfoCard> conversationList;
-
 
     private Set<Long> conversationIdSet = ConcurrentHashMap.newKeySet();
 

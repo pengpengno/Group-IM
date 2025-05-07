@@ -24,8 +24,8 @@
 
         private final GroupMemberRepository groupMemberRepository;
 
-//        private final ConversationService conversationService;
         private final ConversationRepository conversationRepository;
+
 
 
         /**

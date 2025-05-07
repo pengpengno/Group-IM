@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -44,7 +45,7 @@ public class ConversationService {
             throw new IllegalArgumentException("Group members cannot be null or empty");
         }
 
-        User owner = new User();  // 假设你已经有 User 实体类
+        User owner = new User();
         owner.setUserId(members.get(0).getUserId());
 
         Conversation group = Conversation.builder()

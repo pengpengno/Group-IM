@@ -28,6 +28,10 @@ public class Friendship {
     @Enumerated(EnumType.STRING)
     private Status status;
 
+    private String remark; // 备注
+
+    private String applyRemark; // 申请关系时的备注
+
     @CreationTimestamp // 自动设置创建时间
     @Column(updatable = false) // 创建时间不可被更新
     private LocalDateTime createdAt = LocalDateTime.now();

@@ -7,21 +7,21 @@ import com.github.im.group.gui.api.FriendShipEndpoint;
 import com.github.im.group.gui.api.UserEndpoint;
 import com.github.im.group.gui.context.UserInfoContext;
 import com.gluonhq.charm.glisten.control.CharmListView;
+import io.github.palexdev.materialfx.controls.MFXButton;
 import jakarta.annotation.PostConstruct;
 import javafx.application.Platform;
-import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.ResourceBundle;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 
 @Component
 @RequiredArgsConstructor
@@ -44,6 +44,10 @@ public class ContractMainPane extends GridPane {
     // 搜索文本框
     private TextField title;
 
+    private MFXButton addButton ;
+
+    private UserDisplayAndSearchPane userDisplayAndSearchPane;
+
 
     public void initialize() {
 
@@ -64,21 +68,41 @@ public class ContractMainPane extends GridPane {
     }
 
 
+    public void setUpAddButton(){
+        addButton = new MFXButton("添加");
+        addButton.setOnAction(event -> {
+            this.add(userDisplayAndSearchPane,1,0);
+        });
+    }
 
     @PostConstruct
     public void initComponent() {
         // 初始化
+        userDisplayAndSearchPane = new UserDisplayAndSearchPane();
+        Function<String,List<UserInfo>> searchFunction = searchText -> {
+           return userEndpoint.queryUser(searchText).block().getContent();
+        };
 
+        userDisplayAndSearchPane.setSerchFunction(searchFunction);
+        userDisplayAndSearchPane.setAddButtonClickFunction(userInfo -> {
+            addUser(userInfo);
+        });
+
+        setUpAddButton();
 
         friendsPane = new BorderPane();
         title = new TextField();
+        title.setPromptText("搜索用户");
+
+        var hBox = new HBox();
+        hBox.getChildren().addAll(title,addButton);
+        HBox.setHgrow(title, javafx.scene.layout.Priority.ALWAYS);
 
         accountCardListView = new ListView<>();
-
-        friendsPane.setTop(title);
+        friendsPane.setTop(hBox);
         friendsPane.setCenter(accountCardListView);
 
-        title.setPromptText("搜索用户");
+
 
         // 设置 GridPane 布局   两列一行 2 * 1
         //  第一行 窄一些 第二列 宽一些  friendsPane 设置再最左边
@@ -88,7 +112,8 @@ public class ContractMainPane extends GridPane {
 
 
         // 设置列宽，确保 UI 不会挤在一起
-        this.getColumnConstraints().add(new ColumnConstraints(100));  // 设置第 0 列宽度为 250
+        var col1 = new ColumnConstraints(100);
+        this.getColumnConstraints().add(col1);  // 设置第 0 列宽度为 250
 
         ColumnConstraints col2 = new ColumnConstraints();
         col2.setHgrow(javafx.scene.layout.Priority.ALWAYS);  // 让第 1 列可以自动扩展
@@ -97,8 +122,10 @@ public class ContractMainPane extends GridPane {
 
 
         //  响应式的取 friendsPane 占用完毕后的剩余宽度
-//        detailInfoPane.prefWidthProperty().
-        detailInfoPane.prefWidthProperty().bind(this.widthProperty().subtract(friendsPane.widthProperty()));
+
+        detailInfoPane.prefWidthProperty()
+                .bind(this.widthProperty()
+                        .subtract(friendsPane.widthProperty()));
 
 
         this.setVgap(10);  // 设置行间距
@@ -108,18 +135,23 @@ public class ContractMainPane extends GridPane {
         friendsPane.setPrefWidth(300);  // 设置 friendsPane 宽度
         friendsPane.setMaxWidth(400);  // 设置 friendsPane 最大宽度
 
-
-//        initialize();
     }
 
 
+    /**
+     * 搜寻用户
+     */
     private void queryUser(){
         // 根据 搜索框传入 搜索的文本  用户姓名或者 邮箱来检索
-        userEndpoint.queryUser(title.getText())
-                .collectList()
-                .subscribe(friendships -> {
-                    //  在 contractListView 展示所有的 返回的检索用户信息
-                });
+//        userEndpoint.queryUser(title.getText())
+//                .subscribe(userInfoPage -> {
+//                    //  在 contractListView 展示所有的 返回的检索用户信息
+//
+//                    var userInfos = userInfoPage.getContent();
+//                    new UserDisplayAndSearchPane(userInfos, userInfo -> {
+//                        addUser(userInfo);
+//                    });
+//                });
     }
 
     /**
@@ -129,11 +161,11 @@ public class ContractMainPane extends GridPane {
         var currentUser = UserInfoContext.getCurrentUser();
         var friendshipDTO = new FriendRequestDto();
         friendshipDTO.setUserId(currentUser.getUserId());
-        friendshipDTO.setAccount(currentUser.getUsername());
-        friendshipDTO.setUserName(currentUser.getUsername());
+//        friendshipDTO.setAccount(currentUser.getUsername());
+//        friendshipDTO.setUserName(currentUser.getUsername());
 
-        friendshipDTO.setFriendAccount(friendUserInfo.getUsername());
-        friendshipDTO.setFriendName(friendUserInfo.getUsername());
+//        friendshipDTO.setFriendAccount(friendUserInfo.getUsername());
+//        friendshipDTO.setFriendName(friendUserInfo.getUsername());
         friendshipDTO.setFriendId(friendUserInfo.getUserId());
 
         friendShipEndpoint
@@ -141,8 +173,8 @@ public class ContractMainPane extends GridPane {
                 .subscribe(aVoid -> {
                     log.info("发送好友请求成功");
                 });
-
     }
+
     // 加载联系人数据
     private void loadContacts() {
 
@@ -158,7 +190,7 @@ public class ContractMainPane extends GridPane {
             log.info("更新好友列表");
             var collect = friendships.stream()
                     .map(fri-> {
-                        var accountCard = new AccountCard((fri));
+                        var accountCard = new AccountCard(fri.getFriendUserInfo());
                         accountCard.setOnMouseClicked(event-> {
                             detailInfoPane.display(accountCard.getUserInfo());
                         });

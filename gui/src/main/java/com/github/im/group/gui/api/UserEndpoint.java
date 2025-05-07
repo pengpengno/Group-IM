@@ -1,5 +1,6 @@
 package com.github.im.group.gui.api;
 
+import com.github.im.dto.PageResult;
 import com.github.im.dto.user.LoginRequest;
 import com.github.im.dto.user.RegistrationRequest;
 import com.github.im.dto.user.UserInfo;
@@ -33,6 +34,6 @@ public interface UserEndpoint {
 
 
 	@PostExchange("/api/users/query")
-	Flux<UserInfo>  queryUser(@RequestParam String query);
+	Mono<PageResult<UserInfo>> queryUser(@RequestParam String query);
 
 }

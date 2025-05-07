@@ -36,7 +36,8 @@ public class MessageController {
         Pageable pageable = PageRequest.of(
                 request.getPage(),
                 request.getSize(),
-                Sort.by(Optional.ofNullable(request.getSort()).orElse("createTime")).descending()
+                Sort.by(Optional.ofNullable(request.getSort())
+                        .orElse("createTime")).descending()
         );
 
         Page<MessageDTO<MessagePayLoad>> messages = messageService.pullHistoryMessages(

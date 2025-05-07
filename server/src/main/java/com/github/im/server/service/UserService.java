@@ -6,12 +6,18 @@ import com.github.im.dto.user.UserInfo;
 import com.github.im.server.mapstruct.UserMapper;
 import com.github.im.server.model.User;
 import com.github.im.server.repository.UserRepository;
+import jakarta.persistence.criteria.Predicate;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Example;
+import org.springframework.data.domain.ExampleMatcher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -96,8 +102,17 @@ public class UserService {
         return userRepository.findByUsername(username);
     }
 
-    public Optional<List<UserInfo>> findUserByUsernameLike(String username) {
-        return userRepository.findByNameOrEmail(username).map(UserMapper.INSTANCE::usersToUserInfos);
+    public Page<UserInfo> findUserByQueryStrings(String queryString) {
+
+
+        return userRepository.findAll((root, query, cb)-> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.like(root.get("username"), "%" + queryString + "%"));
+            predicates.add(cb.like(root.get("email"), "%" + queryString + "%"));
+            // 查询 用户名   或者email 相似的
+            return cb.or(predicates.toArray(new Predicate[0]))
+                    ;
+        },Pageable.ofSize(100)).map(UserMapper.INSTANCE::userToUserInfo);
     }
 
 

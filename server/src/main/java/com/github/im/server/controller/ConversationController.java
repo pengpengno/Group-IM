@@ -23,10 +23,9 @@ public class ConversationController {
      * @param groupInfo 群组信息，包括群组名称、描述和成员列表
      * @return 创建后的群组
      */
-    @PostMapping
+    @PostMapping("/group")
     public ResponseEntity<ConversationRes> createGroup(@RequestBody GroupInfo groupInfo) {
         var group = conversationService.createGroup(groupInfo.getGroupName(), groupInfo.getDescription(), groupInfo.getMembers());
-//        ConversationDTO conversationDTO = ConversationMapper.INSTANCE.toDTO(group); // 假设存在 ConversationMapper
         return ResponseEntity.ok(group);
     }
 

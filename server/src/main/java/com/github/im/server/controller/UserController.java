@@ -1,5 +1,6 @@
 package com.github.im.server.controller;
 
+import com.github.im.dto.PageResult;
 import com.github.im.dto.user.LoginRequest;
 import com.github.im.dto.user.RegistrationRequest;
 import com.github.im.dto.user.UserInfo;
@@ -8,6 +9,9 @@ import com.github.im.server.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,9 +40,14 @@ public class UserController {
     }
 
 
+    /**
+     * 根据传入的查询字符串查询用户
+     * @param query
+     * @return
+     */
     @PostMapping("/query")
-    public Optional<List<UserInfo>> queryUserByNameOrEmail(@RequestParam String query) {
-        return userService.findUserByUsernameLike(query);
+    public ResponseEntity<PagedModel<UserInfo>> queryUserByNameOrEmail(@RequestParam String query) {
+        return ResponseEntity.ok(new PagedModel<>(userService.findUserByQueryStrings(query)));
     }
 
     // 用户登录
