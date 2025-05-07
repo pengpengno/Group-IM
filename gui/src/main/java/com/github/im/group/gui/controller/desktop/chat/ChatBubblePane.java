@@ -51,8 +51,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * @version 1.0
  * @since 2025/1/14
  */
-@Scope("prototype")
-@Component
+//@Scope("prototype")
+//@Component
 //@RequiredArgsConstructor
 //public class ChatBubblePane extends HBox {
 public class ChatBubblePane extends GridPane {

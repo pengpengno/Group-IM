@@ -309,12 +309,14 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
                             .setContent(resp.getId().toString())
                             .build();
 
+                    var messageWrapper = new MessageWrapper(msg);
+
                     var pkg = BaseMessage.BaseMessagePkg.newBuilder().setMessage(msg).build();
 
                     return ClientToolkit.reactiveClientAction()
                             .sendMessage(pkg)
                             .doOnTerminate(() -> Platform.runLater(() -> {
-                                addMessageBubble(messageNode);
+                                addMessageBubble(messageWrapper);
                                 scrollPane.setVvalue(1.0);
                             }))
                             .then();
@@ -347,27 +349,27 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
      *
      * @param message            The message content
      */
-    private  void addMessageBubble(Object message) {
-        var chatBubblePane = applicationContext.getBean(ChatBubblePane.class, message);
-
-        Platform.runLater(() -> messageDisplayArea.getChildren()
-                .add(chatBubblePane));
-    }
+//    private  void addMessageBubble(Object message) {
+//        var chatBubblePane = applicationContext.getBean(ChatBubblePane.class, message);
+//
+//        Platform.runLater(() -> messageDisplayArea.getChildren()
+//                .add(chatBubblePane));
+//    }
 
     /**
      * Adds a new message bubble to the display area on the JavaFX Application Thread.
      * @param sender message sender
      * @param message  message content
      */
-    private void addMessageBubble( String sender , Object message) {
-        var chatBubblePane = applicationContext.getBean(ChatBubblePane.class, sender ,message);
-        Platform.runLater(() -> messageDisplayArea.getChildren().add(chatBubblePane));
-    }
+//    private void addMessageBubble( String sender , Object message) {
+//        var chatBubblePane = applicationContext.getBean(ChatBubblePane.class, sender ,message);
+//        Platform.runLater(() -> messageDisplayArea.getChildren().add(chatBubblePane));
+//    }
     private void addMessageBubble( MessageWrapper messageWrapper) {
-        var chatBubblePane = applicationContext
-                .getBean(ChatBubblePane.class, messageWrapper,
-                        messageNodeService.createMessageNode(messageWrapper));
-
+//        var chatBubblePane = applicationContext
+//                .getBean(ChatBubblePane.class, messageWrapper,
+//                        messageNodeService.createMessageNode(messageWrapper));
+        var chatBubblePane = new ChatBubblePane(messageWrapper, messageNodeService.createMessageNode(messageWrapper));
 
         Platform.runLater(() -> messageDisplayArea.getChildren().add(chatBubblePane));
     }
