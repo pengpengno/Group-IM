@@ -3,6 +3,7 @@ package com.github.im.group.gui.api;
 import com.github.im.dto.user.FriendRequestDto;
 import com.github.im.dto.user.FriendshipDTO;
 import org.springframework.beans.factory.annotation.Lookup;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,7 +22,7 @@ public interface FriendShipEndpoint {
 
 	// 发送好友请求
 	@PostExchange("/friendships/request")
-	Mono<Void> sendFriendRequest(@RequestBody FriendRequestDto friendRequestDto);
+	Mono<ResponseEntity<Void>> sendFriendRequest(@RequestBody FriendRequestDto friendRequestDto);
 
 	// 接受好友请求
 	@PostExchange("/friendships/accept")

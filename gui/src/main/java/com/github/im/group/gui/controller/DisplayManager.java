@@ -125,34 +125,34 @@ public class DisplayManager {
 
         // 创建并注册视图
         var viewName = displayClass.getName();
-//        if (!DISPLAY_VIEW_MAP.containsKey(viewName)) {
-//            try {
-//                View view = new View(parent);
-//
-//                var instance = AppManager.getInstance();
-//                if(instance!= null){
-//                    instance.addViewFactory(viewName, () -> view);
-//                }
-//                DISPLAY_VIEW_MAP.putIfAbsent(viewName, view);
-//                log.info("View registered successfully: {}", viewName);
-//            } catch (Exception e) {
-//                log.error("Failed to register view {}: ", viewName, e);
-//                return null;
-//            }
-//        }
 
-        if (!DISPLAY_SCENE_MAP.containsKey(displayClass)) {
+        if (!DISPLAY_VIEW_MAP.containsKey(viewName)) {
             try {
-                var value = new Scene(parent);
-                DISPLAY_SCENE_MAP.putIfAbsent(displayClass, value);
-//                View view = new View(parent);
-//                AppManager.getInstance().addViewFactory(viewName, () -> view);
+                View view = new View(parent);
+
+                var instance = AppManager.getInstance();
+                if(instance!= null){
+                    instance.addViewFactory(viewName, () -> view);
+                }
+                DISPLAY_VIEW_MAP.putIfAbsent(viewName, view);
                 log.info("View registered successfully: {}", viewName);
             } catch (Exception e) {
                 log.error("Failed to register view {}: ", viewName, e);
                 return null;
             }
         }
+
+//        if (!DISPLAY_SCENE_MAP.containsKey(displayClass)) {
+//            try {
+//                var value = new Scene(parent);
+//                DISPLAY_SCENE_MAP.putIfAbsent(displayClass, value);
+//
+//                log.info("View registered successfully: {}", viewName);
+//            } catch (Exception e) {
+//                log.error("Failed to register view {}: ", viewName, e);
+//                return null;
+//            }
+//        }
         var controllerObj = (T) controller;
 
         DISPLAY_CONTROLLER_MAP.putIfAbsent(displayClass,controllerObj);
@@ -191,36 +191,46 @@ public class DisplayManager {
         });
     }
 
+
     /**
      * 切换 view
      *  不存在 的View 就先register 在  switch
      * @param displayClass 展示的view
      */
     static void switchView(Class<? extends PlatformView> displayClass){
-        final boolean isFirst = primaryStage == null;
-
-        if (!DISPLAY_SCENE_MAP.containsKey(displayClass)){
+        if (!DISPLAY_VIEW_MAP.containsKey(displayClass.getName())){
             registerView(displayClass);
         }
-        var scene = DISPLAY_SCENE_MAP.get(displayClass);
 
-//        if(isFirst && postInit != null){
-        if( postInit != null){
-            postInit.accept(scene);
-        }
-
-        var primaryStage = getPrimaryStage();
-        primaryStage.setScene(scene);
-        setPrimaryScene(scene);
-
-        if (!primaryStage.isShowing()){
-            primaryStage.show();
-        }
-
-
-//        AppManager.getInstance().switchView(displayClass.getName());
-
+        AppManager.getInstance().switchView(displayClass.getName());
     }
+//
+//    static void switchView(Class<? extends PlatformView> displayClass){
+//        final boolean isFirst = primaryStage == null;
+//
+//        if (!DISPLAY_SCENE_MAP.containsKey(displayClass)){
+//            registerView(displayClass);
+//        }
+//        var scene = DISPLAY_SCENE_MAP.get(displayClass);
+//
+//        if( postInit != null){
+//            postInit.accept(scene);
+//        }
+//
+//        var primaryStage = getPrimaryStage();
+//        primaryStage.setScene(scene);
+//        setPrimaryScene(scene);
+//
+//        if (!primaryStage.isShowing()){
+//            primaryStage.show();
+//        }
+//
+//        /**
+//         * Gluon 切换视图
+//         */
+//        AppManager.getInstance().switchView(displayClass.getName());
+//
+//    }
 
     public static void initialize(Consumer<Scene> postInit) {
         DisplayManager.postInit = postInit;

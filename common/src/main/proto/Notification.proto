@@ -8,7 +8,7 @@ option java_outer_classname = "Notification";
 message NotificationInfo {
   oneof payload {
 
-    FriendRequest friendRequest = 1;
+    FriendRequest friendRequest = 1; // 好友请求申请
 
   }
 

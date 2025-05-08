@@ -3,14 +3,20 @@ package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.fil
 import com.github.im.dto.session.FileMeta;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.FileInfo;
 import lombok.Getter;
+import lombok.Setter;
 import org.springframework.core.io.Resource;
 import reactor.core.publisher.Mono;
+
+import java.nio.file.Path;
 
 public class RemoteFileInfo implements FileInfo {
     @Getter
     private final FileMeta fileMeta;
     private final String fileId;
     private Resource resource;
+
+    @Setter
+    private Path downloadPath;
 
 
     private RemoteFileInfo() {

@@ -1,5 +1,5 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.github.im</groupId>
@@ -7,28 +7,58 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>gui</artifactId>
+    <name>client</name>
+    <artifactId>client</artifactId>
+    <packaging>jar</packaging>
+
+
+    <scm>
+        <url>https://github.com/pengpengno/meeting.git</url>
+        <developerConnection>scm:git:https://github.com/pengpengno/meeting.git</developerConnection>
+        <connection>scm:git:https://github.com/pengpengno/meeting.git</connection>
+    </scm>
+
+    <!--  开发者信息   -->
+    <developers>
+        <developer>
+            <name>peng.wang</name>
+            <email>pengpeng_on@163.com</email>
+        </developer>
+    </developers>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+
+    <url>http://maven.apache.org</url>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
+        <project.build.sourceEncod0ing>UTF-8</project.build.sourceEncod0ing>
+        <protobuf.version>4.28.2</protobuf.version>
+        <charm.version>6.2.3</charm.version>
+        <glisten.afterburner.version>2.1.0</glisten.afterburner.version>
+
         <javafx.version>21</javafx.version>
 
         <attach.version>4.0.21</attach.version>
-        <charm.version>6.2.3</charm.version>
-        <gluon.connect.version>2.0.1</gluon.connect.version>
-        <glisten.afterburner.version>2.1.0</glisten.afterburner.version>
+        <gluonfx.maven.plugin.version>1.0.25</gluonfx.maven.plugin.version>
+        <javafx.version>21</javafx.version>
 
-<!--        <gluonfx.maven.plugin.version>1.0.25</gluonfx.maven.plugin.version>-->
-        <gluonfx.maven.plugin.version>1.0.23</gluonfx.maven.plugin.version>
-        <main.class>com.github.im.group.gui.Main</main.class>
-<!--        <main.class>com.github.meeting.gui.Launcher</main.class>-->
-        <app.description>Group-IM</app.description>
+
+        <main.class>com.github.im.client.App</main.class>
+        <app.description>The HelloGluon app</app.description>
         <app.identifier>${main.class}</app.identifier>
 
-
+        <gluonfx.target/>
         <package.type/>
         <mac.app.store/>
         <mac.signing.user.name/>
@@ -41,97 +71,21 @@
         <provided.key.alias.password/>
     </properties>
 
-
     <dependencies>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-hateoas</artifactId>
-        </dependency>
-
-        <!-- JavaCV -->
-<!--        <dependency>-->
-<!--            <groupId>org.bytedeco</groupId>-->
-<!--            <artifactId>javacv-platform</artifactId>-->
-<!--            <version>1.5.10</version>-->
-<!--        </dependency>-->
-        <!-- https://mvnrepository.com/artifact/org.springframework.experimental/spring-aot -->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.experimental</groupId>-->
-<!--            <artifactId>spring-aot</artifactId>-->
-<!--            <version>0.12.2</version>-->
-<!--        </dependency>-->
-
-        <!--        <dependency>-->
-<!--            <groupId>com.github.im</groupId>-->
-<!--            <artifactId>gluon-dependency-bom</artifactId>-->
-<!--            <version>1.0-SNAPSHOT</version>-->
-<!--            <type>pom</type>-->
-<!--&lt;!&ndash;            <scope>import</scope>&ndash;&gt;-->
-<!--        </dependency>-->
         <dependency>
             <groupId>com.github.im</groupId>
             <artifactId>common</artifactId>
-<!--            <exclusions>-->
-<!--                <exclusion>-->
-<!--                    <artifactId>logback-classic</artifactId>-->
-<!--                    <groupId>ch.qos.logback</groupId>-->
-<!--                </exclusion>-->
-<!--            </exclusions>-->
-        </dependency>
-
-        <dependency>
-            <groupId>com.alibaba</groupId>
-            <artifactId>transmittable-thread-local</artifactId>
-            <version>2.14.4</version>
-        </dependency>
-        <dependency>
-            <groupId>com.jfoenix</groupId>
-            <artifactId>jfoenix</artifactId>
-            <version>9.0.10</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.kordamp.bootstrapfx</groupId>
-            <artifactId>bootstrapfx-core</artifactId>
-            <version>0.4.0</version>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/org.fxmisc.richtext/richtextfx -->
-        <dependency>
-            <groupId>org.fxmisc.richtext</groupId>
-            <artifactId>richtextfx</artifactId>
-            <version>0.11.4</version>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/io.github.palexdev/scenicview -->
-        <dependency>
-            <groupId>io.github.palexdev</groupId>
-            <artifactId>scenicview</artifactId>
-            <version>17.0.2</version>
             <exclusions>
                 <exclusion>
-                    <artifactId>javafx-graphics</artifactId>
-                    <groupId>org.openjfx</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>javafx-controls</artifactId>
-                    <groupId>org.openjfx</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>javafx-base</artifactId>
-                    <groupId>org.openjfx</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>javafx-fxml</artifactId>
-                    <groupId>org.openjfx</groupId>
+                    <artifactId>spring-boot-starter-validation</artifactId>
+                    <groupId>org.springframework.boot</groupId>
                 </exclusion>
             </exclusions>
         </dependency>
 
         <dependency>
-            <groupId>io.github.palexdev</groupId>
-            <artifactId>materialfx</artifactId>
-            <version>11.17.0</version>
+            <groupId>com.github.im</groupId>
+            <artifactId>entity</artifactId>
         </dependency>
 
 
@@ -165,12 +119,6 @@
 
         <dependency>
             <groupId>com.gluonhq</groupId>
-            <artifactId>connect</artifactId>
-            <version>${gluon.connect.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.gluonhq</groupId>
             <artifactId>charm-glisten</artifactId>
             <version>${charm.version}</version>
         </dependency>
@@ -200,53 +148,13 @@
             <version>${attach.version}</version>
         </dependency>
 
-
-
-<!--        &lt;!&ndash; 添加 SLF4J Simple 作为日志实现 &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>org.slf4j</groupId>-->
-<!--            <artifactId>slf4j-simple</artifactId>-->
-<!--        </dependency>-->
-
-
-
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
-        </dependency>
-
-
-        <!-- Spring GraphQL -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-graphql</artifactId>
-        </dependency>
-
-        <!-- Spring Cloud OpenFeign -->
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-openfeign</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.github.im</groupId>
-            <artifactId>entity</artifactId>
-        </dependency>
-
-
         <dependency>
             <groupId>com.gluonhq</groupId>
             <artifactId>glisten-afterburner</artifactId>
             <version>${glisten.afterburner.version}</version>
         </dependency>
-
-        <dependency>
-            <groupId>org.springframework.data</groupId>
-            <artifactId>spring-data-commons</artifactId>
-        </dependency>
-
     </dependencies>
+
 
 
     <repositories>
@@ -270,41 +178,31 @@
         </pluginRepository>
     </pluginRepositories>
 
-
     <build>
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>1.6.2</version>
+            </extension>
+        </extensions>
         <plugins>
-
-            <plugin>
-                <groupId>org.graalvm.buildtools</groupId>
-                <artifactId>native-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>add-reachability-metadata</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                </configuration>
-            </plugin>
-
-
             <plugin>
                 <groupId>com.gluonhq</groupId>
                 <artifactId>gluonfx-maven-plugin</artifactId>
                 <version>${gluonfx.maven.plugin.version}</version>
 
                 <configuration>
-<!--            GRAALVM 无法编译一些静态变量 ，所以需要添加buildArgs
-                https://github.com/oracle/graal/issues/5678
-https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error-com-oracle-graal-pointsto-constraints-unreso-->
+                    <!--            GRAALVM 无法编译一些静态变量 ，所以需要添加buildArgs
+                                    https://github.com/oracle/graal/issues/5678
+                    https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error-com-oracle-graal-pointsto-constraints-unreso-->
                     <nativeImageArgs>
-<!--                        <arg>-H:+UnlockExperimentalVMOptions</arg>-->
+                        <!--                        <arg>-H:+UnlockExperimentalVMOptions</arg>-->
                         <arg>--initialize-at-build-time=ch.qos.logback.classic.Logger,com.github.im.group.gui.config.ClientConfig$$SpringCGLIB$$0,=com.github.im.group.gui.config.WebClientConfig$$SpringCGLIB$$0, ch.qos.logback.classic.Logger.effectiveLevelInt,org.slf4j.helpers.NOP_FallbackServiceProvider,org.slf4j.helpers.NOP_FallbackServiceProvider.loggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,org.slf4j.LoggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLog, org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,reactor.adapter.JdkFlowAdapter$PublisherAsFlowPublisher, ch.qos.logback.core.ContextBase, ch.qos.logback.core.*, ch.qos.logback, ch.qos.logback.classic, org.slf4j</arg>
                         <arg>--initialize-at-build-time=org.slf4j.helpers</arg>
                         <arg>--initialize-at-run-time=io.netty</arg>
-<!--                        <arg>&#45;&#45;initialize-at-run-time=io.github.palexdev.materialfx</arg>-->
-<!--                        <arg>&#45;&#45;initialize-at-run-time=io.github.palexdev.materialfx.*</arg>-->
+                        <!--                        <arg>&#45;&#45;initialize-at-run-time=io.github.palexdev.materialfx</arg>-->
+                        <!--                        <arg>&#45;&#45;initialize-at-run-time=io.github.palexdev.materialfx.*</arg>-->
                         <arg>-H:IncludeResources=logback-spring.xml</arg>
                         <arg>--no-fallback</arg>  <!-- 仅生成必要的部分 -->
 
@@ -322,9 +220,9 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                     <appIdentifier>${app.identifier}</appIdentifier>
 
                     <releaseConfiguration>
-<!--                        <android>-->
-<!--                            <manifest>${project.basedir}/src/android/AndroidManifest.xml</manifest>-->
-<!--                        </android>-->
+                        <!--                        <android>-->
+                        <!--                            <manifest>${project.basedir}/src/android/AndroidManifest.xml</manifest>-->
+                        <!--                        </android>-->
                         <vendor>Gluon</vendor>
 
                         <description>${app.description}</description>
@@ -340,22 +238,7 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                         <providedKeyAlias>${provided.key.alias}</providedKeyAlias>
                         <providedKeyAliasPassword>${provided.key.alias.password}</providedKeyAliasPassword>
                     </releaseConfiguration>
-<!--                    <reflectionList>-->
-<!--                        <list>javafx.scene.control.Menu</list>-->
-<!--                        <list>javafx.scene.control.MenuBar</list>-->
-<!--                        <list>javafx.scene.control.MenuItem</list>-->
-<!--                        <list>javafx.scene.control.SeparatorMenuItem</list>-->
-<!--                        <list>javafx.scene.layout.BorderPane</list>-->
-<!--                        <list>javafx.scene.layout.HBox</list>-->
 
-<!--                        <list>ch.qos.logback.classic.Logger</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.LineSeparatorConverter</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.MessageConverter</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.ThreadConverter</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.LoggerConverter</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.LevelConverter</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.DateConverter</list>-->
-<!--                    </reflectionList>-->
                 </configuration>
             </plugin>
             <plugin>
@@ -363,44 +246,44 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <compilerArgs>
-<!--                        <arg>-Djava.awt.headless=true</arg>-->
-<!--                        <arg>-Dprism.order=sw</arg>-->
-<!--                        <arg>-Dprism.verbose=false</arg>-->
-<!--                        <arg>-Dfile.encoding=UTF-8</arg>-->
                     </compilerArgs>
                 </configuration>
             </plugin>
+
+            <!-- Maven Surefire Plugin -->
             <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.0.0-M5</version>
+                <configuration>
+                    <includes>
+                        <include>**/*.groovy</include>
+<!--                        <include>com/github/im/common/unittests/**</include>-->
+                    </includes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>0.6.1</version>
+                <configuration>
+                    <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+                    <pluginId>grpc-java</pluginId>
+                    <protoSourceRoot>src/main/proto</protoSourceRoot>
+                    <outputDirectory>src/main/java</outputDirectory>
+                    <clearOutputDirectory>false</clearOutputDirectory>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>
-                            <goal>process-aot</goal>
+                            <goal>compile</goal>
                         </goals>
                     </execution>
                 </executions>
-<!--                <configuration>-->
-<!--                    <mainClass>com.github.im.group.gui.Main</mainClass>-->
-<!--                </configuration>-->
             </plugin>
 
-            <!-- JavaFX Maven Plugin -->
-            <plugin>
-                <groupId>org.openjfx</groupId>
-                <artifactId>javafx-maven-plugin</artifactId>
-                <version>0.0.8</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
-
     <profiles>
         <profile>
             <id>desktop</id>
@@ -425,7 +308,7 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
             <properties>
                 <package.type>pkg</package.type>
                 <mac.app.store>false</mac.app.store>
-<!--                <bundle.version>${env.GITHUB_RUN_NUMBER}</bundle.version>-->
+                <!--                <bundle.version>${env.GITHUB_RUN_NUMBER}</bundle.version>-->
                 <bundle.short.version>1.0</bundle.short.version>
             </properties>
         </profile>
@@ -434,7 +317,7 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
             <properties>
                 <package.type>pkg</package.type>
                 <mac.app.store>true</mac.app.store>
-<!--                <bundle.version>1.${env.GITHUB_RUN_NUMBER}</bundle.version>-->
+                <!--                <bundle.version>1.${env.GITHUB_RUN_NUMBER}</bundle.version>-->
                 <bundle.short.version>1.6</bundle.short.version>
             </properties>
         </profile>
@@ -442,7 +325,7 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
             <id>ios</id>
             <properties>
                 <gluonfx.target>ios</gluonfx.target>
-<!--                <bundle.version>${env.GITHUB_RUN_NUMBER}</bundle.version>-->
+                <!--                <bundle.version>${env.GITHUB_RUN_NUMBER}</bundle.version>-->
                 <bundle.short.version>1.0</bundle.short.version>
             </properties>
         </profile>
@@ -473,6 +356,5 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
             </properties>
         </profile>
     </profiles>
-
 
 </project>

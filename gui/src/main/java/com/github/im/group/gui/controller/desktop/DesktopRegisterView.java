@@ -6,6 +6,7 @@ import com.github.im.group.gui.api.UserEndpoint;
 import com.github.im.group.gui.controller.DisplayManager;
 import com.github.im.group.gui.controller.LoginView;
 import com.github.im.group.gui.controller.RegisterView;
+import com.gluonhq.charm.glisten.mvc.View;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -24,7 +25,7 @@ import java.util.ResourceBundle;
 
 @Service
 @Slf4j
-public class DesktopRegisterView extends VBox implements Initializable, RegisterView {
+public class DesktopRegisterView extends View implements Initializable, RegisterView {
 
     @FXML
     private TextField fullNameField;

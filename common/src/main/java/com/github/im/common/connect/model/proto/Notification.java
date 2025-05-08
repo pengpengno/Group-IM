@@ -30,16 +30,28 @@ public final class Notification {
       com.google.protobuf.MessageOrBuilder {
 
     /**
+     * <pre>
+     * 好友请求申请
+     * </pre>
+     *
      * <code>.com.github.im.common.connect.model.proto.NotificationInfo.FriendRequest friendRequest = 1;</code>
      * @return Whether the friendRequest field is set.
      */
     boolean hasFriendRequest();
     /**
+     * <pre>
+     * 好友请求申请
+     * </pre>
+     *
      * <code>.com.github.im.common.connect.model.proto.NotificationInfo.FriendRequest friendRequest = 1;</code>
      * @return The friendRequest.
      */
     com.github.im.common.connect.model.proto.Notification.NotificationInfo.FriendRequest getFriendRequest();
     /**
+     * <pre>
+     * 好友请求申请
+     * </pre>
+     *
      * <code>.com.github.im.common.connect.model.proto.NotificationInfo.FriendRequest friendRequest = 1;</code>
      */
     com.github.im.common.connect.model.proto.Notification.NotificationInfo.FriendRequestOrBuilder getFriendRequestOrBuilder();
@@ -1418,6 +1430,10 @@ public final class Notification {
 
     public static final int FRIENDREQUEST_FIELD_NUMBER = 1;
     /**
+     * <pre>
+     * 好友请求申请
+     * </pre>
+     *
      * <code>.com.github.im.common.connect.model.proto.NotificationInfo.FriendRequest friendRequest = 1;</code>
      * @return Whether the friendRequest field is set.
      */
@@ -1426,6 +1442,10 @@ public final class Notification {
       return payloadCase_ == 1;
     }
     /**
+     * <pre>
+     * 好友请求申请
+     * </pre>
+     *
      * <code>.com.github.im.common.connect.model.proto.NotificationInfo.FriendRequest friendRequest = 1;</code>
      * @return The friendRequest.
      */
@@ -1437,6 +1457,10 @@ public final class Notification {
       return com.github.im.common.connect.model.proto.Notification.NotificationInfo.FriendRequest.getDefaultInstance();
     }
     /**
+     * <pre>
+     * 好友请求申请
+     * </pre>
+     *
      * <code>.com.github.im.common.connect.model.proto.NotificationInfo.FriendRequest friendRequest = 1;</code>
      */
     @java.lang.Override
@@ -1790,6 +1814,10 @@ public final class Notification {
       private com.google.protobuf.SingleFieldBuilder<
           com.github.im.common.connect.model.proto.Notification.NotificationInfo.FriendRequest, com.github.im.common.connect.model.proto.Notification.NotificationInfo.FriendRequest.Builder, com.github.im.common.connect.model.proto.Notification.NotificationInfo.FriendRequestOrBuilder> friendRequestBuilder_;
       /**
+       * <pre>
+       * 好友请求申请
+       * </pre>
+       *
        * <code>.com.github.im.common.connect.model.proto.NotificationInfo.FriendRequest friendRequest = 1;</code>
        * @return Whether the friendRequest field is set.
        */
@@ -1798,6 +1826,10 @@ public final class Notification {
         return payloadCase_ == 1;
       }
       /**
+       * <pre>
+       * 好友请求申请
+       * </pre>
+       *
        * <code>.com.github.im.common.connect.model.proto.NotificationInfo.FriendRequest friendRequest = 1;</code>
        * @return The friendRequest.
        */
@@ -1816,6 +1848,10 @@ public final class Notification {
         }
       }
       /**
+       * <pre>
+       * 好友请求申请
+       * </pre>
+       *
        * <code>.com.github.im.common.connect.model.proto.NotificationInfo.FriendRequest friendRequest = 1;</code>
        */
       public Builder setFriendRequest(com.github.im.common.connect.model.proto.Notification.NotificationInfo.FriendRequest value) {
@@ -1832,6 +1868,10 @@ public final class Notification {
         return this;
       }
       /**
+       * <pre>
+       * 好友请求申请
+       * </pre>
+       *
        * <code>.com.github.im.common.connect.model.proto.NotificationInfo.FriendRequest friendRequest = 1;</code>
        */
       public Builder setFriendRequest(
@@ -1846,6 +1886,10 @@ public final class Notification {
         return this;
       }
       /**
+       * <pre>
+       * 好友请求申请
+       * </pre>
+       *
        * <code>.com.github.im.common.connect.model.proto.NotificationInfo.FriendRequest friendRequest = 1;</code>
        */
       public Builder mergeFriendRequest(com.github.im.common.connect.model.proto.Notification.NotificationInfo.FriendRequest value) {
@@ -1869,6 +1913,10 @@ public final class Notification {
         return this;
       }
       /**
+       * <pre>
+       * 好友请求申请
+       * </pre>
+       *
        * <code>.com.github.im.common.connect.model.proto.NotificationInfo.FriendRequest friendRequest = 1;</code>
        */
       public Builder clearFriendRequest() {
@@ -1888,12 +1936,20 @@ public final class Notification {
         return this;
       }
       /**
+       * <pre>
+       * 好友请求申请
+       * </pre>
+       *
        * <code>.com.github.im.common.connect.model.proto.NotificationInfo.FriendRequest friendRequest = 1;</code>
        */
       public com.github.im.common.connect.model.proto.Notification.NotificationInfo.FriendRequest.Builder getFriendRequestBuilder() {
         return getFriendRequestFieldBuilder().getBuilder();
       }
       /**
+       * <pre>
+       * 好友请求申请
+       * </pre>
+       *
        * <code>.com.github.im.common.connect.model.proto.NotificationInfo.FriendRequest friendRequest = 1;</code>
        */
       @java.lang.Override
@@ -1908,6 +1964,10 @@ public final class Notification {
         }
       }
       /**
+       * <pre>
+       * 好友请求申请
+       * </pre>
+       *
        * <code>.com.github.im.common.connect.model.proto.NotificationInfo.FriendRequest friendRequest = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<

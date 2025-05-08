@@ -67,6 +67,7 @@ public class MessageNodeService {
                     FileMeta fileMeta = remoteFileInfo.getFileMeta();
                     var contentType = PathFileUtil.getMessageType(fileMeta.getFilename());
                     log.debug("文件类型 {}", contentType);
+                    var fileNode = new FileNode(remoteFileInfo);
                     var bean = applicationContext.getBean(FileNode.class, remoteFileInfo);
 
                     if (contentType == Chat.MessageType.IMAGE) {

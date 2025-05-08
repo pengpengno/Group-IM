@@ -17,4 +17,11 @@ public class LoginRequest implements Serializable {
     @NotBlank
     private String password;
 
+    /**
+     * 长期Token
+     * 1. 刷新 短期 token
+     * 2. 自动登录
+     */
+    private String  refreshToken;
+
 }

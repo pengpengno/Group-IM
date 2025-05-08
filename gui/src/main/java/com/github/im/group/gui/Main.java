@@ -6,6 +6,7 @@ import com.github.im.group.gui.util.CssLoaderUtil;
 import com.gluonhq.attach.display.DisplayService;
 import com.gluonhq.attach.util.Platform;
 import com.gluonhq.charm.glisten.application.AppManager;
+import com.gluonhq.charm.glisten.control.AppBar;
 import com.google.inject.Inject;
 import io.github.palexdev.materialfx.theming.JavaFXThemes;
 import io.github.palexdev.materialfx.theming.MaterialFXStylesheets;
@@ -31,7 +32,6 @@ import java.io.IOException;
  * @version 1.0
  * @since 2024/10/17
  */
-//@SpringBootApplication
 @Slf4j
 public class Main extends Application {
 //
@@ -56,8 +56,6 @@ public class Main extends Application {
             return;
         }
 //
-        // **延迟初始化 AppManager**
-//        appManager = AppManager.initialize((scene)->postInit(scene));
 
     }
 
@@ -65,16 +63,14 @@ public class Main extends Application {
 
         DisplayManager.display(LoginView.class);
 
-//         桌面端处理
-        if (Platform.isDesktop()) {
-            Dimension2D dimension2D = DisplayService.create()
-                    .map(DisplayService::getDefaultDimensions)
-                    .orElse(new Dimension2D(640, 480));
-            scene.getWindow().setWidth(dimension2D.getWidth());
-            scene.getWindow().setHeight(dimension2D.getHeight());
-        }
-
-//        AppViewManager.registerViewsAndDrawer();
+////         桌面端处理
+//        if (Platform.isDesktop()) {
+//            Dimension2D dimension2D = DisplayService.create()
+//                    .map(DisplayService::getDefaultDimensions)
+//                    .orElse(new Dimension2D(640, 480));
+//            scene.getWindow().setWidth(dimension2D.getWidth());
+//            scene.getWindow().setHeight(dimension2D.getHeight());
+//        }
 
     }
 
@@ -110,29 +106,37 @@ public class Main extends Application {
             }
         }
         initSpringEnv();
-//        DisplayManager.registerView(LoginView.class);
-//        DisplayManager.initialize(scene-> {
-//            // 设置图标
-////            scene.getStylesheets()
-////                    .add(getClass()
-////                    .getResource("/com/gluonhq/charm/glisten/assets/theme.css").toExternalForm());
-//
-//            CssLoaderUtil.loadCss(scene,"css/styles.css");
-//            CssLoaderUtil.loadCss(scene,"css/chat.css");
-//
-//        });
+
+        // **延迟初始化 AppManager**
+        appManager = AppManager.initialize((scene)->postInit(scene));
+        appManager.start(primaryStage);
+
+        var appBar = appManager.getAppBar();
+        final Delta dragDelta = new Delta();
+
+        appBar.setOnMousePressed(event -> {
+            if (event.isPrimaryButtonDown()) {
+                dragDelta.x = primaryStage.getX() - event.getScreenX();
+                dragDelta.y = primaryStage.getY() - event.getScreenY();
+            }
+        });
+
+        appBar.setOnMouseDragged(event -> {
+            if (event.isPrimaryButtonDown()) {
+                primaryStage.setX(event.getScreenX() + dragDelta.x);
+                primaryStage.setY(event.getScreenY() + dragDelta.y);
+            }
+        });
+        primaryStage.setFullScreen(false);
         primaryStage.setWidth(800);
         primaryStage.setHeight(600);
-        DisplayManager.display(LoginView.class);
-//        DisplayManager.start();
-//        appManager.start(primaryStage);
-
-
-
-
+        primaryStage.centerOnScreen();
 
     }
 
+    private static class Delta {
+        double x, y;
+    }
 
 
 

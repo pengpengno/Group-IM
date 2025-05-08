@@ -20,9 +20,17 @@ import java.util.ResourceBundle;
 public interface FileInfo  {
 
 
+    /**
+     * 文件名称
+     * @return
+     */
     public String getName();
 
 
+    /**
+     * 返回文件资源
+     * @return
+     */
     public Resource getFileResource();
 
 
@@ -33,10 +41,19 @@ public interface FileInfo  {
      */
     public String getPath();
 
+    /**
+     * 是否下载到了本地
+     * @return true:下载到本地
+     */
+    default public boolean isDownLoadLocal(){
+        return false;
+    }
+
+    /**
+     * 文件大小
+     * @return 文件大小
+     */
     public long getSize();
-
-
-
 
 
 }

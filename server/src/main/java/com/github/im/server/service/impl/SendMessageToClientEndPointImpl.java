@@ -45,6 +45,10 @@ public class SendMessageToClientEndPointImpl implements SendMessageToClientEndPo
     }
 
 
+    /***
+     * 向客户端发送好友请求消息
+     * @param friendship
+     */
     public void sendMessage(final Friendship friendship) {
 
         var friend = friendship.getFriend(); // 被请求人

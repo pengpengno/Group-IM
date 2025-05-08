@@ -1,0 +1,19 @@
+@startuml
+actor User
+participant LoginController
+participant AuthService
+participant SpringBackend
+participant SceneManager
+
+User -> LoginController : 点击登录按钮
+LoginController -> AuthService : login(username, password)
+AuthService -> SpringBackend : POST /auth/login
+SpringBackend --> AuthService : 返回 token, userInfo
+AuthService --> LoginController : 返回 AuthResult
+
+LoginController -> SpringBackend : GET /user/profile
+SpringBackend --> LoginController : 返回 userData
+
+LoginController -> SceneManager : switchView("Main")
+SceneManager -> User : 显示主界面
+@enduml

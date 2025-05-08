@@ -9,6 +9,7 @@ import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.Rich
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.FileNode;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.RemoteFileInfo;
 import com.github.im.group.gui.util.AvatarGenerator;
+import com.gluonhq.charm.glisten.application.AppManager;
 import com.sun.javafx.tk.Toolkit;
 import jakarta.annotation.Resource;
 import javafx.application.Platform;
@@ -22,6 +23,7 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.Paint;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
@@ -142,6 +144,7 @@ public class ChatBubblePane extends GridPane {
         final var paddingTopAndBottom  = 10;
         this.setPadding(new Insets(paddingTopAndBottom,0,paddingTopAndBottom,0));
 
+
         // 构造空白填充列
         var columnConstraints = new ColumnConstraints();
         columnConstraints.setPercentWidth(20);
@@ -189,8 +192,28 @@ public class ChatBubblePane extends GridPane {
 
         HBox messageBox = new HBox(10);
         messageBox.setAlignment(isSent ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
+        var instance = AppManager.getInstance();
+        Background background;
+        BackgroundFill backgroundFill;
+        if (instance != null){
+            var fill = instance.getAppBar().getBackground().getFills().get(0).getFill();
+            backgroundFill = new BackgroundFill(
+                    fill, // 蓝色
+                    new CornerRadii(15),  // 圆角半径
+                    Insets.EMPTY
+            );
+        }else{
+             backgroundFill = new BackgroundFill(
+                    Color.BLUE, // 蓝色
+                    new CornerRadii(15),  // 圆角半径
+                    Insets.EMPTY
+            );
+        }
+
+        background = new Background(backgroundFill);
 
         if(isSent){
+            senderTextField.setBackground(background);
             messageBox.getChildren().addAll(senderTextField,avatarAndNameBox);
         }
         else{

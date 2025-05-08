@@ -12,6 +12,7 @@ import jakarta.annotation.PostConstruct;
 import javafx.application.Platform;
 import javafx.fxml.Initializable;
 import javafx.scene.control.ListView;
+import javafx.scene.control.SplitPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import lombok.NonNull;
@@ -47,7 +48,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ChatMainPane extends GridPane implements Initializable, ApplicationContextAware {
+//public class ChatMainPane extends GridPane implements Initializable, ApplicationContextAware {
+public class ChatMainPane extends SplitPane implements  ApplicationContextAware {
 
     private ListView<ConversationInfoCard> conversationList;
 
@@ -258,7 +260,9 @@ public class ChatMainPane extends GridPane implements Initializable, Application
             currentChatPane = chatMessagePane;
 
             // 重新添加新的聊天面板
-            this.add(currentChatPane, 1, 0);
+            getItems().remove(1);
+            getItems().add(currentChatPane);
+//            this.add(currentChatPane, 1, 0);
 
             // 绑定宽度，确保 UI 自适应
             currentChatPane.prefWidthProperty().bind(this.widthProperty().subtract(conversationList.widthProperty()));
@@ -273,14 +277,11 @@ public class ChatMainPane extends GridPane implements Initializable, Application
 
 //        currentChatPane = new ChatMessagePane();
         currentChatPane = applicationContext.getBean(ChatMessagePane.class);
+        getItems().addAll(conversationList,currentChatPane);
+        conversationList.setMinWidth(100);
+        currentChatPane.setMinWidth(500);
+        setDividerPositions(0.3); // 初始比例，30%：70%
 
-        this.add(currentChatPane,1,0);
-
-        this.add(conversationList, 0, 0); // 例如将好友列表放到 GridPane 的第 0 行 0 列
-
-
-        // 设置列宽，确保 UI 不会挤在一起
-        this.getColumnConstraints().add(new ColumnConstraints(100));  // 设置第 0 列宽度为 250
 
         ColumnConstraints col2 = new ColumnConstraints();
         col2.setHgrow(javafx.scene.layout.Priority.ALWAYS);  // 让第 1 列可以自动扩展
@@ -289,14 +290,6 @@ public class ChatMainPane extends GridPane implements Initializable, Application
                 .flatMap(this::loadConversation).subscribe();
 
     }
-
-
-
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
-
-    }
-
 
 
 

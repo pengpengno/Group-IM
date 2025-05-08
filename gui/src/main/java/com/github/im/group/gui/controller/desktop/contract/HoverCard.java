@@ -5,13 +5,15 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.scene.paint.Color;
 
 /**
  * HoverCard 用于展示详细的用户信息，如邮箱、状态等
  */
-public class HoverCard extends StackPane {
+public class HoverCard extends VBox {
+//public class HoverCard extends StackPane {
 
     private HBox detailBox;
     private Label emailLabel;
@@ -36,19 +38,19 @@ public class HoverCard extends StackPane {
 
         detailBox.getChildren().addAll(avatar, nameText, emailLabel, statusLabel);
         detailBox.setStyle("-fx-background-color: #ffffff; -fx-padding: 15px; -fx-border-radius: 5px; -fx-border-color: #cccccc; -fx-border-width: 1px;");
-        detailBox.setVisible(false); // 默认隐藏详细信息
+//        detailBox.setVisible(false); // 默认隐藏详细信息
 
         // 将组件添加到 HoverCard
         getChildren().add(detailBox);
     }
 
-    // 显示详细信息
-    public void showDetails() {
-        detailBox.setVisible(true);
-    }
-
-    // 隐藏详细信息
-    public void hideDetails() {
-        detailBox.setVisible(false);
-    }
+//    // 显示详细信息
+//    public void showDetails() {
+//        detailBox.setVisible(true);
+//    }
+//
+//    // 隐藏详细信息
+//    public void hideDetails() {
+//        detailBox.setVisible(false);
+//    }
 }

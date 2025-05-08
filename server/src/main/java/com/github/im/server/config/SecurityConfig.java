@@ -1,6 +1,8 @@
 package com.github.im.server.config;
 
 import com.github.im.server.service.AuthenticationService;
+import com.github.im.server.service.impl.security.RefreshAuthenticationProvider;
+import com.github.im.server.service.impl.security.UserDetailsServiceImpl;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -51,15 +53,21 @@ public class SecurityConfig  {
     }
 
 
-    @ConditionalOnBean(AuthenticationService.class)
+    @ConditionalOnBean(UserDetailsServiceImpl.class)
     @Bean
-    public AuthenticationManager authenticationManager(HttpSecurity http,@Autowired AuthenticationService userService) throws Exception {
+    public AuthenticationManager authenticationManager(HttpSecurity http,
+                                                       @Autowired UserDetailsServiceImpl userService,
+                                                       @Autowired RefreshAuthenticationProvider refreshAuthenticationProvider
+                                                       ) throws Exception {
         AuthenticationManagerBuilder auth = http.getSharedObject(AuthenticationManagerBuilder.class);
+        auth.authenticationProvider(refreshAuthenticationProvider);
+
         auth.userDetailsService(userService)
                 .passwordEncoder(passwordEncoder());
         var authenticationManager = auth.build();
 
-        userService.setAuthenticationManager(authenticationManager);
+//        userService.setAuthenticationManager(authenticationManager);
+//        userService.setAuthenticationManager(authenticationManager);
         return authenticationManager;
     }
 

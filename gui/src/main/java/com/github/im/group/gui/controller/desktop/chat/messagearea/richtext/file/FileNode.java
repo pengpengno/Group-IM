@@ -41,7 +41,6 @@ import java.util.ResourceBundle;
 @Component
 @Scope("prototype")
 @Slf4j
-//@RequiredArgsConstructor
 public class FileNode implements MessageNode {
 
     static final ResourceBundle menuBundle = ResourceBundle.getBundle("i18n.menu.button");
@@ -51,7 +50,7 @@ public class FileNode implements MessageNode {
 
     private boolean  exists ; // 文件是否存在
 
-    MessageWrapper messageWrapper;
+
     @Resource
     private  RemoteFileService remoteFileService;
 
@@ -203,15 +202,9 @@ public class FileNode implements MessageNode {
                                 Files.createDirectories(downloadDir); // 确保目录存在
                                 Path targetPath = PathFileUtil.resolveUniqueFilename(downloadDir, finalFileName);
                                 Files.write(targetPath, resource.getContentAsByteArray());
-
+                                remoteFileInfo.setDownloadPath(targetPath);
                                 File localFile = targetPath.toFile();
 
-//                                // 替换界面元素（假设 container 是外部父节点）
-//                                var parent = container.getParent();
-//                                if (parent instanceof HBox parentBox) {
-//                                    int index = parentBox.getChildren().indexOf(container);
-//                                    parentBox.getChildren().set(index, newNode);
-//                                }
                                 // 去除就行
                                 container.getChildren().removeAll(button);
                                 ImageView localFileIcon = new ImageView(FileIconUtil.getFileIcon(localFile));
@@ -229,10 +222,8 @@ public class FileNode implements MessageNode {
 
             return container ;
         }
+
         container = new HBox(8, nameLabel, sizeLabel);
-
-
-
         return container;
     }
 

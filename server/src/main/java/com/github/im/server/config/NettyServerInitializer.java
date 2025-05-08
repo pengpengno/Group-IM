@@ -21,7 +21,6 @@ public class NettyServerInitializer  implements SmartLifecycle {
     private final ReactiveServer tcpServer;
 
 
-
     @Override
     public boolean isAutoStartup() {
         return true;

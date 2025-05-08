@@ -69,23 +69,8 @@ public class UserService {
      */
     public Optional<UserInfo> loginUser(LoginRequest loginRequest) {
 
-       return  authenticationService.loginUser(loginRequest);
+       return  authenticationService.login(loginRequest);
 
-//        Authentication authenticationToken = new UsernamePasswordAuthenticationToken(
-//                loginRequest.getLoginAccount(),
-//                loginRequest.getPassword()
-//        );
-//
-//
-//        // 验证用户凭证并获取认证结果
-//        Authentication authResult = authenticationManager.authenticate(authenticationToken);
-//
-//        // 将认证信息存储到 SecurityContext，以便后续请求中可以访问认证信息
-//        SecurityContextHolder.getContext().setAuthentication(authResult);
-//
-//        // 从认证结果中获取用户信息
-//        User user = (User) authResult.getPrincipal();
-//        return Optional.of(UserMapper.INSTANCE.userToUserInfo(user));
     }
 
     /**

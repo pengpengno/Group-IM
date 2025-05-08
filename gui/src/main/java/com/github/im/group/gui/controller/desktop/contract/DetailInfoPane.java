@@ -85,7 +85,6 @@ public class DetailInfoPane extends GridPane {
 
             log.debug("click and   switch  button ");
 
-
             abstractMenuButton.sendEvent(ChatButton.class);
 
             conversationEndpoint.createOrGetPrivateChat(UserInfoContext.getAccountInfo().getUserId() , this.userInfo.getUserId())
@@ -98,8 +97,6 @@ public class DetailInfoPane extends GridPane {
                     .subscribe();
 
 
-//            chatMainPane.updateConversations(this.userInfo);
-
         });
         // 初始化按钮
         sendMessage.setText(resourceBundle.getString("contract.DetailInfoPane.sendButton.text"));
@@ -111,7 +108,6 @@ public class DetailInfoPane extends GridPane {
 
 
         this.getChildren().clear(); // 清空旧的 UI 组件
-
 
         this.userInfo = userInfo;
 
@@ -128,13 +124,11 @@ public class DetailInfoPane extends GridPane {
         avatarBox.setAlignment(Pos.CENTER);
 
 
-
         VBox infoBox = new VBox(10, phone, mail);
-        infoBox.setAlignment(Pos.CENTER_LEFT);
+        infoBox.setAlignment(Pos.CENTER);
 
         // 按钮组，居中对齐
         HBox buttonBox = new HBox(10, sendMessage, sendMail, call);
-
 
         buttonBox.setAlignment(Pos.CENTER);
 

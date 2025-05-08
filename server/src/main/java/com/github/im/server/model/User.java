@@ -7,10 +7,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 @Data
 @Entity
@@ -43,6 +46,11 @@ public class User implements UserDetails {
     private String avatarUrl;
 
     private String bio;
+
+    /**
+     * 长期 TOKEN
+     */
+    private String refreshToken;
 
     @Column(nullable = false)
     private boolean status = true;
@@ -100,6 +108,10 @@ public class User implements UserDetails {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
 //        TODo
-        return null;
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority("ROLE_USER"));  // 假设角色为 USER
+        // 如果有其他角色，继续添加
+        return authorities;
+//        return null;
     }
 }

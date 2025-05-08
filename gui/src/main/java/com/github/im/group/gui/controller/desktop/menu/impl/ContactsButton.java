@@ -41,11 +41,9 @@ public class ContactsButton extends AbstractMenuButton{
 
             contractMainPane.initialize();
 
-
             var d  = (DesktopMainView)controller;
 
             d.switchRootPane(contractMainPane);
-
 
         });
     }

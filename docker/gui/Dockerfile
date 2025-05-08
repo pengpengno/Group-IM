@@ -1,5 +1,5 @@
 FROM ubuntu:20.04 AS builder
-
+# windows  环境下使用 镜像惊醒编译
 # 设置时区为 UTC+8 (Asia/Shanghai)
 RUN apt-get update && apt-get install -y tzdata && \
     ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
@@ -17,11 +17,6 @@ RUN sed -i 's|http://archive.ubuntu.com|http://mirrors.aliyun.com|g' /etc/apt/so
     && rm -rf /var/lib/apt/lists/*
 
 
-# 设置 GraalVM (Java 21) 环境变量
-#ENV JAVA_HOME=/usr/lib/jvm/graalvm \
-#    ANDROID_HOME=/opt/android-sdk \
-#    ANDROID_NDK_HOME=/opt/android-sdk/ndk/25.1.8937393 \
-#    PATH="$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
 
 # 设置 GraalVM (Java 21) 环境变量
 ENV JAVA_HOME=/usr/lib/jvm/graalvm \
@@ -29,7 +24,8 @@ ENV JAVA_HOME=/usr/lib/jvm/graalvm \
     ANDROID_NDK_HOME=/opt/android-sdk/ndk/25.1.8937393 \
     PATH="$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
 
-
+#COPY graalvm 的 压缩包
+#COPY ./graalvm.tar.gz /app/
 # 安装 GraalVM (Java 21)
 RUN wget https://download.oracle.com/graalvm/21/latest/graalvm-jdk-21_linux-x64_bin.tar.gz -O graalvm.tar.gz \
     && tar -xzf graalvm.tar.gz -C /usr/lib/jvm \
@@ -57,8 +53,7 @@ WORKDIR /app
 COPY ../ /app
 # 构建 APK
 RUN mvn clean install -DskipTests -s ./alisettings.xml
-RUN mvn clean install -DskipTests -s ./alisettings.xml
-RUN  export ANDROID_SDK=$ANDROID_HOME
+RUN export ANDROID_SDK=$ANDROID_HOME
 RUN mvn -Pandroid gluonfx:build gluonfx:package  -DskipTests -s ./alisettings.xml -am -f gui/pom.xml
 
 # 生产环境阶段，只保留 APK

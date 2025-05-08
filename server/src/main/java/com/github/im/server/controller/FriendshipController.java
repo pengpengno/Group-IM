@@ -40,10 +40,8 @@ public class FriendshipController {
     }
 
     @GetMapping("/acceptGet")
-//    public ResponseEntity<String> acceptFriendRequestGet(@RequestBody FriendRequestDto request) {
     public ResponseEntity<String> acceptFriendRequestGet() {
-//        friendshipService.acceptFriendRequest(request);
-        return ResponseEntity.ok().body("1");
+        return ResponseEntity.ok().build();
     }
 
 

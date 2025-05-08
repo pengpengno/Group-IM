@@ -41,7 +41,7 @@ public class AbstractMenuButton extends MFXRectangleToggleNode  implements MenuB
     public static Sinks.Many<Class<? extends AbstractMenuButton>> SWITCH_BUTTON = Sinks.many().multicast().onBackpressureBuffer();
 
 
-    private   ApplicationContext applicationContext;
+    private ApplicationContext applicationContext;
 
     @Setter
     private ToggleGroup group;
@@ -85,9 +85,7 @@ public class AbstractMenuButton extends MFXRectangleToggleNode  implements MenuB
 
 
 //         MFXRectangleToggleNode toggleNode = new MFXRectangleToggleNode(text);
-        this.setAlignment(Pos.TOP_CENTER);
-//        toggleNode.setMaxWidth(Double.MAX_VALUE);
-
+        this.setAlignment(Pos.CENTER);
 
         this.setGraphic(getButtonIcon());
         this.setText(null);
@@ -100,25 +98,6 @@ public class AbstractMenuButton extends MFXRectangleToggleNode  implements MenuB
     }
 
 
-//    public static List<ToggleButton>  getButtonGroup() {
-//        if (toggleGroup != null){
-//            var toggles = toggleGroup.getToggles();
-//
-//            if (toggles.size()>0){
-//                getAllButtons().forEach(but-> {
-//                    but
-//                });
-//                toggleGroup.();
-//
-//            }
-//
-//
-//        }
-//
-//
-//
-//
-//    }
     /**
      * 直接从 Spring 容器获取所有按钮，避免循环依赖
      */
@@ -139,6 +118,7 @@ public class AbstractMenuButton extends MFXRectangleToggleNode  implements MenuB
         return Tuples.of(buttonClass,applicationContext.getBean(buttonClass));
 
     }
+
     public List<ToggleButton> getAllButtons() {
         return List.of(
                 applicationContext.getBean(ChatButton.class),

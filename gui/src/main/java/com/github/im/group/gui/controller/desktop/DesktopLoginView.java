@@ -3,6 +3,7 @@ package com.github.im.group.gui.controller.desktop;
 import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.dto.user.LoginRequest;
 import com.github.im.group.gui.api.UserEndpoint;
+import com.github.im.group.gui.config.SecureSettings;
 import com.github.im.group.gui.controller.LoginView;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.gluonhq.charm.glisten.mvc.View;
@@ -23,14 +24,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.io.File;
 import java.net.URL;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class DesktopLoginView extends View implements Initializable, LoginView {
-//public class DesktopLoginView  implements Initializable, LoginView {
 
     @Override
     public PlatformType  getPlatform() {
@@ -60,7 +62,12 @@ public class DesktopLoginView extends View implements Initializable, LoginView {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         // Attach the login action to the login button
-//        loginButton.setOnAction(event -> login());
+        // 1. 本地检索 上次的数据 登录
+        var secretTokenOpt = SecureSettings.getSecretToken();
+        if (secretTokenOpt.isPresent()){
+            // 那么就 向服务端发起 凭据登录验证
+
+        }
         usernameField.setText("kl");
         passwordField.setText("1");
 
@@ -74,12 +81,6 @@ public class DesktopLoginView extends View implements Initializable, LoginView {
 
 
 
-
-    @PostConstruct
-    public void init() {
-
-    }
-
     @FXML
     private void login() {
         String username = usernameField.getText().trim();
@@ -92,7 +93,7 @@ public class DesktopLoginView extends View implements Initializable, LoginView {
             return;
         }
 
-        LoginRequest loginRequest = new LoginRequest(username, password);
+        LoginRequest loginRequest = new LoginRequest(username, password,null);
 
         // Disable the login button and show progress indicator
         loginButton.setDisable(true);

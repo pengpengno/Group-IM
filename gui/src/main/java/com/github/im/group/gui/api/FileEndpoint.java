@@ -25,7 +25,6 @@ public interface FileEndpoint {
 
     // 单文件上传
     @PostExchange(value = "/upload", contentType = MediaType.MULTIPART_FORM_DATA_VALUE)
-//    Mono<FileUploadResponse> upload(@RequestPart("file") MultipartFile file,
     Mono<FileUploadResponse> upload(@RequestPart("file") Resource file,
                                     @RequestParam("uploaderId") UUID uploaderId);
     // 分片上传

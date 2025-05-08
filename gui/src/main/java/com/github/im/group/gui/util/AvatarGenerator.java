@@ -7,6 +7,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
+import lombok.Getter;
 
 /***
  * AvatarGenerator.java
@@ -132,8 +133,11 @@ public class AvatarGenerator {
      * @param size 头像的大小，表示直径长度
      * @return 返回生成的圆形头像对象
      */
+    public static Image generateCircleAvatar(String name, AvatarSize size) {
+        return generateCircleAvatarCache(name, size.getSize(), null);
+    }
     public static Image generateCircleAvatar(String name, double size) {
-            return generateCircleAvatarCache(name, size, null);
+        return generateCircleAvatarCache(name, size, null);
     }
 
 
@@ -183,5 +187,24 @@ public class AvatarGenerator {
         };
 
         return colors[(int) (Math.random() * colors.length)];
+    }
+
+    public enum AvatarType {
+        CIRCLE,
+        SQUARE
+    }
+
+    @Getter
+    public enum AvatarSize {
+        SMALL(20),
+        MEDIUM(50),
+        LARGE(70);
+
+        private final int size;
+
+        AvatarSize(int size) {
+            this.size = size;
+        }
+
     }
 }

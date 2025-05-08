@@ -3,9 +3,10 @@ im:
     directory: downloads  # 下载服务获取到的相对路径
   server:
     rest:
-      host: ${SERVER_HOST:http://localhost:8080}
+#      host: ${SERVER_HOST:http://localhost:8080}
+      host: ${SERVER_HOST:http://192.168.3.22:8080}
     connect:
-      host: ${CONNECT_HOST:localhost}
+      host: ${CONNECT_HOST:192.168.3.22}
       port: 8088
 
 javafx:
