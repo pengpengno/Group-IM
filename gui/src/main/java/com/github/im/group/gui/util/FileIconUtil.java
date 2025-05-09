@@ -2,14 +2,33 @@ package com.github.im.group.gui.util;
 
 import io.github.palexdev.mfxcore.utils.fx.SwingFXUtils;
 import javafx.scene.image.Image;
+import javafx.stage.Stage;
+import org.springframework.core.io.ClassPathResource;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 
 public class FileIconUtil {
+
+    private static final ClassPathResource iconResource = new ClassPathResource("images/icon.png");
+    public static void setStageIcon (Stage stage) {
+        if (stage == null ){
+            return ;
+        }
+
+        if (iconResource.exists()){
+            try {
+                stage.getIcons().add(new Image(iconResource.getInputStream()));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+    }
 
     /**
      *  获取系统文件的图标

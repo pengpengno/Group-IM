@@ -2,11 +2,13 @@ package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.ima
 
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.MessageNode;
+import com.github.im.group.gui.util.FileIconUtil;
 import com.github.im.group.gui.util.ImageUtil;
 import com.github.im.group.gui.util.PathFileUtil;
 import javafx.scene.Node;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.stage.Stage;
 import lombok.Getter;
 
 import java.io.IOException;
@@ -124,11 +126,12 @@ public class StreamImage implements MessageNode {
      */
     private void showImageInNewWindow() {
         // 创建一个新的JavaFX窗口
-        javafx.stage.Stage stage = new javafx.stage.Stage();
+        Stage stage = new javafx.stage.Stage();
         // 设置窗口标题
         stage.setTitle("查看图片");
         // 清除窗口图标，此处不需要显示窗口图标
         stage.getIcons().clear();
+        FileIconUtil.setStageIcon(stage);
 
         // 创建一个ImageView对象来显示图片，image为预加载的图片对象
         ImageView fullImageView = new ImageView(image);

@@ -18,6 +18,7 @@ import java.io.IOException;
  */
 //@Slf4j
 public class ImageUtil {
+
     // Image => byte[]
     public static byte[] imageToBytes(Image image, String format) throws IOException {
         BufferedImage bufferedImage = SwingFXUtils.fromFXImage(image, null);

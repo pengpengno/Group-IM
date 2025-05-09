@@ -9,7 +9,12 @@ import com.github.im.group.gui.controller.LoginView;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.github.im.group.gui.util.AvatarGenerator;
 import com.github.im.group.gui.util.FxView;
+import com.gluonhq.charm.glisten.application.AppManager;
+import com.gluonhq.charm.glisten.control.AppBar;
+import com.gluonhq.charm.glisten.control.FloatingActionButton;
 import com.gluonhq.charm.glisten.mvc.View;
+import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
+import com.gluonhq.charm.glisten.visual.Swatch;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -17,27 +22,27 @@ import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.ProgressIndicator;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+import static com.gluonhq.charm.glisten.application.AppManager.HOME_VIEW;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 @FxView(fxmlName = "login_view")
-public class LoginPresenter implements Initializable, LoginView {
+public class LoginPresenter extends View implements Initializable, LoginView {
 
     @FXML private View loginView ;
+    private static final String OTHER_VIEW = "other";
 
 
     @Override
@@ -87,10 +92,49 @@ public class LoginPresenter implements Initializable, LoginView {
                 login();
             }
         }
+
+        this.showingProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue) {
+                AppBar appBar = AppManager.getInstance().getAppBar();
+                appBar.setNavIcon(MaterialDesignIcon.MENU.button(e ->
+                        AppManager.getInstance().getDrawer().open()));
+                appBar.setTitleText("主页");
+//                appBar.setTitleText(resources.getString("appbar.title"));
+//                appBar.getActionItems().add(filterButton);
+            }
+        });
+
+
+        final var appManager = AppManager.getInstance();
+        appManager.viewProperty().addListener((obs, ov, nv) -> {
+            AppBar appBar = AppManager.getInstance().getAppBar();
+//            AppBar appBar = AppManager.getInstance().getAppBar();
+            appBar.setNavIcon(MaterialDesignIcon.MENU.button(e ->
+                    AppManager.getInstance().getDrawer().open()));
+            appBar.setTitleText("主页");
+            var id = nv.getId();
+            if(!StringUtils.hasLength(id)){
+                return;
+            }
+            switch(id) {
+                case HOME_VIEW:
+                    appBar.setNavIcon(MaterialDesignIcon.HOME.button(e -> appManager.switchView(HOME_VIEW)));
+                    appBar.setTitleText("Home View");
+                    Swatch.TEAL.assignTo(appBar.getScene());
+                    break;
+                case OTHER_VIEW:
+                    appBar.setNavIcon(MaterialDesignIcon.HTTPS.button(e -> appManager.switchView(OTHER_VIEW)));
+                    appBar.setTitleText("Other View");
+                    appBar.setVisible(true);
+                    break;
+            }
+        });
+        appManager.addViewFactory(OTHER_VIEW, () -> new View(new CheckBox("I like Glisten")));
         usernameField.setText("kl");
         passwordField.setText("1");
 
     }
+
 
     @FXML
     private void navigateToRegister() {

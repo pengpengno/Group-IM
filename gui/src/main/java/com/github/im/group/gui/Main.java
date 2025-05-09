@@ -1,10 +1,14 @@
 package com.github.im.group.gui;
 
 import com.github.im.group.gui.controller.DisplayManager;
+import com.github.im.group.gui.util.FileIconUtil;
 import com.github.im.group.gui.views.*;
 import com.gluonhq.charm.glisten.afterburner.AppViewRegistry;
+import com.gluonhq.charm.glisten.animation.FadeInLeftBigTransition;
 import com.gluonhq.charm.glisten.application.AppManager;
+import com.gluonhq.charm.glisten.application.MobileApplication;
 import com.gluonhq.charm.glisten.control.AppBar;
+import com.gluonhq.charm.glisten.control.FloatingActionButton;
 import com.gluonhq.charm.glisten.mvc.View;
 import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
 import com.gluonhq.charm.glisten.visual.Swatch;
@@ -14,19 +18,18 @@ import io.github.palexdev.materialfx.theming.UserAgentBuilder;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.util.ResourceBundle;
 
-import static com.gluonhq.charm.glisten.application.AppManager.HOME_VIEW;
 
 /**
  * Description:
@@ -64,121 +67,85 @@ public class Main extends Application {
 
     }
 
-    public void postInit(Scene scene) {
 
-
-    }
     private static final String OTHER_VIEW = "other";
     private static final ResourceBundle bundle = ResourceBundle.getBundle("i18n.drawer");
 
     @Override
     public void init() throws Exception {
-//        AppViewManager.createHomeView(LoginPresenter.class);
-//        AppViewManager.createView(MainPresenter.class);
-//        AppViewManager.registerViewsAndDrawer();
+
         initSpringEnv();
 
-
-//        NavigationDrawer.Header header = new NavigationDrawer.Header(bundle.getString("drawer.header.title"),
-//                bundle.getString("drawer.header.description"),
-//                new Avatar(21, new Image(Objects.requireNonNull(AppViewManager.class.getResourceAsStream("/images/icon.png")))));
-//
-//        appManager.addViewFactory(HOME_VIEW, () -> {
-//            try {
-////                new
-//                View load = FXMLLoader.load(getClass().getResource("views/home1.fxml"));
-////                Utils.buildDrawer(AppManager.getInstance().getDrawer(), "header", List.of(load));
-//
-//                return load;
-//            } catch (Exception ex) {
-//
-//            }
-//            return null;
-//        });
-
-//        drawerManager.addViewFactory("home", () ->
-//                new View("Home") {{
-//                    setCenter(new Label("This is Home View"));
-//                }}
-//        );
-//
-//        drawerManager.addViewFactory("settings", () ->
-//                new View("Settings") {{
-//                    setCenter(new Label("This is Settings View"));
-//                }}
-//        );
-
-//        var viewRegistry = new ViewRegistry();
-//        var view = viewRegistry.createView(LoginPresenter.class, MaterialDesignIcon.HOME, FView.Flag.HOME_VIEW);
-//
-//        view.registerView();
-//        ViewUtils.buildDrawer();
 
         AppViewManager.createHomeView(LoginPresenter.class);
         AppViewManager.createView(MainPresenter.class);
         AppViewManager.registerViewsAndDrawer();
-        var appViewRegistry = new AppViewRegistry();
 
 
-        appManager.addViewFactory(OTHER_VIEW, () -> new View(new CheckBox("I like Glisten")));
-        appManager.viewProperty().addListener((obs, ov, nv) -> {
-            AppBar appBar = AppManager.getInstance().getAppBar();
-            var id = nv.getId();
-            if(StringUtils.isEmpty(id)){
-                return;
-            }
-            switch(id) {
-                case HOME_VIEW:
-                    appBar.setNavIcon(MaterialDesignIcon.HOME.button(e -> appManager.switchView(HOME_VIEW)));
-                    appBar.setTitleText("Home View");
-                    Swatch.TEAL.assignTo(appBar.getScene());
-                    break;
-                case OTHER_VIEW:
-                    appBar.setNavIcon(MaterialDesignIcon.HTTPS.button(e -> appManager.switchView(OTHER_VIEW)));
-                    appBar.setTitleText("Other View");
-                    appBar.setVisible(true);
-                    break;
-            }
-        });
+//        appManager.viewProperty().addListener((obs, ov, nv) -> {
+//            AppBar appBar = AppManager.getInstance().getAppBar();
+//            var id = nv.getId();
+//            if(!StringUtils.hasLength(id)){
+//                return;
+//            }
+//            switch(id) {
+//                case HOME_VIEW:
+//                    appBar.setNavIcon(MaterialDesignIcon.HOME.button(e -> appManager.switchView(HOME_VIEW)));
+//                    appBar.setTitleText("Home View");
+//                    Swatch.TEAL.assignTo(appBar.getScene());
+//                    break;
+//                case OTHER_VIEW:
+//                    appBar.setNavIcon(MaterialDesignIcon.HTTPS.button(e -> appManager.switchView(OTHER_VIEW)));
+//                    appBar.setTitleText("Other View");
+//                    appBar.setVisible(true);
+//                    break;
+//            }
+//        });
+//        appManager.addViewFactory(OTHER_VIEW, () -> new View(new CheckBox("I like Glisten")));
+
     }
 
     @Override
     public void start(Stage primaryStage) throws IOException {
-        DisplayManager.setPrimaryStage(primaryStage);
-        primaryStage.initStyle(StageStyle.UNDECORATED);
-        primaryStage.setTitle("IM Platform");
+//        DisplayManager.setPrimaryStage(primaryStage);
+//        primaryStage.initStyle(StageStyle.UNDECORATED);
+//        primaryStage.setTitle("IM Platform");
 
         log.info("start application ");
         appManager.start(primaryStage);
 
-        //
-////        CSSFX.start();
-//
-//
-        UserAgentBuilder.builder()
-                .themes(JavaFXThemes.MODENA)
-                .themes(MaterialFXStylesheets.forAssemble(true))
-                .setDeploy(true)
-                .setResolveAssets(true)
-                .build()
-                .setGlobal();
+
+//        CSSFX.start();
+//        UserAgentBuilder.builder()
+//                .themes(JavaFXThemes.MODENA)
+//                .themes(MaterialFXStylesheets.forAssemble(true))
+//                .setDeploy(true)
+//                .setResolveAssets(true)
+//                .build()
+//                .setGlobal();
 
 //        primaryStage.initStyle(StageStyle.UNDECORATED);
 //
 //
 //        primaryStage.setResizable(true);
-        var iconResource = new ClassPathResource("images/icon.png");
 
-        if (iconResource.exists()){
-            try {
-                primaryStage.getIcons().add(new Image(iconResource.getInputStream()));
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-//        initSpringEnv();
+        FileIconUtil.setStageIcon(primaryStage);
+        initDrag(primaryStage);
+//
+        primaryStage.setFullScreen(false);
+        primaryStage.setWidth(800);
+        primaryStage.setHeight(600);
+        primaryStage.centerOnScreen();
+
+    }
+
+    private static class Delta {
+        double x, y;
+    }
 
 
+
+    private void initDrag(Stage primaryStage) {
         var appBar = appManager.getAppBar();
         final Delta dragDelta = new Delta();
 
@@ -195,18 +162,7 @@ public class Main extends Application {
                 primaryStage.setY(event.getScreenY() + dragDelta.y);
             }
         });
-        primaryStage.setFullScreen(false);
-        primaryStage.setWidth(800);
-        primaryStage.setHeight(600);
-        primaryStage.centerOnScreen();
-
     }
-
-    private static class Delta {
-        double x, y;
-    }
-
-
 
     public static void main(String[] args) {
         launch(args);

@@ -57,23 +57,19 @@ public class AppViewManager {
      * 注册主界面
      */
     public static FView createHomeView(Class<? extends PlatformView> presenterClass) {
-        var simpleName = presenterClass.getSimpleName();
-//        if (Utils.isDesktop()) {
-//            simpleName = simpleName.replace("Presenter", "View");
-//        }
+
         var home = MaterialDesignIcon.HOME;
         FView.Flag[] flags = new FView.Flag[]{HOME_VIEW,SHOW_IN_DRAWER, SKIP_VIEW_STACK};
 
         var view = REGISTRY.createView( presenterClass, home, flags);
         return view;
-//        return REGISTRY.createView(name(presenterClass), simpleName, presenterClass, home, flags);
     }
 
     /**
      * 注册主界面
      */
     public static FView createView(Class<? extends PlatformView> presenterClass) {
-        var ICON = MaterialDesignIcon.EMPTY;
+        var ICON = MaterialDesignIcon.ACCESS_ALARM;
 
         FView.Flag[] flags = new FView.Flag[]{SHOW_IN_DRAWER, SKIP_VIEW_STACK};
         var view = REGISTRY.createView( presenterClass, ICON, flags);

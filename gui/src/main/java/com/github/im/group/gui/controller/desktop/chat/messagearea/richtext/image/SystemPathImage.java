@@ -15,6 +15,7 @@ import java.io.File;
  * When rendered in the rich text editor, the image is loaded from the
  * specified file.
  */
+@Deprecated
 public class SystemPathImage implements MessageNode {
 
     private final String imagePath;
