@@ -5,6 +5,7 @@ import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.dto.user.LoginRequest;
 import com.github.im.dto.user.UserInfo;
+import com.github.im.group.gui.config.SecureSettings;
 import com.github.im.group.gui.config.ServerConnectProperties;
 import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.DisplayManager;
@@ -45,6 +46,10 @@ public class LoginLifecycleImpl implements LoginLifecycle {
     public void loginCallBack(UserInfo userInfo) {
         // On successful login, navigate to the main view
         Platform.runLater(() -> {
+            // 存储凭据
+            SecureSettings.saveUserName(userInfo.getUsername());
+            SecureSettings.saveSecretToken(userInfo.getRefreshToken());
+
             log.debug("login success {}" ,userInfo);
 
             UserInfoContext.setCurrentUser(userInfo);

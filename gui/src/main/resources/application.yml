@@ -18,6 +18,16 @@ logging:
 
 
 spring:
+  datasource:
+    url: jdbc:h2:file:./data/group-db;DB_CLOSE_DELAY=-1
+#    url: jdbc:h2:file:${user.home}/data/im-db;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: group
+    password: group
+    jpa:
+      show-sql: true
+      hibernate:
+        ddl-auto: update
 
 
   jvm:

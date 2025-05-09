@@ -26,6 +26,7 @@
  */
 package com.github.im.group.gui;
 
+import com.github.im.group.gui.controller.PlatformView;
 import com.github.im.group.gui.controller.desktop.DesktopLoginView;
 import com.github.im.group.gui.controller.desktop.DesktopMainView;
 import com.gluonhq.charm.glisten.afterburner.AppView;
@@ -54,7 +55,18 @@ public class AppViewManager {
     public static final AppView NOTES_VIEW = view(bundle.getString("view.notes.text"), DesktopLoginView.class, MaterialDesignIcon.HOME, SHOW_IN_DRAWER, HOME_VIEW, SKIP_VIEW_STACK);
     public static final AppView EDITION_VIEW = view(bundle.getString("view.edition.text"), DesktopMainView.class, MaterialDesignIcon.EDIT, SHOW_IN_DRAWER);
 //    public static final AppView SETTINGS_VIEW = view(bundle.getString("view.settings.text"), SettingsPresenter.class, MaterialDesignIcon.SETTINGS, SHOW_IN_DRAWER);
-    
+
+
+//    /**
+//     * 注册主界面
+//     */
+//    public static AppView registerHomeView(Class<? extends PlatformView> presenterClass) {
+//        presenterClass
+//
+//
+//        REGISTRY.createView(presenterClass.get)
+//    }
+
     private static AppView view(String title, Class<?> presenterClass, MaterialDesignIcon menuIcon, AppView.Flag... flags ) {
         return REGISTRY.createView(name(presenterClass), title, presenterClass, menuIcon, flags);
     }

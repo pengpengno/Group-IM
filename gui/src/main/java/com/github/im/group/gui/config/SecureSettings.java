@@ -20,6 +20,7 @@ public class SecureSettings {
     private static final String AES = "AES";
 
     private static final String TOKEN_KEY = "access_token";
+    private static final String UNAME_KEY = "access_token";
     private static final String REFRESH_TOKEN_KEY = "refresh_token";
 
     private static final Preferences prefs = Preferences.userNodeForPackage(SecureSettings.class);
@@ -29,12 +30,20 @@ public class SecureSettings {
     }
 
 
+    public static void saveUserName(String userName) {
+        prefs.put(UNAME_KEY, userName);
+    }
+
     /**
      * 获取密钥 Token 用于自动登录
      * @return 没有默认返回null
      */
     public static Optional<String> getSecretToken() {
         return Optional.ofNullable(prefs.get(REFRESH_TOKEN_KEY, null));
+    }
+
+    public static Optional<String> getUserName(){
+        return Optional.ofNullable(prefs.get(UNAME_KEY, null));
     }
 
     public static void clearTokens() {

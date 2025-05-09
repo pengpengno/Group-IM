@@ -100,31 +100,9 @@ public class ContractMainPane extends SplitPane {
 
 
 
-        // 设置 GridPane 布局   两列一行 2 * 1
-        //  第一行 窄一些 第二列 宽一些  friendsPane 设置再最左边
-//        this.add(friendsPane, 0, 0); // 例如将好友列表放到 GridPane 的第 0 行 0 列
-//        this.add(detailInfoPane,1,0);
-
-
-        // 设置列宽，确保 UI 不会挤在一起
-//        var col1 = new ColumnConstraints(100);
-//        this.getColumnConstraints().add(col1);  // 设置第 0 列宽度为 250
-
-//        ColumnConstraints col2 = new ColumnConstraints();
-//        col2.setHgrow(javafx.scene.layout.Priority.ALWAYS);  // 让第 1 列可以自动扩展
 
         detailInfoPane.setMaxWidth(Double.MAX_VALUE);
 
-
-        //  响应式的取 friendsPane 占用完毕后的剩余宽度
-
-//        detailInfoPane.prefWidthProperty()
-//                .bind(this.widthProperty()
-//                        .subtract(friendsPane.widthProperty()));
-
-
-//        this.setVgap(10);  // 设置行间距
-//        this.setHgap(10);  // 设置列间距
 
         // 设置朋友面板宽度为固定值，例如 300
         friendsPane.setPrefWidth(300);  // 设置 friendsPane 宽度

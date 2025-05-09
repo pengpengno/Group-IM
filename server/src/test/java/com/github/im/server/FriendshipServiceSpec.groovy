@@ -1,5 +1,6 @@
-package com.github.im.server;
+package com.github.im.server
 
+import com.github.im.common.model.account.ChatMsgVo;
 import com.github.im.dto.user.FriendRequestDto
 import com.github.im.dto.user.FriendshipDTO
 import com.github.im.server.model.Friendship
@@ -24,15 +25,21 @@ class FriendshipServiceSpec extends Specification {
         def user = new User(userId: 1L)
         def friend = new User(userId: 2L)
 
+        def userList = [user, friend]
+
         userRepository.findById(1L) >> Optional.of(user)
         userRepository.findById(2L) >> Optional.of(friend)
+
+        friendshipRepository.findByUserAndFriend(_ as User, _ as User) >> Optional.empty()
+
+        userRepository.findByUserIdIn(_ as List) >> Optional.of(userList)
 
         when:
         friendshipService.sendFriendRequest(request)
 
         then:
         1 * friendshipRepository.save(_)
-        1 * endpoint.sendMessage(request)
+        1 * endpoint.sendMessage(_)
     }
 
 

@@ -58,6 +58,7 @@ public class DisplayManager {
      * 存放 对应的 Gluon 中的展示图层
      */
     public static final ConcurrentHashMap<String,View> DISPLAY_VIEW_MAP = new ConcurrentHashMap<>();
+
     /**
      * 缓存 FXML 加载后的 Scene 节点
      */

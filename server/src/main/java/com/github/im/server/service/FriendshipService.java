@@ -26,7 +26,6 @@ public class FriendshipService {
 
     private final FriendshipRepository friendshipRepository;
 
-
     private final SendMessageToClientEndPointImpl sendMessageToClientEndPoint;
 
     @Transactional

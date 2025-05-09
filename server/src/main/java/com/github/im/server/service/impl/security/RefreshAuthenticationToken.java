@@ -30,6 +30,11 @@ public class RefreshAuthenticationToken extends AbstractAuthenticationToken {
     }
 
     @Override
+    public boolean isAuthenticated() {
+        return super.isAuthenticated();
+    }
+
+    @Override
     public Object getPrincipal() {
         return principal;
     }

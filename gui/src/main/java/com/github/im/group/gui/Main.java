@@ -63,14 +63,6 @@ public class Main extends Application {
 
         DisplayManager.display(LoginView.class);
 
-////         桌面端处理
-//        if (Platform.isDesktop()) {
-//            Dimension2D dimension2D = DisplayService.create()
-//                    .map(DisplayService::getDefaultDimensions)
-//                    .orElse(new Dimension2D(640, 480));
-//            scene.getWindow().setWidth(dimension2D.getWidth());
-//            scene.getWindow().setHeight(dimension2D.getHeight());
-//        }
 
     }
 

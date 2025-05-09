@@ -50,6 +50,7 @@ public class User implements UserDetails {
     /**
      * 长期 TOKEN
      */
+    @Column(length = 1024)
     private String refreshToken;
 
     @Column(nullable = false)

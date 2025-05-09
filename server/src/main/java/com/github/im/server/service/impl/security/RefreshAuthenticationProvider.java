@@ -11,6 +11,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Component;
 
+import java.security.Security;
+
 @Component
 @RequiredArgsConstructor
 public class RefreshAuthenticationProvider implements AuthenticationProvider {
@@ -30,8 +32,8 @@ public class RefreshAuthenticationProvider implements AuthenticationProvider {
                 .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
 
 //        return new RefreshAuthenticationToken(user, user.getAuthorities());
-        // 这里就不需要传入密码了
-        return new UsernamePasswordAuthenticationToken(user,null, user.getAuthorities());
+        // 复用 即可
+        return new UsernamePasswordAuthenticationToken(user,user.getPasswordHash(), user.getAuthorities());
     }
 
     @Override

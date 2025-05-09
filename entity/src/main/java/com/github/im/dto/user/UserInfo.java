@@ -24,4 +24,8 @@ public class UserInfo implements Serializable {
     @JsonInclude(JsonInclude.Include.NON_NULL) //不为null时才序列化
     private String token ;
 
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String refreshToken;
+
 }

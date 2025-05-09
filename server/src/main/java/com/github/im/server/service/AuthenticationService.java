@@ -25,15 +25,9 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class AuthenticationService  {
 
-    @Setter
-    private AuthenticationManager authenticationManager;
-
-
+    private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
-
-
-    @Autowired
-    JwtUtil jwtUtil;
+    private final JwtUtil jwtUtil;
 
 
     public Optional<UserInfo> login(LoginRequest loginRequest){
@@ -47,6 +41,11 @@ public class AuthenticationService  {
 
     }
 
+    /***
+     * 密码登录
+     * @param loginRequest
+     * @return
+     */
     public Optional<UserInfo> loginUser(LoginRequest loginRequest) {
         Authentication authenticationToken = new UsernamePasswordAuthenticationToken(
                 loginRequest.getLoginAccount(),
@@ -59,16 +58,31 @@ public class AuthenticationService  {
                 .setAuthentication(authResult);
 
         User user = (User) authResult.getPrincipal();
-
+        // 生成Token
         var token = jwtUtil.createToken(user);
 
-        var refreshToken = jwtUtil.createRefreshToken(user); // 生成长期 refreshToken
+        var refreshToken = Optional.ofNullable(user.getRefreshToken())
+                .orElseGet(()-> {
+                    var jwtUtilRefreshToken = jwtUtil.createRefreshToken(user);
+                    user.setRefreshToken(jwtUtilRefreshToken);
+                    userRepository.save(user);
+                    return jwtUtilRefreshToken;
+                });
+
 
         var userInfo = UserMapper.INSTANCE.userToUserInfo(user);
+
         userInfo.setToken(token);
+        userInfo.setRefreshToken(refreshToken);
+
         return Optional.of(userInfo);
     }
 
+    /**
+     * 根据长期 Token 登录
+     * @param refreshToken
+     * @return
+     */
     public Optional<UserInfo> loginViaRefreshToken(String refreshToken) {
         var authToken = new RefreshAuthenticationToken(refreshToken);
         Authentication authResult = authenticationManager.authenticate(authToken);
@@ -77,13 +91,9 @@ public class AuthenticationService  {
         User user = (User) authResult.getPrincipal();
         String accessToken = jwtUtil.createToken(user);
 
-//        user.setRefreshToken(refreshToken);
-//        // 保存 长期 Token
-//        userRepository.save(user);
-//        String newRefreshToken = jwtUtil.createRefreshToken(user);
-
         UserInfo userInfo = UserMapper.INSTANCE.userToUserInfo(user);
         userInfo.setToken(accessToken);
+        userInfo.setRefreshToken(user.getRefreshToken());
         return Optional.of(userInfo);
     }
 

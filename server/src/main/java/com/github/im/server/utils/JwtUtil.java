@@ -3,6 +3,7 @@ package com.github.im.server.utils;
 import cn.hutool.jwt.Claims;
 import com.github.im.server.model.User;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -18,18 +19,20 @@ import java.util.Date;
 
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class JwtUtil {
 
 
     @Autowired
-    JwtEncoder encoder;
+    public JwtEncoder encoder;
 
     @Autowired
-    JwtDecoder jwtDecoder;
-
+    private JwtDecoder jwtDecoder;
 
     private static final long ACCESS_TOKEN_EXPIRY = 3600L; // 1 hour
     private static final long REFRESH_TOKEN_EXPIRY = 2592000L; // 30 days
+
+
     public String createToken(User user) {
         Instant now = Instant.now();
 
@@ -41,8 +44,10 @@ public class JwtUtil {
                 .claim("name", user.getUsername())
                 .build();
 
-        return encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
-
+        var encode = encoder.encode(JwtEncoderParameters.from(claims));
+        var tokenValue = encode
+                .getTokenValue();
+        return tokenValue;
     }
 
 

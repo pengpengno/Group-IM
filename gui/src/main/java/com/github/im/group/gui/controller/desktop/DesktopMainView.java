@@ -46,14 +46,10 @@ import java.util.ResourceBundle;
 //public class DesktopMainView   implements MainHomeView {
 public class DesktopMainView  extends View implements MainHomeView, Initializable {
 
-//    @Autowired
     private final ChatMainPane chatMainPane;
 
-//    @Autowired
     private final ContractMainPane contractMainPane;
 
-
-//    @Autowired
     private final AbstractMenuButton abstractMenuButton;
 
     @FXML
