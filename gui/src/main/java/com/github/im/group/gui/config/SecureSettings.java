@@ -48,6 +48,7 @@ public class SecureSettings {
 
     public static void clearTokens() {
         prefs.remove(REFRESH_TOKEN_KEY);
+//        prefs.remove(REFRESH_TOKEN_KEY);
     }
 
 //

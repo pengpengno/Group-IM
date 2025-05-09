@@ -182,7 +182,9 @@ public class FxmlLoader implements ApplicationContextAware {
 
             FXMLLoader fxmlLoader = new FXMLLoader(classPathResource.getURL());
             // 从spring 中构造
-            fxmlLoader.setControllerFactory(applicationContext::getBean);
+            if(applicationContext != null){
+                fxmlLoader.setControllerFactory(applicationContext::getBean);
+            }
 
             Parent load = fxmlLoader.load();
 

@@ -1,0 +1,117 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
+package com.github.im.group.gui.views;
+
+import com.github.im.group.gui.controller.DisplayManager;
+import com.github.im.group.gui.controller.PlatformView;
+import com.github.im.group.gui.util.FxView;
+import com.github.im.group.gui.util.FxmlLoader;
+import com.github.im.group.gui.views.FView;
+import com.gluonhq.charm.glisten.mvc.View;
+import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
+import io.netty.util.internal.StringUtil;
+import javafx.scene.Parent;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
+
+public  class ViewRegistry {
+    private static final String VIEW_NAME = "gls-view-name";
+    private final Map<String, FView> viewMap = new LinkedHashMap();
+    private final Map<String, Object> presenterMap = new HashMap();
+
+    private static final String FXML_PATH  = "fxml/";
+    private static final String FXML_SUFFIX = ".fxml";
+
+    public ViewRegistry() {
+    }
+
+
+
+    public final FView createView(Class<? extends PlatformView> presenterClass, MaterialDesignIcon menuIcon, FView.Flag... flags) {
+        FView view = new FView( presenterClass, menuIcon, flags);
+        this.viewMap.put(view.getId(), view);
+        view.registry = this ;
+        return view;
+    }
+
+//    Map<String, Object> getPresenterMap() {
+//        return this.presenterMap;
+//    }
+
+    void putPresenter(FView view, Object presenter) {
+        this.presenterMap.put(view.getId(), presenter);
+    }
+
+    public Optional<Object> getPresenter(FView view) {
+        return Optional.ofNullable(this.presenterMap.get(view.getId()));
+    }
+
+    public Collection<FView> getViews() {
+        return Collections.unmodifiableCollection(this.viewMap.values());
+    }
+
+    public Optional<FView> getView(View view) {
+        return Optional.ofNullable((FView)this.viewMap.get(view.getProperties().get("gls-view-name")));
+    }
+
+    public Optional<FView> getView(String id) {
+        if (id != null && !id.isEmpty()) {
+            var v = viewMap.get(id);
+            return Optional.of(v);
+        } else {
+            return Optional.empty();
+        }
+    }
+
+
+
+
+    /**
+     * 构建平台特定的 FXML 文件路径
+     *
+     * 此方法通过检查提供的视图类是否具有 FxView 注解来确定 FXML 文件的路径
+     * 如果注解存在，它会优先使用注解中指定的路径，然后是 FXML 文件名
+     * 如果注解不存在或相关路径信息未指定，它会使用视图类的简单名称来构建默认路径
+     *
+     * @param viewclass 视图类，用于确定 FXML 文件的路径
+     * @return FXML 文件的路径
+     */
+    public static Path buildFxmlPath(Class<? extends PlatformView> viewclass) {
+
+        // 检查视图类是否具有 FxView 注解
+        var annotation = viewclass.getAnnotation(FxView.class);
+        if(annotation != null ){
+            // 如果注解存在且指定了路径，直接返回该路径
+            var path = annotation.path();
+            if(!StringUtil.isNullOrEmpty(path)){
+                return Paths.get(path);
+            }
+            // 如果注解存在且指定了 FXML 文件名，构建并返回对应的路径
+            if(!StringUtil.isNullOrEmpty(annotation.fxmlName())){
+                var fxmlName = annotation.fxmlName();
+                return Paths.get(FXML_PATH + fxmlName + FXML_SUFFIX);
+            }
+        }
+        // 如果没有注解或者注解中没有指定必要的信息，使用视图类的简单名称构建默认路径并返回
+        return Paths.get(FXML_PATH + viewclass.getSimpleName() + FXML_SUFFIX);
+
+    }
+
+    public static Parent load(Class<? extends PlatformView> viewclass){
+        var path = buildFxmlPath(viewclass);
+        var parentTuple2 = FxmlLoader.loadFxml(path.toString());
+        return parentTuple2.getT2();
+    }
+
+}

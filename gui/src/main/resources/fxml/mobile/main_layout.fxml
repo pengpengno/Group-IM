@@ -6,7 +6,7 @@
 
 <?import io.github.palexdev.mfxresources.fonts.MFXFontIcon?>
 <?import javafx.geometry.Insets?>
-<BorderPane fx:id="rootpane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.github.im.group.gui.controller.desktop.DesktopMainView">
+<BorderPane fx:id="rootpane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.github.im.group.gui.views.MainPresenter">
 
     <!-- 顶部窗口控制栏 -->
     <top>

@@ -5,13 +5,13 @@ import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.dto.user.LoginRequest;
 import com.github.im.dto.user.UserInfo;
+import com.github.im.group.gui.views.AppViewManager;
 import com.github.im.group.gui.config.SecureSettings;
 import com.github.im.group.gui.config.ServerConnectProperties;
 import com.github.im.group.gui.context.UserInfoContext;
-import com.github.im.group.gui.controller.DisplayManager;
-import com.github.im.group.gui.controller.MainHomeView;
 import com.github.im.group.gui.controller.PlatformView;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
+import com.github.im.group.gui.views.MainPresenter;
 import javafx.application.Platform;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,23 +43,28 @@ public class LoginLifecycleImpl implements LoginLifecycle {
     }
 
     @Override
-    public void loginCallBack(UserInfo userInfo) {
+    public void loginCallBack(final UserInfo userInfo) {
         // On successful login, navigate to the main view
         Platform.runLater(() -> {
             // 存储凭据
-            SecureSettings.saveUserName(userInfo.getUsername());
-            SecureSettings.saveSecretToken(userInfo.getRefreshToken());
+            final var username = userInfo.getUsername();
+            final var refreshToken = userInfo.getRefreshToken();
+            SecureSettings.saveUserName(username);
+            SecureSettings.saveSecretToken(refreshToken);
 
             log.debug("login success {}" ,userInfo);
 
             UserInfoContext.setCurrentUser(userInfo);
-            var primaryStage = DisplayManager.getPrimaryStage();
+            var o1 = AppViewManager.switchView(MainPresenter.class).get();
+            MainPresenter o =(MainPresenter) o1;
+//            AppManager.getInstance().switchView(MainHomeView.class.getName());
+//            var primaryStage = DisplayManager.getPrimaryStage();
 
-            DisplayManager.display(MainHomeView.class);
-            primaryStage.setMinWidth(560);
-            primaryStage.setWidth(970);
-            primaryStage.setHeight(560);
-            primaryStage.setMinHeight(450);
+//            DisplayManager.display(MainHomeView.class);
+//            primaryStage.setMinWidth(560);
+//            primaryStage.setWidth(970);
+//            primaryStage.setHeight(560);
+//            primaryStage.setMinHeight(450);
         });
 
         try{

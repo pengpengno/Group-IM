@@ -2,7 +2,7 @@ package com.github.im.group.gui.controller.desktop.menu.impl;
 
 import com.github.im.group.gui.controller.DisplayManager;
 import com.github.im.group.gui.controller.MainHomeView;
-import com.github.im.group.gui.controller.desktop.DesktopMainView;
+import com.github.im.group.gui.views.MainPresenter;
 import com.github.im.group.gui.controller.desktop.contract.ContractMainPane;
 import javafx.event.EventType;
 import javafx.scene.control.Tooltip;
@@ -37,11 +37,11 @@ public class ContactsButton extends AbstractMenuButton{
             log.info("click  Contacts ");
             EventType<? extends MouseEvent> eventType = event.getEventType();
 
-            var controller = DisplayManager.getController(MainHomeView.class);
+            var controller = DisplayManager.getController(MainPresenter.class);
 
             contractMainPane.initialize();
 
-            var d  = (DesktopMainView)controller;
+            var d  = (MainPresenter)controller;
 
             d.switchRootPane(contractMainPane);
 

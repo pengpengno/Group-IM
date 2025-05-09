@@ -1,19 +1,19 @@
 package com.github.im.group.gui;
 
 import com.github.im.group.gui.controller.DisplayManager;
-import com.github.im.group.gui.controller.LoginView;
-import com.github.im.group.gui.util.CssLoaderUtil;
-import com.gluonhq.attach.display.DisplayService;
-import com.gluonhq.attach.util.Platform;
+import com.github.im.group.gui.views.*;
+import com.gluonhq.charm.glisten.afterburner.AppViewRegistry;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.control.AppBar;
-import com.google.inject.Inject;
+import com.gluonhq.charm.glisten.mvc.View;
+import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
+import com.gluonhq.charm.glisten.visual.Swatch;
 import io.github.palexdev.materialfx.theming.JavaFXThemes;
 import io.github.palexdev.materialfx.theming.MaterialFXStylesheets;
 import io.github.palexdev.materialfx.theming.UserAgentBuilder;
 import javafx.application.Application;
-import javafx.geometry.Dimension2D;
 import javafx.scene.Scene;
+import javafx.scene.control.CheckBox;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -21,7 +21,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.util.StringUtils;
+
 import java.io.IOException;
+import java.util.ResourceBundle;
+
+import static com.gluonhq.charm.glisten.application.AppManager.HOME_VIEW;
 
 /**
  * Description:
@@ -36,7 +41,7 @@ import java.io.IOException;
 public class Main extends Application {
 //
 //    @Inject
-    private AppManager appManager;
+    private final  AppManager appManager = AppManager.initialize();
 
     /**
      * 启动Spring 环境
@@ -55,26 +60,101 @@ public class Main extends Application {
             log.info("Simple run for Spring AOT");
             return;
         }
-//
+
 
     }
 
     public void postInit(Scene scene) {
 
-        DisplayManager.display(LoginView.class);
+
+    }
+    private static final String OTHER_VIEW = "other";
+    private static final ResourceBundle bundle = ResourceBundle.getBundle("i18n.drawer");
+
+    @Override
+    public void init() throws Exception {
+//        AppViewManager.createHomeView(LoginPresenter.class);
+//        AppViewManager.createView(MainPresenter.class);
+//        AppViewManager.registerViewsAndDrawer();
+        initSpringEnv();
 
 
+//        NavigationDrawer.Header header = new NavigationDrawer.Header(bundle.getString("drawer.header.title"),
+//                bundle.getString("drawer.header.description"),
+//                new Avatar(21, new Image(Objects.requireNonNull(AppViewManager.class.getResourceAsStream("/images/icon.png")))));
+//
+//        appManager.addViewFactory(HOME_VIEW, () -> {
+//            try {
+////                new
+//                View load = FXMLLoader.load(getClass().getResource("views/home1.fxml"));
+////                Utils.buildDrawer(AppManager.getInstance().getDrawer(), "header", List.of(load));
+//
+//                return load;
+//            } catch (Exception ex) {
+//
+//            }
+//            return null;
+//        });
+
+//        drawerManager.addViewFactory("home", () ->
+//                new View("Home") {{
+//                    setCenter(new Label("This is Home View"));
+//                }}
+//        );
+//
+//        drawerManager.addViewFactory("settings", () ->
+//                new View("Settings") {{
+//                    setCenter(new Label("This is Settings View"));
+//                }}
+//        );
+
+//        var viewRegistry = new ViewRegistry();
+//        var view = viewRegistry.createView(LoginPresenter.class, MaterialDesignIcon.HOME, FView.Flag.HOME_VIEW);
+//
+//        view.registerView();
+//        ViewUtils.buildDrawer();
+
+        AppViewManager.createHomeView(LoginPresenter.class);
+        AppViewManager.createView(MainPresenter.class);
+        AppViewManager.registerViewsAndDrawer();
+        var appViewRegistry = new AppViewRegistry();
+
+
+        appManager.addViewFactory(OTHER_VIEW, () -> new View(new CheckBox("I like Glisten")));
+        appManager.viewProperty().addListener((obs, ov, nv) -> {
+            AppBar appBar = AppManager.getInstance().getAppBar();
+            var id = nv.getId();
+            if(StringUtils.isEmpty(id)){
+                return;
+            }
+            switch(id) {
+                case HOME_VIEW:
+                    appBar.setNavIcon(MaterialDesignIcon.HOME.button(e -> appManager.switchView(HOME_VIEW)));
+                    appBar.setTitleText("Home View");
+                    Swatch.TEAL.assignTo(appBar.getScene());
+                    break;
+                case OTHER_VIEW:
+                    appBar.setNavIcon(MaterialDesignIcon.HTTPS.button(e -> appManager.switchView(OTHER_VIEW)));
+                    appBar.setTitleText("Other View");
+                    appBar.setVisible(true);
+                    break;
+            }
+        });
     }
 
     @Override
     public void start(Stage primaryStage) throws IOException {
+        DisplayManager.setPrimaryStage(primaryStage);
+        primaryStage.initStyle(StageStyle.UNDECORATED);
+        primaryStage.setTitle("IM Platform");
 
         log.info("start application ");
+        appManager.start(primaryStage);
 
-//        CSSFX.start();
-        DisplayManager.setPrimaryStage(primaryStage);
-
-
+        //
+////        CSSFX.start();
+//
+//
         UserAgentBuilder.builder()
                 .themes(JavaFXThemes.MODENA)
                 .themes(MaterialFXStylesheets.forAssemble(true))
@@ -83,11 +163,10 @@ public class Main extends Application {
                 .build()
                 .setGlobal();
 
-
-        primaryStage.initStyle(StageStyle.UNDECORATED);
-        primaryStage.setTitle("IM Platform");
-
-        primaryStage.setResizable(true);
+//        primaryStage.initStyle(StageStyle.UNDECORATED);
+//
+//
+//        primaryStage.setResizable(true);
         var iconResource = new ClassPathResource("images/icon.png");
 
         if (iconResource.exists()){
@@ -97,11 +176,8 @@ public class Main extends Application {
                 throw new RuntimeException(e);
             }
         }
-        initSpringEnv();
+//        initSpringEnv();
 
-        // **延迟初始化 AppManager**
-        appManager = AppManager.initialize((scene)->postInit(scene));
-        appManager.start(primaryStage);
 
         var appBar = appManager.getAppBar();
         final Delta dragDelta = new Delta();

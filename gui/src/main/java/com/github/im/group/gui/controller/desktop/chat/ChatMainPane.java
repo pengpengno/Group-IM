@@ -264,7 +264,8 @@ public class ChatMainPane extends SplitPane implements  ApplicationContextAware 
             getItems().add(currentChatPane);
 
             // 绑定宽度，确保 UI 自适应
-            currentChatPane.prefWidthProperty().bind(this.widthProperty().subtract(conversationList.widthProperty()));
+//            currentChatPane.prefWidthProperty()
+//                    .bind(this.widthProperty().subtract(conversationList.widthProperty()));
         });
     }
 
@@ -278,8 +279,8 @@ public class ChatMainPane extends SplitPane implements  ApplicationContextAware 
         conversationList.setMinWidth(170);
         currentChatPane.setMinWidth(500);
         conversationList.setPrefWidth(170);
-        getItems().addAll(conversationList,currentChatPane);
 
+        getItems().addAll(conversationList,currentChatPane);
 
         setDividerPositions(0.3); // 初始比例，30%：70%
 

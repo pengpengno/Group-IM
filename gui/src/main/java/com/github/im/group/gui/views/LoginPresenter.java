@@ -1,4 +1,4 @@
-package com.github.im.group.gui.controller.desktop;
+package com.github.im.group.gui.views;
 
 import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.dto.user.LoginRequest;
@@ -8,9 +8,9 @@ import com.github.im.group.gui.controller.DisplayManager;
 import com.github.im.group.gui.controller.LoginView;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.github.im.group.gui.util.AvatarGenerator;
+import com.github.im.group.gui.util.FxView;
 import com.gluonhq.charm.glisten.mvc.View;
 import io.github.palexdev.materialfx.controls.MFXButton;
-import jakarta.annotation.PostConstruct;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
@@ -21,25 +21,23 @@ import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
-import javafx.stage.Stage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
-import java.io.File;
 import java.net.URL;
-import java.util.Optional;
 import java.util.ResourceBundle;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class DesktopLoginView extends View implements Initializable, LoginView {
+@FxView(fxmlName = "login_view")
+public class LoginPresenter implements Initializable, LoginView {
 
+    @FXML private View loginView ;
 
 
     @Override
@@ -104,10 +102,11 @@ public class DesktopLoginView extends View implements Initializable, LoginView {
      */
     private void autoLoginUi() {
         // 自动登录界面 圆角头像    下方蓝底白字的登录按钮 别的组件都不展示去除
-        var primaryStage = DisplayManager.getPrimaryStage();
-        primaryStage.setWidth(300);
-        primaryStage.setHeight(500);
-        primaryStage.centerOnScreen();
+//        var primaryStage = DisplayManager.getPrimaryStage();
+//        primaryStage.setWidth(300);
+//        primaryStage.setHeight(500);
+//        primaryStage.centerOnScreen();
+//        loginView.setPrefSize(300,500);
 
         loginButton.setPrefHeight(50);
 
@@ -185,6 +184,7 @@ public class DesktopLoginView extends View implements Initializable, LoginView {
                 // Re-enable the login button and hide progress indicator
                 loginButton.setDisable(false);
                 progressIndicator.setVisible(false);
+                SecureSettings.clearTokens();
             }
         });
 

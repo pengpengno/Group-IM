@@ -3,7 +3,7 @@ package com.github.im.group.gui.controller.desktop.menu.impl;
 import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.DisplayManager;
 import com.github.im.group.gui.controller.MainHomeView;
-import com.github.im.group.gui.controller.desktop.DesktopMainView;
+import com.github.im.group.gui.views.MainPresenter;
 import com.github.im.group.gui.controller.desktop.chat.ChatMainPane;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Tooltip;
@@ -41,11 +41,10 @@ public class ChatButton extends AbstractMenuButton {
 
     private void trigger() {
 
-        var controller = DisplayManager.getController(MainHomeView.class);
-        var desktopMainView  = (DesktopMainView)controller;
+        var controller = DisplayManager.getController(MainPresenter.class);
+        var desktopMainView  = (MainPresenter)controller;
 //        chatMainPane.loadFriendList();
         chatMainPane.loadConversation(UserInfoContext.getCurrentUser()).subscribe();
-
 
         desktopMainView.switchRootPane(chatMainPane);
     }

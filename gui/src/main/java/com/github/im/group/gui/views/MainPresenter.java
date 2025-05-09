@@ -1,11 +1,9 @@
-package com.github.im.group.gui.controller.desktop;
+package com.github.im.group.gui.views;
 
 import com.github.im.common.connect.connection.client.ClientToolkit;
-import com.github.im.common.connect.connection.client.ReactiveClientAction;
 import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
-import com.github.im.dto.user.UserInfo;
 import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.MainHomeView;
 import com.github.im.group.gui.controller.PlatformView;
@@ -13,11 +11,12 @@ import com.github.im.group.gui.controller.desktop.chat.ChatMainPane;
 import com.github.im.group.gui.controller.desktop.contract.ContractMainPane;
 import com.github.im.group.gui.controller.desktop.menu.impl.AbstractMenuButton;
 import com.github.im.group.gui.util.AvatarGenerator;
+import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.I18nUtil;
-import com.gluonhq.charm.glisten.control.FloatingActionButton;
 import com.gluonhq.charm.glisten.mvc.View;
 import io.github.palexdev.mfxresources.fonts.MFXFontIcon;
 import jakarta.annotation.PostConstruct;
+import jakarta.inject.Inject;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -27,14 +26,11 @@ import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
-import javafx.stage.Stage;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Mono;
 
 import java.net.URL;
 import java.util.List;
@@ -43,14 +39,17 @@ import java.util.ResourceBundle;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-//public class DesktopMainView   implements MainHomeView {
-public class DesktopMainView  extends View implements MainHomeView, Initializable {
+@FxView(fxmlName = "main_layout")
+public class MainPresenter implements MainHomeView, Initializable {
 
     private final ChatMainPane chatMainPane;
 
     private final ContractMainPane contractMainPane;
 
+//    @Inject
     private final AbstractMenuButton abstractMenuButton;
+
+//    @FXML private View mainView ;
 
     @FXML
     private VBox iconMenu;

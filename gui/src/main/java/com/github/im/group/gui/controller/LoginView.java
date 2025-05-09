@@ -20,6 +20,7 @@ import com.github.im.group.gui.util.FxView;
  * @since 2025/2/12
  */
 @FxView(fxmlName = "login_view")
+//@FxView(fxmlName = "login_view")
 public interface LoginView extends PlatformView{
 
 

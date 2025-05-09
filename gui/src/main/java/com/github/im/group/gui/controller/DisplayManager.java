@@ -10,6 +10,8 @@ package com.github.im.group.gui.controller;/**
 import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.FxmlLoader;
+import com.github.im.group.gui.views.AppViewManager;
+import com.gluonhq.charm.glisten.afterburner.AppViewRegistry;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.mvc.View;
 import javafx.application.Platform;
@@ -40,6 +42,11 @@ public class DisplayManager {
     @Getter
     @Setter
     private static Stage primaryStage;
+
+    public static Stage getPrimaryStage() {
+        var instance = AppManager.getInstance();
+        return primaryStage;
+    }
 
     @Getter
     @Setter
@@ -74,10 +81,11 @@ public class DisplayManager {
 
 
     public  static <T extends PlatformView> T getController(Class<T> displayClass) {
-        if (DISPLAY_CONTROLLER_MAP.containsKey(displayClass)) {
-            return (T) DISPLAY_CONTROLLER_MAP.get(displayClass);
-        }
-        return registerView(displayClass);
+        return AppViewManager.getPresenter(displayClass);
+//        if (DISPLAY_CONTROLLER_MAP.containsKey(displayClass)) {
+//            return (T) DISPLAY_CONTROLLER_MAP.get(displayClass);
+//        }
+//        return registerView(displayClass);
     }
 
 

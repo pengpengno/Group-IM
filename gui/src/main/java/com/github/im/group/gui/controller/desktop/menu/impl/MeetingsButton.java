@@ -1,21 +1,16 @@
 package com.github.im.group.gui.controller.desktop.menu.impl;
 
-import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.DisplayManager;
 import com.github.im.group.gui.controller.MainHomeView;
-import com.github.im.group.gui.controller.desktop.DesktopMainView;
+import com.github.im.group.gui.views.MainPresenter;
 import com.github.im.group.gui.controller.desktop.meeting.MeetingMainView;
 import javafx.event.ActionEvent;
-import javafx.event.EventType;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.awt.*;
-import java.net.URI;
 import java.util.Objects;
 
 
@@ -57,8 +52,8 @@ public class MeetingsButton extends AbstractMenuButton {
     private void trigger() {
 
 
-        var controller = DisplayManager.getController(MainHomeView.class);
-        var desktopMainView  = (DesktopMainView)controller;
+        var controller = DisplayManager.getController(MainPresenter.class);
+        var desktopMainView  = (MainPresenter)controller;
         desktopMainView.switchRootPane(new MeetingMainView());
     }
 

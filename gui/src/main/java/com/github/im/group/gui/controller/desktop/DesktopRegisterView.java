@@ -6,6 +6,7 @@ import com.github.im.group.gui.api.UserEndpoint;
 import com.github.im.group.gui.controller.DisplayManager;
 import com.github.im.group.gui.controller.LoginView;
 import com.github.im.group.gui.controller.RegisterView;
+import com.github.im.group.gui.views.LoginPresenter;
 import com.gluonhq.charm.glisten.mvc.View;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -14,7 +15,6 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,6 +25,7 @@ import java.util.ResourceBundle;
 
 @Service
 @Slf4j
+@Deprecated
 public class DesktopRegisterView extends View implements Initializable, RegisterView {
 
     @FXML
@@ -68,7 +69,7 @@ public class DesktopRegisterView extends View implements Initializable, Register
     @FXML
     private void backToLogin() {
 
-        DisplayManager.display(DesktopLoginView.class);
+        DisplayManager.display(LoginPresenter.class);
 
     }
 
