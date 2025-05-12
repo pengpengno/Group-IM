@@ -10,8 +10,7 @@ import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.github.im.group.gui.util.AvatarGenerator;
 import com.github.im.group.gui.util.FxView;
 import com.gluonhq.charm.glisten.application.AppManager;
-import com.gluonhq.charm.glisten.control.AppBar;
-import com.gluonhq.charm.glisten.control.FloatingActionButton;
+import com.gluonhq.charm.glisten.control.*;
 import com.gluonhq.charm.glisten.mvc.View;
 import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
 import com.gluonhq.charm.glisten.visual.Swatch;
@@ -23,8 +22,11 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.StackPane;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,10 +40,12 @@ import static com.gluonhq.charm.glisten.application.AppManager.HOME_VIEW;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-@FxView(fxmlName = "login_view")
-public class LoginPresenter extends View implements Initializable, LoginView {
+@FxView(fxmlName = "login_view",title = "登录")
+//public class LoginPresenter extends View implements Initializable, LoginView {
+//public class LoginPresenter extends View implements  LoginView {
+public class LoginPresenter implements  LoginView {
+//public class LoginPresenter extends View implements  LoginView {
 
-    @FXML private View loginView ;
     private static final String OTHER_VIEW = "other";
 
 
@@ -50,10 +54,15 @@ public class LoginPresenter extends View implements Initializable, LoginView {
         return PlatformType.DESKTOP;
     }
 
+
+    @FXML
+    private View loginView ;
+
     @FXML
     private TextField usernameField;
 
-    @FXML  public ImageView logoImageView;
+    @FXML
+    public ImageView logoImageView;
 
 
     @FXML
@@ -77,8 +86,43 @@ public class LoginPresenter extends View implements Initializable, LoginView {
     private final LoginLifecycle loginLifecycle;
 
 
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
+//    @Override
+//    public void initialize(URL location, ResourceBundle resources) {
+    public void initialize() {
+
+        BottomNavigation bottomNav = new BottomNavigation();
+
+        // 创建一个实际要显示的界面内容
+//        StackPane peopleView = new StackPane(new Label("联系人视图"));
+        var type = bottomNav.getType();
+        // 创建底部按钮
+        BottomNavigationButton people =
+                new BottomNavigationButton("联系人", MaterialDesignIcon.PEOPLE.graphic());
+
+        // 添加点击事件，点击按钮后将界面设置到 center
+//        people.setOnAction(e -> loginView.setCenter(peopleView));
+
+        // 设置默认视图为 peopleView
+//        loginView.setCenter(peopleView);
+        people.setSelected(true);
+
+        // 添加按钮到底部导航栏
+        bottomNav.getActionItems().addAll(people);
+
+        // 显示底部菜单栏
+        loginView.setBottom(bottomNav);
+
+        // 切换按钮时改变中心内容
+//        bottomNav.getActionItems().el.addListener((obs, oldItem, newItem) -> {
+//            if (newItem != null) {
+//                setCenter(newItem.getContent());
+//            }
+//        });
+        people.setOnAction(e -> loginView.setCenter(people));
+        people.setSelected(true);
+
+        loginView.setBottom(bottomNav); // 将底部菜单加到底部
+
         // Attach the login action to the login button
         // 1. 本地检索 上次的数据 登录
         if (autoLogin()){
@@ -93,7 +137,9 @@ public class LoginPresenter extends View implements Initializable, LoginView {
             }
         }
 
-        this.showingProperty().addListener((obs, oldValue, newValue) -> {
+//        this.showingProperty().addListener((obs, oldValue, newValue) -> {
+//        loginGridPane.showingProperty().addListener((obs, oldValue, newValue) -> {
+        loginView.showingProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue) {
                 AppBar appBar = AppManager.getInstance().getAppBar();
                 appBar.setNavIcon(MaterialDesignIcon.MENU.button(e ->
@@ -105,31 +151,17 @@ public class LoginPresenter extends View implements Initializable, LoginView {
         });
 
 
+        NavigationDrawer navigationDrawer = AppManager.getInstance().getDrawer();
+
         final var appManager = AppManager.getInstance();
-        appManager.viewProperty().addListener((obs, ov, nv) -> {
-            AppBar appBar = AppManager.getInstance().getAppBar();
-//            AppBar appBar = AppManager.getInstance().getAppBar();
-            appBar.setNavIcon(MaterialDesignIcon.MENU.button(e ->
-                    AppManager.getInstance().getDrawer().open()));
-            appBar.setTitleText("主页");
-            var id = nv.getId();
-            if(!StringUtils.hasLength(id)){
-                return;
-            }
-            switch(id) {
-                case HOME_VIEW:
-                    appBar.setNavIcon(MaterialDesignIcon.HOME.button(e -> appManager.switchView(HOME_VIEW)));
-                    appBar.setTitleText("Home View");
-                    Swatch.TEAL.assignTo(appBar.getScene());
-                    break;
-                case OTHER_VIEW:
-                    appBar.setNavIcon(MaterialDesignIcon.HTTPS.button(e -> appManager.switchView(OTHER_VIEW)));
-                    appBar.setTitleText("Other View");
-                    appBar.setVisible(true);
-                    break;
-            }
-        });
-        appManager.addViewFactory(OTHER_VIEW, () -> new View(new CheckBox("I like Glisten")));
+
+        AppBar appBar = appManager.getAppBar();
+//        appBar.setNavIcon(MaterialDesignIcon.MENU.button(e ->
+//                AppManager.getInstance().getDrawer().open()));
+//        appBar.setTitleText("主页");
+
+//
+//        appManager.addViewFactory(OTHER_VIEW, () -> new View(new CheckBox("I like Glisten")));
         usernameField.setText("kl");
         passwordField.setText("1");
 

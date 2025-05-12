@@ -91,7 +91,10 @@ public class AppViewManager {
     }
 
 
-        public static void registerViewsAndDrawer() {
+    /**
+     * 注册所有视图
+     */
+    public static void registerViewsAndDrawer() {
         for (FView view : REGISTRY.getViews()) {
             view.registerView();
         }

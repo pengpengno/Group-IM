@@ -1,13 +1,18 @@
 package com.github.im.group.gui;
 
 import com.github.im.group.gui.controller.DisplayManager;
+import com.github.im.group.gui.controller.LoginView;
 import com.github.im.group.gui.util.FileIconUtil;
 import com.github.im.group.gui.views.*;
+import com.gluonhq.attach.display.DisplayService;
+import com.gluonhq.attach.util.Platform;
 import com.gluonhq.charm.glisten.afterburner.AppViewRegistry;
 import com.gluonhq.charm.glisten.animation.FadeInLeftBigTransition;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.application.MobileApplication;
 import com.gluonhq.charm.glisten.control.AppBar;
+import com.gluonhq.charm.glisten.control.BottomNavigation;
+import com.gluonhq.charm.glisten.control.BottomNavigationButton;
 import com.gluonhq.charm.glisten.control.FloatingActionButton;
 import com.gluonhq.charm.glisten.mvc.View;
 import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
@@ -16,11 +21,13 @@ import io.github.palexdev.materialfx.theming.JavaFXThemes;
 import io.github.palexdev.materialfx.theming.MaterialFXStylesheets;
 import io.github.palexdev.materialfx.theming.UserAgentBuilder;
 import javafx.application.Application;
+import javafx.geometry.Dimension2D;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +51,7 @@ import java.util.ResourceBundle;
 public class Main extends Application {
 //
 //    @Inject
-    private final  AppManager appManager = AppManager.initialize();
+    private final  AppManager appManager = AppManager.initialize(this::postInit);
 
     /**
      * 启动Spring 环境
@@ -68,18 +75,29 @@ public class Main extends Application {
     }
 
 
-    private static final String OTHER_VIEW = "other";
-    private static final ResourceBundle bundle = ResourceBundle.getBundle("i18n.drawer");
+    public void postInit(Scene scene) {
 
+//         桌面端处理
+        if (Platform.isDesktop()) {
+            Dimension2D dimension2D = DisplayService.create()
+                    .map(DisplayService::getDefaultDimensions)
+                    .orElse(new Dimension2D(800, 600));
+            scene.getWindow().setWidth(dimension2D.getWidth());
+            scene.getWindow().setHeight(dimension2D.getHeight());
+        }
+
+    }
+
+    public static final String OTHER_VIEW = "HOME_VIEW";
     @Override
     public void init() throws Exception {
 
         initSpringEnv();
 
-
         AppViewManager.createHomeView(LoginPresenter.class);
         AppViewManager.createView(MainPresenter.class);
         AppViewManager.registerViewsAndDrawer();
+
 
 
 //        appManager.viewProperty().addListener((obs, ov, nv) -> {
@@ -101,7 +119,47 @@ public class Main extends Application {
 //                    break;
 //            }
 //        });
-//        appManager.addViewFactory(OTHER_VIEW, () -> new View(new CheckBox("I like Glisten")));
+//        appManager.addViewFactory(OTHER_VIEW, () -> {
+//            var iLikeGlisten = new View(new CheckBox("I like Glisten"));
+//            BottomNavigation bottomNav = new BottomNavigation();
+//
+//// 创建一个实际要显示的界面内容
+//            StackPane peopleView = new StackPane(new Label("联系人视图"));
+//            var type = bottomNav.getType();
+//// 创建底部按钮
+//            BottomNavigationButton people =
+//                    new BottomNavigationButton("联系人", MaterialDesignIcon.PEOPLE.graphic());
+//
+//// 添加点击事件，点击按钮后将界面设置到 center
+//            people.setOnAction(e -> iLikeGlisten.setCenter(peopleView));
+//
+//// 设置默认视图为 peopleView
+//            iLikeGlisten.setCenter(peopleView);
+//            people.setSelected(true);
+//
+//// 添加按钮到底部导航栏
+//            bottomNav.getActionItems().addAll(people);
+//
+//// 显示底部菜单栏
+////            getChildren().add()
+//            iLikeGlisten.setBottom(bottomNav);
+//
+//
+//            // 切换按钮时改变中心内容
+////        bottomNav.getActionItems().el.addListener((obs, oldItem, newItem) -> {
+////            if (newItem != null) {
+////                setCenter(newItem.getContent());
+////            }
+////        });
+//            people.setOnAction(e -> iLikeGlisten.setCenter(people));
+//            people.setSelected(true);
+//
+//            iLikeGlisten.setBottom(bottomNav); // 将底部菜单加到底部
+//
+//            return iLikeGlisten;
+//        });
+//        appManager.switchView(Main.OTHER_VIEW);
+
 
     }
 
@@ -115,14 +173,15 @@ public class Main extends Application {
         appManager.start(primaryStage);
 
 
+
 //        CSSFX.start();
-//        UserAgentBuilder.builder()
-//                .themes(JavaFXThemes.MODENA)
-//                .themes(MaterialFXStylesheets.forAssemble(true))
-//                .setDeploy(true)
-//                .setResolveAssets(true)
-//                .build()
-//                .setGlobal();
+        UserAgentBuilder.builder()
+                .themes(JavaFXThemes.MODENA)
+                .themes(MaterialFXStylesheets.forAssemble(true))
+                .setDeploy(true)
+                .setResolveAssets(true)
+                .build()
+                .setGlobal();
 
 //        primaryStage.initStyle(StageStyle.UNDECORATED);
 //
@@ -133,9 +192,10 @@ public class Main extends Application {
         initDrag(primaryStage);
 //
         primaryStage.setFullScreen(false);
-        primaryStage.setWidth(800);
-        primaryStage.setHeight(600);
+//        primaryStage.setWidth(800);
+//        primaryStage.setHeight(600);
         primaryStage.centerOnScreen();
+        appManager.switchView(Main.OTHER_VIEW);
 
     }
 
