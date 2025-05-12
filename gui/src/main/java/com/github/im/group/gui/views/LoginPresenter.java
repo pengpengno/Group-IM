@@ -9,6 +9,7 @@ import com.github.im.group.gui.controller.LoginView;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.github.im.group.gui.util.AvatarGenerator;
 import com.github.im.group.gui.util.FxView;
+import com.gluonhq.attach.util.Services;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.control.*;
 import com.gluonhq.charm.glisten.mvc.View;
@@ -182,7 +183,7 @@ public class LoginPresenter implements  LoginView {
 //        primaryStage.setWidth(300);
 //        primaryStage.setHeight(500);
 //        primaryStage.centerOnScreen();
-//        loginView.setPrefSize(300,500);
+        loginView.setPrefSize(300,500);
 
         loginButton.setPrefHeight(50);
 
@@ -260,6 +261,11 @@ public class LoginPresenter implements  LoginView {
                 // Re-enable the login button and hide progress indicator
                 loginButton.setDisable(false);
                 progressIndicator.setVisible(false);
+//                Services.get(Notification).ifPresent(service -> {
+//                    service.showNotification(title, message);
+//                });
+//                NotificationUtil.showNotification("新消息", "你有一条新消息来自小明");
+
                 SecureSettings.clearTokens();
             }
         });

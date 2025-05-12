@@ -61,15 +61,19 @@ public class Main extends Application {
         var springApplication = new SpringApplication(SpringBootApp.class);
         springApplication.setWebApplicationType(WebApplicationType.NONE);
         springApplication.setMainApplicationClass(SpringBootApp.class);
-        springApplication.setHeadless(false); // 启用图形化界面
-        springApplication.run();
         String mainRunner = System.getProperty("sun.java.command");
+
         if ("org.springframework.boot.SpringApplicationAotProcessor".equals(mainRunner)) {
             //For Spring's AOT build phase with maven, the SpringContext is sufficient.
             //So we have to stop here because otherwise JavaFX window makes AOT generation fail.
             log.info("Simple run for Spring AOT");
-            return;
+//            return;
+        }else{
+            springApplication.setHeadless(false); // 启用图形化界面
+
         }
+        springApplication.run();
+
 
 
     }
@@ -172,8 +176,6 @@ public class Main extends Application {
         log.info("start application ");
         appManager.start(primaryStage);
 
-
-
 //        CSSFX.start();
         UserAgentBuilder.builder()
                 .themes(JavaFXThemes.MODENA)
@@ -183,10 +185,9 @@ public class Main extends Application {
                 .build()
                 .setGlobal();
 
-//        primaryStage.initStyle(StageStyle.UNDECORATED);
+        primaryStage.initStyle(StageStyle.UNDECORATED);
 //
-//
-//        primaryStage.setResizable(true);
+
 
         FileIconUtil.setStageIcon(primaryStage);
         initDrag(primaryStage);

@@ -179,6 +179,12 @@
             <artifactId>charm-glisten</artifactId>
             <version>${charm.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.gluonhq</groupId>
+            <artifactId>charm-down-common</artifactId>
+            <version>3.0.0-b8</version>
+        </dependency>
         <dependency>
             <groupId>com.gluonhq.attach</groupId>
             <artifactId>display</artifactId>
@@ -326,6 +332,7 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                         <list>lifecycle</list>
                         <list>statusbar</list>
                         <list>storage</list>
+                        <list>notification</list>
                     </attachList>
                     <mainClass>${main.class}</mainClass>
                     <appIdentifier>${app.identifier}</appIdentifier>
