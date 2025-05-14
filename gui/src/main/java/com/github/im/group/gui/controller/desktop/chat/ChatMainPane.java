@@ -265,12 +265,13 @@ public class ChatMainPane implements  ApplicationContextAware {
     public void switchChatPane(ChatMessagePane chatMessagePane) {
         Platform.runLater(() -> {
             if (currentChatPane != null) {
-//                mainPane.getItems().remove(currentChatPane); // 先移除旧的聊天面板
+
+                mainPane.getItems().remove(currentChatPane); // 先移除旧的聊天面板
             }
             currentChatPane = chatMessagePane;
 
             // 重新添加新的聊天面板
-            mainPane.getItems().remove(1);
+
             mainPane.getItems().add(currentChatPane);
         });
     }
