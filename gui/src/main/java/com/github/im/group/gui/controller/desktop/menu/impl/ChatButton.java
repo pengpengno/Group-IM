@@ -5,10 +5,12 @@ import com.github.im.group.gui.controller.DisplayManager;
 import com.github.im.group.gui.controller.MainHomeView;
 import com.github.im.group.gui.views.MainPresenter;
 import com.github.im.group.gui.controller.desktop.chat.ChatMainPane;
+import jakarta.annotation.PostConstruct;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -17,13 +19,13 @@ import java.util.Objects;
 
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class ChatButton extends AbstractMenuButton {
 
-    @Autowired
-    private ChatMainPane chatMainPane;
+    private final ChatMainPane chatMainPane;
 
-    public ChatButton() {
-        super();
+    @PostConstruct
+    public void chatButton() {
 
         this.setOnMouseClicked(event -> {
             log.info("click  Chat ");
@@ -33,7 +35,6 @@ public class ChatButton extends AbstractMenuButton {
         this.addEventHandler(ActionEvent.ACTION , event -> {
             log.info("ActionEvent.ACTION ");
             trigger();
-
         });
 
 
@@ -45,8 +46,8 @@ public class ChatButton extends AbstractMenuButton {
         var desktopMainView  = (MainPresenter)controller;
 //        chatMainPane.loadFriendList();
         chatMainPane.loadConversation(UserInfoContext.getCurrentUser()).subscribe();
-
-        desktopMainView.switchRootPane(chatMainPane);
+//
+        desktopMainView.switchRootPane(chatMainPane.getMainPane());
     }
 
 

@@ -169,9 +169,8 @@ public class Main extends Application {
 
     @Override
     public void start(Stage primaryStage) throws IOException {
-//        DisplayManager.setPrimaryStage(primaryStage);
-//        primaryStage.initStyle(StageStyle.UNDECORATED);
-//        primaryStage.setTitle("IM Platform");
+        primaryStage.initStyle(StageStyle.UNDECORATED);
+
 
         log.info("start application ");
         appManager.start(primaryStage);
@@ -185,7 +184,6 @@ public class Main extends Application {
                 .build()
                 .setGlobal();
 
-        primaryStage.initStyle(StageStyle.UNDECORATED);
 //
 
 

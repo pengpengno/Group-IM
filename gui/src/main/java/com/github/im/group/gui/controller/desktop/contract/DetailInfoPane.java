@@ -2,9 +2,8 @@ package com.github.im.group.gui.controller.desktop.contract;
 
 import com.github.im.dto.user.UserInfo;
 import com.github.im.group.gui.api.ConversationEndpoint;
+import com.github.im.group.gui.connect.handler.EventBus;
 import com.github.im.group.gui.context.UserInfoContext;
-import com.github.im.group.gui.controller.desktop.chat.ChatMainPane;
-import com.github.im.group.gui.controller.desktop.chat.ChatMessagePane;
 import com.github.im.group.gui.controller.desktop.menu.impl.AbstractMenuButton;
 import com.github.im.group.gui.controller.desktop.menu.impl.ChatButton;
 import com.github.im.group.gui.util.AvatarGenerator;
@@ -16,6 +15,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -23,21 +23,17 @@ import java.util.ResourceBundle;
 
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class DetailInfoPane extends GridPane {
 
 
-    @Autowired
-    private ChatButton chatButton;
-
-    @Autowired
-    private AbstractMenuButton abstractMenuButton;
 
 
-    @Autowired
-    private ChatMainPane chatMainPane;
+//    private final ChatMainPane chatMainPane;
 
-    @Autowired
-    private ConversationEndpoint conversationEndpoint;
+    private final ConversationEndpoint conversationEndpoint;
+
+    private final EventBus bus;
 
     private ImageView avatarGenerator;
     private Label phone = new Label();
@@ -80,18 +76,19 @@ public class DetailInfoPane extends GridPane {
         row1.setPrefHeight(50);
         this.getRowConstraints().add(row1);
 
+
         //  chatButton 激活
         sendMessage.setOnAction(event-> {
 
             log.debug("click and   switch  button ");
 
-            abstractMenuButton.sendEvent(ChatButton.class);
+            AbstractMenuButton.sendEvent(ChatButton.class);
 
             conversationEndpoint.createOrGetPrivateChat(UserInfoContext.getAccountInfo().getUserId() , this.userInfo.getUserId())
                     .doOnError(error -> log.error("Failed to create or get private chat", error))
                     .doOnSuccess(conversationRes -> {
-
-                        chatMainPane.updateConversations(conversationRes);
+                        bus.publish(conversationRes);
+//                        chatMainPane.updateConversations(conversationRes);
 
                     })
                     .subscribe();

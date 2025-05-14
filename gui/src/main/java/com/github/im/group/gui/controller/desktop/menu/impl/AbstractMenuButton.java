@@ -56,7 +56,7 @@ public class AbstractMenuButton extends MFXRectangleToggleNode  implements MenuB
         return SWITCH_BUTTON.asFlux();
     }
 
-    public void sendEvent(Class<? extends AbstractMenuButton> event) {
+    public static void sendEvent(Class<? extends AbstractMenuButton> event) {
         // 发布as事件到 Sink
         SWITCH_BUTTON.tryEmitNext(event);
     }

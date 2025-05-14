@@ -1,5 +1,6 @@
 package com.github.im.group.gui.controller.desktop.chat;
 
+import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.conversation.ConversationRes;
 import com.github.im.dto.PageResult;
 import com.github.im.dto.session.MessagePullRequest;
@@ -7,6 +8,7 @@ import com.github.im.dto.user.UserInfo;
 import com.github.im.enums.ConversationType;
 import com.github.im.group.gui.api.ConversationEndpoint;
 import com.github.im.group.gui.api.MessageEndpoint;
+import com.github.im.group.gui.connect.handler.EventBus;
 import com.github.im.group.gui.context.UserInfoContext;
 import jakarta.annotation.PostConstruct;
 import javafx.application.Platform;
@@ -15,6 +17,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.SplitPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,23 +48,30 @@ import java.util.concurrent.ConcurrentHashMap;
  * @version 1.0
  * @since 2025/1/9
  */
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
 //public class ChatMainPane extends GridPane implements Initializable, ApplicationContextAware {
-public class ChatMainPane extends SplitPane implements  ApplicationContextAware {
+public class ChatMainPane implements  ApplicationContextAware {
+//public class ChatMainPane extends SplitPane{
+//public class ChatMainPane {
+
+
+    @Getter
+    private SplitPane mainPane ;
+
 
     private ListView<ConversationInfoCard> conversationList;
 
-    private Set<Long> conversationIdSet = ConcurrentHashMap.newKeySet();
-
     private ChatMessagePane currentChatPane;
 
-    private ConcurrentHashMap<String, ChatMessagePane>  chatPaneMap = new ConcurrentHashMap<>();
-    @Autowired
-    private  ConversationEndpoint conversationEndpoint;
-    @Autowired
-    private  MessageEndpoint messagesEndpoint;
+    private final Set<Long> conversationIdSet = ConcurrentHashMap.newKeySet();
+
+    private final ConcurrentHashMap<String, ChatMessagePane>  chatPaneMap = new ConcurrentHashMap<>();
+    private final ConversationEndpoint conversationEndpoint;
+    private final MessageEndpoint messagesEndpoint;
+    private final EventBus eventBus;
 
 
     private ApplicationContext applicationContext;
@@ -255,23 +265,26 @@ public class ChatMainPane extends SplitPane implements  ApplicationContextAware 
     public void switchChatPane(ChatMessagePane chatMessagePane) {
         Platform.runLater(() -> {
             if (currentChatPane != null) {
-                this.getChildren().remove(currentChatPane); // 先移除旧的聊天面板
+//                mainPane.getItems().remove(currentChatPane); // 先移除旧的聊天面板
             }
             currentChatPane = chatMessagePane;
 
             // 重新添加新的聊天面板
-            getItems().remove(1);
-            getItems().add(currentChatPane);
-
-            // 绑定宽度，确保 UI 自适应
-//            currentChatPane.prefWidthProperty()
-//                    .bind(this.widthProperty().subtract(conversationList.widthProperty()));
+            mainPane.getItems().remove(1);
+            mainPane.getItems().add(currentChatPane);
         });
     }
 
 
     @PostConstruct
     public void initComponent() {
+
+        mainPane = new SplitPane();
+        eventBus.asFlux()
+                .ofType(ConversationRes.class)
+                .subscribe(conversationRes -> {
+                    updateConversations(conversationRes);
+                });
         // 初始化
         conversationList = new ListView<>();
 
@@ -280,9 +293,9 @@ public class ChatMainPane extends SplitPane implements  ApplicationContextAware 
         currentChatPane.setMinWidth(500);
         conversationList.setPrefWidth(170);
 
-        getItems().addAll(conversationList,currentChatPane);
-
-        setDividerPositions(0.3); // 初始比例，30%：70%
+        mainPane.getItems().addAll(conversationList,currentChatPane);
+//
+        mainPane.setDividerPositions(0.3); // 初始比例，30%：70%
 
         UserInfoContext.subscribeUserInfoSink()
                 .flatMap(this::loadConversation).subscribe();
