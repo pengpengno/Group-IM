@@ -215,7 +215,7 @@ public class FxmlLoader implements ApplicationContextAware {
                     Assert.notNull(urlPath, "FXML file not found for the specified class!");
 
                     FXMLLoader fxmlLoader = new FXMLLoader(classPathResource.getURL());
-                    var classLoader = fxmlLoader.getController();
+//                    var classLoader = fxmlLoader.getController();
 
                     fxmlLoader.setControllerFactory(applicationContext::getBean);
                     return fxmlLoader;

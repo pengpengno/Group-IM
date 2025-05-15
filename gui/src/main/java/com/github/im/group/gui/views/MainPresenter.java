@@ -42,14 +42,7 @@ import java.util.ResourceBundle;
 @FxView(fxmlName = "main_layout")
 public class MainPresenter implements MainHomeView, Initializable {
 
-//    private final ChatMainPane chatMainPane;
-//
-//    private final ContractMainPane contractMainPane;
-
-//    @Inject
     private final AbstractMenuButton abstractMenuButton;
-
-//    @FXML private View mainView ;
 
     @FXML
     private VBox iconMenu;
