@@ -19,7 +19,6 @@
         <module>common</module>
         <module>entity</module>
         <module>server</module>
-        <module>client</module>
         <module>gui</module>
     </modules>
 
@@ -27,8 +26,6 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <spring.starter.version>3.3.0</spring.starter.version>
-<!--        <gluonfx.maven.plugin.version>1.0.24</gluonfx.maven.plugin.version>-->
-<!--        <gluonfx.maven.plugin.version>1.0.23</gluonfx.maven.plugin.version>-->
         <lombok.version>1.18.30</lombok.version>
         <mapstruct.version>1.5.3.Final</mapstruct.version>
         <maven.plugin.version>3.13.0</maven.plugin.version>
