@@ -2,9 +2,8 @@ package com.github.im.group.gui.controller.desktop.menu.impl;
 
 import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.DisplayManager;
-import com.github.im.group.gui.controller.MainHomeView;
 import com.github.im.group.gui.views.MainPresenter;
-import com.github.im.group.gui.controller.desktop.chat.ChatMainPane;
+import com.github.im.group.gui.controller.desktop.chat.ChatMainPresenter;
 import jakarta.annotation.PostConstruct;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Tooltip;
@@ -12,7 +11,6 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Objects;
@@ -22,7 +20,7 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class ChatButton extends AbstractMenuButton {
 
-    private final ChatMainPane chatMainPane;
+    private final ChatMainPresenter chatMainPresenter;
 
     @PostConstruct
     public void chatButton() {
@@ -45,9 +43,9 @@ public class ChatButton extends AbstractMenuButton {
         var controller = DisplayManager.getController(MainPresenter.class);
         var desktopMainView  = (MainPresenter)controller;
 //        chatMainPane.loadFriendList();
-        chatMainPane.loadConversation(UserInfoContext.getCurrentUser()).subscribe();
+        chatMainPresenter.loadConversation(UserInfoContext.getCurrentUser()).subscribe();
 //
-        desktopMainView.switchRootPane(chatMainPane.getMainPane());
+        desktopMainView.switchRootPane(chatMainPresenter.getMainPane());
     }
 
 

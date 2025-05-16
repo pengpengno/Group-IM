@@ -424,6 +424,8 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
+<!--                使用  1.0.23 才能编译桌面端 -->
+                <gluonfx.maven.plugin.version>1.0.23</gluonfx.maven.plugin.version>
                 <gluonfx.target>host</gluonfx.target>
             </properties>
             <dependencies>

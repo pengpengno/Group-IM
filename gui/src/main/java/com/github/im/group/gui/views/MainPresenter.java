@@ -7,32 +7,33 @@ import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.MainHomeView;
 import com.github.im.group.gui.controller.PlatformView;
-import com.github.im.group.gui.controller.desktop.chat.ChatMainPane;
-import com.github.im.group.gui.controller.desktop.contract.ContractMainPane;
+import com.github.im.group.gui.controller.desktop.chat.ChatMainPresenter;
 import com.github.im.group.gui.controller.desktop.menu.impl.AbstractMenuButton;
 import com.github.im.group.gui.util.AvatarGenerator;
 import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.I18nUtil;
+import com.github.im.group.gui.util.ViewUtils;
+import com.gluonhq.charm.glisten.application.AppManager;
+import com.gluonhq.charm.glisten.control.*;
 import com.gluonhq.charm.glisten.mvc.View;
+import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
 import io.github.palexdev.mfxresources.fonts.MFXFontIcon;
-import jakarta.annotation.PostConstruct;
-import jakarta.inject.Inject;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
+import javafx.stage.Stage;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
 
@@ -40,7 +41,8 @@ import java.util.ResourceBundle;
 @Service
 @RequiredArgsConstructor
 @FxView(fxmlName = "main_layout")
-public class MainPresenter implements MainHomeView, Initializable {
+public class MainPresenter  implements MainHomeView {
+//public class MainPresenter  implements MainHomeView, Initializable {
 
     private final AbstractMenuButton abstractMenuButton;
 
@@ -48,22 +50,18 @@ public class MainPresenter implements MainHomeView, Initializable {
     private VBox iconMenu;
 
     @FXML
-    private ImageView avatar;
+    private Avatar avatar;
+
     @FXML
     private BorderPane borderPane;
 
     @FXML
-    private GridPane rootpane;
+    private View rootPane;
+
     @FXML
     private HBox windowHeader;
 
-
-//    @FXML
-//    private MFXButton sendMessageButton;
-
-
     @FXML
-//    private MFXButton closeIcon;
     private MFXFontIcon closeIcon;
     @FXML
 //    private MFXButton minimizeIcon;
@@ -77,9 +75,9 @@ public class MainPresenter implements MainHomeView, Initializable {
     private final ToggleGroup toggleGroup = new ToggleGroup();
 
 
-
     private ResourceBundle bundle = ResourceBundle.getBundle("i18n.menu.button");
 
+    private final ChatMainPresenter chatMainPresenter;
 
     /**
      * 切换主 Panel
@@ -87,36 +85,78 @@ public class MainPresenter implements MainHomeView, Initializable {
      */
     public void switchRootPane (Node displayPanel) {
 
-
         borderPane.setCenter(displayPanel);
 
     }
 
-//    @Override
-//    protected void updateAppBar(AppBar appBar) {
-//        super.updateAppBar(appBar);
-//
-//        var icon = new Icon();
-//        icon.setContent(MaterialDesignIcon.CLOSE);
-//
-//        appBar.setNavIcon(MaterialDesignIcon.MENU.button(e -> System.out.println("nav icon")));
-//
-//        appBar.setTitleText("The AppBar");
-//
-//        appBar.getActionItems().addAll(
-//                MaterialDesignIcon.SEARCH.button(e -> System.out.println("search")),
-//                MaterialDesignIcon.FAVORITE.button(e -> System.out.println("fav")));
-//
-//        appBar.getMenuItems().addAll(new MenuItem("Settings"));
-//
-//    }
+
+    public BottomNavigation bottomNavigation () {
+        BottomNavigation bottomNav = new BottomNavigation();
+
+        var type = bottomNav.getType();
+        // 创建底部按钮
+        BottomNavigationButton message =
+                new BottomNavigationButton("聊天", MaterialDesignIcon.MESSAGE.graphic());
 
 
-    @PostConstruct
-    public void init () {
+        BottomNavigationButton people =
+                new BottomNavigationButton("联系人", MaterialDesignIcon.PEOPLE.graphic());
 
+
+        BottomNavigationButton mine =
+                new BottomNavigationButton("我的", MaterialDesignIcon.PERSON.graphic());
+//        loginView.setCenter(peopleView);
+        people.setSelected(true);
+
+        // 添加按钮到底部导航栏
+        bottomNav.getActionItems().addAll(message,people,mine);
+
+        return bottomNav;
 
     }
+
+    public void initialAppBar() {
+
+        // 底部导航栏
+        var isMobile = !com.gluonhq.attach.util.Platform.isDesktop();
+        // 移动端底部栏  客户端侧边栏
+        if(isMobile){
+
+            rootPane.setBottom(bottomNavigation());
+
+        }else{
+
+            rootPane.setBottom(bottomNavigation());
+
+        }
+        // 注册创建 menu
+        var view = AppViewManager.createView(chatMainPresenter);
+        view.registerView();
+        ViewUtils.buildDrawer(view);
+
+        rootPane.showingProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue) {
+
+                AppBar appBar = AppManager.getInstance().getAppBar();
+
+                appBar.setNavIcon(MaterialDesignIcon.MENU.button(e -> System.out.println("nav icon")));
+
+                appBar.setTitleText("The AppBar");
+
+                appBar.getActionItems().addAll(
+                        MaterialDesignIcon.SEARCH.button(e -> System.out.println("search")),
+                        MaterialDesignIcon.FAVORITE.button(e -> System.out.println("fav")));
+
+                appBar.getMenuItems().addAll(new MenuItem("Settings"));
+
+                appBar.setNavIcon(MaterialDesignIcon.MENU.button(e ->
+                        AppManager.getInstance().getDrawer().open()));
+
+                appBar.setTitleText("主页");
+            }
+        });
+    }
+
 
     public ImageView windowIcon(String iconName) {
         var node = new ImageView(new Image(I18nUtil.getInputSteamByBundleName(bundle, iconName)));
@@ -125,66 +165,56 @@ public class MainPresenter implements MainHomeView, Initializable {
         return node;
     }
 
-//    private void initWindowIcons() {
-//
-//
-//        FloatingActionButton fab = new FloatingActionButton();
-////        fab.showOn(this);
-//
-//        fab.setOnAction(event -> {
-//            System.out.println("click");
-//        });
-////        this.getChildren().add(fab);
-//
-////        var appBar = getAppManager().getAppBar();
-////
-////        // 新增条件判断，仅在非客户端桌面端更新 AppBar
-//////        if (!getPlatform().equals(PlatformType.CLIENT_DESKTOP)) {
-////            appBar.setTitleText("The AppBar");
-////            appBar.getActionItems().addAll(
-////                    MaterialDesignIcon.SEARCH.button(e -> System.out.println("search")),
-////                    MaterialDesignIcon.FAVORITE.button(e -> System.out.println("fav")));
-////
-////            appBar.getMenuItems().addAll(new MenuItem("Settings"));
-////
-////            appBar.getMenuItems().addAll(new MenuItem("Settings"));
-////        }
-////        var node = new ImageView(new Image(I18nUtil.getInputSteamByBundleName(bundle, "close.icon")));
-////        node.setFitWidth(12);
-////        node.setFitHeight(12);
-////        closeIcon.setGraphic(windowIcon("close.icon"));
-////        var node1 = new ImageView(new Image(I18nUtil.getInputSteamByBundleName(bundle, "mini.icon")));
-////        minimizeIcon.setGraphic(windowIcon("mini.icon"));
-////        alwaysOnTopIcon.setGraphic(new ImageView(new Image(I18nUtil.getInputSteamByBundleName(bundle, "onTop.icon"))));
-////        alwaysOnTopIcon.setGraphic(windowIcon("onTop.icon"));
-////        closeIcon.setGraphic(new ImageView(new Image(I18nUtil.getInputSteamByBundleName(bundle, "close.icon"))));
-////        minimizeIcon.setGraphic(new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream(bundle.getString("mini.icon"))))));
-////        alwaysOnTopIcon.setGraphic(new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream(bundle.getString("onTop.icon"))))));
-//
-//        // 关闭窗口
-//        closeIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> Platform.exit());
-////        closeIcon.setText(null);
-////        minimizeIcon.setText(null);
-////        alwaysOnTopIcon.setText(null);
-//        // 最小化窗口
-//        minimizeIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event ->
-//                ((Stage) rootpane.getScene().getWindow()).setIconified(true));
-//
-//        // 置顶/取消置顶窗口
-//        alwaysOnTopIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
-//            Stage stage = (Stage) rootpane.getScene().getWindow();
-//            boolean alwaysOnTop = stage.isAlwaysOnTop();
-//            stage.setAlwaysOnTop(!alwaysOnTop);
-////            alwaysOnTopIcon.setStyle(alwaysOnTop ? "-fx-fill: gray;" : "-fx-fill: blue;");
-//        });
-//
-//
-//    }
-//
-//    @PostConstruct
+    private void initWindowIcons33() {
 
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
+
+        FloatingActionButton fab = new FloatingActionButton();
+//        fab.showOn(this);
+
+        fab.setOnAction(event -> {
+            System.out.println("click");
+        });
+//        this.getChildren().add(fab);
+
+//        var node = new ImageView(new Image(I18nUtil.getInputSteamByBundleName(bundle, "close.icon")));
+//        node.setFitWidth(12);
+//        node.setFitHeight(12);
+//        closeIcon.setGraphic(windowIcon("close.icon"));
+//        var node1 = new ImageView(new Image(I18nUtil.getInputSteamByBundleName(bundle, "mini.icon")));
+//        minimizeIcon.setGraphic(windowIcon("mini.icon"));
+//        alwaysOnTopIcon.setGraphic(new ImageView(new Image(I18nUtil.getInputSteamByBundleName(bundle, "onTop.icon"))));
+//        alwaysOnTopIcon.setGraphic(windowIcon("onTop.icon"));
+//        closeIcon.setGraphic(new ImageView(new Image(I18nUtil.getInputSteamByBundleName(bundle, "close.icon"))));
+//        minimizeIcon.setGraphic(new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream(bundle.getString("mini.icon"))))));
+//        alwaysOnTopIcon.setGraphic(new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream(bundle.getString("onTop.icon"))))));
+
+        // 关闭窗口
+        closeIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> Platform.exit());
+//        closeIcon.setText(null);
+//        minimizeIcon.setText(null);
+//        alwaysOnTopIcon.setText(null);
+        // 最小化窗口
+        minimizeIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event ->
+                ((Stage) rootPane.getScene().getWindow()).setIconified(true));
+
+        // 置顶/取消置顶窗口
+        alwaysOnTopIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
+            Stage stage = (Stage) rootPane.getScene().getWindow();
+            boolean alwaysOnTop = stage.isAlwaysOnTop();
+            stage.setAlwaysOnTop(!alwaysOnTop);
+//            alwaysOnTopIcon.setStyle(alwaysOnTop ? "-fx-fill: gray;" : "-fx-fill: blue;");
+        });
+
+
+    }
+
+
+
+
+//    @Override
+//    public void initialize(URL location, ResourceBundle resources) {
+    public void initialize() {
+        initialAppBar();
         setupMenuButtons();
         var userInfo = UserInfoContext.getCurrentUser();
         if (userInfo != null){
@@ -203,19 +233,8 @@ public class MainPresenter implements MainHomeView, Initializable {
                     });
         }
 
-
-
     }
-//    public void initialize() {
-//
-//        // 加载好友列表并设置到主界面
-////        initWindowIcons();
-//
-//
-//
-//        // 初始化菜单按钮
-////        log.info("初始化菜单按钮");
-//    }
+
 
     /**
      * 初始化左侧菜单栏按钮，并添加 Tooltip

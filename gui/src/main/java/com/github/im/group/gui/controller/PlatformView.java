@@ -24,15 +24,14 @@ import static com.github.im.common.connect.enums.PlatformType.*;
  */
 public interface PlatformView {
 
-
     public static PlatformType  DEFAULT_PLATFORM = DESKTOP;
-
 
 
     default String getName() {
         return this.getClass().getName();
     }
     public PlatformType getPlatform();
+
 
 
 

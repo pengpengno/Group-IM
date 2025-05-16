@@ -24,20 +24,42 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 public  class ViewRegistry {
-    private static final String VIEW_NAME = "gls-view-name";
-    private final Map<String, FView> viewMap = new LinkedHashMap();
-    private final Map<String, Object> presenterMap = new HashMap();
+//    private static final String VIEW_NAME = "gls-view-name";
+//    private final Map<String, FView> viewMap = new ConcurrentHashMap<>();
+    private final Map<String, ViewLifeCycle> viewMap = new ConcurrentHashMap<>();
+    private final Map<String, Object> presenterMap = new ConcurrentHashMap<>();
 
     private static final String FXML_PATH  = "fxml/";
     private static final String FXML_SUFFIX = ".fxml";
 
-    public ViewRegistry() {
+    public enum Singleton {
+        INSTANCE;
+
+        private final ViewRegistry instance;
+
+        Singleton() {
+            instance = new ViewRegistry();
+        }
+
+        public ViewRegistry get() {
+            return instance;
+        }
     }
 
+    public static ViewRegistry getInstance() {
+        return Singleton.INSTANCE.get();
+    }
 
-
+    /**
+     * 用于创建那些
+     * @param presenterClass
+     * @param menuIcon
+     * @param flags
+     * @return
+     */
     public final FView createView(Class<? extends PlatformView> presenterClass, MaterialDesignIcon menuIcon, FView.Flag... flags) {
         FView view = new FView( presenterClass, menuIcon, flags);
         this.viewMap.put(view.getId(), view);
@@ -45,11 +67,7 @@ public  class ViewRegistry {
         return view;
     }
 
-//    Map<String, Object> getPresenterMap() {
-//        return this.presenterMap;
-//    }
-
-    void putPresenter(FView view, Object presenter) {
+    void putPresenter(ViewLifeCycle view, Object presenter) {
         this.presenterMap.put(view.getId(), presenter);
     }
 
@@ -57,15 +75,17 @@ public  class ViewRegistry {
         return Optional.ofNullable(this.presenterMap.get(view.getId()));
     }
 
-    public Collection<FView> getViews() {
+    public Collection<ViewLifeCycle> getViews() {
         return Collections.unmodifiableCollection(this.viewMap.values());
     }
 
-    public Optional<FView> getView(View view) {
-        return Optional.ofNullable((FView)this.viewMap.get(view.getProperties().get("gls-view-name")));
+    public Optional<ViewLifeCycle> getView(View view) {
+        return getView(view.getId());
+//        return Optional.ofNullable((FView)
+//                this.viewMap.get(view.getProperties().get("gls-view-name")));
     }
 
-    public Optional<FView> getView(String id) {
+    public Optional<ViewLifeCycle> getView(String id) {
         if (id != null && !id.isEmpty()) {
             var v = viewMap.get(id);
             return Optional.of(v);
@@ -108,10 +128,6 @@ public  class ViewRegistry {
 
     }
 
-    public static Parent load(Class<? extends PlatformView> viewclass){
-        var path = buildFxmlPath(viewclass);
-        var parentTuple2 = FxmlLoader.loadFxml(path.toString());
-        return parentTuple2.getT2();
-    }
+
 
 }

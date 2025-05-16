@@ -1,16 +1,12 @@
-<?import javafx.scene.control.*?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<?import io.github.palexdev.materialfx.controls.MFXButton?>
-<!--<?import io.github.palexdev.mfxresources.fonts.MFXFontIcon?>-->
 <?import javafx.geometry.Insets?>
-
-<?import com.gluonhq.charm.glisten.control.ToggleButtonGroup?>
 <?import io.github.palexdev.mfxresources.fonts.MFXFontIcon?>
-<GridPane fx:id="rootpane" xmlns:fx="http://javafx.com/fxml"
-          stylesheets="@/css/Demo.css"
-          fx:controller="com.github.im.group.gui.views.MainPresenter">
-
+<?import com.gluonhq.charm.glisten.mvc.View?>
+<?import com.gluonhq.charm.glisten.control.Avatar?>
+<View fx:id="rootPane" xmlns:fx="http://javafx.com/fxml"
+      stylesheets="@/css/Demo.css"
+      fx:controller="com.github.im.group.gui.views.MainPresenter">
+    <GridPane>
     <!-- 设置 GridPane 列和行的约束 -->
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES"/>
@@ -27,16 +23,13 @@
           alignment="TOP_CENTER"
           GridPane.rowIndex="0" >
         <!-- 头像 -->
-        <ImageView fx:id="avatar"  fitWidth="50" fitHeight="50" />
+<!--        <ImageView fx:id="avatar"  fitWidth="50" fitHeight="50" />-->
+        <Avatar fx:id="avatar"/>
 
-<!--        <ToggleButtonGroup orientation="VERTICAL" fx:id="toggleGroup" prefWidth="50.0">-->
-
-<!--        </ToggleButtonGroup>-->
         <!-- 这里的按钮会由 Controller 初始化 -->
     </VBox>
 
     <!-- 右侧区域 (BorderPane) -->
-<!--    <BorderPane fx:id="borderPane" >-->
     <BorderPane fx:id="borderPane" GridPane.columnIndex="1" GridPane.rowIndex="0">
         <!-- 顶部窗口控制栏 -->
         <top>
@@ -50,26 +43,6 @@
             </HBox>
         </top>
 
-        <!-- 中央区域 -->
-<!--        <center>-->
-<!--            <VBox>-->
-                <!-- 会话列表 -->
-                <!-- <ListView fx:id="conversationList" VBox.vgrow="ALWAYS" style="-fx-pref-height: 200;"/> -->
-
-                <!-- 聊天界面 -->
-<!--                <StackPane fx:id="chatPane" VBox.vgrow="ALWAYS" style="-fx-padding: 10;">-->
-<!--                    <VBox spacing="5">-->
-<!--                        &lt;!&ndash; 聊天内容显示 &ndash;&gt;-->
-<!--                        <TextArea fx:id="chatContent" editable="false" prefHeight="200"/>-->
-
-<!--                        &lt;!&ndash; 消息输入框和发送按钮 &ndash;&gt;-->
-<!--                        <HBox spacing="5">-->
-<!--                            <TextField fx:id="messageInput" HBox.hgrow="ALWAYS" promptText="Type a message..."/>-->
-<!--                            <MFXButton fx:id="sendMessageButton" text="Send"/>-->
-<!--                        </HBox>-->
-<!--                    </VBox>-->
-<!--                </StackPane>-->
-<!--            </VBox>-->
-<!--        </center>-->
     </BorderPane>
-</GridPane>
+    </GridPane>
+</View>

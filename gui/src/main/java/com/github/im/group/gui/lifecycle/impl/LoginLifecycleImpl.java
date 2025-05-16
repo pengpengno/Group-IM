@@ -13,6 +13,7 @@ import com.github.im.group.gui.controller.PlatformView;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.github.im.group.gui.views.MainPresenter;
 import javafx.application.Platform;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -31,11 +32,10 @@ import java.net.InetSocketAddress;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class LoginLifecycleImpl implements LoginLifecycle {
 
-    @Autowired
-    private ServerConnectProperties serverConnectProperties;
-
+    private final ServerConnectProperties serverConnectProperties;
 
     @Override
     public void preSendLogin(LoginRequest request) {
@@ -55,16 +55,8 @@ public class LoginLifecycleImpl implements LoginLifecycle {
             log.debug("login success {}" ,userInfo);
 
             UserInfoContext.setCurrentUser(userInfo);
-            var o1 = AppViewManager.switchView(MainPresenter.class).get();
-            MainPresenter o =(MainPresenter) o1;
-//            AppManager.getInstance().switchView(MainHomeView.class.getName());
-//            var primaryStage = DisplayManager.getPrimaryStage();
-
-//            DisplayManager.display(MainHomeView.class);
-//            primaryStage.setMinWidth(560);
-//            primaryStage.setWidth(970);
-//            primaryStage.setHeight(560);
-//            primaryStage.setMinHeight(450);
+            var presenter = AppViewManager.switchView(MainPresenter.class);
+            MainPresenter mainPresenter = (MainPresenter) presenter;
         });
 
         try{

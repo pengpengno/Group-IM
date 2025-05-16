@@ -10,6 +10,7 @@ import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.github.im.group.gui.util.AvatarGenerator;
 import com.github.im.group.gui.util.FxView;
 import com.gluonhq.attach.util.Services;
+import com.gluonhq.charm.glisten.animation.BounceInLeftTransition;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.control.*;
 import com.gluonhq.charm.glisten.mvc.View;
@@ -42,12 +43,9 @@ import static com.gluonhq.charm.glisten.application.AppManager.HOME_VIEW;
 @Slf4j
 @RequiredArgsConstructor
 @FxView(fxmlName = "login_view",title = "登录")
-//public class LoginPresenter extends View implements Initializable, LoginView {
-//public class LoginPresenter extends View implements  LoginView {
 public class LoginPresenter implements  LoginView {
 //public class LoginPresenter extends View implements  LoginView {
 
-    private static final String OTHER_VIEW = "other";
 
 
     @Override
@@ -87,42 +85,11 @@ public class LoginPresenter implements  LoginView {
     private final LoginLifecycle loginLifecycle;
 
 
-//    @Override
-//    public void initialize(URL location, ResourceBundle resources) {
+    /**
+     * Gluon 会自动跳动这个方案
+     */
     public void initialize() {
 
-        BottomNavigation bottomNav = new BottomNavigation();
-
-        // 创建一个实际要显示的界面内容
-//        StackPane peopleView = new StackPane(new Label("联系人视图"));
-        var type = bottomNav.getType();
-        // 创建底部按钮
-        BottomNavigationButton people =
-                new BottomNavigationButton("联系人", MaterialDesignIcon.PEOPLE.graphic());
-
-        // 添加点击事件，点击按钮后将界面设置到 center
-//        people.setOnAction(e -> loginView.setCenter(peopleView));
-
-        // 设置默认视图为 peopleView
-//        loginView.setCenter(peopleView);
-        people.setSelected(true);
-
-        // 添加按钮到底部导航栏
-        bottomNav.getActionItems().addAll(people);
-
-        // 显示底部菜单栏
-        loginView.setBottom(bottomNav);
-
-        // 切换按钮时改变中心内容
-//        bottomNav.getActionItems().el.addListener((obs, oldItem, newItem) -> {
-//            if (newItem != null) {
-//                setCenter(newItem.getContent());
-//            }
-//        });
-        people.setOnAction(e -> loginView.setCenter(people));
-        people.setSelected(true);
-
-        loginView.setBottom(bottomNav); // 将底部菜单加到底部
 
         // Attach the login action to the login button
         // 1. 本地检索 上次的数据 登录
@@ -137,35 +104,33 @@ public class LoginPresenter implements  LoginView {
                 login();
             }
         }
-
-//        this.showingProperty().addListener((obs, oldValue, newValue) -> {
-//        loginGridPane.showingProperty().addListener((obs, oldValue, newValue) -> {
-        loginView.showingProperty().addListener((obs, oldValue, newValue) -> {
-            if (newValue) {
-                AppBar appBar = AppManager.getInstance().getAppBar();
-                appBar.setNavIcon(MaterialDesignIcon.MENU.button(e ->
-                        AppManager.getInstance().getDrawer().open()));
-                appBar.setTitleText("主页");
-//                appBar.setTitleText(resources.getString("appbar.title"));
-//                appBar.getActionItems().add(filterButton);
-            }
-        });
-
-
-        NavigationDrawer navigationDrawer = AppManager.getInstance().getDrawer();
-
-        final var appManager = AppManager.getInstance();
-
-        AppBar appBar = appManager.getAppBar();
-//        appBar.setNavIcon(MaterialDesignIcon.MENU.button(e ->
-//                AppManager.getInstance().getDrawer().open()));
-//        appBar.setTitleText("主页");
-
-//
-//        appManager.addViewFactory(OTHER_VIEW, () -> new View(new CheckBox("I like Glisten")));
         usernameField.setText("kl");
         passwordField.setText("1");
 
+
+//        loginView.setShowTransitionFactory(BounceInLeftTransition::new);
+//
+//        loginView.showingProperty().addListener((obs, oldValue, newValue) -> {
+//            if (newValue) {
+//                var appBar = loginView.getAppManager().getAppBar();
+//
+////                appBar = AppManager.getInstance().getAppBar();
+//
+//                appBar.setNavIcon(MaterialDesignIcon.MENU.button(e -> System.out.println("nav icon")));
+//
+//                appBar.setTitleText("The AppBar");
+//
+//                appBar.getActionItems().addAll(
+//                        MaterialDesignIcon.SEARCH.button(e -> System.out.println("search")),
+//                        MaterialDesignIcon.FAVORITE.button(e -> System.out.println("fav")));
+//
+//                appBar.getMenuItems().addAll(new MenuItem("Settings"));
+//
+//                appBar.setNavIcon(MaterialDesignIcon.MENU.button(e ->
+//                        AppManager.getInstance().getDrawer().open()));
+//                appBar.setTitleText("主页");
+//            }
+//        });
     }
 
 
@@ -179,10 +144,6 @@ public class LoginPresenter implements  LoginView {
      */
     private void autoLoginUi() {
         // 自动登录界面 圆角头像    下方蓝底白字的登录按钮 别的组件都不展示去除
-//        var primaryStage = DisplayManager.getPrimaryStage();
-//        primaryStage.setWidth(300);
-//        primaryStage.setHeight(500);
-//        primaryStage.centerOnScreen();
         loginView.setPrefSize(300,500);
 
         loginButton.setPrefHeight(50);
@@ -205,9 +166,9 @@ public class LoginPresenter implements  LoginView {
 
     @FXML
     private void login() {
+
         String username = usernameField.getText().trim();
         String password = passwordField.getText().trim();
-
         log.debug("username {}  , password {} ", username, password);
 
         if (username.isEmpty() || password.isEmpty()) {

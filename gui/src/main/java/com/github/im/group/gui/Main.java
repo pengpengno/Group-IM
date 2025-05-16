@@ -33,6 +33,7 @@ import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.util.ResourceBundle;
@@ -104,66 +105,24 @@ public class Main extends Application {
 
 
 
+
 //        appManager.viewProperty().addListener((obs, ov, nv) -> {
 //            AppBar appBar = AppManager.getInstance().getAppBar();
-//            var id = nv.getId();
-//            if(!StringUtils.hasLength(id)){
-//                return;
-//            }
-//            switch(id) {
-//                case HOME_VIEW:
-//                    appBar.setNavIcon(MaterialDesignIcon.HOME.button(e -> appManager.switchView(HOME_VIEW)));
-//                    appBar.setTitleText("Home View");
-//                    Swatch.TEAL.assignTo(appBar.getScene());
-//                    break;
-//                case OTHER_VIEW:
-//                    appBar.setNavIcon(MaterialDesignIcon.HTTPS.button(e -> appManager.switchView(OTHER_VIEW)));
-//                    appBar.setTitleText("Other View");
-//                    appBar.setVisible(true);
-//                    break;
-//            }
+//
+//            appBar.setNavIcon(MaterialDesignIcon.MENU.button(e -> System.out.println("nav icon")));
+//
+//            appBar.setTitleText("The AppBar");
+//
+//            appBar.getActionItems().addAll(
+//                    MaterialDesignIcon.SEARCH.button(e -> System.out.println("search")),
+//                    MaterialDesignIcon.FAVORITE.button(e -> System.out.println("fav")));
+//
+//            appBar.getMenuItems().addAll(new MenuItem("Settings"));
+//
+//            appBar.setNavIcon(MaterialDesignIcon.MENU.button(e ->
+//                    AppManager.getInstance().getDrawer().open()));
+//            appBar.setTitleText("主页");
 //        });
-//        appManager.addViewFactory(OTHER_VIEW, () -> {
-//            var iLikeGlisten = new View(new CheckBox("I like Glisten"));
-//            BottomNavigation bottomNav = new BottomNavigation();
-//
-//// 创建一个实际要显示的界面内容
-//            StackPane peopleView = new StackPane(new Label("联系人视图"));
-//            var type = bottomNav.getType();
-//// 创建底部按钮
-//            BottomNavigationButton people =
-//                    new BottomNavigationButton("联系人", MaterialDesignIcon.PEOPLE.graphic());
-//
-//// 添加点击事件，点击按钮后将界面设置到 center
-//            people.setOnAction(e -> iLikeGlisten.setCenter(peopleView));
-//
-//// 设置默认视图为 peopleView
-//            iLikeGlisten.setCenter(peopleView);
-//            people.setSelected(true);
-//
-//// 添加按钮到底部导航栏
-//            bottomNav.getActionItems().addAll(people);
-//
-//// 显示底部菜单栏
-////            getChildren().add()
-//            iLikeGlisten.setBottom(bottomNav);
-//
-//
-//            // 切换按钮时改变中心内容
-////        bottomNav.getActionItems().el.addListener((obs, oldItem, newItem) -> {
-////            if (newItem != null) {
-////                setCenter(newItem.getContent());
-////            }
-////        });
-//            people.setOnAction(e -> iLikeGlisten.setCenter(people));
-//            people.setSelected(true);
-//
-//            iLikeGlisten.setBottom(bottomNav); // 将底部菜单加到底部
-//
-//            return iLikeGlisten;
-//        });
-//        appManager.switchView(Main.OTHER_VIEW);
-
 
     }
 

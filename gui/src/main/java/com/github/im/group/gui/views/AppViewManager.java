@@ -32,6 +32,7 @@ import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.control.Avatar;
 import com.gluonhq.charm.glisten.control.NavigationDrawer;
 import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
+import javafx.scene.Node;
 import javafx.scene.image.Image;
 
 import java.util.Locale;
@@ -39,7 +40,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.ResourceBundle;
 
-import static com.github.im.group.gui.views.FView.Flag.*;
+import static com.github.im.group.gui.views.ViewLifeCycle.Flag.*;
 
 
 /**
@@ -48,10 +49,21 @@ import static com.github.im.group.gui.views.FView.Flag.*;
 public class AppViewManager {
 
 
-    private static final ViewRegistry REGISTRY = new ViewRegistry();
+    private static final ViewRegistry REGISTRY = ViewRegistry.getInstance();
 
     private static final ResourceBundle bundle = ResourceBundle.getBundle("i18n.drawer");
 
+
+    /**
+     * 创建 {@link BView beanView 用于将bean 注册为View}
+     * @param presenter
+     * @return
+     */
+    public static ViewLifeCycle createView(Object presenter) throws IllegalArgumentException {
+        var bView = new BView(presenter);
+
+        return bView;
+    }
 
     /**
      * 注册主界面
@@ -59,9 +71,22 @@ public class AppViewManager {
     public static FView createHomeView(Class<? extends PlatformView> presenterClass) {
 
         var home = MaterialDesignIcon.HOME;
-        FView.Flag[] flags = new FView.Flag[]{HOME_VIEW,SHOW_IN_DRAWER, SKIP_VIEW_STACK};
+        ViewLifeCycle.Flag[] flags = new ViewLifeCycle.Flag[]{HOME_VIEW,SHOW_IN_DRAWER, SKIP_VIEW_STACK};
 
         var view = REGISTRY.createView( presenterClass, home, flags);
+
+        return view;
+    }
+
+    /**
+     * 注册主界面
+     */
+    public static FView createView(Class<? extends PlatformView> presenterClass, MaterialDesignIcon menuIcon ) {
+
+        FView.Flag[] flags = new FView.Flag[]{SHOW_IN_DRAWER, SKIP_VIEW_STACK};
+
+        var view = REGISTRY.createView( presenterClass, menuIcon, flags);
+
         return view;
     }
 
@@ -70,24 +95,38 @@ public class AppViewManager {
      */
     public static FView createView(Class<? extends PlatformView> presenterClass) {
         var ICON = MaterialDesignIcon.ACCESS_ALARM;
-
-        FView.Flag[] flags = new FView.Flag[]{SHOW_IN_DRAWER, SKIP_VIEW_STACK};
-        var view = REGISTRY.createView( presenterClass, ICON, flags);
-        return view;
+        return createView(presenterClass, ICON);
     }
 
-    public static Optional<Object> switchView(Class<? extends PlatformView> viewclass ){
 
+    public static Object switchView(String viewId ){
 
-        return REGISTRY.getView(viewclass.getSimpleName()).map(view -> {
-            return view.switchView().get();
-        });
+        return  REGISTRY.getView(viewId).map(view -> {
+            return Optional.ofNullable(view.switchView())
+                    .orElseThrow(()-> new RuntimeException("View not found" + viewId));
+        }).orElseThrow(()-> new RuntimeException("View not found" + viewId));
     }
 
-    public static <T extends PlatformView>  T getPresenter(Class<T> viewclass ) {
+    /**
+     * 这里 viewclass 使用 getClass().getSimpleName() 获取视图名称
+     * @param viewclass 需要切换的视图 Presenter 的Class
+     * @return 返回View 的控制器实体
+     */
+    public static Object switchView(Class<?> viewclass ){
+
+        return REGISTRY.getView(viewclass.getSimpleName())
+                .map(view -> {
+            return Optional.ofNullable(view.switchView())
+                    .orElseThrow(()-> new RuntimeException("View not found" + viewclass.getSimpleName()))
+                    ;
+        }).orElseThrow(()-> new RuntimeException("View not found" + viewclass.getSimpleName()));
+    }
+
+//    public static <T extends PlatformView>  T getPresenter(Class<T> viewclass ) {
+    public static <T>  T getPresenter(Class<T> viewclass ) {
         return REGISTRY.getView(viewclass.getSimpleName()).map(view -> {
-            return (T)view.getPresenter().get();
-        }).get();
+            return (T)view.getPresenter();
+        }).orElseThrow(()-> new RuntimeException("View not found" + viewclass.getSimpleName()));
     }
 
 
@@ -95,13 +134,15 @@ public class AppViewManager {
      * 注册所有视图
      */
     public static void registerViewsAndDrawer() {
-        for (FView view : REGISTRY.getViews()) {
+        for (ViewLifeCycle view : REGISTRY.getViews()) {
             view.registerView();
         }
 
         NavigationDrawer.Header header = new NavigationDrawer.Header(bundle.getString("drawer.header.title"),
                 bundle.getString("drawer.header.description"),
-                new Avatar(21, new Image(Objects.requireNonNull(AppViewManager.class.getResourceAsStream("/images/icon.png")))));
+                new Avatar(21,
+                        new Image(Objects.requireNonNull(AppViewManager.class.getResourceAsStream("/images/icon.png")))));
+        header.setStyle("-fx-background-color: white;");
 
         var drawer = AppManager.getInstance().getDrawer();
         ViewUtils.buildDrawer(drawer, header, REGISTRY.getViews());

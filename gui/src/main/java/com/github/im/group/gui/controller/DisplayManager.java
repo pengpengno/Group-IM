@@ -82,10 +82,7 @@ public class DisplayManager {
 
     public  static <T extends PlatformView> T getController(Class<T> displayClass) {
         return AppViewManager.getPresenter(displayClass);
-//        if (DISPLAY_CONTROLLER_MAP.containsKey(displayClass)) {
-//            return (T) DISPLAY_CONTROLLER_MAP.get(displayClass);
-//        }
-//        return registerView(displayClass);
+
     }
 
 

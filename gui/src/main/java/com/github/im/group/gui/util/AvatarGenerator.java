@@ -1,5 +1,6 @@
 package com.github.im.group.gui.util;
 
+import com.gluonhq.charm.glisten.control.Avatar;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
@@ -140,6 +141,18 @@ public class AvatarGenerator {
         return generateCircleAvatarCache(name, size, null);
     }
 
+
+    /**
+     * 生成头像
+     * @param name
+     * @param size
+     * @return
+     */
+    public static Avatar getAvatar(String name, double size) {
+        var image = generateSquareAvatarWithRoundedCornersCache(name, size, null);
+        return new Avatar(size, image);
+
+    }
 
     /**
      * 生成一个带有圆角的正方形头像

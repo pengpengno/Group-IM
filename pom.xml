@@ -28,7 +28,8 @@
         <spring.starter.version>3.3.0</spring.starter.version>
         <lombok.version>1.18.30</lombok.version>
         <mapstruct.version>1.5.3.Final</mapstruct.version>
-        <maven.plugin.version>3.13.0</maven.plugin.version>
+        <maven.plugin.version>3.8.1</maven.plugin.version>
+<!--        <maven.plugin.version>3.13.0</maven.plugin.version>-->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 

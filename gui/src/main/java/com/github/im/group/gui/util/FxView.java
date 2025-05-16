@@ -39,6 +39,12 @@ public @interface FxView {
      */
     public String title() default "IM";
 
+    /**
+     * 侧边栏的 菜单名称
+     * @return
+     */
+    public String menuTitle() default "";
+
 
 
     /**

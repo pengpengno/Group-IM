@@ -1,6 +1,5 @@
 package com.github.im.group.gui.controller.desktop.chat;
 
-import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.conversation.ConversationRes;
 import com.github.im.dto.PageResult;
 import com.github.im.dto.session.MessagePullRequest;
@@ -10,26 +9,26 @@ import com.github.im.group.gui.api.ConversationEndpoint;
 import com.github.im.group.gui.api.MessageEndpoint;
 import com.github.im.group.gui.connect.handler.EventBus;
 import com.github.im.group.gui.context.UserInfoContext;
+import com.github.im.group.gui.views.MenuItem;
+import com.github.im.group.gui.views.ViewLifeCycle;
+import com.gluonhq.charm.glisten.mvc.View;
+import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
 import jakarta.annotation.PostConstruct;
 import javafx.application.Platform;
-import javafx.fxml.Initializable;
+import javafx.scene.Node;
 import javafx.scene.control.ListView;
 import javafx.scene.control.SplitPane;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Lookup;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
-import java.net.URL;
-import java.util.ResourceBundle;
+
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -53,14 +52,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 @RequiredArgsConstructor
 //public class ChatMainPane extends GridPane implements Initializable, ApplicationContextAware {
-public class ChatMainPane implements  ApplicationContextAware {
-//public class ChatMainPane extends SplitPane{
-//public class ChatMainPane {
-
+public class ChatMainPresenter extends View implements  ApplicationContextAware, MenuItem {
 
     @Getter
     private SplitPane mainPane ;
-
 
     private ListView<ConversationInfoCard> conversationList;
 
@@ -79,6 +74,25 @@ public class ChatMainPane implements  ApplicationContextAware {
     @Override
     public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
+    }
+
+
+    @Override
+    public String title() {
+        return "聊天";
+    }
+
+    @Override
+    public ViewLifeCycle.Flag[] flags() {
+        return new ViewLifeCycle.Flag[]{
+                ViewLifeCycle.Flag.SHOW_IN_DRAWER,
+                ViewLifeCycle.Flag.SKIP_VIEW_STACK
+        };
+    }
+
+    @Override
+    public Node menuIcon() {
+        return MaterialDesignIcon.MESSAGE.graphic();
     }
 
     /**
@@ -131,7 +145,6 @@ public class ChatMainPane implements  ApplicationContextAware {
             });
             // 点击拉取 历史会话
             conversationInfoCard.setClickAction(loadHistoryMessages(conversationId));
-
 
             // 将新的会话卡片添加到会话列表中
             conversationList.getItems().add(conversationInfoCard);
@@ -277,6 +290,13 @@ public class ChatMainPane implements  ApplicationContextAware {
     }
 
 
+    public void initialize() {
+        // 正确地将主界面添加到 View 的 center 区域
+        this.setCenter(mainPane);
+
+    }
+
+
     @PostConstruct
     public void initComponent() {
 
@@ -300,6 +320,9 @@ public class ChatMainPane implements  ApplicationContextAware {
 
         UserInfoContext.subscribeUserInfoSink()
                 .flatMap(this::loadConversation).subscribe();
+
+        this.setCenter(mainPane);
+
 
     }
 
