@@ -9,12 +9,17 @@ import com.github.im.group.gui.api.ConversationEndpoint;
 import com.github.im.group.gui.api.MessageEndpoint;
 import com.github.im.group.gui.connect.handler.EventBus;
 import com.github.im.group.gui.context.UserInfoContext;
+import com.github.im.group.gui.util.ViewUtils;
+import com.github.im.group.gui.views.AppViewManager;
 import com.github.im.group.gui.views.MenuItem;
 import com.github.im.group.gui.views.ViewLifeCycle;
+import com.gluonhq.charm.glisten.application.AppManager;
+import com.gluonhq.charm.glisten.control.AppBar;
 import com.gluonhq.charm.glisten.mvc.View;
 import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
 import jakarta.annotation.PostConstruct;
 import javafx.application.Platform;
+import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.control.ListView;
 import javafx.scene.control.SplitPane;
@@ -26,9 +31,12 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Lookup;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
+import java.net.URL;
+import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -50,9 +58,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
+//@Scope("sin" )
 @RequiredArgsConstructor
 //public class ChatMainPane extends GridPane implements Initializable, ApplicationContextAware {
-public class ChatMainPresenter extends View implements  ApplicationContextAware, MenuItem {
+//public class ChatMainPresenter extends View implements Initializable,ApplicationContextAware, MenuItem {
+public class ChatMainPresenter extends View implements ApplicationContextAware, MenuItem {
 
     @Getter
     private SplitPane mainPane ;
@@ -155,6 +165,27 @@ public class ChatMainPresenter extends View implements  ApplicationContextAware,
 
     }
 
+
+
+    @Override
+    protected void updateAppBar(AppBar appBar) {
+        super.updateAppBar(appBar);
+
+        appBar.setNavIcon(MaterialDesignIcon.MENU.button(e -> System.out.println("nav icon")));
+
+        appBar.setTitleText("The AppBar");
+
+        appBar.getActionItems().addAll(
+                MaterialDesignIcon.SEARCH.button(e -> System.out.println("search")),
+                MaterialDesignIcon.FAVORITE.button(e -> System.out.println("fav")));
+
+        appBar.getMenuItems().addAll(new javafx.scene.control.MenuItem("Settings"));
+
+        appBar.setNavIcon(MaterialDesignIcon.MENU.button(e ->
+                AppManager.getInstance().getDrawer().open()));
+
+        appBar.setTitleText("聊天");
+    }
 
     /**
      * 获取对话的显示名称
@@ -267,7 +298,7 @@ public class ChatMainPresenter extends View implements  ApplicationContextAware,
     @Lookup
     protected ChatMessagePane createChatMessagePane() {
         // Spring 会自动注入此方法的实现，无需手动实现
-        return null;
+        return applicationContext.getBean(ChatMessagePane.class);
     }
 
 
@@ -290,15 +321,21 @@ public class ChatMainPresenter extends View implements  ApplicationContextAware,
     }
 
 
-    public void initialize() {
-        // 正确地将主界面添加到 View 的 center 区域
-        this.setCenter(mainPane);
-
-    }
-
-
     @PostConstruct
     public void initComponent() {
+
+    // 注册创建 menu
+        var view = AppViewManager.createView(this);
+        view.registerView();
+        ViewUtils.buildDrawer(view);
+
+        this.showingProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue) {
+                log.info("ChatMainPresenter showing");
+            } else {
+                log.info("ChatMainPresenter hidden");
+            }
+        });
 
         mainPane = new SplitPane();
         eventBus.asFlux()

@@ -129,10 +129,7 @@ public class MainPresenter  implements MainHomeView {
             rootPane.setBottom(bottomNavigation());
 
         }
-        // 注册创建 menu
-        var view = AppViewManager.createView(chatMainPresenter);
-        view.registerView();
-        ViewUtils.buildDrawer(view);
+
 
         rootPane.showingProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue) {

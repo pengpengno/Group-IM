@@ -77,7 +77,8 @@ import java.util.*;
 @Scope("prototype")
 @Slf4j
 @RequiredArgsConstructor
-public class ChatMessagePane extends BorderPane implements Initializable  {
+//public class ChatMessagePane extends BorderPane implements Initializable  {
+public class ChatMessagePane extends BorderPane {
 
 
     @Getter
@@ -105,10 +106,10 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
 
 
 
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
-
-    }
+//    @Override
+//    public void initialize(URL location, ResourceBundle resources) {
+//
+//    }
 
 
     /**
@@ -116,7 +117,8 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
      * contains
      * Button send
      */
-    public static class SendMessagePane extends AnchorPane implements Initializable {
+//    public static class SendMessagePane extends AnchorPane implements Initializable {
+    public static class SendMessagePane extends AnchorPane {
 
 
         private MFXButton sendButton;
@@ -139,10 +141,10 @@ public class ChatMessagePane extends BorderPane implements Initializable  {
 
 
 
-        @Override
-        public void initialize(URL location, ResourceBundle resources) {
-
-        }
+//        @Override
+//        public void initialize(URL location, ResourceBundle resources) {
+//
+//        }
 
         @PostConstruct
         public void initialize() {

@@ -5,23 +5,16 @@
 
 package com.github.im.group.gui.views;
 
-import com.github.im.group.gui.controller.DisplayManager;
 import com.github.im.group.gui.controller.PlatformView;
 import com.github.im.group.gui.util.FxView;
-import com.github.im.group.gui.util.FxmlLoader;
-import com.github.im.group.gui.views.FView;
 import com.gluonhq.charm.glisten.mvc.View;
 import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
 import io.netty.util.internal.StringUtil;
-import javafx.scene.Parent;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -67,7 +60,9 @@ public  class ViewRegistry {
         return view;
     }
 
-    void putPresenter(ViewLifeCycle view, Object presenter) {
+
+    void putPresenterAndView(ViewLifeCycle view, Object presenter) {
+        this.viewMap.put(view.getId(), view);
         this.presenterMap.put(view.getId(), presenter);
     }
 

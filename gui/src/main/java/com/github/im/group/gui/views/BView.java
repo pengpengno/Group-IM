@@ -1,7 +1,6 @@
 package com.github.im.group.gui.views;
 
 import com.github.im.group.gui.controller.desktop.chat.ChatMainPresenter;
-import com.github.im.group.gui.util.FxmlLoader;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.application.ViewStackPolicy;
 import com.gluonhq.charm.glisten.control.NavigationDrawer;
@@ -28,6 +27,8 @@ public class BView implements ViewLifeCycle {
     private final String viewName;
 
     private ViewStackPolicy  viewStackPolicy = null;
+
+    private final ViewRegistry registry = ViewRegistry.getInstance();
 
     @Override
     public ViewStackPolicy getViewStackPolicy() {
@@ -72,8 +73,7 @@ public class BView implements ViewLifeCycle {
 
             // 这里不要 new 出来view 存放 不然会出现两个view
             View view = (View) presenter;
-
-            getRegistry().putPresenter(this, presenter);
+            getRegistry().putPresenterAndView(this, presenter);
             return view;
         });
 

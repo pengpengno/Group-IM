@@ -6,26 +6,20 @@
 package com.github.im.group.gui.views;
 
 import com.github.im.group.gui.controller.PlatformView;
-import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.FxmlLoader;
-import com.gluonhq.charm.glisten.afterburner.AppViewRegistry;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.application.ViewStackPolicy;
 import com.gluonhq.charm.glisten.control.NavigationDrawer;
 import com.gluonhq.charm.glisten.mvc.View;
 import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
-import io.netty.util.internal.StringUtil;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Objects;
-import java.util.Optional;
 
 /**
  * 构建 基于 Fxml 注册的 bean
@@ -98,7 +92,7 @@ public final class FView  implements ViewLifeCycle{
 //            var view = new View(parent);
             // 这里不要 new 出来view 存放 不然会出现两个view
             View view = (View)parent;
-            registry.putPresenter(this, presenter);
+            registry.putPresenterAndView(this, presenter);
             return view;
         });
     }
