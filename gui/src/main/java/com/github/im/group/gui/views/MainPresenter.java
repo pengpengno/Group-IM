@@ -85,7 +85,7 @@ public class MainPresenter  implements MainHomeView {
      */
     public void switchRootPane (Node displayPanel) {
 
-        borderPane.setCenter(displayPanel);
+        borderPane.setCenter(chatMainPresenter);
 
     }
 
@@ -129,7 +129,6 @@ public class MainPresenter  implements MainHomeView {
             rootPane.setBottom(bottomNavigation());
 
         }
-
 
         rootPane.showingProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue) {

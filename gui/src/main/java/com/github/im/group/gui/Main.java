@@ -2,7 +2,9 @@ package com.github.im.group.gui;
 
 import com.github.im.group.gui.controller.DisplayManager;
 import com.github.im.group.gui.controller.LoginView;
+import com.github.im.group.gui.controller.desktop.chat.ChatMainPresenter;
 import com.github.im.group.gui.util.FileIconUtil;
+import com.github.im.group.gui.util.ViewUtils;
 import com.github.im.group.gui.views.*;
 import com.gluonhq.attach.display.DisplayService;
 import com.gluonhq.attach.util.Platform;
@@ -31,8 +33,13 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
+import org.scenicview.ScenicView;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
@@ -49,10 +56,12 @@ import java.util.ResourceBundle;
  * @since 2024/10/17
  */
 @Slf4j
-public class Main extends Application {
+public class Main extends Application  {
 //
 //    @Inject
-    private final  AppManager appManager = AppManager.initialize(this::postInit);
+    private final AppManager appManager = AppManager.initialize(this::postInit);
+
+
 
     /**
      * 启动Spring 环境
@@ -91,6 +100,8 @@ public class Main extends Application {
             scene.getWindow().setHeight(dimension2D.getHeight());
         }
 
+//        ScenicView.show(scene);
+
     }
 
     public static final String OTHER_VIEW = "HOME_VIEW";
@@ -105,24 +116,6 @@ public class Main extends Application {
 
 
 
-
-//        appManager.viewProperty().addListener((obs, ov, nv) -> {
-//            AppBar appBar = AppManager.getInstance().getAppBar();
-//
-//            appBar.setNavIcon(MaterialDesignIcon.MENU.button(e -> System.out.println("nav icon")));
-//
-//            appBar.setTitleText("The AppBar");
-//
-//            appBar.getActionItems().addAll(
-//                    MaterialDesignIcon.SEARCH.button(e -> System.out.println("search")),
-//                    MaterialDesignIcon.FAVORITE.button(e -> System.out.println("fav")));
-//
-//            appBar.getMenuItems().addAll(new MenuItem("Settings"));
-//
-//            appBar.setNavIcon(MaterialDesignIcon.MENU.button(e ->
-//                    AppManager.getInstance().getDrawer().open()));
-//            appBar.setTitleText("主页");
-//        });
 
     }
 
@@ -144,8 +137,6 @@ public class Main extends Application {
                 .setGlobal();
 
 //
-
-
         FileIconUtil.setStageIcon(primaryStage);
         initDrag(primaryStage);
 //

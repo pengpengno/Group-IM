@@ -73,21 +73,15 @@ import java.util.*;
  * @version 1.0
  * @since 2025/1/9
  */
-@Component
-@Scope("prototype")
+//@Component
+//@Scope("prototype")
 @Slf4j
 @RequiredArgsConstructor
 //public class ChatMessagePane extends BorderPane implements Initializable  {
 public class ChatMessagePane extends BorderPane {
 
 
-    @Getter
-    @Setter
-    private UserInfo toAccountInfo;
 
-    @Getter
-    @Setter
-    private Long conversationId ;
 
     private VBox messageDisplayArea; // 消息展示区域
 
@@ -98,18 +92,15 @@ public class ChatMessagePane extends BorderPane {
     private RichTextMessageArea messageSendArea; // message send area
     StackPane messageAreaWithButton;
 
-
+    @Getter
+//    @Setter
+    private final Long conversationId ;
     private final EventBus bus;
-
     private final FileEndpoint fileEndpoint;
     private final MessageNodeService messageNodeService;
 
 
-
-//    @Override
-//    public void initialize(URL location, ResourceBundle resources) {
-//
-//    }
+//    public void
 
 
     /**
@@ -141,12 +132,6 @@ public class ChatMessagePane extends BorderPane {
 
 
 
-//        @Override
-//        public void initialize(URL location, ResourceBundle resources) {
-//
-//        }
-
-        @PostConstruct
         public void initialize() {
             // 初始化  将文本域 放在 BorderPane 最上方
             sendButton = new MFXButton("发送");
@@ -375,7 +360,7 @@ public class ChatMessagePane extends BorderPane {
 
 
 
-    @PostConstruct
+//    @PostConstruct
     public void initialize() {
         setupMessageListener();
         setupMessageDisplayArea();

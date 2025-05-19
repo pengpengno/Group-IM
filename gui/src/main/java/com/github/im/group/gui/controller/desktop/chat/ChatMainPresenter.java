@@ -6,9 +6,11 @@ import com.github.im.dto.session.MessagePullRequest;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.enums.ConversationType;
 import com.github.im.group.gui.api.ConversationEndpoint;
+import com.github.im.group.gui.api.FileEndpoint;
 import com.github.im.group.gui.api.MessageEndpoint;
 import com.github.im.group.gui.connect.handler.EventBus;
 import com.github.im.group.gui.context.UserInfoContext;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.MessageNodeService;
 import com.github.im.group.gui.util.ViewUtils;
 import com.github.im.group.gui.views.AppViewManager;
 import com.github.im.group.gui.views.MenuItem;
@@ -74,9 +76,13 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
     private final Set<Long> conversationIdSet = ConcurrentHashMap.newKeySet();
 
     private final ConcurrentHashMap<String, ChatMessagePane>  chatPaneMap = new ConcurrentHashMap<>();
+
     private final ConversationEndpoint conversationEndpoint;
     private final MessageEndpoint messagesEndpoint;
     private final EventBus eventBus;
+
+    private final FileEndpoint fileEndpoint;
+    private final MessageNodeService messageNodeService;
 
 
     private ApplicationContext applicationContext;
@@ -84,6 +90,11 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
     @Override
     public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
+
+        var view = AppViewManager.createView(this);
+        view.registerView();
+        ViewUtils.buildDrawer(view);
+//        AppViewManager.registerViewsAndDrawer();
     }
 
 
@@ -152,9 +163,10 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
                 log.debug("click chatInfo pane");
                 var chatMessagePane = getChatMessagePane(conversationId);
                 switchChatPane(chatMessagePane);
+                loadHistoryMessages(conversationId).subscribe();
             });
             // 点击拉取 历史会话
-            conversationInfoCard.setClickAction(loadHistoryMessages(conversationId));
+//            conversationInfoCard.setClickAction(loadHistoryMessages(conversationId));
 
             // 将新的会话卡片添加到会话列表中
             conversationList.getItems().add(conversationInfoCard);
@@ -185,6 +197,7 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
                 AppManager.getInstance().getDrawer().open()));
 
         appBar.setTitleText("聊天");
+//        initComponent();
     }
 
     /**
@@ -228,7 +241,7 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
                     .doOnError(throwable -> {
                         log.error("load conversation error",throwable);
                     })
-                            .then()
+                    .then()
                     ;
                 });
     }
@@ -284,9 +297,9 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
             return chatPaneMap.get(key);
         }else{
             // 如果不存在，则创建一个新的聊天面板实例
-            var newChatPane = createChatMessagePane();
+            var newChatPane = createChatMessagePane(conversationId);
             // 设置新聊天面板的会话ID
-            newChatPane.setConversationId(conversationId);
+//            newChatPane.setConversationId(conversationId);
             // 将新创建的聊天面板添加到映射中，如果映射中已存在该键，则不执行任何操作
             chatPaneMap.putIfAbsent(key, newChatPane);
             // 返回新创建的聊天面板
@@ -295,10 +308,13 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
     }
 
 
-    @Lookup
-    protected ChatMessagePane createChatMessagePane() {
+//    @Lookup
+    protected ChatMessagePane createChatMessagePane(Long conversationId) {
         // Spring 会自动注入此方法的实现，无需手动实现
-        return applicationContext.getBean(ChatMessagePane.class);
+        var chatMessagePane = new ChatMessagePane(conversationId, eventBus, fileEndpoint, messageNodeService);
+        chatMessagePane.initialize();
+        return chatMessagePane;
+//        return applicationContext.getBean(ChatMessagePane.class);
     }
 
 
@@ -313,6 +329,7 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
                 mainPane.getItems().remove(currentChatPane); // 先移除旧的聊天面板
             }
             currentChatPane = chatMessagePane;
+            currentChatPane.setMinWidth(500);
 
             // 重新添加新的聊天面板
 
@@ -324,10 +341,7 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
     @PostConstruct
     public void initComponent() {
 
-    // 注册创建 menu
-        var view = AppViewManager.createView(this);
-        view.registerView();
-        ViewUtils.buildDrawer(view);
+
 
         this.showingProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue) {
@@ -345,15 +359,17 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
                 });
         // 初始化
         conversationList = new ListView<>();
-
-        currentChatPane = applicationContext.getBean(ChatMessagePane.class);
-        conversationList.setMinWidth(170);
+        // 先使用个默认的空对象
+        currentChatPane = new ChatMessagePane(null,null,null,null);
         currentChatPane.setMinWidth(500);
+
+        conversationList.setMinWidth(170);
         conversationList.setPrefWidth(170);
+        conversationList.setMaxWidth(300);
+        mainPane.setDividerPositions(0.3); // 初始比例，30%：70%
 
         mainPane.getItems().addAll(conversationList,currentChatPane);
 //
-        mainPane.setDividerPositions(0.3); // 初始比例，30%：70%
 
         UserInfoContext.subscribeUserInfoSink()
                 .flatMap(this::loadConversation).subscribe();

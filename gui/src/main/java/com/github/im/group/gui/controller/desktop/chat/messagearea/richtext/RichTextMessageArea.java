@@ -178,4 +178,24 @@ public class RichTextMessageArea extends GenericStyledArea<ParStyle, Either<Stri
         double totalHeight = wrapLines * lineHeight + 10; // padding 可调整
         return Math.min(totalHeight, maxHeight);
     }
+
+
+
+
+    /**
+     * 根据给定的宽度计算出 区域 应有的高度
+     * 1. 首先获取组件内容类型
+     *   a) 文本类型  ： 获取其字体样式 ，根据 大小 以及宽度计算得出高度
+     *   a) 文件、图像类型  ： 首先获取图像的原始高度 ， 文件图像的数量 ，然后根据 宽度与高度计算出 缩放比例
+     *
+     * @param width
+     * @return
+     */
+    public Long calculateAreaHeight(Long width){
+
+
+        return 0l;
+    }
+
+
 }

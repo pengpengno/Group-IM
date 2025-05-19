@@ -60,6 +60,9 @@ public class AppViewManager {
      * @return
      */
     public static ViewLifeCycle createView(Object presenter) throws IllegalArgumentException {
+        if (presenter == null){
+            throw new IllegalArgumentException("presenter can not be null");
+        }
         var bView = new BView(presenter);
 
         return bView;
