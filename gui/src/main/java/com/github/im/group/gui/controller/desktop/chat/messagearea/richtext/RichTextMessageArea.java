@@ -2,11 +2,13 @@ package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext;
 
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image.LinkedImageOps;
+import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image.StreamImage;
 import com.sun.javafx.tk.Toolkit;
 import javafx.application.Platform;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
@@ -17,8 +19,11 @@ import org.fxmisc.richtext.TextExt;
 import org.fxmisc.richtext.model.*;
 import org.reactfx.util.Either;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
@@ -180,22 +185,112 @@ public class RichTextMessageArea extends GenericStyledArea<ParStyle, Either<Stri
     }
 
 
+    /**
+     * 获取区域得大小
+     * 最大宽度为 400  ，多出得就要开始换行展示
+     * @return
+     */
+    public Tuple2<Double,Double> calculateAreaSize(){
+        double prefHeight = computePrefHeight();
+        return Tuples.of(400d,prefHeight);
+    }
 
 
     /**
      * 根据给定的宽度计算出 区域 应有的高度
      * 1. 首先获取组件内容类型
      *   a) 文本类型  ： 获取其字体样式 ，根据 大小 以及宽度计算得出高度
-     *   a) 文件、图像类型  ： 首先获取图像的原始高度 ， 文件图像的数量 ，然后根据 宽度与高度计算出 缩放比例
+     *   b) 文件、图像类型  ： 首先获取图像的原始高度 ， 文件图像的数量 ，然后根据 宽度与高度计算出 缩放比例
+     *   ...
+     * 2. 根据组件类型返回 自适应的高度
      *
-     * @param width
-     * @return
+     * @param width 指定的宽度
+     * @return 组件自适应的 Height  max 值 为 400 ， min值为 字体大小
      */
     public Long calculateAreaHeight(Long width){
+        // 默认最小高度
+        double minHeight = fontSize + 6;
+        double maxHeight = 400;
+        double totalHeight = 0;
 
+        Font font = RichTextMessageArea.getFont();
+        double lineHeight = Toolkit.getToolkit()
+                .getFontLoader()
+                .getFontMetrics(font)
+                .getLineHeight();
 
-        return 0l;
+        Text helper = new Text();
+        helper.setFont(font);
+        helper.setWrappingWidth(width);
+        new Scene(new Group(helper));
+        helper.applyCss();
+
+        var segments = collectMessageNodes();
+        if (segments.isEmpty()) {
+            return (long) minHeight;
+        }
+
+        for (Either<String, MessageNode> segment : segments) {
+            if (segment.isLeft()) {
+                // 普通文本
+                String text = segment.getLeft();
+                if (text == null || text.isEmpty()) {
+                    totalHeight += lineHeight;
+                    continue;
+                }
+                helper.setText(text);
+                helper.applyCss();
+                double textHeight = helper.getLayoutBounds().getHeight();
+                totalHeight += Math.max(lineHeight, textHeight);
+            } else {
+                MessageNode node = segment.getRight();
+                Chat.MessageType type = node.getType();
+                switch (type) {
+                    case IMAGE -> {
+                        // 获取图像原始尺寸
+                        if(node instanceof StreamImage streamImage){
+                            var image = streamImage.getImage();
+                            if (image != null) {
+                                double origWidth = image.getWidth();
+                                double origHeight = image.getHeight();
+                                // 缩放比例计算
+                                double scale = Math.min(1.0, width / origWidth);
+                                totalHeight += origHeight * scale + 6; // 加些 margin
+                            } else {
+                                totalHeight += 100; // 默认图片高度
+                            }
+                        }
+
+                    }
+                    case FILE -> {
+                        totalHeight += 40; // 默认文件消息高度
+                    }
+                    default -> {
+                        totalHeight += 30; // 默认其他节点高度
+                    }
+                }
+            }
+        }
+
+        totalHeight += 10; // padding
+        totalHeight = Math.min(totalHeight, maxHeight);
+        return (long) Math.max(totalHeight, minHeight);
     }
 
+
+    /**
+     * 获取组件中的消息体
+     * 获取 MessageNode
+     * @return 返回 MessageNode
+     */
+    public List<Either<String, MessageNode>> collectMessageNodes() {
+        var doc = this.getDocument();
+        List<Either<String, MessageNode>> segments = new ArrayList<>();
+        doc.getParagraphs().forEach(par -> segments.addAll(par.getSegments()));
+        if (segments.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return segments;
+    }
 
 }

@@ -179,6 +179,16 @@ public class StreamImage implements MessageNode {
             fullImageView.setFitHeight(newVal.doubleValue());
         });
 
+
+        scene.setOnKeyPressed(event -> {
+            switch (event.getCode()) {
+                case ESCAPE:
+                    stage.close();
+                    break;
+                default:
+                    break;
+            }
+        });
         // 设置窗口场景
         stage.setScene(scene);
         // 显示窗口

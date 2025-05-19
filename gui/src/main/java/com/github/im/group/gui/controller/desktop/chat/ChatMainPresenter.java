@@ -341,8 +341,6 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
     @PostConstruct
     public void initComponent() {
 
-
-
         this.showingProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue) {
                 log.info("ChatMainPresenter showing");

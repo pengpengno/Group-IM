@@ -10,6 +10,7 @@ import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.RemoteFileInfo;
 import com.github.im.group.gui.util.AvatarGenerator;
 import com.gluonhq.charm.glisten.application.AppManager;
+import com.gluonhq.charm.glisten.control.Avatar;
 import com.sun.javafx.tk.Toolkit;
 import jakarta.annotation.Resource;
 import javafx.application.Platform;
@@ -29,6 +30,7 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.fxmisc.richtext.GenericStyledArea;
 import org.fxmisc.richtext.model.Paragraph;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,6 +63,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @version 1.0
  * @since 2025/1/14
  */
+@Slf4j
 public class ChatBubblePane extends GridPane {
 
 
@@ -68,7 +71,7 @@ public class ChatBubblePane extends GridPane {
     private UserInfo senderUser;
 
     // 创建头像
-    private ImageView avatar ;
+    private final Avatar avatar ;
 
     private Label senderLabel;
 
@@ -126,7 +129,11 @@ public class ChatBubblePane extends GridPane {
         senderUser = messageWrapper.getUserInfo();
         // 判断是否为当前用户
         var isCurrentSender = currentUser.getUsername().equals(senderAccount);
-        init(messageWrapper, currentUser.getUsername(), isCurrentSender);
+        var username = currentUser.getUsername();
+
+        avatar = AvatarGenerator.getAvatar(username, 20);
+
+        init(messageWrapper, username, isCurrentSender);
     }
 
 
@@ -153,9 +160,6 @@ public class ChatBubblePane extends GridPane {
         var messageColumn = new ColumnConstraints();
         messageColumn.setPercentWidth(80);
 
-        avatar = new ImageView(AvatarGenerator.generateCircleAvatar(name, 100));
-        avatar.setFitWidth(40);
-        avatar.setFitHeight(40);
 
         senderTextField = new RichTextMessageArea();
         senderTextField.setEditable(false);
@@ -192,6 +196,8 @@ public class ChatBubblePane extends GridPane {
 
         HBox messageBox = new HBox(10);
         messageBox.setAlignment(isSent ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
+
+//        TODO 抽象成主题色
         var instance = AppManager.getInstance();
         Background background;
         BackgroundFill backgroundFill;
@@ -211,13 +217,16 @@ public class ChatBubblePane extends GridPane {
         }
 
         background = new Background(backgroundFill);
+        var senderTextFieldBox = new HBox();
+        senderTextFieldBox.getChildren().add(senderTextField);
+        senderTextFieldBox.setPadding(new Insets(10,0,10,0));
 
         if(isSent){
             senderTextField.setBackground(background);
-            messageBox.getChildren().addAll(senderTextField,avatarAndNameBox);
+            messageBox.getChildren().addAll(senderTextFieldBox,avatarAndNameBox);
         }
         else{
-            messageBox.getChildren().addAll(avatarAndNameBox, senderTextField);
+            messageBox.getChildren().addAll(avatarAndNameBox, senderTextFieldBox);
         }
 
         if (isSent) {
@@ -232,84 +241,12 @@ public class ChatBubblePane extends GridPane {
             this.add(messageBox,0,0);
         }
 
-
-//        this.set
+//        senderTextField.setPrefSize();
         senderTextField.setPrefWidth(400);
-        senderTextField.setPrefHeight(senderTextField.computePrefHeight());
+        senderTextField.setPrefHeight(senderTextField.calculateAreaHeight(400L));
 
-        System.out.println("line  length" + senderTextField.getPrefWidth());
+       log.info("line  length {} , {} " ,senderTextField.getPrefWidth() , senderTextField.getPrefHeight());
     }
-
-    /**
-     * 计算 InlineCssTextArea 或 GenericStyledArea 所需的高度（粗略估算）。
-     */
-    private double computeTextHeight(RichTextMessageArea textArea) {
-        // 1. 获取字体行高（从样式或默认字体）
-        Font font = RichTextMessageArea.getFont();
-        double lineHeight = Toolkit.getToolkit().getFontLoader().getFontMetrics(font).getLineHeight();
-
-        // 2. 获取当前行数
-        int paragraphCount = textArea.getParagraphs().size();
-
-        // 3. 考虑每段文本的换行（折行）——可以通过内容长度和宽度估算
-        double width = textArea.getWidth() > 0 ? textArea.getWidth() : 400; // 默认宽度防止为 0
-        int wrapLines = 0;
-        for (Paragraph<?, ?, ?> paragraph : textArea.getParagraphs()) {
-            String text = paragraph.getText();
-            Text helper = new Text(text);
-            helper.setFont(font);
-            helper.setWrappingWidth(width);
-            new Scene(new Group(helper)); // 必须附加到 Scene 才能计算布局
-            helper.applyCss();
-            double paraHeight = helper.getLayoutBounds().getHeight();
-            wrapLines += Math.max(1, (int) Math.ceil(paraHeight / lineHeight));
-        }
-
-        // 4. 总高度 = 行数 * 行高 + padding
-        double totalHeight = wrapLines * lineHeight + 10; // 加一点 padding
-
-        // 5. 设置最大高度限制（如不超过 300px）
-        double maxHeight = 300;
-        return Math.min(totalHeight, maxHeight);
-    }
-
-
-    /**
-     * 计算 InlineCssTextArea 或 GenericStyledArea 所需的高度（粗略估算）。
-     * 支持自动根据内容换行，设置最小最大高度。
-     */
-    private double computeTextHeight(RichTextMessageArea textArea, double maxWidth, double minHeight, double maxHeight) {
-        Font font = RichTextMessageArea.getFont();
-        double lineHeight = Toolkit.getToolkit()
-                .getFontLoader()
-                .getFontMetrics(font)
-                .getLineHeight();
-
-        double width = textArea.getWidth() > 0 ? textArea.getWidth() : maxWidth;
-
-        Text helper = new Text();
-        helper.setFont(font);
-        helper.setWrappingWidth(width);
-        new Scene(new Group(helper)); // 必须放入 Scene 才能正确计算
-        helper.applyCss();
-
-        int wrapLines = 0;
-        for (Paragraph<?, ?, ?> paragraph : textArea.getParagraphs()) {
-            String text = paragraph.getText();
-            if (text.isEmpty()) {
-                wrapLines += 1;
-                continue;
-            }
-
-            helper.setText(text);
-            double paraHeight = helper.getLayoutBounds().getHeight();
-            wrapLines += Math.max(1, (int) Math.ceil(paraHeight / lineHeight));
-        }
-
-        double totalHeight = wrapLines * lineHeight + 10; // padding 可调整
-        return Math.max(minHeight, Math.min(totalHeight, maxHeight));
-    }
-
 
 
 

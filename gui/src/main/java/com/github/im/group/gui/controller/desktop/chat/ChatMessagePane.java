@@ -81,8 +81,6 @@ import java.util.*;
 public class ChatMessagePane extends BorderPane {
 
 
-
-
     private VBox messageDisplayArea; // 消息展示区域
 
     private MFXScrollPane scrollPane; // 消息滚动条
@@ -99,8 +97,6 @@ public class ChatMessagePane extends BorderPane {
     private final FileEndpoint fileEndpoint;
     private final MessageNodeService messageNodeService;
 
-
-//    public void
 
 
     /**
@@ -223,6 +219,10 @@ public class ChatMessagePane extends BorderPane {
         ;
     }
 
+    /**
+     * 添加消息
+     * @param messageDTOs
+     */
     public void addMessages(List<MessageDTO<MessagePayLoad>> messageDTOs){
         Platform.runLater(()->{
             messageDTOs.stream()
@@ -238,15 +238,6 @@ public class ChatMessagePane extends BorderPane {
     }
 
 
-    private Mono<List<Either<String, MessageNode>>> collectSegments() {
-        var doc = messageSendArea.getDocument();
-        List<Either<String, MessageNode>> segments = new ArrayList<>();
-        doc.getParagraphs().forEach(par -> segments.addAll(par.getSegments()));
-        if (segments.isEmpty()) {
-            return Mono.error(new IllegalArgumentException("Message cannot be blank"));
-        }
-        return Mono.just(segments);
-    }
     private Flux<Void> sendSegmentsSequentially(List<Either<String, MessageNode>> segments) {
         return Flux.fromIterable(segments)
                 .concatMap(this::sendSegment);
@@ -335,7 +326,7 @@ public class ChatMessagePane extends BorderPane {
      * 当消息是富文本时 ，需要将 文件、 图片、 视频等资源与文字进行拆分，然后分别发送给服务器。
      */
     private Mono<Void> sendMessage() {
-        return Mono.defer(this::collectSegments)
+        return Mono.defer( ()-> Mono.just(messageSendArea.collectMessageNodes()))
                 .flatMapMany(this::sendSegmentsSequentially)
                 .then()
                 .doOnSuccess(v -> Platform.runLater(messageSendArea::clear))

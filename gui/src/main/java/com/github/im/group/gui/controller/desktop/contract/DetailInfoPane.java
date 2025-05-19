@@ -47,7 +47,8 @@ public class DetailInfoPane extends GridPane {
 
     private UserInfo  userInfo;
 
-    private ResourceBundle resourceBundle = I18nUtil.getResourceBundle("i18n.contract.contract");
+//    private ResourceBundle resourceBundle = I18nUtil.getResourceBundle("i18n.contract.contract");
+    static final ResourceBundle resourceBundle = ResourceBundle.getBundle("i18n.contract.contract");
 
 
 

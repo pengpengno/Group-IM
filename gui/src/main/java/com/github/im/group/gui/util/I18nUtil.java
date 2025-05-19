@@ -45,7 +45,7 @@ public class I18nUtil {
     public static void main(String[] args) {
         Locale english = new Locale("en", "US");
 //        Locale chinese = new Locale("zh", "CN");
-        Locale chinese = Locale.CHINA;
+        Locale locale = Locale.ENGLISH;
 
 
 
@@ -54,14 +54,16 @@ public class I18nUtil {
 
         // 使用自定义的 Control 来获取 UTF-8 编码的资源
         var control = new UTF8Control();
-        ResourceBundle bundle = ResourceBundle.getBundle("i18n.login", chinese, control);
+//        ResourceBundle bundle = ResourceBundle.getBundle("i18n.contract.contract", locale, control);
+        ResourceBundle bundle = getResourceBundle("i18n.contract.contract");
 
 
-        System.out.println( bundle.getString("login.text")); // 输出 "Hello"
+        System.out.println( bundle.getString("contract.DetailInfoPane.sendButton.text")); // 输出 "Hello"
+//        System.out.println( bundle.getString("login.text")); // 输出 "Hello"
 
 
         // 读取值
-        System.out.println(bundle.getString("login.text"));
+//        System.out.println(bundle.getString("login.text"));
 
         ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
         messageSource.setBasename("i18n.login");
@@ -73,10 +75,9 @@ public class I18nUtil {
 
         ResourceBundle englishBundle = ResourceBundle.getBundle("i18n.login");
 //        ResourceBundle englishBundle = ResourceBundle.getBundle("login", english);
-        ResourceBundle chineseBundle = ResourceBundle.getBundle("i18n.login", chinese);
+        ResourceBundle chineseBundle = ResourceBundle.getBundle("i18n.login", locale);
 
 
-        System.out.println( bundle.getString("login.text")); // 输出 "Hello"
 
         System.out.println( messageSource.getMessage("login.text", null, english)); // 输出 "Hello"
         System.out.println(englishBundle.getString("login.text")); // 输出 "Hello"
