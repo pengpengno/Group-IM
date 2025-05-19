@@ -210,33 +210,6 @@ public class DisplayManager {
 
         AppManager.getInstance().switchView(displayClass.getName());
     }
-//
-//    static void switchView(Class<? extends PlatformView> displayClass){
-//        final boolean isFirst = primaryStage == null;
-//
-//        if (!DISPLAY_SCENE_MAP.containsKey(displayClass)){
-//            registerView(displayClass);
-//        }
-//        var scene = DISPLAY_SCENE_MAP.get(displayClass);
-//
-//        if( postInit != null){
-//            postInit.accept(scene);
-//        }
-//
-//        var primaryStage = getPrimaryStage();
-//        primaryStage.setScene(scene);
-//        setPrimaryScene(scene);
-//
-//        if (!primaryStage.isShowing()){
-//            primaryStage.show();
-//        }
-//
-//        /**
-//         * Gluon 切换视图
-//         */
-//        AppManager.getInstance().switchView(displayClass.getName());
-//
-//    }
 
     public static void initialize(Consumer<Scene> postInit) {
         DisplayManager.postInit = postInit;
@@ -247,6 +220,7 @@ public class DisplayManager {
      * 此处使用来渲染 窗体
      * @param displayClass
      */
+    @Deprecated
     public static void display(Class<? extends PlatformView> displayClass){
         Platform.runLater(()-> {
             switchView(displayClass);

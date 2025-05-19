@@ -9,6 +9,7 @@ import com.github.im.group.gui.controller.LoginView;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.github.im.group.gui.util.AvatarGenerator;
 import com.github.im.group.gui.util.FxView;
+import com.github.im.group.gui.util.ViewUtils;
 import com.gluonhq.attach.util.Services;
 import com.gluonhq.charm.glisten.animation.BounceInLeftTransition;
 import com.gluonhq.charm.glisten.application.AppManager;
@@ -72,7 +73,7 @@ public class LoginPresenter implements  LoginView {
 
     @FXML
     private MFXButton loginButton;
-    @FXML  private MFXButton navigateToRegister;
+//    @FXML  private MFXButton navigateToRegister;
 
     @FXML
     private ProgressIndicator progressIndicator;
@@ -81,6 +82,7 @@ public class LoginPresenter implements  LoginView {
     private Label errorLabel;
 
     private final UserEndpoint userEndpoint;
+    private final ProxyPresenter proxyPresenter;
 
     private final LoginLifecycle loginLifecycle;
 
@@ -107,37 +109,24 @@ public class LoginPresenter implements  LoginView {
         usernameField.setText("kl");
         passwordField.setText("1");
 
+        var view = AppViewManager.createView(proxyPresenter);
+        view.registerView();
+        ViewUtils.buildDrawer(view);
+        var button = new Button("Proxy");
+        button.setOnAction(event -> {
+            AppManager.getInstance().switchView(ProxyPresenter.class.getSimpleName());
+//            DisplayManager.display(ProxyPresenter.class);
+        });
 
-//        loginView.setShowTransitionFactory(BounceInLeftTransition::new);
-//
-//        loginView.showingProperty().addListener((obs, oldValue, newValue) -> {
-//            if (newValue) {
-//                var appBar = loginView.getAppManager().getAppBar();
-//
-////                appBar = AppManager.getInstance().getAppBar();
-//
-//                appBar.setNavIcon(MaterialDesignIcon.MENU.button(e -> System.out.println("nav icon")));
-//
-//                appBar.setTitleText("The AppBar");
-//
-//                appBar.getActionItems().addAll(
-//                        MaterialDesignIcon.SEARCH.button(e -> System.out.println("search")),
-//                        MaterialDesignIcon.FAVORITE.button(e -> System.out.println("fav")));
-//
-//                appBar.getMenuItems().addAll(new MenuItem("Settings"));
-//
-//                appBar.setNavIcon(MaterialDesignIcon.MENU.button(e ->
-//                        AppManager.getInstance().getDrawer().open()));
-//                appBar.setTitleText("主页");
-//            }
-//        });
+        loginView.setBottom(button);
+
     }
 
-
-    @FXML
-    private void navigateToRegister() {
-//        TODO
-    }
+//
+//    @FXML
+//    private void navigateToRegister() {
+////        TODO
+//    }
 
     /**
      * 切换到桌面段自动登录的ul
@@ -153,7 +142,7 @@ public class LoginPresenter implements  LoginView {
 
         logoImageView.setImage(image);
         logoImageView.setVisible(true);
-        navigateToRegister.setVisible(false);
+//        navigateToRegister.setVisible(false);
 
 
     }

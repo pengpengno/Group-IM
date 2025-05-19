@@ -40,7 +40,7 @@
         <HBox alignment="center" spacing="20">
             <MFXButton fx:id="loginButton" onAction="#login" style="-fx-pref-width: 100px;" text="Login" />
         </HBox>
-        <MFXButton fx:id="navigateToRegister" visible="false" onAction="#navigateToRegister" style="-fx-pref-width: 100px;" styleClass="register-button" text="Register"/>
+<!--        <MFXButton fx:id="navigateToRegister" visible="false" onAction="#navigateToRegister" style="-fx-pref-width: 100px;" styleClass="register-button" text="Register"/>-->
 
     </VBox>
 </View>
