@@ -321,6 +321,8 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
 <!--                        <arg>&#45;&#45;initialize-at-run-time=io.github.palexdev.materialfx</arg>-->
 <!--                        <arg>&#45;&#45;initialize-at-run-time=io.github.palexdev.materialfx.*</arg>-->
                         <arg>-H:IncludeResources=logback-spring.xml</arg>
+                        <arg>-H:ResourceConfigurationFiles=META-INF/native-image/resource-config.json</arg>
+
                         <arg>--no-fallback</arg>  <!-- 仅生成必要的部分 -->
 
                         <arg>-H:+SharedLibrary</arg>
@@ -356,22 +358,16 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                         <providedKeyAlias>${provided.key.alias}</providedKeyAlias>
                         <providedKeyAliasPassword>${provided.key.alias.password}</providedKeyAliasPassword>
                     </releaseConfiguration>
-<!--                    <reflectionList>-->
-<!--                        <list>javafx.scene.control.Menu</list>-->
-<!--                        <list>javafx.scene.control.MenuBar</list>-->
-<!--                        <list>javafx.scene.control.MenuItem</list>-->
-<!--                        <list>javafx.scene.control.SeparatorMenuItem</list>-->
-<!--                        <list>javafx.scene.layout.BorderPane</list>-->
-<!--                        <list>javafx.scene.layout.HBox</list>-->
-
-<!--                        <list>ch.qos.logback.classic.Logger</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.LineSeparatorConverter</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.MessageConverter</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.ThreadConverter</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.LoggerConverter</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.LevelConverter</list>-->
-<!--                        <list>ch.qos.logback.classic.pattern.DateConverter</list>-->
-<!--                    </reflectionList>-->
+<!--                    <bundlesList>-->
+<!--                        <list>-->
+<!--                            <bundle>i18n.chat</bundle>-->
+<!--                            <bundle>i18n.contract</bundle>-->
+<!--                            <bundle>i18n.drawer</bundle>-->
+<!--                            <bundle>i18n.login</bundle>-->
+<!--                            <bundle>i18n.main</bundle>-->
+<!--                            <bundle>i18n.menu.button</bundle>-->
+<!--                        </list>-->
+<!--                    </bundlesList>-->
                 </configuration>
             </plugin>
             <plugin>
