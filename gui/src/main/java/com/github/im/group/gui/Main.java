@@ -38,8 +38,10 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
@@ -56,9 +58,11 @@ import java.util.ResourceBundle;
  * @since 2024/10/17
  */
 @Slf4j
+@SpringBootApplication
 public class Main extends Application  {
 
-    private final AppManager appManager = AppManager.initialize(this::postInit);
+    private AppManager appManager ;
+    private ConfigurableApplicationContext context;
 
 
     /**
@@ -66,7 +70,7 @@ public class Main extends Application  {
      */
     public void initSpringEnv() {
         log.info("application init ");
-        var springApplication = new SpringApplication(SpringBootApp.class);
+        var springApplication = new SpringApplication(this.getClass());
         springApplication.setWebApplicationType(WebApplicationType.NONE);
 //        springApplication.setMainApplicationClass(SpringBootApp.class);
         String mainRunner = System.getProperty("sun.java.command");
@@ -80,7 +84,7 @@ public class Main extends Application  {
             springApplication.setHeadless(false); // 启用图形化界面
 
         }
-        springApplication.run();
+        context = springApplication.run();
 
 
 
@@ -105,6 +109,7 @@ public class Main extends Application  {
     public static final String OTHER_VIEW = "HOME_VIEW";
     @Override
     public void init() throws Exception {
+        appManager = AppManager.initialize(this::postInit);
 
         initSpringEnv();
 
