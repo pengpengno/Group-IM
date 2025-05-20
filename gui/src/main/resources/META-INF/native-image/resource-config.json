@@ -1,7 +1,14 @@
 {
   "resources": [
-    {
-      "pattern": ".*"
-    }
+    { "pattern": "i18n/.*\\.properties" },
+    { "pattern": ".*\\.fxml" },
+    { "pattern": ".*\\.css" },
+    { "pattern": ".*\\.png" },
+    { "pattern": ".*\\.jpg" },
+    { "pattern": ".*\\.jpeg" },
+    { "pattern": ".*\\.gif" },
+    { "pattern": ".*\\.svg" },
+    { "pattern": ".*\\.ttf" },
+    { "pattern": ".*\\.otf" }
   ]
 }
