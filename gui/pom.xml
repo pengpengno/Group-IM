@@ -23,8 +23,8 @@
 
         <gluonfx.maven.plugin.version>1.0.25</gluonfx.maven.plugin.version>
 <!--        <gluonfx.maven.plugin.version>1.0.23</gluonfx.maven.plugin.version>-->
-<!--        <main.class>com.github.im.group.gui.Main</main.class>-->
-        <main.class>com.github.im.group.gui.Launcher</main.class>
+        <main.class>com.github.im.group.gui.Main</main.class>
+        <spring.class>com.github.im.group.gui.Launcher</spring.class>
 <!--        <main.class>com.github.im.group.gui.Main</main.class>-->
 <!--        <main.class>com.github.meeting.gui.Launcher</main.class>-->
         <app.description>Group-IM</app.description>
@@ -399,7 +399,7 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                     </execution>
                 </executions>
                 <configuration>
-                    <mainClass>${main.class}</mainClass>
+                    <mainClass>${spring.class}</mainClass>
                 </configuration>
             </plugin>
 
