@@ -211,18 +211,6 @@
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
-                <filtering>true</filtering>
-                <excludes>
-                    <exclude>login/</exclude>
-                </excludes>
-            </resource>
-            <resource>
-                <!-- https://stackoverflow.com/questions/53666015/how-to-fix-favicon-ico-coruppted-in-springboot-while-jpg-s-in-subfolders-are-no ico文件会被损坏-->
-                <filtering>false</filtering>
-                <directory>src/main/resources</directory>
-                <includes>
-                    <include>login/</include>
-                </includes>
             </resource>
         </resources>
     </build>

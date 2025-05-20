@@ -77,10 +77,10 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
 
     private final ConcurrentHashMap<String, ChatMessagePane>  chatPaneMap = new ConcurrentHashMap<>();
 
+
     private final ConversationEndpoint conversationEndpoint;
     private final MessageEndpoint messagesEndpoint;
     private final EventBus eventBus;
-
     private final FileEndpoint fileEndpoint;
     private final MessageNodeService messageNodeService;
 
@@ -197,7 +197,7 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
                 AppManager.getInstance().getDrawer().open()));
 
         appBar.setTitleText("聊天");
-//        initComponent();
+
     }
 
     /**
@@ -341,13 +341,13 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
     @PostConstruct
     public void initComponent() {
 
-        this.showingProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue) {
-                log.info("ChatMainPresenter showing");
-            } else {
-                log.info("ChatMainPresenter hidden");
-            }
-        });
+//        this.showingProperty().addListener((observable, oldValue, newValue) -> {
+//            if (newValue) {
+//                log.info("ChatMainPresenter showing");
+//            } else {
+//                log.info("ChatMainPresenter hidden");
+//            }
+//        });
 
         mainPane = new SplitPane();
         eventBus.asFlux()

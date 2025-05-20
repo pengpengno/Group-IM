@@ -7,6 +7,7 @@ import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 import lombok.Getter;
 
@@ -62,7 +63,9 @@ public class AvatarGenerator {
 
         // 设置文字样式
         gc.setFill(Color.WHITE); // 文字颜色
-        gc.setFont(new Font("Arial", size / 2)); // 字体大小
+        Font arial = Font.font("Arial", FontWeight.BOLD, size);
+
+        gc.setFont(arial); // 字体大小
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(javafx.geometry.VPos.CENTER);
 
@@ -177,6 +180,10 @@ public class AvatarGenerator {
 
         // 中文名: 取前两个字符
         if (name.matches("[\\u4e00-\\u9fa5]+")) {
+            if (name.length() == 3){
+                // 三个字 得  取名
+                return name.substring(1, 3);
+            }
             return name.substring(0, 2);
         }
 

@@ -62,7 +62,7 @@ public class LoginPresenter implements  LoginView {
     private TextField usernameField;
 
     @FXML
-    public ImageView logoImageView;
+    public Avatar logoImageView;
 
 
     @FXML
@@ -103,7 +103,7 @@ public class LoginPresenter implements  LoginView {
                 autoLoginUi();
             }else{
                 // 直接登录
-                login();
+//                login();
             }
         }
         usernameField.setText("kl");
@@ -112,21 +112,33 @@ public class LoginPresenter implements  LoginView {
         var view = AppViewManager.createView(proxyPresenter);
         view.registerView();
         ViewUtils.buildDrawer(view);
-        var button = new Button("Proxy");
-        button.setOnAction(event -> {
-            AppManager.getInstance().switchView(ProxyPresenter.class.getSimpleName());
-//            DisplayManager.display(ProxyPresenter.class);
+
+//        var button = new Button("Proxy");
+//        button.setOnAction(event -> {
+//        });
+
+//        loginView.setBottom(button);
+
+        loginView.showingProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue) {
+
+                AppBar appBar = AppManager.getInstance().getAppBar();
+                appBar.getActionItems().addAll(
+                        MaterialDesignIcon.SETTINGS.button(e -> {
+                            AppManager.getInstance().switchView(ProxyPresenter.class.getSimpleName());
+                        }));
+//                        MaterialDesignIcon.FAVORITE.button(e -> System.out.println("fav")));
+
+//                appBar.getMenuItems().addAll(new javafx.scene.control.MenuItem("Settings"));
+
+            }
         });
 
-        loginView.setBottom(button);
+
 
     }
 
-//
-//    @FXML
-//    private void navigateToRegister() {
-////        TODO
-//    }
+
 
     /**
      * 切换到桌面段自动登录的ul
@@ -138,10 +150,10 @@ public class LoginPresenter implements  LoginView {
         loginButton.setPrefHeight(50);
 
         loginGridPane.setVisible(false);
-        var image = AvatarGenerator.generateSquareAvatarWithRoundedCorners(SecureSettings.getUserName().get(), 50);
-
-        logoImageView.setImage(image);
-        logoImageView.setVisible(true);
+//        var image = AvatarGenerator.generateSquareAvatarWithRoundedCorners(SecureSettings.getUserName().get(), 50);
+        logoImageView = AvatarGenerator.getAvatar(SecureSettings.getUserName().get(), 80);
+//        logoImageView.setImage(image);
+//        logoImageView.setVisible(true);
 //        navigateToRegister.setVisible(false);
 
 

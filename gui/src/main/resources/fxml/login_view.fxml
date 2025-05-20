@@ -12,6 +12,7 @@
 <?import io.github.palexdev.materialfx.controls.MFXButton?>
 <?import javafx.scene.image.ImageView?>
 <?import com.gluonhq.charm.glisten.mvc.View?>
+<?import com.gluonhq.charm.glisten.control.Avatar?>
 <View fx:id="loginView"
       styleClass="login-pane" stylesheets="@/css/styles.css"
       xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
@@ -33,7 +34,7 @@
             </rowConstraints>
         </GridPane>
 
-        <ImageView fx:id="logoImageView" visible="false" fitHeight="100" fitWidth="100" pickOnBounds="true" preserveRatio="true" />
+        <Avatar fx:id="logoImageView" />
 
         <ProgressIndicator fx:id="progressIndicator" visible="false" />
         <Label fx:id="errorLabel" style="-fx-text-fill: red;" />
