@@ -103,7 +103,7 @@ public class LoginPresenter implements  LoginView {
                 autoLoginUi();
             }else{
                 // 直接登录
-//                login();
+                login();
             }
         }
         usernameField.setText("kl");
@@ -113,11 +113,6 @@ public class LoginPresenter implements  LoginView {
         view.registerView();
         ViewUtils.buildDrawer(view);
 
-//        var button = new Button("Proxy");
-//        button.setOnAction(event -> {
-//        });
-
-//        loginView.setBottom(button);
 
         loginView.showingProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue) {
@@ -149,11 +144,11 @@ public class LoginPresenter implements  LoginView {
 
         loginButton.setPrefHeight(50);
 
-        loginGridPane.setVisible(false);
+//        loginGridPane.setVisible(false);
 //        var image = AvatarGenerator.generateSquareAvatarWithRoundedCorners(SecureSettings.getUserName().get(), 50);
         logoImageView = AvatarGenerator.getAvatar(SecureSettings.getUserName().get(), 80);
 //        logoImageView.setImage(image);
-//        logoImageView.setVisible(true);
+        logoImageView.setVisible(true);
 //        navigateToRegister.setVisible(false);
 
 
