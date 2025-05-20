@@ -399,7 +399,7 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                     </execution>
                 </executions>
                 <configuration>
-                    <mainClass>${spring.class}</mainClass>
+                    <mainClass>${main.class}</mainClass>
                 </configuration>
             </plugin>
 
