@@ -398,9 +398,9 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                         </goals>
                     </execution>
                 </executions>
-                <configuration>
-                    <mainClass>${main.class}</mainClass>
-                </configuration>
+<!--                <configuration>-->
+<!--                    <mainClass>${main.class}</mainClass>-->
+<!--                </configuration>-->
             </plugin>
 
             <!-- JavaFX Maven Plugin -->
