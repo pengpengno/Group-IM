@@ -41,7 +41,7 @@ public class WebClientConfig {
 //                .protocol(HttpClient.H2) // 强制 HTTP/2
                 .responseTimeout(Duration.ofSeconds(10));
 
-        return    WebClient.builder()
+        return   WebClient.builder()
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .filter(authFilter)
                 .build();
