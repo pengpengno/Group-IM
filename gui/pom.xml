@@ -427,7 +427,7 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                     </execution>
                 </executions>
                 <configuration>
-                    <mainClass>${main.class}</mainClass> <!-- ← 替换成你的真实 Main 类全限定名 -->
+                    <mainClass>${main.class}</mainClass>
                 </configuration>
             </plugin>
         </plugins>

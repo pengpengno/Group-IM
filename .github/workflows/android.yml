@@ -45,10 +45,10 @@ jobs:
         run:
           mvn install -DskipTests
 
-      - name: Run Gluon Agent
-        run: |
-          export ANDROID_SDK=$ANDROID_HOME
-          mvn -Pandroid gluonfx:runagent -f gui/pom.xml -DskipTests
+#      - name: Run Gluon Agent
+#        run: |
+#          export ANDROID_SDK=$ANDROID_HOME
+#          mvn -Pandroid gluonfx:runagent -f gui/pom.xml -DskipTests
 
       - name: Gluon Build
         run: |
