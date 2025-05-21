@@ -20,7 +20,7 @@
         <charm.version>6.2.3</charm.version>
         <gluon.connect.version>2.0.1</gluon.connect.version>
         <glisten.afterburner.version>2.1.0</glisten.afterburner.version>
-
+        <gluonfx.target>host</gluonfx.target>
         <gluonfx.maven.plugin.version>1.0.25</gluonfx.maven.plugin.version>
 <!--        <gluonfx.maven.plugin.version>1.0.23</gluonfx.maven.plugin.version>-->
 <!--        <main.class>com.github.im.group.gui.Main</main.class>-->
@@ -295,6 +295,21 @@
 
     <build>
         <plugins>
+<!--             Gluon 中 自动 处理  https://docs.gluonhq.com/client/0.1.31/ -->
+            <plugin>
+                <groupId>com.gluonhq</groupId>
+                <artifactId>client-maven-plugin</artifactId>
+                <version>0.1.31</version>
+                <configuration>
+                    <target>${gluonfx.target}</target>
+<!--                    <target>${client.target}</target>-->
+
+                    <mainClass>${main.class}</mainClass>
+                    <reflectionList>auto</reflectionList> <!-- ✅ 自动反射启用 -->
+                    <resourcesList>auto</resourcesList>   <!-- 自动添加 FXML/CSS 等资源 -->
+                </configuration>
+            </plugin>
+
 
             <plugin>
                 <groupId>org.graalvm.buildtools</groupId>
@@ -385,12 +400,6 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <compilerArgs>
-<!--                        <arg>-Djava.awt.headless=true</arg>-->
-<!--                        <arg>-Dprism.order=sw</arg>-->
-<!--                        <arg>-Dprism.verbose=false</arg>-->
-<!--                        <arg>-Dfile.encoding=UTF-8</arg>-->
-                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>
@@ -403,9 +412,6 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                         </goals>
                     </execution>
                 </executions>
-<!--                <configuration>-->
-<!--                    <mainClass>${main.class}</mainClass>-->
-<!--                </configuration>-->
             </plugin>
 
             <!-- JavaFX Maven Plugin -->
