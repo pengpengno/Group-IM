@@ -64,7 +64,6 @@ public class Main extends Application  {
     private AppManager appManager ;
     private ConfigurableApplicationContext context;
 
-
     /**
      * 启动Spring 环境
      */
