@@ -366,22 +366,18 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                         <providedKeyAliasPassword>${provided.key.alias.password}</providedKeyAliasPassword>
                     </releaseConfiguration>
                     <reflectionList>
-                        <list>
-                            <item>com.github.im.group.gui.controller.desktop.chat.ChatMessagePane</item>
-                            <item>com.github.im.group.gui.views.LoginPresenter</item>
-                            <item>com.github.im.group.gui.views.MainPresenter</item>
-                            <item>com.github.im.group.gui.controller.desktop.chat.ChatMainPresenter</item>
-                        </list>
+                        <list>com.github.im.group.gui.controller.desktop.chat.ChatMessagePane</list>
+                        <list>com.github.im.group.gui.views.LoginPresenter</list>
+                        <list>com.github.im.group.gui.views.MainPresenter</list>
+                        <list>com.github.im.group.gui.controller.desktop.chat.ChatMainPresenter</list>
                     </reflectionList>
 <!--                    <bundlesList>-->
-<!--                        <list>-->
-<!--                            <bundle>i18n.chat</bundle>-->
-<!--                            <bundle>i18n.contract</bundle>-->
-<!--                            <bundle>i18n.drawer</bundle>-->
-<!--                            <bundle>i18n.login</bundle>-->
-<!--                            <bundle>i18n.main</bundle>-->
-<!--                            <bundle>i18n.menu.button</bundle>-->
-<!--                        </list>-->
+<!--                            <list>i18n.chat</list>-->
+<!--                            <list>i18n.contract</list>-->
+<!--                            <list>i18n.drawer</list>-->
+<!--                            <list>i18n.login</list>-->
+<!--                            <list>i18n.main</list>-->
+<!--                            <list>i18n.menu.button</list>-->
 <!--                    </bundlesList>-->
                 </configuration>
             </plugin>
