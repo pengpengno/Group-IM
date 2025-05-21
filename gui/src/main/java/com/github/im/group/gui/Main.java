@@ -71,7 +71,7 @@ public class Main extends Application  {
         log.info("application init ");
         var springApplication = new SpringApplication(SpringApp.class);
         springApplication.setWebApplicationType(WebApplicationType.NONE);
-//        springApplication.setMainApplicationClass(SpringBootApp.class);
+        springApplication.setMainApplicationClass(Main.class);
         String mainRunner = System.getProperty("sun.java.command");
 
         if ("org.springframework.boot.SpringApplicationAotProcessor".equals(mainRunner)) {

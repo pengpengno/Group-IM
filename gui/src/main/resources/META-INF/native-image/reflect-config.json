@@ -9,5 +9,15 @@
     "name": "io.github.palexdev.materialfx.controls.MFXButton$StyleableProperties",
     "allDeclaredMethods": true,
     "allDeclaredConstructors": true
+  },
+  {
+    "name": "com.github.im.group.gui.SpringApp__ApplicationContextInitializer",
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.github.im.group.gui.SpringApp__BeanFactoryRegistrations",
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
   }
 ]

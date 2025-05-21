@@ -121,12 +121,9 @@ public class LoginPresenter implements  LoginView {
 
                 AppBar appBar = AppManager.getInstance().getAppBar();
                 appBar.getActionItems().addAll(
-                        MaterialDesignIcon.SETTINGS.button(e -> {
-                            AppManager.getInstance().switchView(ProxyPresenter.class.getSimpleName());
-                        }));
-//                        MaterialDesignIcon.FAVORITE.button(e -> System.out.println("fav")));
-
-//                appBar.getMenuItems().addAll(new javafx.scene.control.MenuItem("Settings"));
+                    MaterialDesignIcon.SETTINGS.button(e -> {
+                        AppManager.getInstance().switchView(ProxyPresenter.class.getSimpleName());
+                    }));
 
             }
         });
