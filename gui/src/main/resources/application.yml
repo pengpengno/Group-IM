@@ -19,6 +19,8 @@ logging:
 
 
 spring:
+  main:
+    web-application-type: none
   datasource:
     url: jdbc:h2:file:./data/group-db;DB_CLOSE_DELAY=-1
 #    url: jdbc:h2:file:${user.home}/data/im-db;DB_CLOSE_DELAY=-1
