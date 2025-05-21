@@ -22,11 +22,20 @@
   },
   {
     "name": "javafx.scene.layout.GridPane",
-    "methods": [
-      {
-        "name": "setAlignment",
-        "parameterTypes": ["javafx.geometry.Pos"]
-      }
-    ]
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "javafx.scene.layout.StackPane",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "javafx.scene.control.SplitPane",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true
   }
 ]
