@@ -5,22 +5,13 @@ import com.github.im.dto.session.MessageDTO;
 import com.github.im.dto.session.MessagePayLoad;
 import com.github.im.dto.session.MessagePullRequest;
 import com.github.im.dto.session.MessageSearchRequest;
-import com.github.im.dto.user.UserInfo;
-import com.github.im.dto.user.UserRegisterRequest;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PagedModel;
-import org.springframework.hateoas.EntityModel;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;
-import org.springframework.web.service.annotation.GetExchange;
 import reactor.core.publisher.Mono;
-
-import java.time.LocalDateTime;
-import java.util.List;
 
 @HttpExchange(url = "/api/messages")
 public interface MessageEndpoint {
@@ -40,7 +31,7 @@ public interface MessageEndpoint {
 
     // 搜索消息
     @PostExchange("/search")
-    Mono<PagedModel<MessageDTO<MessagePayLoad>>> searchMessages(
+    Mono<PageResult<MessageDTO<MessagePayLoad>>> searchMessages(
         @RequestBody MessageSearchRequest request,
         @RequestParam Pageable pageable
     );
