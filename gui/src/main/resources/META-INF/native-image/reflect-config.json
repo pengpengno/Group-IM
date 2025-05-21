@@ -19,5 +19,14 @@
     "name": "com.github.im.group.gui.SpringApp__BeanFactoryRegistrations",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true
+  },
+  {
+    "name": "javafx.scene.layout.GridPane",
+    "methods": [
+      {
+        "name": "setAlignment",
+        "parameterTypes": ["javafx.geometry.Pos"]
+      }
+    ]
   }
 ]

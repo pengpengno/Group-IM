@@ -365,6 +365,14 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                         <providedKeyAlias>${provided.key.alias}</providedKeyAlias>
                         <providedKeyAliasPassword>${provided.key.alias.password}</providedKeyAliasPassword>
                     </releaseConfiguration>
+                    <reflectionList>
+                        <list>
+                            <item>com.github.im.group.gui.controller.desktop.chat.ChatMessagePane</item>
+                            <item>com.github.im.group.gui.views.LoginPresenter</item>
+                            <item>com.github.im.group.gui.views.MainPresenter</item>
+                            <item>com.github.im.group.gui.controller.desktop.chat.ChatMainPresenter</item>
+                        </list>
+                    </reflectionList>
 <!--                    <bundlesList>-->
 <!--                        <list>-->
 <!--                            <bundle>i18n.chat</bundle>-->
