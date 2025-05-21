@@ -58,7 +58,7 @@ import java.util.ResourceBundle;
  * @since 2024/10/17
  */
 @Slf4j
-@SpringBootApplication
+//@SpringBootApplication
 public class Main extends Application  {
 
     private AppManager appManager ;
@@ -69,7 +69,7 @@ public class Main extends Application  {
      */
     public void initSpringEnv() {
         log.info("application init ");
-        var springApplication = new SpringApplication(this.getClass());
+        var springApplication = new SpringApplication(SpringApp.class);
         springApplication.setWebApplicationType(WebApplicationType.NONE);
 //        springApplication.setMainApplicationClass(SpringBootApp.class);
         String mainRunner = System.getProperty("sun.java.command");
@@ -84,8 +84,6 @@ public class Main extends Application  {
 
         }
         context = springApplication.run();
-
-
 
     }
 
@@ -105,7 +103,6 @@ public class Main extends Application  {
 
     }
 
-    public static final String OTHER_VIEW = "HOME_VIEW";
     @Override
     public void init() throws Exception {
         appManager = AppManager.initialize(this::postInit);
@@ -115,7 +112,6 @@ public class Main extends Application  {
         AppViewManager.createHomeView(LoginPresenter.class);
         AppViewManager.createView(MainPresenter.class);
         AppViewManager.registerViewsAndDrawer();
-
 
 
 
@@ -146,7 +142,6 @@ public class Main extends Application  {
 //        primaryStage.setWidth(800);
 //        primaryStage.setHeight(600);
         primaryStage.centerOnScreen();
-        appManager.switchView(Main.OTHER_VIEW);
 
     }
 
@@ -176,6 +171,15 @@ public class Main extends Application  {
     }
 
     public static void main(String[] args) {
+//        String mainRunner = System.getProperty("sun.java.command");
+//        if ("org.springframework.boot.SpringApplicationAotProcessor".equals(mainRunner)) {
+//            // AOT 阶段，仅启动 Spring 环境，不启动 JavaFX
+//            SpringApplication application = new SpringApplication(Main.class);
+//            application.setWebApplicationType(WebApplicationType.NONE);
+//            application.setHeadless(true);
+//            application.run(args);
+//            return;
+//        }
         launch(args);
     }
 }

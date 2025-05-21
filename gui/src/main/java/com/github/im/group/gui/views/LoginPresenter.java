@@ -6,6 +6,7 @@ import com.github.im.group.gui.api.UserEndpoint;
 import com.github.im.group.gui.config.SecureSettings;
 import com.github.im.group.gui.controller.DisplayManager;
 import com.github.im.group.gui.controller.LoginView;
+import com.github.im.group.gui.controller.desktop.chat.ChatMainPresenter;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.github.im.group.gui.util.AvatarGenerator;
 import com.github.im.group.gui.util.FxView;
@@ -85,6 +86,7 @@ public class LoginPresenter implements  LoginView {
     private final ProxyPresenter proxyPresenter;
 
     private final LoginLifecycle loginLifecycle;
+    private final ChatMainPresenter chatMainPresenter;
 
 
     /**
@@ -129,7 +131,9 @@ public class LoginPresenter implements  LoginView {
             }
         });
 
-
+        var chatMainPresenterView = AppViewManager.createView(chatMainPresenter);
+        chatMainPresenterView.registerView();
+        ViewUtils.buildDrawer(chatMainPresenterView);
 
     }
 

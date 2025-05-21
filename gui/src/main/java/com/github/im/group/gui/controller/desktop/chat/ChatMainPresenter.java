@@ -91,10 +91,6 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
     public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
 
-        var view = AppViewManager.createView(this);
-        view.registerView();
-        ViewUtils.buildDrawer(view);
-//        AppViewManager.registerViewsAndDrawer();
     }
 
 
