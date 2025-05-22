@@ -37,5 +37,10 @@
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true
-  }
+  },
+  {
+    "name": "com.gluonhq.charm.glisten.control.Avatar",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true  }
 ]
