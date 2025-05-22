@@ -342,12 +342,12 @@
                 https://github.com/oracle/graal/issues/5678
 https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error-com-oracle-graal-pointsto-constraints-unreso-->
                     <nativeImageArgs>
-<!--                        <arg>-H:+UnlockExperimentalVMOptions</arg>-->
-<!--                        <arg>&#45;&#45;initialize-at-build-time=ch.qos.logback.classic.Logger,com.github.im.group.gui.config.ClientConfig$$SpringCGLIB$$0,com.github.im.group.gui.config.WebClientConfig$$SpringCGLIB$$0, ch.qos.logback.classic.Logger.effectiveLevelInt,org.slf4j.helpers.NOP_FallbackServiceProvider,org.slf4j.helpers.NOP_FallbackServiceProvider.loggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,org.slf4j.LoggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLog, org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,reactor.adapter.JdkFlowAdapter$PublisherAsFlowPublisher, ch.qos.logback.core.ContextBase, ch.qos.logback.core.*, ch.qos.logback, ch.qos.logback.classic, org.slf4j</arg>-->
-<!--                        <arg>&#45;&#45;initialize-at-build-time=org.slf4j.helpers</arg>-->
-<!--                        <arg>&#45;&#45;initialize-at-run-time=io.netty</arg>-->
-<!--                        <arg>&#45;&#45;initialize-at-run-time=io.github.palexdev.materialfx</arg>-->
-<!--                        <arg>&#45;&#45;initialize-at-run-time=io.github.palexdev.materialfx.*</arg>-->
+                        <arg>-H:+UnlockExperimentalVMOptions</arg>
+                        <arg>--initialize-at-build-time=ch.qos.logback.classic.Logger,com.github.im.group.gui.config.ClientConfig$$SpringCGLIB$$0,com.github.im.group.gui.config.WebClientConfig$$SpringCGLIB$$0, ch.qos.logback.classic.Logger.effectiveLevelInt,org.slf4j.helpers.NOP_FallbackServiceProvider,org.slf4j.helpers.NOP_FallbackServiceProvider.loggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,org.slf4j.LoggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLog, org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,reactor.adapter.JdkFlowAdapter$PublisherAsFlowPublisher, ch.qos.logback.core.ContextBase, ch.qos.logback.core.*, ch.qos.logback, ch.qos.logback.classic, org.slf4j</arg>
+                        <arg>--initialize-at-build-time=org.slf4j.helpers</arg>
+                        <arg>--initialize-at-run-time=io.netty</arg>
+                        <arg>--initialize-at-run-time=io.github.palexdev.materialfx</arg>
+                        <arg>--initialize-at-run-time=io.github.palexdev.materialfx.*</arg>
                         <arg>-H:IncludeResources=logback-spring.xml</arg>
 <!--                        <arg>-H:ResourceConfigurationFiles=META-INF/native-image/resource-config.json</arg>-->
                         <arg>--no-fallback</arg>  <!-- 仅生成必要的部分 -->
