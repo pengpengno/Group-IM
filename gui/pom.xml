@@ -46,10 +46,6 @@
 
 
     <dependencies>
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.boot</groupId>-->
-<!--            <artifactId>spring-boot-starter-hateoas</artifactId>-->
-<!--        </dependency>-->
 
         <dependency>
             <groupId>com.h2database</groupId>
@@ -216,37 +212,20 @@
 
 
 
-<!--        &lt;!&ndash; 添加 SLF4J Simple 作为日志实现 &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>org.slf4j</groupId>-->
-<!--            <artifactId>slf4j-simple</artifactId>-->
-<!--        </dependency>-->
-
-
-
-
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.boot</groupId>-->
-<!--            <artifactId>spring-boot-starter-webflux</artifactId>-->
-<!--        </dependency>-->
-
         <dependency>
             <groupId>com.gluonhq.attach</groupId>
             <artifactId>cache</artifactId>
             <version>${attach.version}</version>
         </dependency>
 
-        <!-- Spring GraphQL -->
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-graphql</artifactId>
+            <artifactId>spring-boot-starter-json</artifactId>
+            <scope>compile</scope>
         </dependency>
 
-        <!-- Spring Cloud OpenFeign -->
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-openfeign</artifactId>
-        </dependency>
+
 
         <dependency>
             <groupId>com.github.im</groupId>
@@ -345,7 +324,7 @@
                 <version>${gluonfx.maven.plugin.version}</version>
 
                 <configuration>
-                    <graalvmHome>D:\workdir\tools\graalvm-jdk-21_windows-x64_bin\graalvm-jdk-21+35.1</graalvmHome>
+<!--                    <graalvmHome>D:\workdir\tools\graalvm-jdk-21_windows-x64_bin\graalvm-jdk-21+35.1</graalvmHome>-->
 <!--            GRAALVM 无法编译一些静态变量 ，所以需要添加buildArgs
                 https://github.com/oracle/graal/issues/5678
 https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error-com-oracle-graal-pointsto-constraints-unreso-->

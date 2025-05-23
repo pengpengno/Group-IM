@@ -1,20 +1,10 @@
 package com.github.im.group.gui.config;
 
 import com.github.im.dto.user.UserInfo;
-import com.github.im.group.gui.api.FriendShipEndpoint;
-import com.github.im.group.gui.api.UserEndpoint;
 import com.github.im.group.gui.context.UserInfoContext;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.cloud.client.loadbalancer.LoadBalanced;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.*;
-import org.springframework.web.reactive.function.client.support.WebClientAdapter;
-import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 import reactor.core.publisher.Mono;
 
 /**

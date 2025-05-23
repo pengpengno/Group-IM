@@ -2,22 +2,14 @@ package com.github.im.group.gui.config;
 
 import com.github.im.group.gui.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
-import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.support.WebClientAdapter;
 import org.springframework.web.service.invoker.HttpServiceProxyFactory;
-import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
-import reactor.netty.tcp.SslProvider;
-
 import java.time.Duration;
 
 /**
@@ -49,7 +41,7 @@ public class WebClientConfig {
     }
 
     @Bean
-    @LoadBalanced
+//    @LoadBalanced
     public HttpServiceProxyFactory httpServiceProxyFactory(@Autowired WebClient webClient) {
 
         WebClientAdapter adapter = WebClientAdapter.create(webClient);
