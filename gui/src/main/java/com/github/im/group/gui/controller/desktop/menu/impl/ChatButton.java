@@ -45,7 +45,8 @@ public class ChatButton extends AbstractMenuButton {
 //        chatMainPane.loadFriendList();
         chatMainPresenter.loadConversation(UserInfoContext.getCurrentUser()).subscribe();
 //
-        desktopMainView.switchRootPane(chatMainPresenter.getMainPane());
+//        chatMainPresenter.initialize();
+        desktopMainView.switchRootPane(chatMainPresenter);
     }
 
 

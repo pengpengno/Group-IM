@@ -23,7 +23,6 @@ public class ContactsButton extends AbstractMenuButton{
     private ContractMainPane contractMainPane;
 
 
-
     public ContactsButton() {
         super();
 
@@ -35,11 +34,11 @@ public class ContactsButton extends AbstractMenuButton{
 
 
             log.info("click  Contacts ");
-            EventType<? extends MouseEvent> eventType = event.getEventType();
 
             var controller = DisplayManager.getController(MainPresenter.class);
 
-            contractMainPane.initialize();
+//            contractMainPane.initComponent();
+            contractMainPane.loadContacts();
 
             var d  = (MainPresenter)controller;
 

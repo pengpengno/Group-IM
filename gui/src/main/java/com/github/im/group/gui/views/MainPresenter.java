@@ -85,7 +85,7 @@ public class MainPresenter  implements MainHomeView {
      */
     public void switchRootPane (Node displayPanel) {
 
-        borderPane.setCenter(chatMainPresenter);
+        borderPane.setCenter(displayPanel);
 
     }
 

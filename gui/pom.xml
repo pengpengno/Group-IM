@@ -273,6 +273,13 @@
             <artifactId>spring-webflux</artifactId>
         </dependency>
 
+<!--     用于反射 -->
+        <dependency>
+            <groupId>org.reflections</groupId>
+            <artifactId>reflections</artifactId>
+            <version>0.10.2</version>
+        </dependency>
+
 
     </dependencies>
 
@@ -338,6 +345,7 @@
                 <version>${gluonfx.maven.plugin.version}</version>
 
                 <configuration>
+                    <graalvmHome>D:\workdir\tools\graalvm-jdk-21_windows-x64_bin\graalvm-jdk-21+35.1</graalvmHome>
 <!--            GRAALVM 无法编译一些静态变量 ，所以需要添加buildArgs
                 https://github.com/oracle/graal/issues/5678
 https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error-com-oracle-graal-pointsto-constraints-unreso-->
@@ -417,6 +425,9 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                         </goals>
                     </execution>
                 </executions>
+<!--                <configuration>-->
+<!--                    <mainClass>com.github.im.group.gui.Launcher</mainClass>-->
+<!--                </configuration>-->
             </plugin>
 
             <!-- JavaFX Maven Plugin -->

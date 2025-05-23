@@ -27,22 +27,18 @@ import java.util.ResourceBundle;
 public class DetailInfoPane extends GridPane {
 
 
-
-
-//    private final ChatMainPane chatMainPane;
-
     private final ConversationEndpoint conversationEndpoint;
 
     private final EventBus bus;
 
     private ImageView avatarGenerator;
-    private Label phone = new Label();
-    private Label mail = new Label();
-    private Label name = new Label();
+    private Label phone ;
+    private Label mail ;
+    private Label name ;
 
-    private MFXButton sendMessage = new MFXButton();
-    private MFXButton sendMail = new MFXButton();
-    private MFXButton call = new MFXButton();
+    private MFXButton sendMessage ;
+    private MFXButton sendMail ;
+    private MFXButton call ;
 
 
     private UserInfo  userInfo;
@@ -52,9 +48,20 @@ public class DetailInfoPane extends GridPane {
 
 
 
+    public void instanceComponent(){
+        phone = new Label();
+        mail = new Label();
+        name = new Label();
 
-    @PostConstruct
+        sendMessage = new MFXButton();
+        sendMail = new MFXButton();
+        call = new MFXButton();
+    }
+
+//    @PostConstruct
     public void initPane() {
+
+        instanceComponent();
         // 设置 GridPane 对齐方式为 TOP_CENTER
         this.setAlignment(Pos.TOP_CENTER);
         this.setPadding(new Insets(10));  // 设置内边距
@@ -104,7 +111,6 @@ public class DetailInfoPane extends GridPane {
 
     public void display(UserInfo userInfo) {
 
-
         this.getChildren().clear(); // 清空旧的 UI 组件
 
         this.userInfo = userInfo;
@@ -136,8 +142,6 @@ public class DetailInfoPane extends GridPane {
 //        this.add(phone, 0, 1);
 //        this.add(mail, 0, 2);
         this.add(buttonBox, 0, 2, 2, 1);  // 按钮跨两列
-
-
 
         // 调整行列策略，避免 UI 变形
         this.getColumnConstraints().get(0).setHalignment(javafx.geometry.HPos.CENTER);  // Set column alignment to center

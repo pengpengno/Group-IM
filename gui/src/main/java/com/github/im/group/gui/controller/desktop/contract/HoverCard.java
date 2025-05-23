@@ -33,7 +33,7 @@ public class HoverCard extends VBox {
 
         nameText = new Text(name);
         emailLabel = new Label("Email: " + email);
-        statusLabel = new Label("Status: " + "🟢");
+        statusLabel = new Label("Status: " + "online");
         statusLabel.setTextFill(Color.DARKBLUE);
 
         detailBox.getChildren().addAll(avatar, nameText, emailLabel, statusLabel);
@@ -44,13 +44,5 @@ public class HoverCard extends VBox {
         getChildren().add(detailBox);
     }
 
-//    // 显示详细信息
-//    public void showDetails() {
-//        detailBox.setVisible(true);
-//    }
-//
-//    // 隐藏详细信息
-//    public void hideDetails() {
-//        detailBox.setVisible(false);
-//    }
+
 }

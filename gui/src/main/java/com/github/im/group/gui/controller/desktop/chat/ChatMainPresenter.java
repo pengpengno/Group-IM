@@ -21,7 +21,6 @@ import com.gluonhq.charm.glisten.mvc.View;
 import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
 import jakarta.annotation.PostConstruct;
 import javafx.application.Platform;
-import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.control.ListView;
 import javafx.scene.control.SplitPane;
@@ -30,15 +29,10 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.annotation.Lookup;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
-import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
-
-import java.net.URL;
-import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -60,11 +54,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
-//@Scope("sin" )
 @RequiredArgsConstructor
-//public class ChatMainPane extends GridPane implements Initializable, ApplicationContextAware {
-//public class ChatMainPresenter extends View implements Initializable,ApplicationContextAware, MenuItem {
-public class ChatMainPresenter extends View implements ApplicationContextAware, MenuItem {
+public class ChatMainPresenter extends View implements MenuItem {
 
     @Getter
     private SplitPane mainPane ;
@@ -83,15 +74,6 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
     private final EventBus eventBus;
     private final FileEndpoint fileEndpoint;
     private final MessageNodeService messageNodeService;
-
-
-    private ApplicationContext applicationContext;
-
-    @Override
-    public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
-        this.applicationContext = applicationContext;
-
-    }
 
 
     @Override
@@ -335,41 +317,32 @@ public class ChatMainPresenter extends View implements ApplicationContextAware, 
 
 
     @PostConstruct
-    public void initComponent() {
+    public void initialize() {
+        Platform.runLater(() -> {
+            mainPane = new SplitPane();
 
-//        this.showingProperty().addListener((observable, oldValue, newValue) -> {
-//            if (newValue) {
-//                log.info("ChatMainPresenter showing");
-//            } else {
-//                log.info("ChatMainPresenter hidden");
-//            }
-//        });
+            conversationList = new ListView<>();
+            currentChatPane = new ChatMessagePane(null,null,null,null);
+            currentChatPane.setMinWidth(500);
 
-        mainPane = new SplitPane();
-        eventBus.asFlux()
-                .ofType(ConversationRes.class)
-                .subscribe(conversationRes -> {
-                    updateConversations(conversationRes);
-                });
-        // 初始化
-        conversationList = new ListView<>();
-        // 先使用个默认的空对象
-        currentChatPane = new ChatMessagePane(null,null,null,null);
-        currentChatPane.setMinWidth(500);
+            conversationList.setMinWidth(170);
+            conversationList.setPrefWidth(170);
+            conversationList.setMaxWidth(300);
+            mainPane.setDividerPositions(0.3);
 
-        conversationList.setMinWidth(170);
-        conversationList.setPrefWidth(170);
-        conversationList.setMaxWidth(300);
-        mainPane.setDividerPositions(0.3); // 初始比例，30%：70%
+            mainPane.getItems().addAll(conversationList, currentChatPane);
 
-        mainPane.getItems().addAll(conversationList,currentChatPane);
-//
+            this.setCenter(mainPane);
 
-        UserInfoContext.subscribeUserInfoSink()
-                .flatMap(this::loadConversation).subscribe();
+            // ⚠️ 只有在 JavaFX Thread 中才能更新 UI
+            UserInfoContext.subscribeUserInfoSink()
+                    .flatMap(this::loadConversation)
+                    .subscribe();
 
-        this.setCenter(mainPane);
-
+            eventBus.asFlux()
+                    .ofType(ConversationRes.class)
+                    .subscribe(this::updateConversations);
+        });
 
     }
 

@@ -38,7 +38,7 @@ public class ContractMainPane extends SplitPane {
 
     private final FriendShipEndpoint friendShipEndpoint;
     // 好友信息展示
-    private CharmListView<FriendshipDTO, String> contractListView;
+//    private CharmListView<FriendshipDTO, String> contractListView;
 
     private ListView<AccountCard> accountCardListView; // 好友列表
 
@@ -98,18 +98,15 @@ public class ContractMainPane extends SplitPane {
         friendsPane.setTop(hBox);
         friendsPane.setCenter(accountCardListView);
 
-
-
-
         detailInfoPane.setMaxWidth(Double.MAX_VALUE);
-
+        detailInfoPane.setMinWidth(300);
+        detailInfoPane.initPane();
 
         // 设置朋友面板宽度为固定值，例如 300
         friendsPane.setPrefWidth(300);  // 设置 friendsPane 宽度
         friendsPane.setMaxWidth(400);  // 设置 friendsPane 最大宽度
 
         friendsPane.setMinWidth(200);
-        detailInfoPane.setMinWidth(300);
         userDisplayAndSearchPane.setMinWidth(300);
 
         getItems().addAll(friendsPane, detailInfoPane);
@@ -156,7 +153,7 @@ public class ContractMainPane extends SplitPane {
     }
 
     // 加载联系人数据
-    private void loadContacts() {
+    public void loadContacts() {
 
         friendShipEndpoint.getFriends(UserInfoContext.getCurrentUser().getUserId())
                 .collectList()
@@ -183,9 +180,6 @@ public class ContractMainPane extends SplitPane {
             accountCardListView.getItems().clear();
 
             accountCardListView.getItems().addAll(cards);
-
-            contractListView = new CharmListView<>();
-            contractListView.setCellFactory(param -> new AccountCardCell());
 
         });
     }
