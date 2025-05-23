@@ -2,7 +2,6 @@ package com.github.im.group.gui;
 
 import com.github.im.group.gui.util.FileIconUtil;
 import com.github.im.group.gui.views.*;
-import com.gluonhq.attach.display.DisplayService;
 import com.gluonhq.attach.util.Platform;
 import com.gluonhq.charm.glisten.application.AppManager;
 import io.github.palexdev.materialfx.theming.JavaFXThemes;
@@ -64,11 +63,11 @@ public class Main extends Application  {
 
 //         桌面端处理
         if (Platform.isDesktop()) {
-            Dimension2D dimension2D = DisplayService.create()
-                    .map(DisplayService::getDefaultDimensions)
-                    .orElse(new Dimension2D(800, 600));
-            scene.getWindow().setWidth(dimension2D.getWidth());
-            scene.getWindow().setHeight(dimension2D.getHeight());
+//            Dimension2D dimension2D = DisplayService.create()
+//                    .map(DisplayService::getDefaultDimensions)
+//                    .orElse(new Dimension2D(800, 600));
+//            scene.getWindow().setWidth(dimension2D.getWidth());
+//            scene.getWindow().setHeight(dimension2D.getHeight());
         }
 
 //        ScenicView.show(scene);

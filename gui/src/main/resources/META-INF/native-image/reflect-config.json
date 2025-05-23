@@ -1,46 +1,103 @@
 [
-  {
-    "name": "io.github.palexdev.materialfx.controls.*",
-    "allDeclaredMethods": true,
-    "allDeclaredConstructors": true
-  },
-
-  {
-    "name": "io.github.palexdev.materialfx.controls.MFXButton$StyleableProperties",
-    "allDeclaredMethods": true,
-    "allDeclaredConstructors": true
-  },
-  {
-    "name": "com.github.im.group.gui.SpringApp__ApplicationContextInitializer",
-    "allDeclaredConstructors": true,
-    "allPublicConstructors": true
-  },
-  {
-    "name": "com.github.im.group.gui.SpringApp__BeanFactoryRegistrations",
-    "allDeclaredConstructors": true,
-    "allPublicConstructors": true
-  },
-  {
-    "name": "javafx.scene.layout.GridPane",
-    "allDeclaredConstructors": true,
-    "allDeclaredMethods": true,
-    "allPublicMethods": true
-  },
-  {
-    "name": "javafx.scene.layout.StackPane",
-    "allDeclaredConstructors": true,
-    "allDeclaredMethods": true,
-    "allPublicMethods": true
-  },
-  {
-    "name": "javafx.scene.control.SplitPane",
-    "allDeclaredConstructors": true,
-    "allDeclaredMethods": true,
-    "allPublicMethods": true
-  },
-  {
-    "name": "com.gluonhq.charm.glisten.control.Avatar",
-    "allDeclaredConstructors": true,
-    "allDeclaredMethods": true,
-    "allPublicMethods": true  }
+{
+  "type":"com.github.im.group.gui.SpringApp__ApplicationContextInitializer",
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "type":"com.github.im.group.gui.SpringApp__BeanFactoryRegistrations",
+  "allDeclaredConstructors":true,
+  "allPublicConstructors":true
+},
+{
+  "type":"com.gluonhq.charm.glisten.control.Avatar",
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true
+},
+{
+  "type":"javafx.scene.control.ProgressBar",
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true
+},{
+  "type":"javafx.scene.control.ProgressIndicator",
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true
+},
+{
+  "type":"com.sun.javafx.tk.quantum.QuantumToolkit",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "type":"com.sun.javafx.tk.quantum.QuantumToolkit",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "type":"com.sun.prism.sw.SWPipeline",
+  "methods":[{"name":"getInstance","parameterTypes":[] }]
+},
+{
+  "type":"com.sun.prism.sw.SWPipeline",
+  "methods":[{"name":"getInstance","parameterTypes":[] }]
+},
+{
+  "type":"io.github.palexdev.materialfx.controls.*",
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true
+},
+{
+  "type":"io.github.palexdev.materialfx.controls.MFXButton$StyleableProperties",
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true
+},
+{
+  "type":"io.github.palexdev.materialfx.controls.MFXButton",
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true
+},
+{
+  "type":"io.github.palexdev.mfxresources.fonts.MFXFontIcon",
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true
+},
+{
+  "type":"java.util.concurrent.atomic.AtomicReference",
+  "fields":[{"name":"value"}]
+},
+{
+  "type":"java.util.concurrent.atomic.AtomicReference",
+  "fields":[{"name":"value"}]
+},
+{
+  "type":"javafx.scene.control.SplitPane",
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true
+},
+{
+  "type":"javafx.scene.image.Image"
+},
+{
+  "type":"javafx.scene.image.Image"
+},
+{
+  "type":"javafx.scene.layout.GridPane",
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true
+},
+{
+  "type":"javafx.scene.layout.StackPane",
+  "allDeclaredMethods":true,
+  "allPublicMethods":true,
+  "allDeclaredConstructors":true
+},
+{
+  "type":"sun.security.provider.MD5",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+}
 ]

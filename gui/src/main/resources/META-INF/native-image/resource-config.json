@@ -1,14 +1,35 @@
 {
-  "resources": [
-    { "pattern": "i18n/.*\\.properties" },
-    { "pattern": ".*\\.fxml" },
-    { "pattern": ".*\\.css" },
-    { "pattern": ".*\\.png" },
-    { "pattern": ".*\\.jpg" },
-    { "pattern": ".*\\.jpeg" },
-    { "pattern": ".*\\.gif" },
-    { "pattern": ".*\\.svg" },
-    { "pattern": ".*\\.ttf" },
-    { "pattern": ".*\\.otf" }
-  ]
+  "resources":{
+  "includes":[{
+    "pattern":".*\\.css"
+  },{
+    "pattern":".*\\.fxml"
+  },{
+    "pattern":".*\\.gif"
+  },{
+    "pattern":".*\\.jpeg"
+  },{
+    "pattern":".*\\.jpg"
+  },{
+    "pattern":".*\\.otf"
+  },{
+    "pattern":".*\\.png"
+  },{
+    "pattern":".*\\.svg"
+  },{
+    "pattern":".*\\.ttf"
+  },{
+    "pattern":"\\QMETA-INF\/services\/jdk.vm.ci.services.JVMCIServiceLocator\\E"
+  },{
+    "pattern":"i18n\/.*\\.properties"
+  },{
+    "pattern":"javafx.graphics:\\Qcom\/sun\/glass\/utils\/NativeLibLoader.class\\E"
+  },{
+    "pattern":"javafx.graphics:\\Qlibglass.so\\E"
+  },{
+    "pattern":"javafx.graphics:\\Qlibprism_es2.so\\E"
+  },{
+    "pattern":"javafx.graphics:\\Qlibprism_sw.so\\E"
+  }]},
+  "bundles":[]
 }
