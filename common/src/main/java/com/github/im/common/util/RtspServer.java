@@ -86,28 +86,28 @@ public class RtspServer {
         }
     }
     
-    public static void main(String[] args) throws Exception	{    
-        EventLoopGroup bossGroup = new NioEventLoopGroup();
-        EventLoopGroup workerGroup = new NioEventLoopGroup();
-        try {
-            ServerBootstrap b = new ServerBootstrap();
-            b.group(bossGroup, workerGroup);
-            b.channel(NioServerSocketChannel.class);			
-            b.childHandler(new ChannelInitializer<SocketChannel>() {
-                @Override
-                public void initChannel(SocketChannel ch) {
-                    ChannelPipeline p = ch.pipeline();
-                    p.addLast(new RtspDecoder(), new RtspEncoder());
-                    p.addLast(new RtspServerHandler());
-                }
-            });
-
-            Channel ch = b.bind(8554).sync().channel();
-            System.out.println("Connect to rtsp://127.0.0.1:8554");
-            ch.closeFuture().sync();
-        } finally {
-            bossGroup.shutdownGracefully();
-            workerGroup.shutdownGracefully();
-        }		
-    }
+//    public static void main(String[] args) throws Exception	{
+//        EventLoopGroup bossGroup = new NioEventLoopGroup();
+//        EventLoopGroup workerGroup = new NioEventLoopGroup();
+//        try {
+//            ServerBootstrap b = new ServerBootstrap();
+//            b.group(bossGroup, workerGroup);
+//            b.channel(NioServerSocketChannel.class);
+//            b.childHandler(new ChannelInitializer<SocketChannel>() {
+//                @Override
+//                public void initChannel(SocketChannel ch) {
+//                    ChannelPipeline p = ch.pipeline();
+//                    p.addLast(new RtspDecoder(), new RtspEncoder());
+//                    p.addLast(new RtspServerHandler());
+//                }
+//            });
+//
+//            Channel ch = b.bind(8554).sync().channel();
+//            System.out.println("Connect to rtsp://127.0.0.1:8554");
+//            ch.closeFuture().sync();
+//        } finally {
+//            bossGroup.shutdownGracefully();
+//            workerGroup.shutdownGracefully();
+//        }
+//    }
 }
