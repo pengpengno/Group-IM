@@ -65,6 +65,13 @@
             <artifactId>protobuf-java</artifactId>
             <version>${protobuf.version}</version>
         </dependency>
+
+<!--        <dependency>-->
+<!--            <groupId>com.google.protobuf</groupId>-->
+<!--            <artifactId>protobuf-javalite</artifactId>-->
+<!--            <version>3.25.3</version>-->
+<!--        </dependency>-->
+
         <dependency>
             <groupId>io.projectreactor.netty</groupId>
             <artifactId>reactor-netty</artifactId>
@@ -146,6 +153,7 @@
                     <protoSourceRoot>src/main/proto</protoSourceRoot>
                     <outputDirectory>src/main/java</outputDirectory>
                     <clearOutputDirectory>false</clearOutputDirectory>
+
                 </configuration>
                 <executions>
                     <execution>

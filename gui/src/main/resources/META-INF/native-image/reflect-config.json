@@ -978,6 +978,10 @@
     "name":"io.github.palexdev.mfxresources.fonts.MFXFontIcon",
     "queryAllDeclaredMethods":true,
     "queryAllPublicConstructors":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true,
+    "allDeclaredConstructors":true,
+
     "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"setDescription","parameterTypes":["java.lang.String"] }, {"name":"setSize","parameterTypes":["double"] }]
   },
   {

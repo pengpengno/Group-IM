@@ -58,12 +58,6 @@ public class ReactorTcpClient implements ClientLifeStyle, ReactiveClientAction {
                     .port(this.address.getPort())
                     .doOnChannelInit((connectionObserver, channel, remoteAddress) -> {
                         log.debug("init channel pipeline ");
-//                        ChannelPipeline pipeline = channel.pipeline();
-//                        pipeline.addLast(new ProtobufVarint32FrameDecoder())
-//                                .addLast(protobufDecoder)
-//                                .addLast(protobufVarint32LengthFieldPrepender)
-//                                .addLast(protobufEncoder)
-//                                ;
 
                     })
                     .doOnConnected(connection-> {
@@ -77,21 +71,6 @@ public class ReactorTcpClient implements ClientLifeStyle, ReactiveClientAction {
 
                     })
                     .handle(ReactiveHandlerSPI.wiredSpiHandler().handler())
-//                    .handle(((nettyInbound, nettyOutbound) -> {
-//                        log.debug("connect server {}  port {} success",address.getHostString(),address.getPort());
-//                        Flux<BaseMessage.BaseMessagePkg> subscribe = nettyInbound.receiveObject()
-//                                .cast(BaseMessage.BaseMessagePkg.class)
-//                                .handle((obj,sink)->{
-//                                    log.debug("receive message {}",obj);
-//                                })
-////                                .doOnError(ex->log.error("receive message error , stack is \n {}", ExceptionUtil.stacktraceToString(ex)))
-//                                ;
-////                        subscribe.doOnError();
-//                        return nettyOutbound.sendObject(Flux.concat(subscribe)).then()
-//                                .doOnError(ex->log.error("out bound send essage error , stack is \n {}", ExceptionUtil.stacktraceToString(ex)))
-//
-//                                ;
-//                    }))
 
         ;
         return this;
@@ -177,7 +156,6 @@ public class ReactorTcpClient implements ClientLifeStyle, ReactiveClientAction {
     private Connection ensureConnection() {
         if (!isAlive()) {
             connect(); // 确保 connect() 返回 Mono<Connection>
-
         }
         return connection;
     }
@@ -185,12 +163,10 @@ public class ReactorTcpClient implements ClientLifeStyle, ReactiveClientAction {
     public Mono<Void> sendMessage(Message message) {
         ensureConnection();
         NettyOutbound nettyOutbound = connection.outbound().sendObject(Mono.just(message));
+//        NettyOutbound nettyOutbound = connection.outbound().send(Mono.just(message.toByteArray()));
 //        NettyOutbound nettyOutbound = connection.outbound().sendByteArray(Mono.just(message.toByteArray()));
 
         return nettyOutbound.then();
-
-
-//        throw new IllegalArgumentException("connection is invalid !");
     }
 
 

@@ -487,12 +487,19 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
 
             <dependencies>
                 <dependency>
-                    <groupId>com.gluonhq.attach</groupId>
-                    <artifactId>display</artifactId>
-                    <version>${attach.version}</version>
-                    <classifier>android</classifier>
-                    <scope>runtime</scope>
+                    <groupId>com.google.protobuf</groupId>
+                    <artifactId>protobuf-javalite</artifactId>
+                    <version>3.25.3</version>
                 </dependency>
+
+
+<!--                <dependency>-->
+<!--                    <groupId>com.gluonhq.attach</groupId>-->
+<!--                    <artifactId>display</artifactId>-->
+<!--                    <version>${attach.version}</version>-->
+<!--                    <classifier>android</classifier>-->
+<!--                    <scope>runtime</scope>-->
+<!--                </dependency>-->
             </dependencies>
         </profile>
         <profile>
