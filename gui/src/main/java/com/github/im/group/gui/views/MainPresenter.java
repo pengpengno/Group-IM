@@ -60,15 +60,15 @@ public class MainPresenter  implements MainHomeView {
 
     @FXML
     private HBox windowHeader;
-
-    @FXML
-    private MFXFontIcon closeIcon;
-    @FXML
-//    private MFXButton minimizeIcon;
-    private MFXFontIcon minimizeIcon;
-    @FXML
-//    private MFXButton alwaysOnTopIcon;
-    private MFXFontIcon alwaysOnTopIcon;
+//
+//    @FXML
+//    private MFXFontIcon closeIcon;
+//    @FXML
+////    private MFXButton minimizeIcon;
+//    private MFXFontIcon minimizeIcon;
+//    @FXML
+////    private MFXButton alwaysOnTopIcon;
+//    private MFXFontIcon alwaysOnTopIcon;
 
 
     @Getter
@@ -185,21 +185,21 @@ public class MainPresenter  implements MainHomeView {
 //        alwaysOnTopIcon.setGraphic(new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream(bundle.getString("onTop.icon"))))));
 
         // 关闭窗口
-        closeIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> Platform.exit());
+//        closeIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> Platform.exit());
 //        closeIcon.setText(null);
 //        minimizeIcon.setText(null);
 //        alwaysOnTopIcon.setText(null);
         // 最小化窗口
-        minimizeIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event ->
-                ((Stage) rootPane.getScene().getWindow()).setIconified(true));
+//        minimizeIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event ->
+//                ((Stage) rootPane.getScene().getWindow()).setIconified(true));
 
         // 置顶/取消置顶窗口
-        alwaysOnTopIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
-            Stage stage = (Stage) rootPane.getScene().getWindow();
-            boolean alwaysOnTop = stage.isAlwaysOnTop();
-            stage.setAlwaysOnTop(!alwaysOnTop);
-//            alwaysOnTopIcon.setStyle(alwaysOnTop ? "-fx-fill: gray;" : "-fx-fill: blue;");
-        });
+//        alwaysOnTopIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
+//            Stage stage = (Stage) rootPane.getScene().getWindow();
+//            boolean alwaysOnTop = stage.isAlwaysOnTop();
+//            stage.setAlwaysOnTop(!alwaysOnTop);
+////            alwaysOnTopIcon.setStyle(alwaysOnTop ? "-fx-fill: gray;" : "-fx-fill: blue;");
+//        });
 
 
     }
