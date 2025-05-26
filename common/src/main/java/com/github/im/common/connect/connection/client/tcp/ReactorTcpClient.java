@@ -143,6 +143,8 @@ public class ReactorTcpClient implements ClientLifeStyle, ReactiveClientAction {
 
     @Override
     public void releaseChannel() {
+        disposable.dispose();
+
         connection.onDispose().subscribe();
     }
 
@@ -162,7 +164,10 @@ public class ReactorTcpClient implements ClientLifeStyle, ReactiveClientAction {
     @Override
     public Mono<Void> sendMessage(Message message) {
         ensureConnection();
-        NettyOutbound nettyOutbound = connection.outbound().sendObject(Mono.just(message));
+        NettyOutbound nettyOutbound = connection.outbound()
+                .sendByteArray(Mono.just(message.toByteArray()))
+//                .sendObject(Mono.just(message))
+                ;
 //        NettyOutbound nettyOutbound = connection.outbound().send(Mono.just(message.toByteArray()));
 //        NettyOutbound nettyOutbound = connection.outbound().sendByteArray(Mono.just(message.toByteArray()));
 

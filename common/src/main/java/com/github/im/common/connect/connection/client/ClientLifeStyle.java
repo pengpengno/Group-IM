@@ -14,7 +14,11 @@ import java.time.Duration;
 public interface ClientLifeStyle {
 
 
-
+    /**
+     * 配置客户端链接信息
+     * @param address 传入 ip 信息
+     * @return
+     */
     public ClientLifeStyle config(InetSocketAddress address) ;
     /***
      * 连接远程节点

@@ -19,6 +19,7 @@ public interface ReactiveClientAction {
     Mono<Void> sendString(String message);
 
 
+    @Deprecated
     default Mono<Void> sendObject(Object message){
         return Mono.empty();
     }
