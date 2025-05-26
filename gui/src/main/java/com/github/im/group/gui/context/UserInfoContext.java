@@ -11,6 +11,7 @@ import java.util.Optional;
 /**
  * Description:
  * <p>
+ *     用户信息存储
  * </p>
  *
  * @author pengpeng
@@ -19,7 +20,7 @@ import java.util.Optional;
  */
 public class UserInfoContext {
 
-    private static final TransmittableThreadLocal<UserInfo> currentUserThreadLocal = new TransmittableThreadLocal<>();
+//    private static final TransmittableThreadLocal<UserInfo> currentUserThreadLocal = new TransmittableThreadLocal<>();
 
 
     private static final Sinks.Many<UserInfo> userInfoSink  = Sinks.many().multicast().onBackpressureBuffer();;
@@ -37,7 +38,8 @@ public class UserInfoContext {
     }
     // 设置当前用户
     public static void setCurrentUser(UserInfo user) {
-        currentUserThreadLocal.set(user);
+//        currentUserThreadLocal.set(user);
+        userInfo = user;
         userInfoSink.tryEmitNext(user);
     }
 
@@ -51,7 +53,7 @@ public class UserInfoContext {
 
     // 获取当前用户
     public static UserInfo getCurrentUser() {
-        return currentUserThreadLocal.get();
+        return userInfo;
     }
 
     public static Account.AccountInfo getAccountInfo() {
@@ -71,9 +73,9 @@ public class UserInfoContext {
                 .build();
         return accountInfo;
     }
-
-    // 清除当前用户
-    public static void clear() {
-        currentUserThreadLocal.remove();
-    }
+//
+//    // 清除当前用户
+//    public static void clear() {
+//        currentUserThreadLocal.remove();
+//    }
 }

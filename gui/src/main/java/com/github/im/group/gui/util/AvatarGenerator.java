@@ -77,11 +77,12 @@ public class AvatarGenerator {
     }
 
     private static Image generateSquareAvatarWithRoundedCornersCache(String name, double size, Color color) {
-        if (avatarCache.containsKey(name)) {
-            return avatarCache.get(name);
+        final String key = name + size + color;
+        if (avatarCache.containsKey(key)) {
+            return avatarCache.get(key);
         } else {
             Image avatar = generateSquareAvatarWithRoundedCorners(name, size, color);
-            avatarCache.put(name, avatar);
+            avatarCache.put(key, avatar);
             if (avatarCache.size() > CACHE_SIZE) {
                 // 移除最旧的缓存项
                 String oldestKey = avatarCache.keySet().iterator().next();
@@ -96,8 +97,11 @@ public class AvatarGenerator {
         // 解析名字
         String displayText = getAvatarText(name);
 
+        double scaleFactor = 2.0; // 放大倍数
+//        double realSize = size * scaleFactor;
+        double realSize = size;
         // 创建画布
-        Canvas canvas = new Canvas(size, size);
+        Canvas canvas = new Canvas(realSize, realSize);
         GraphicsContext gc = canvas.getGraphicsContext2D();
 
         gc.clearRect(0, 0, size, size); // 清除画布，确保背景透明
@@ -116,12 +120,20 @@ public class AvatarGenerator {
 
         // 设置文字样式
         gc.setFill(Color.WHITE); // 文字颜色
-        gc.setFont(new Font("Arial", size / 2)); // 字体大小
+        // 判断是否为中文
+//        boolean isChinese = displayText.codePoints().allMatch(
+//                code -> Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN
+//        );
+        boolean isChinese = isChinese(displayText);
+        // 中文字体通常需要更小比例
+        double fontSize = isChinese ? size * 0.4 : size * 0.55;
+        gc.setFont(new Font("Arial", fontSize)); // 字体大小
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(javafx.geometry.VPos.CENTER);
 
         // 绘制文字
         gc.fillText(displayText, size / 2, size / 2);
+//        gc.fillText(displayText, size / 2, size / 2);
 
         // 返回生成的图像
         return canvas.snapshot(null, null);
@@ -151,9 +163,16 @@ public class AvatarGenerator {
      * @param size
      * @return
      */
+    public static Avatar getAvatar(String name, AvatarSize size) {
+        return getAvatar(name, size.getSize());
+    }
+
+    @Deprecated
     public static Avatar getAvatar(String name, double size) {
         var image = generateSquareAvatarWithRoundedCornersCache(name, size, null);
-        return new Avatar(size, image);
+        var avatar = new Avatar();
+        avatar.setImage(image);
+        return avatar;
 
     }
 
@@ -170,6 +189,11 @@ public class AvatarGenerator {
         return generateSquareAvatarWithRoundedCornersCache(name, size, null);
     }
 
+    /**
+     * 获取头像文本
+     * @param name
+     * @return
+     */
     private static String getAvatarText(String name) {
         if (name == null || name.isEmpty()) {
             return "?"; // 默认文本
@@ -179,7 +203,7 @@ public class AvatarGenerator {
         }
 
         // 中文名: 取前两个字符
-        if (name.matches("[\\u4e00-\\u9fa5]+")) {
+        if (isChinese(name)) {
             if (name.length() == 3){
                 // 三个字 得  取名
                 return name.substring(1, 3);
@@ -193,6 +217,15 @@ public class AvatarGenerator {
             return name.substring(0, Math.min(2, name.length())).toUpperCase();
         }
         return (parts[0].charAt(0) + "" + parts[1].charAt(0)).toUpperCase();
+    }
+
+    /**
+     * 判断是否中文
+     * @param name
+     * @return
+     */
+    private static  boolean isChinese (String name) {
+        return name.matches("[\\u4e00-\\u9fa5]+");
     }
 
     private static Paint getRandomColor() {
@@ -216,7 +249,8 @@ public class AvatarGenerator {
 
     @Getter
     public enum AvatarSize {
-        SMALL(20),
+        LITTLE(20),
+        SMALL(30),
         MEDIUM(50),
         LARGE(70);
 

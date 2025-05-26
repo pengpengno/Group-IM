@@ -57,14 +57,23 @@ public class LoginLifecycleImpl implements LoginLifecycle {
             UserInfoContext.setCurrentUser(userInfo);
             var presenter = AppViewManager.switchView(MainPresenter.class);
             MainPresenter mainPresenter = (MainPresenter) presenter;
+
         });
+
+        connectToServer(userInfo);
+
+    }
+
+
+    // 抛出网络异常
+    private void connectToServer (UserInfo userInfo)   {
 
         try{
             var serverConnectPro = serverConnectProperties.getConnect();
 
             ClientToolkit.clientLifeStyle()
                     .connect(new InetSocketAddress(serverConnectPro.getHost()
-                    , serverConnectPro.getPort()));
+                            , serverConnectPro.getPort()));
 
             var accountInfo = Account.AccountInfo.newBuilder()
                     .setPlatformType(PlatformView.getCurrentPlatformType())
@@ -87,6 +96,5 @@ public class LoginLifecycleImpl implements LoginLifecycle {
             log.error("connect to  server error " ,exception);
 
         }
-
     }
 }

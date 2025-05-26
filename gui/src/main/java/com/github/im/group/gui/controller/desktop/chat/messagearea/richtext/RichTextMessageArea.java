@@ -3,12 +3,17 @@ package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext;
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image.LinkedImageOps;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image.StreamImage;
+import com.gluonhq.charm.glisten.application.AppManager;
 import com.sun.javafx.tk.Toolkit;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
@@ -61,6 +66,18 @@ public class RichTextMessageArea extends GenericStyledArea<ParStyle, Either<Stri
                         TextStyle.CODEC));
 
         this.setParagraphGraphicFactory( new BulletFactory( this ) );  // and folded paragraph indicator
+        this.setAutoHeight(true);
+
+    }
+
+    @Override
+    public void setEditable(boolean value) {
+        super.setEditable(value);
+        this.heightProperty().addListener((obs, oldH, newH) -> {
+            double contentHeight = this.computePrefHeight();
+            double paddingTop = Math.max(0, (newH.doubleValue() - contentHeight) / 2);
+            this.setPadding(new Insets(paddingTop, 0, paddingTop, 0));
+        });
     }
 
     private static Node createNode(StyledSegment<Either<String, MessageNode>, TextStyle> seg,
@@ -105,6 +122,31 @@ public class RichTextMessageArea extends GenericStyledArea<ParStyle, Either<Stri
     }
 
 
+    /**
+     * 设置背景色
+     */
+    public void bg(){
+        var instance = AppManager.getInstance();
+        Background background;
+        BackgroundFill backgroundFill;
+        if (instance != null){
+            var fill = instance.getAppBar().getBackground().getFills().get(0).getFill();
+            backgroundFill = new BackgroundFill(
+                    fill, // 蓝色
+                    new CornerRadii(15),  // 圆角半径
+                    Insets.EMPTY
+            );
+        }else{
+            backgroundFill = new BackgroundFill(
+                    Color.BLUE, // 蓝色
+                    new CornerRadii(15),  // 圆角半径
+                    Insets.EMPTY
+            );
+        }
+
+        background = new Background(backgroundFill);
+        this.setBackground(background);
+    }
 
     /**
      * 插入文件
@@ -204,7 +246,7 @@ public class RichTextMessageArea extends GenericStyledArea<ParStyle, Either<Stri
      *   ...
      * 2. 根据组件类型返回 自适应的高度
      *
-     * @param width 指定的宽度
+     * @param width 指定的最大宽度
      * @return 组件自适应的 Height  max 值 为 400 ， min值为 字体大小
      */
     public Long calculateAreaHeight(Long width){

@@ -3,6 +3,7 @@ package com.github.im.group.gui.controller.desktop.contract;
 import com.github.im.dto.user.FriendshipDTO;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.group.gui.util.AvatarGenerator;
+import com.gluonhq.charm.glisten.control.Avatar;
 import javafx.animation.PauseTransition;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
@@ -22,7 +23,8 @@ import lombok.Getter;
 //public class AccountCard extends PopupWindow {
 public class AccountCard extends StackPane {
 
-    private final ImageView avatar;
+//    private final ImageView avatar;
+    private final Avatar avatar;
     private final Label nameLabel;
     
     private final HoverCard hoverCard;
@@ -35,10 +37,10 @@ public class AccountCard extends StackPane {
         this.userInfo = userInfo;
 
         // 生成头像
-        Image image = AvatarGenerator.generateSquareAvatarWithRoundedCorners(userInfo.getUsername(), 30);
-        this.avatar = new ImageView(image);
-        this.avatar.setFitWidth(30);
-        this.avatar.setFitHeight(30);
+        avatar = AvatarGenerator.getAvatar(userInfo.getUsername(), AvatarGenerator.AvatarSize.SMALL);
+//        this.avatar = new ImageView(image);
+//        this.avatar.setFitWidth(30);
+//        this.avatar.setFitHeight(30);
 
         // 用户名
         this.nameLabel = new Label(userInfo.getUsername());
@@ -50,7 +52,7 @@ public class AccountCard extends StackPane {
         contentBox.setStyle("-fx-padding: 8px; -fx-alignment: center-left;");
 
         // HoverCard 初始化（默认不显示）
-        this.hoverCard = new HoverCard(userInfo.getUsername(), userInfo.getUsername(), image);
+        this.hoverCard = new HoverCard(userInfo.getUsername(), userInfo.getUsername(), avatar);
 //        hoverCard.setVisible(false);  // 初始隐藏
         hoverCard.setMouseTransparent(true); // 不拦截鼠标事件
 //        var popupWindow = new PopupWindow();

@@ -33,7 +33,9 @@ public interface PlatformView {
     public PlatformType getPlatform();
 
 
-
+    default public boolean isDesktop(){
+        return Platform.isDesktop();
+    }
 
     public static PlatformType getCurrentPlatform() {
         return getPlatformType(Platform.getCurrent());

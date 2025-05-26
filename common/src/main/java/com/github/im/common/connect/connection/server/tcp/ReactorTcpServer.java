@@ -85,9 +85,7 @@ public class ReactorTcpServer implements ReactiveServer {
                 .port(address.getPort())
 //                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000)
                 .doOnConnection(connection -> {
-
                     allChannels.add(connection.channel()); // 将连接添加到管理组
-
 //                    connection.channel().attr(ConnectionConstants.ROOM_KEY).set("group");
 
                     connection

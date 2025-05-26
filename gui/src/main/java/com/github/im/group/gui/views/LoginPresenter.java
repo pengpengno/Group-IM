@@ -28,6 +28,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
@@ -101,7 +102,7 @@ public class LoginPresenter implements  LoginView {
             // 如果本地存在凭据 ，那么就修改为自动登录的界面
 
             // 如果是 桌面端 那么就 先展示 登录界面， 移动端就 直接登录 然后跳转界面就行
-            if(getPlatform() == PlatformType.DESKTOP){
+            if(isDesktop()){
                 autoLoginUi();
             }else{
                 // 直接登录
@@ -141,16 +142,17 @@ public class LoginPresenter implements  LoginView {
      */
     private void autoLoginUi() {
         // 自动登录界面 圆角头像    下方蓝底白字的登录按钮 别的组件都不展示去除
-        loginView.setPrefSize(300,500);
+        loginView.setPrefSize(200,500);
 
         loginButton.setPrefHeight(50);
 
-//        loginGridPane.setVisible(false);
-//        var image = AvatarGenerator.generateSquareAvatarWithRoundedCorners(SecureSettings.getUserName().get(), 50);
-        logoImageView = AvatarGenerator.getAvatar(SecureSettings.getUserName().get(), 80);
-//        logoImageView.setImage(image);
+        Image img  = AvatarGenerator.generateSquareAvatarWithRoundedCorners(SecureSettings.getUserName().get(), AvatarGenerator.AvatarSize.LARGE.getSize());
+        logoImageView.setImage(img);
+        logoImageView.setPrefSize(70,70);
+
         logoImageView.setVisible(true);
-//        navigateToRegister.setVisible(false);
+
+        loginGridPane.setVisible(false);
 
 
     }

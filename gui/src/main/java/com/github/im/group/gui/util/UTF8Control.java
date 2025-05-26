@@ -6,6 +6,9 @@ import java.util.Locale;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 
+/**
+ * UTF-8 读取 properties 文件
+ */
 public class UTF8Control extends ResourceBundle.Control {
     @Override
     public ResourceBundle newBundle(String baseName, Locale locale, String format, ClassLoader loader, boolean reload)
@@ -29,4 +32,5 @@ public class UTF8Control extends ResourceBundle.Control {
             return new PropertyResourceBundle(reader);
         }
     }
+
 }

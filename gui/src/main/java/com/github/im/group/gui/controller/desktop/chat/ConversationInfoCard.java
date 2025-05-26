@@ -5,6 +5,7 @@ import com.github.im.dto.user.FriendshipDTO;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.group.gui.controller.desktop.contract.HoverCard;
 import com.github.im.group.gui.util.AvatarGenerator;
+import com.gluonhq.charm.glisten.control.Avatar;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
@@ -28,7 +29,8 @@ public class ConversationInfoCard extends HBox {
 
     private Label nameLabel;
     private Label lastMessageLabel;
-    private ImageView avatar;
+//    private ImageView avatar;
+    private Avatar avatar;
 
     @Getter
     private ConversationRes conversation;
@@ -37,11 +39,11 @@ public class ConversationInfoCard extends HBox {
         this.conversation = item;
 
         // 头像
-        Image image = AvatarGenerator.generateCircleAvatar(groupName, AvatarGenerator.AvatarSize.MEDIUM);
-        avatar = new ImageView(image);
-        avatar.setFitWidth(40);  // 控制头像大小
-        avatar.setFitHeight(40);
-        avatar.setPreserveRatio(true);
+        avatar = AvatarGenerator.getAvatar(groupName, AvatarGenerator.AvatarSize.MEDIUM);
+//        avatar = new ImageView(image);
+//        avatar.setFitWidth(40);  // 控制头像大小
+//        avatar.setFitHeight(40);
+//        avatar.setPreserveRatio(true);
 
         // 左边头像部分
         StackPane avatarPane = new StackPane(avatar);

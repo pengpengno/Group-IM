@@ -33,14 +33,15 @@
             </rowConstraints>
         </GridPane>
 
-        <Avatar fx:id="logoImageView" />
+        <Avatar fx:id="logoImageView" prefWidth="70" prefHeight="70"/>
+<!--        <Avatar fx:id="logoImageView"  visible="false"/>-->
+        <Label text="sjakdjkas" style="-fx-text-fill: red;" />
 
         <ProgressIndicator fx:id="progressIndicator" visible="false" />
         <Label fx:id="errorLabel" style="-fx-text-fill: red;" />
         <HBox alignment="center" spacing="20">
             <MFXButton fx:id="loginButton" onAction="#login" style="-fx-pref-width: 100px;" text="Login" />
         </HBox>
-<!--        <MFXButton fx:id="navigateToRegister" visible="false" onAction="#navigateToRegister" style="-fx-pref-width: 100px;" styleClass="register-button" text="Register"/>-->
 
     </VBox>
 </View>

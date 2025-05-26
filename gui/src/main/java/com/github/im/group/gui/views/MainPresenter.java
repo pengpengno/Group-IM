@@ -12,12 +12,10 @@ import com.github.im.group.gui.controller.desktop.menu.impl.AbstractMenuButton;
 import com.github.im.group.gui.util.AvatarGenerator;
 import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.I18nUtil;
-import com.github.im.group.gui.util.ViewUtils;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.control.*;
 import com.gluonhq.charm.glisten.mvc.View;
 import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
-import io.github.palexdev.mfxresources.fonts.MFXFontIcon;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -27,9 +25,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
-import javafx.stage.Stage;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,7 +38,6 @@ import java.util.ResourceBundle;
 @RequiredArgsConstructor
 @FxView(fxmlName = "main_layout")
 public class MainPresenter  implements MainHomeView {
-//public class MainPresenter  implements MainHomeView, Initializable {
 
     private final AbstractMenuButton abstractMenuButton;
 
@@ -60,22 +55,14 @@ public class MainPresenter  implements MainHomeView {
 
     @FXML
     private HBox windowHeader;
-//
-//    @FXML
-//    private MFXFontIcon closeIcon;
-//    @FXML
-////    private MFXButton minimizeIcon;
-//    private MFXFontIcon minimizeIcon;
-//    @FXML
-////    private MFXButton alwaysOnTopIcon;
-//    private MFXFontIcon alwaysOnTopIcon;
 
 
     @Getter
     private final ToggleGroup toggleGroup = new ToggleGroup();
 
 
-    private ResourceBundle bundle = ResourceBundle.getBundle("i18n.menu.button");
+//    private ResourceBundle bundle = ResourceBundle.getBundle("i18n.menu.button");
+    private ResourceBundle bundle = I18nUtil.getResourceBundle("i18n.menu.button");
 
     private final ChatMainPresenter chatMainPresenter;
 
@@ -90,7 +77,11 @@ public class MainPresenter  implements MainHomeView {
     }
 
 
-    public BottomNavigation bottomNavigation () {
+    /**
+     * 移动端 底部 菜单栏 ui
+     * @return 构建
+     */
+    public BottomNavigation mobileUi() {
         BottomNavigation bottomNav = new BottomNavigation();
 
         var type = bottomNav.getType();
@@ -99,6 +90,9 @@ public class MainPresenter  implements MainHomeView {
                 new BottomNavigationButton("聊天", MaterialDesignIcon.MESSAGE.graphic());
 
 
+        message.setOnAction(event-> {
+
+        });
         BottomNavigationButton people =
                 new BottomNavigationButton("联系人", MaterialDesignIcon.PEOPLE.graphic());
 
@@ -122,11 +116,11 @@ public class MainPresenter  implements MainHomeView {
         // 移动端底部栏  客户端侧边栏
         if(isMobile){
 
-            rootPane.setBottom(bottomNavigation());
+            rootPane.setBottom(mobileUi());
 
         }else{
 
-            rootPane.setBottom(bottomNavigation());
+            rootPane.setBottom(mobileUi());
 
         }
 
@@ -223,8 +217,9 @@ public class MainPresenter  implements MainHomeView {
             UserInfoContext.subscribeUserInfoSink()
                     .subscribe(userInfoFromSink -> {
                         log.info("更新头像");
+
                         var image = AvatarGenerator.generateSquareAvatarWithRoundedCorners(userInfoFromSink.getUsername(), 50);
-//                    var image = AvatarGenerator.generateSquareAvatarWithRoundedCorners(userInfo.getUsername(), 50, Color.valueOf("#2196F3"));
+
                         Platform.runLater(() -> avatar.setImage(image));
                     });
         }
@@ -236,6 +231,11 @@ public class MainPresenter  implements MainHomeView {
      * 初始化左侧菜单栏按钮，并添加 Tooltip
      */
     private void setupMenuButtons() {
+        // 桌面端下的ui
+        if(!isDesktop()){
+            // 移动端就不构建
+            return ;
+        }
 
         var buttonTuples = abstractMenuButton.getAllButtonTuplesList();
 
@@ -284,6 +284,7 @@ public class MainPresenter  implements MainHomeView {
                     .sendMessage(baseMessage)
                     .subscribe();
         });
+
         iconMenu.getChildren().addAll(allButtons);
         iconMenu.getChildren().add(reConnected);
 

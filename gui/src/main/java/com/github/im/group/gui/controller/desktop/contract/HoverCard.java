@@ -1,5 +1,6 @@
 package com.github.im.group.gui.controller.desktop.contract;
 
+import com.gluonhq.charm.glisten.control.Avatar;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -18,18 +19,14 @@ public class HoverCard extends VBox {
     private HBox detailBox;
     private Label emailLabel;
     private Label statusLabel;
-    private ImageView avatar;
+    private Avatar avatar;
     private Text nameText;
 
-    public HoverCard(String name, String email, Image avatarImage) {
+    public HoverCard(String name, String email, Avatar avatarImage) {
 //    public HoverCard(String name, String email, String status, Image avatarImage) {
         // 创建详细信息框
         detailBox = new HBox(10);
-
-        avatar = new ImageView(avatarImage != null ? avatarImage : new Image("default-avatar.png"));
-        avatar.setFitWidth(60);
-        avatar.setFitHeight(60);
-        avatar.setPreserveRatio(true);
+        avatar = avatarImage;
 
         nameText = new Text(name);
         emailLabel = new Label("Email: " + email);

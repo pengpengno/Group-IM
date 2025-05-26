@@ -1,5 +1,8 @@
 package com.github.im.group.gui.util;
 
+import javafx.beans.binding.StringBinding;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import lombok.SneakyThrows;
 import org.scenicview.utils.PropertiesUtils;
 import org.springframework.context.support.ResourceBundleMessageSource;
@@ -23,6 +26,31 @@ import java.util.*;
 public class I18nUtil {
 
 
+    // TODO  实现热更新机制
+
+    private static final UTF8Control UTF8_CONTROL = new UTF8Control();
+
+    private static final ObjectProperty<Locale> currentLocale = new SimpleObjectProperty<>( Locale.getDefault());
+
+
+    public static ObjectProperty<Locale> localeProperty() {
+        return currentLocale;
+    }
+
+    public static Locale getLocale() {
+        return currentLocale.get();
+    }
+
+    public static void setLocale(Locale locale) {
+        currentLocale.set(locale);
+    }
+
+
+//    public static ResourceBundle getResourceBundle(String packageName,Locale locale) {
+//
+//    }
+
+
     /**
      * getResourceBundle by  packageName
      *
@@ -32,7 +60,7 @@ public class I18nUtil {
      * @return ResourceBundle
      */
     public static ResourceBundle getResourceBundle(String packageName) {
-        return ResourceBundle.getBundle(packageName);
+        return ResourceBundle.getBundle(packageName, localeProperty().get(),UTF8_CONTROL);
     }
 
 
@@ -41,13 +69,12 @@ public class I18nUtil {
     }
 
 
+
     @SneakyThrows
     public static void main(String[] args) {
         Locale english = new Locale("en", "US");
 //        Locale chinese = new Locale("zh", "CN");
         Locale locale = Locale.ENGLISH;
-
-
 
         // 设置中文环境
 //        Locale chinese = Locale.CHINA;
@@ -85,4 +112,22 @@ public class I18nUtil {
 
     }
 
+
+    public static ResourceBundle getBundle() {
+        return ResourceBundle.getBundle("i18n.messages", getLocale());
+    }
+
+
+    private StringBinding createBindingForKey(String key) {
+        return new StringBinding() {
+            {
+                bind(localeProperty());
+            }
+
+            @Override
+            protected String computeValue() {
+                return getBundle().getString(key);
+            }
+        };
+    }
 }

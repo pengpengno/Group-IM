@@ -67,25 +67,20 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ChatBubblePane extends GridPane {
 
 
-
-    private UserInfo senderUser;
-
     // 创建头像
     private final Avatar avatar ;
-
+    // 消息发送者
     private Label senderLabel;
-
-    private RichTextMessageArea senderTextField;
-
+    // 文本内容
+    private RichTextMessageArea messageArea;
+    // 进度条
     private ProgressBar progressBar;
 
-    private Label statusLabel;
-
-    private MessageWrapper messageWrapper;  // 消息主体
+    private final MessageWrapper messageWrapper;  // 消息主体
 
     @Setter
     /**
-     * 返回一个消息 Node
+     * 返回一个消息 Node {@link MessageNode 用于展示的消息节点 }
      */
     private Mono<MessageNode> messageNodeMono;
 
@@ -103,7 +98,7 @@ public class ChatBubblePane extends GridPane {
             double progress = uploaded.get() / (double) totalBytes;
             Platform.runLater(() -> {
                 progressBar.setProgress(progress);
-                statusLabel.setText(String.format("上传中：%.2f%%", progress * 100));
+//                statusLabel.setText(String.format("上传中：%.2f%%", progress * 100));
             });
             return dataBuffer;
         });
@@ -120,20 +115,23 @@ public class ChatBubblePane extends GridPane {
     }
 
 
+    /**
+     *
+     * @param messageWrapper 消息包装体
+     * @param nodeMono
+     */
     public ChatBubblePane(MessageWrapper messageWrapper,Mono<MessageNode> nodeMono) {
         this.messageNodeMono = nodeMono;
         this.messageWrapper = messageWrapper;
 
         UserInfo currentUser = UserInfoContext.getCurrentUser();
         var senderAccount = messageWrapper.getSenderAccount();
-        senderUser = messageWrapper.getUserInfo();
         // 判断是否为当前用户
         var isCurrentSender = currentUser.getUsername().equals(senderAccount);
-        var username = currentUser.getUsername();
 
-        avatar = AvatarGenerator.getAvatar(username, 20);
+        avatar = AvatarGenerator.getAvatar(senderAccount, AvatarGenerator.AvatarSize.MEDIUM);
 
-        init(messageWrapper, username, isCurrentSender);
+        init(messageWrapper, senderAccount, isCurrentSender);
     }
 
 
@@ -161,25 +159,23 @@ public class ChatBubblePane extends GridPane {
         messageColumn.setPercentWidth(80);
 
 
-        senderTextField = new RichTextMessageArea();
-        senderTextField.setEditable(false);
-
+        messageArea = new RichTextMessageArea();
+        messageArea.setEditable(false);
 
         if(message instanceof String strContent){
-            senderTextField.appendText(strContent);
+            messageArea.appendText(strContent);
         }
         // 如果直接是 消息节点那么直接添加即可
         else if (message instanceof MessageNode messageNode){
-            senderTextField.insertNode(messageNode);
+            messageArea.insertNode(messageNode);
         }
         // 如果是 推送来的 MessageWrapper ，优先构造出属性 ，
-        else if (message instanceof MessageWrapper messageWrapper){
-            this.messageWrapper = messageWrapper;
+        else if (message instanceof MessageWrapper wrapper){
             switch (messageWrapper.getMessageType()) {
-                case TEXT -> senderTextField.appendText(messageWrapper.getContent());
+                case TEXT -> messageArea.appendText(messageWrapper.getContent());
                 case FILE -> {
                     messageNodeMono
-                            .subscribe(node -> senderTextField.insertNode(node));
+                            .subscribe(node -> messageArea.insertNode(node));
                 }
 
             }
@@ -188,45 +184,31 @@ public class ChatBubblePane extends GridPane {
         // 头像和名称的Box
         var avatarAndNameBox = new VBox(5);
         senderLabel = new Label(name);
-        senderLabel.setFont(Font.font("Arial", 18));
+        senderLabel.setFont(Font.font("Arial", 10));
         senderLabel.setTextFill(Color.GRAY); // 设置为标准灰色
 
         avatarAndNameBox.getChildren().addAll(senderLabel, avatar);
         avatarAndNameBox.setAlignment(isSent ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
 
+        // 存放消息文本 + 头像Box 独占一行
         HBox messageBox = new HBox(10);
         messageBox.setAlignment(isSent ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
 
-//        TODO 抽象成主题色
-        var instance = AppManager.getInstance();
-        Background background;
-        BackgroundFill backgroundFill;
-        if (instance != null){
-            var fill = instance.getAppBar().getBackground().getFills().get(0).getFill();
-            backgroundFill = new BackgroundFill(
-                    fill, // 蓝色
-                    new CornerRadii(15),  // 圆角半径
-                    Insets.EMPTY
-            );
-        }else{
-             backgroundFill = new BackgroundFill(
-                    Color.BLUE, // 蓝色
-                    new CornerRadii(15),  // 圆角半径
-                    Insets.EMPTY
-            );
-        }
 
-        background = new Background(backgroundFill);
-        var senderTextFieldBox = new HBox();
-        senderTextFieldBox.getChildren().add(senderTextField);
-        senderTextFieldBox.setPadding(new Insets(10,0,10,0));
+        // 添加一些上下边距 不让内容 贴太近
+        var messageAreaBox = new HBox();
+        messageAreaBox.setPadding(new Insets(10,0,10,0));
+
+        messageAreaBox.getChildren().add(messageArea);
+
+        VBox.setMargin(messageAreaBox, new Insets(10, 0, 10, 0));
 
         if(isSent){
-            senderTextField.setBackground(background);
-            messageBox.getChildren().addAll(senderTextFieldBox,avatarAndNameBox);
+            messageArea.bg();
+            messageBox.getChildren().addAll(messageAreaBox,avatarAndNameBox);
         }
         else{
-            messageBox.getChildren().addAll(avatarAndNameBox, senderTextFieldBox);
+            messageBox.getChildren().addAll(avatarAndNameBox, messageAreaBox);
         }
 
         if (isSent) {
@@ -241,11 +223,11 @@ public class ChatBubblePane extends GridPane {
             this.add(messageBox,0,0);
         }
 
-//        senderTextField.setPrefSize();
-        senderTextField.setPrefWidth(400);
-        senderTextField.setPrefHeight(senderTextField.calculateAreaHeight(400L));
+//        messageArea.setPrefSize();
+        messageArea.setPrefWidth(200);
+        messageArea.setPrefHeight(messageArea.calculateAreaHeight(400L));
 
-       log.info("line  length {} , {} " ,senderTextField.getPrefWidth() , senderTextField.getPrefHeight());
+       log.info("line  length {} , {} " ,messageArea.getPrefWidth() , messageArea.getPrefHeight());
     }
 
 
