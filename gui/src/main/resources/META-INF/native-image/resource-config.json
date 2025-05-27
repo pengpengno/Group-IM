@@ -5,6 +5,8 @@
   },{
     "pattern":".*\\.fxml"
   },{
+    "pattern": "com/gluonhq/charm/glisten/control/.*\\.ttf"
+  },{
     "pattern":".*\\.gif"
   },{
     "pattern":".*\\.jpeg"

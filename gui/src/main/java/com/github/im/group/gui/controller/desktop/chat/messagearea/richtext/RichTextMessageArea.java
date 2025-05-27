@@ -70,13 +70,18 @@ public class RichTextMessageArea extends GenericStyledArea<ParStyle, Either<Stri
 
     }
 
+    /**
+     * 设置为不可修改时 ，视为文本展示域，
+     * 美化处理 ， 将会 top bottom padding 5 ；
+     * @param value
+     */
     @Override
     public void setEditable(boolean value) {
         super.setEditable(value);
         this.heightProperty().addListener((obs, oldH, newH) -> {
             double contentHeight = this.computePrefHeight();
-            double paddingTop = Math.max(0, (newH.doubleValue() - contentHeight) / 2);
-            this.setPadding(new Insets(paddingTop, 0, paddingTop, 0));
+//            double paddingTop = Math.max(0, (newH.doubleValue() - contentHeight) / 2);
+            this.setPadding(new Insets(5, 0, 5, 0));
         });
     }
 
