@@ -1,15 +1,7 @@
 package com.github.im.group.gui.views;
 
-import com.github.im.common.connect.enums.PlatformType;
-import com.github.im.dto.user.LoginRequest;
-import com.github.im.group.gui.api.UserEndpoint;
-import com.github.im.group.gui.config.SecureSettings;
+
 import com.github.im.group.gui.config.ServerConnectProperties;
-import com.github.im.group.gui.controller.DisplayManager;
-import com.github.im.group.gui.controller.LoginView;
-import com.github.im.group.gui.lifecycle.LoginLifecycle;
-import com.github.im.group.gui.util.AvatarGenerator;
-import com.github.im.group.gui.util.FxView;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.control.AppBar;
 import com.gluonhq.charm.glisten.mvc.View;
@@ -17,19 +9,12 @@ import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import jakarta.annotation.PostConstruct;
 import javafx.application.Platform;
-import javafx.concurrent.Task;
-import javafx.concurrent.WorkerStateEvent;
-import javafx.event.EventHandler;
-import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.image.ImageView;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @Service
 @Slf4j

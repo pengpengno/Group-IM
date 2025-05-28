@@ -1,6 +1,7 @@
 package com.github.im.group.gui;
 
 import com.github.im.group.gui.util.FileIconUtil;
+import com.github.im.group.gui.util.FontRegistrar;
 import com.github.im.group.gui.views.*;
 import com.gluonhq.attach.display.DisplayService;
 import com.gluonhq.attach.util.Platform;
@@ -78,9 +79,10 @@ public class Main extends Application  {
         appManager = AppManager.initialize(this::postInit);
 
         initSpringEnv();
+        FontRegistrar.registerFonts();
 
         AppViewManager.createHomeView(LoginPresenter.class);
-        AppViewManager.createView(MainPresenter.class);
+        AppViewManager.createFView(MainPresenter.class);
         AppViewManager.registerViewsAndDrawer();
 
 

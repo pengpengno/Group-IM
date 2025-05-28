@@ -21,6 +21,7 @@ public interface ViewLifeCycle {
      */
     String getId();
 
+
     /**
      * 向 {@link AppViewManager }
      */

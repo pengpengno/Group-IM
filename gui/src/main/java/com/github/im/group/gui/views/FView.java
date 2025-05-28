@@ -27,7 +27,7 @@ import java.util.Objects;
 public final class FView  implements ViewLifeCycle{
     @Getter
     private final String id;
-    private final Class<? extends PlatformView> presenterClass;
+    private final Class presenterClass;
     private final MaterialDesignIcon menuIcon;
 
     private final EnumSet<Flag> flags;
@@ -48,12 +48,13 @@ public final class FView  implements ViewLifeCycle{
 
 
 
-    public FView(Class<? extends PlatformView> viewClass, MaterialDesignIcon menuIcon, Flag... flags) {
+//    public FView(Class<? extends PlatformView> viewClass, MaterialDesignIcon menuIcon, Flag... flags) {
+    public FView(Class<?> viewClass, MaterialDesignIcon menuIcon, Flag... flags) {
         this.title = viewClass.getSimpleName();
 
         final var id = viewClass.getSimpleName();
         Objects.requireNonNull(id);
-        this.presenterClass = (Class)Objects.requireNonNull(viewClass);
+        this.presenterClass = Objects.requireNonNull(viewClass);
         this.menuIcon = menuIcon;
         this.flags = flags != null && flags.length != 0 ? EnumSet.copyOf(Arrays.asList(flags)) : EnumSet.noneOf(Flag.class);
         this.defaultViewStackPolicy = this.flags.contains(FView.Flag.SKIP_VIEW_STACK) ? ViewStackPolicy.SKIP : ViewStackPolicy.USE;
@@ -92,7 +93,17 @@ public final class FView  implements ViewLifeCycle{
 //            var view = new View(parent);
             // 这里不要 new 出来view 存放 不然会出现两个view
             View view = (View)parent;
+
+            /**
+             * 加个判断 用于加载不同平台的界面 {@link PlatformUI 平台ui}
+             */
+            if(presenter instanceof PlatformUI  ui) {
+                ui.loadUi();
+            }
+
             registry.putPresenterAndView(this, presenter);
+
+
             return view;
         });
     }

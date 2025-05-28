@@ -1622,6 +1622,11 @@
     "queryAllDeclaredMethods":true,
     "queryAllPublicConstructors":true,
     "methods":[{"name":"<init>","parameterTypes":[] }]
+  },  {
+    "name":"com.gluonhq.charm.glisten.control.ProgressIndicator",
+    "queryAllDeclaredMethods":true,
+    "queryAllPublicConstructors":true,
+    "methods":[{"name":"<init>","parameterTypes":[] }]
   },
   {
     "name":"javafx.scene.control.Skinnable",

@@ -71,7 +71,7 @@ public class AppViewManager {
     /**
      * 注册主界面
      */
-    public static FView createHomeView(Class<? extends PlatformView> presenterClass) {
+    public static FView createHomeView(Class<?> presenterClass) {
 
         var home = MaterialDesignIcon.HOME;
         ViewLifeCycle.Flag[] flags = new ViewLifeCycle.Flag[]{HOME_VIEW,SHOW_IN_DRAWER, SKIP_VIEW_STACK};
@@ -84,7 +84,7 @@ public class AppViewManager {
     /**
      * 注册主界面
      */
-    public static FView createView(Class<? extends PlatformView> presenterClass, MaterialDesignIcon menuIcon ) {
+    public static FView createView(Class<?> presenterClass, MaterialDesignIcon menuIcon ) {
 
         FView.Flag[] flags = new FView.Flag[]{SHOW_IN_DRAWER, SKIP_VIEW_STACK};
 
@@ -96,7 +96,7 @@ public class AppViewManager {
     /**
      * 注册主界面
      */
-    public static FView createView(Class<? extends PlatformView> presenterClass) {
+    public static FView createFView(Class<?> presenterClass) {
         var ICON = MaterialDesignIcon.ACCESS_ALARM;
         return createView(presenterClass, ICON);
     }

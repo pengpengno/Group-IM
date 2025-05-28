@@ -53,7 +53,7 @@ public  class ViewRegistry {
      * @param flags
      * @return
      */
-    public final FView createView(Class<? extends PlatformView> presenterClass, MaterialDesignIcon menuIcon, FView.Flag... flags) {
+    public final FView createView(Class<?> presenterClass, MaterialDesignIcon menuIcon, FView.Flag... flags) {
         FView view = new FView( presenterClass, menuIcon, flags);
         this.viewMap.put(view.getId(), view);
         view.registry = this ;
@@ -95,9 +95,10 @@ public  class ViewRegistry {
     /**
      * 构建平台特定的 FXML 文件路径
      *
-     * 此方法通过检查提供的视图类是否具有 FxView 注解来确定 FXML 文件的路径
+     * 此方法通过检查提供的视图类是否具有 {@link FxView} 注解来确定 FXML 文件的路径
      * 如果注解存在，它会优先使用注解中指定的路径，然后是 FXML 文件名
      * 如果注解不存在或相关路径信息未指定，它会使用视图类的简单名称来构建默认路径
+     * 如： MyView.class  ， 那么检索后就是返回 fxml/MyView.fxml
      *
      * @param viewclass 视图类，用于确定 FXML 文件的路径
      * @return FXML 文件的路径

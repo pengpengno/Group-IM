@@ -1,41 +1,19 @@
 package com.github.im.group.gui.views;
 
-import com.github.im.common.connect.connection.client.ClientToolkit;
-import com.github.im.common.connect.enums.PlatformType;
-import com.github.im.common.connect.model.proto.Account;
-import com.github.im.common.connect.model.proto.BaseMessage;
-import com.github.im.group.gui.context.UserInfoContext;
-import com.github.im.group.gui.controller.MainHomeView;
-import com.github.im.group.gui.controller.PlatformView;
+
 import com.github.im.group.gui.controller.desktop.chat.ChatMainPresenter;
-import com.github.im.group.gui.controller.desktop.menu.impl.AbstractMenuButton;
-import com.github.im.group.gui.util.AvatarGenerator;
-import com.github.im.group.gui.util.FxView;
-import com.github.im.group.gui.util.I18nUtil;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.control.*;
 import com.gluonhq.charm.glisten.mvc.View;
 import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
-import javafx.application.Platform;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
-import javafx.event.ActionEvent;
-import javafx.fxml.FXML;
-import javafx.geometry.Insets;
-import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.MenuItem;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
 

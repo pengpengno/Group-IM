@@ -22,6 +22,7 @@ import static com.github.im.common.connect.enums.PlatformType.*;
  * @version 1.0
  * @since 2025/2/12
  */
+@Deprecated
 public interface PlatformView {
 
     public static PlatformType  DEFAULT_PLATFORM = DESKTOP;
@@ -33,13 +34,8 @@ public interface PlatformView {
     public PlatformType getPlatform();
 
 
-    default public boolean isDesktop(){
-        return Platform.isDesktop();
-    }
 
-    public static PlatformType getCurrentPlatform() {
-        return getPlatformType(Platform.getCurrent());
-    }
+
 
     public static Account.PlatformType getCurrentPlatformType() {
 
@@ -72,13 +68,5 @@ public interface PlatformView {
         }
     }
 
-    //  enum corresponding to the  gluon Platform enum
-    public static PlatformType getPlatformType(Platform platform) {
-        return switch (platform) {
-            case DESKTOP -> DESKTOP;
-            case ANDROID -> MOBILE;
-            case IOS -> MOBILE;
-            default -> DESKTOP;
-        };
-    }
+
 }

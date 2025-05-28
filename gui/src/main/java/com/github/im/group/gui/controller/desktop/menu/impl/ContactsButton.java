@@ -1,14 +1,13 @@
 package com.github.im.group.gui.controller.desktop.menu.impl;
 
 import com.github.im.group.gui.controller.DisplayManager;
-import com.github.im.group.gui.controller.MainHomeView;
 import com.github.im.group.gui.views.MainPresenter;
 import com.github.im.group.gui.controller.desktop.contract.ContractMainPane;
-import javafx.event.EventType;
+import jakarta.annotation.Resource;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseEvent;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -18,8 +17,7 @@ import java.util.Objects;
 @Component
 @Slf4j
 public class ContactsButton extends AbstractMenuButton{
-
-    @Autowired
+    @Resource
     private ContractMainPane contractMainPane;
 
 
@@ -28,16 +26,10 @@ public class ContactsButton extends AbstractMenuButton{
 
         this.setOnMouseClicked(event -> {
 
-//            if (this.isSelected()){
-//                return;
-//            }
-
-
             log.info("click  Contacts ");
 
             var controller = DisplayManager.getController(MainPresenter.class);
 
-//            contractMainPane.initComponent();
             contractMainPane.loadContacts();
 
             var d  = (MainPresenter)controller;

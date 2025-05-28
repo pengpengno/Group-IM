@@ -8,8 +8,8 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.control.ProgressIndicator?>
 <?import io.github.palexdev.materialfx.controls.MFXButton?>
+<?import com.gluonhq.charm.glisten.control.ProgressIndicator?>
 <?import com.gluonhq.charm.glisten.mvc.View?>
 <?import com.gluonhq.charm.glisten.control.Avatar?>
 <View fx:id="loginView"
@@ -35,7 +35,6 @@
 
         <Avatar fx:id="logoImageView" prefWidth="70" prefHeight="70"/>
 <!--        <Avatar fx:id="logoImageView"  visible="false"/>-->
-        <Label text="sjakdjkas" style="-fx-text-fill: red;" />
 
         <ProgressIndicator fx:id="progressIndicator" visible="false" />
         <Label fx:id="errorLabel" style="-fx-text-fill: red;" />

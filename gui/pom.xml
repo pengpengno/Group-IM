@@ -75,12 +75,6 @@
         <dependency>
             <groupId>com.github.im</groupId>
             <artifactId>common</artifactId>
-<!--            <exclusions>-->
-<!--                <exclusion>-->
-<!--                    <artifactId>logback-classic</artifactId>-->
-<!--                    <groupId>ch.qos.logback</groupId>-->
-<!--                </exclusion>-->
-<!--            </exclusions>-->
         </dependency>
 
         <dependency>

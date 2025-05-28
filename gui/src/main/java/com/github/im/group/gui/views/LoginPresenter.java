@@ -1,60 +1,49 @@
 package com.github.im.group.gui.views;
 
-import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.dto.user.LoginRequest;
 import com.github.im.group.gui.api.UserEndpoint;
 import com.github.im.group.gui.config.SecureSettings;
 import com.github.im.group.gui.controller.DisplayManager;
-import com.github.im.group.gui.controller.LoginView;
 import com.github.im.group.gui.controller.desktop.chat.ChatMainPresenter;
 import com.github.im.group.gui.lifecycle.LoginLifecycle;
 import com.github.im.group.gui.util.AvatarGenerator;
 import com.github.im.group.gui.util.FxView;
+import com.github.im.group.gui.util.PlatformUtils;
 import com.github.im.group.gui.util.ViewUtils;
-import com.gluonhq.attach.util.Services;
-import com.gluonhq.charm.glisten.animation.BounceInLeftTransition;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.control.*;
 import com.gluonhq.charm.glisten.mvc.View;
 import com.gluonhq.charm.glisten.visual.MaterialDesignIcon;
-import com.gluonhq.charm.glisten.visual.Swatch;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
-import javafx.scene.control.*;
-import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-
-import java.net.URL;
-import java.util.ResourceBundle;
-import static com.gluonhq.charm.glisten.application.AppManager.HOME_VIEW;
+import  com.gluonhq.charm.glisten.control.ProgressIndicator;
+import java.util.ArrayList;
+import java.util.Collections;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 @FxView(fxmlName = "login_view",title = "登录")
-public class LoginPresenter implements  LoginView {
+//public class LoginPresenter implements  LoginView {
+public class LoginPresenter  implements  PlatformUI{
 //public class LoginPresenter extends View implements  LoginView {
 
-
-
-    @Override
-    public PlatformType  getPlatform() {
-        return PlatformType.DESKTOP;
-    }
 
 
     @FXML
@@ -90,6 +79,18 @@ public class LoginPresenter implements  LoginView {
     private final ChatMainPresenter chatMainPresenter;
 
 
+    @Override
+    public void desktop() {
+
+    }
+
+    @Override
+    public void mobile() {
+        DisplayManager.getPrimaryStage().setFullScreen(true);
+
+
+    }
+
     /**
      * Gluon 会自动跳动这个方案
      */
@@ -102,7 +103,7 @@ public class LoginPresenter implements  LoginView {
             // 如果本地存在凭据 ，那么就修改为自动登录的界面
 
             // 如果是 桌面端 那么就 先展示 登录界面， 移动端就 直接登录 然后跳转界面就行
-            if(isDesktop()){
+            if(PlatformUtils.isDesktop()){
                 autoLoginUi();
             }else{
                 // 直接登录
@@ -145,13 +146,36 @@ public class LoginPresenter implements  LoginView {
         loginView.setPrefSize(200,500);
 
         loginButton.setPrefHeight(50);
-
-        Image img  = AvatarGenerator.generateSquareAvatarWithRoundedCorners(SecureSettings.getUserName().get(), AvatarGenerator.AvatarSize.LARGE.getSize());
+//        AvatarPane avtarPanel = new AvtarPanel();
+        var name = SecureSettings.getUserName().get();
+        Image img  = AvatarGenerator.generateSquareAvatarWithRoundedCorners(name, AvatarGenerator.AvatarSize.LARGE.getSize());
         logoImageView.setImage(img);
         logoImageView.setPrefSize(70,70);
 
         logoImageView.setVisible(true);
 
+        var strings = FXCollections.observableList(Collections.singletonList(name));
+
+        AvatarPane<String> avatarPane = new AvatarPane<>(strings);
+        avatarPane.setAvatarFactory(speaker -> {
+            Avatar avatar = new Avatar();
+            avatar.setImage(img);
+            return avatar;
+        });
+        avatarPane.setContentFactory(speaker -> {
+            VBox container = new VBox();
+            Label nameLabel = new Label(name);
+            nameLabel.setWrapText(true);
+//            Label jobTitle = new Label(speaker.getJobTitle());
+//            jobTitle.setWrapText(true);
+//            Label company = new Label(speaker.getCompany());
+//            company.setWrapText(true);
+//            Label summary = new Label(speaker.getSummary());
+//            summary.setWrapText(true);
+            container.getChildren().addAll(nameLabel);
+            return container;
+        });
+        loginView.getChildren().add(avatarPane);
         loginGridPane.setVisible(false);
 
 

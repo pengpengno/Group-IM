@@ -9,7 +9,7 @@ java -agentlib:native-image-agent=config-output-dir=META-INF/native-image -jar y
 ```
 
 
-protbuf in graalvm
+protobuf in graalvm
 
 https://stackoverflow.com/questions/77256791/using-protobuf-java-in-graalvm-native-image
 
@@ -17,3 +17,10 @@ https://stackoverflow.com/questions/77256791/using-protobuf-java-in-graalvm-nati
 configure with tracing agent 
 
 https://www.graalvm.org/latest/reference-manual/native-image/guides/configure-with-tracing-agent/
+
+
+# 编译数据
+```shell
+export PATH=$GRAALVM_HOME/bin:$PATH
+
+```

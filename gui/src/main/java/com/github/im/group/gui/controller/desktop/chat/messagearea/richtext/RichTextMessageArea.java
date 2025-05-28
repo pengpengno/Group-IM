@@ -126,9 +126,17 @@ public class RichTextMessageArea extends GenericStyledArea<ParStyle, Either<Stri
         return pstyle -> pstyle.isFolded();
     }
 
+    /**
+     * 自动调整尺寸
+     * @param maxLineWidth
+     */
+    public void autoSize(double maxLineWidth){
+
+    }
 
     /**
      * 设置背景色
+     * 默认使用Gluon 下的背景色
      */
     public void bg(){
         var instance = AppManager.getInstance();

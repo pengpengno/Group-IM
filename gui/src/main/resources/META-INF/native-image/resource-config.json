@@ -6,7 +6,16 @@
     "pattern":".*\\.fxml"
   },{
     "pattern": "com/gluonhq/charm/glisten/control/.*\\.ttf"
-  },{
+  },
+    { "pattern": "com/gluonhq/charm/glisten/control/MaterialIcons-Regular.ttf" },
+    { "pattern": "fonts/.*\\.*" },
+    { "pattern": "/com/gluonhq/charm/glisten/control/MaterialIcons-Regular.ttf" },
+    { "pattern": "com/gluonhq/charm/glisten/control/Roboto-.*\\.ttf" },
+    { "pattern": "/com/gluonhq/charm/glisten/control/Roboto-.*\\.ttf" },
+    { "pattern": "com/gluonhq/charm/glisten/control/glisten\\.css" },
+    { "pattern": "/com/gluonhq/charm/glisten/control/glisten\\.css" },
+
+    {
     "pattern":".*\\.gif"
   },{
     "pattern":".*\\.jpeg"

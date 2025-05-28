@@ -46,9 +46,7 @@ public class I18nUtil {
     }
 
 
-//    public static ResourceBundle getResourceBundle(String packageName,Locale locale) {
-//
-//    }
+
 
 
     /**

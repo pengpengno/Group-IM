@@ -1,17 +1,16 @@
 package com.github.im.group.gui.views;
 
 import com.github.im.common.connect.connection.client.ClientToolkit;
-import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.group.gui.context.UserInfoContext;
-import com.github.im.group.gui.controller.MainHomeView;
 import com.github.im.group.gui.controller.PlatformView;
 import com.github.im.group.gui.controller.desktop.chat.ChatMainPresenter;
 import com.github.im.group.gui.controller.desktop.menu.impl.AbstractMenuButton;
 import com.github.im.group.gui.util.AvatarGenerator;
 import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.I18nUtil;
+import com.github.im.group.gui.util.PlatformUtils;
 import com.gluonhq.charm.glisten.application.AppManager;
 import com.gluonhq.charm.glisten.control.*;
 import com.gluonhq.charm.glisten.mvc.View;
@@ -37,7 +36,7 @@ import java.util.ResourceBundle;
 @Service
 @RequiredArgsConstructor
 @FxView(fxmlName = "main_layout")
-public class MainPresenter  implements MainHomeView {
+public class MainPresenter  implements PlatformUI{
 
     private final AbstractMenuButton abstractMenuButton;
 
@@ -77,6 +76,8 @@ public class MainPresenter  implements MainHomeView {
     }
 
 
+
+
     /**
      * 移动端 底部 菜单栏 ui
      * @return 构建
@@ -106,6 +107,16 @@ public class MainPresenter  implements MainHomeView {
         bottomNav.getActionItems().addAll(message,people,mine);
 
         return bottomNav;
+
+    }
+
+    @Override
+    public void desktop() {
+
+    }
+
+    @Override
+    public void mobile() {
 
     }
 
@@ -232,7 +243,7 @@ public class MainPresenter  implements MainHomeView {
      */
     private void setupMenuButtons() {
         // 桌面端下的ui
-        if(!isDesktop()){
+        if(!PlatformUtils.isDesktop()){
             // 移动端就不构建
             return ;
         }
@@ -293,10 +304,10 @@ public class MainPresenter  implements MainHomeView {
 
 
 
-    @Override
-    public PlatformType getPlatform() {
-        return PlatformType.DESKTOP;
-    }
+//    @Override
+//    public PlatformType getPlatform() {
+//        return PlatformType.DESKTOP;
+//    }
 
 
 }

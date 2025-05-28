@@ -22,6 +22,10 @@ import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.imag
 import com.github.im.group.gui.controller.desktop.menu.impl.ChatButton;
 import com.github.im.group.gui.util.ClipboardUtils;
 import com.github.im.group.gui.util.PathFileUtil;
+import com.gluonhq.attach.util.Services;
+import com.gluonhq.charm.glisten.control.TextArea;
+import com.gluonhq.charm.glisten.control.TextInput;
+import com.gluonhq.charm.glisten.mvc.View;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXScrollPane;
 import io.github.palexdev.materialfx.enums.ButtonType;
@@ -73,25 +77,23 @@ import java.util.*;
  * @version 1.0
  * @since 2025/1/9
  */
-//@Component
-//@Scope("prototype")
+
 @Slf4j
 @RequiredArgsConstructor
-//public class ChatMessagePane extends BorderPane implements Initializable  {
-public class ChatMessagePane extends BorderPane {
+//public class ChatMessagePane extends BorderPane {
+public class ChatMessagePane extends View {
 
 
     private VBox messageDisplayArea; // 消息展示区域
 
     private MFXScrollPane scrollPane; // 消息滚动条
 
-    private SendMessagePane sendMessagePane;  // 消息发送区域
+    private RichTextMessageArea messageSendArea; // message send area  移动端样式使用
+    private TextArea textArea; // 移动端使用这个 发送文本消息
 
-    private RichTextMessageArea messageSendArea; // message send area
-    StackPane messageAreaWithButton;
+    private StackPane messageAreaWithButton;
 
     @Getter
-//    @Setter
     private final Long conversationId ;
     private final EventBus bus;
     private final FileEndpoint fileEndpoint;
@@ -104,16 +106,10 @@ public class ChatMessagePane extends BorderPane {
      * contains
      * Button send
      */
-//    public static class SendMessagePane extends AnchorPane implements Initializable {
     public static class SendMessagePane extends AnchorPane {
 
 
         private MFXButton sendButton;
-
-        private SendMessagePane(){
-            initialize();
-        }
-
 
         /**
          *  set send message action
@@ -142,9 +138,23 @@ public class ChatMessagePane extends BorderPane {
             this.getChildren().add(sendButton);
             this.setPrefHeight(50); // Set the height for the send area
 
+
+//            PermissionService permissionService = Services.get(PermissionService.class).orElse(null);
+//            if (permissionService != null) {
+//                permissionService.requestPermission(Permission.READ_EXTERNAL_STORAGE).ifPresent(granted -> {
+//                    if (granted) {
+//                        System.out.println("读取权限已授予");
+//                        // 现在可以访问本地视频或文件
+//                    } else {
+//                        System.out.println("用户拒绝读取权限");
+//                    }
+//                });
+//            }
+
         }
 
     }
+
 
 
     /**
@@ -167,8 +177,7 @@ public class ChatMessagePane extends BorderPane {
         return Mono.fromSupplier(() -> {
             log.debug("receive message from {}",cm.getFromAccountInfo().getAccount());
 
-            var messageWrapper = new MessageWrapper(cm);
-            return messageWrapper;
+            return new MessageWrapper(cm);
         })
         .flatMap(messageWrapper -> {
             return Mono.fromRunnable(()-> {
@@ -351,7 +360,7 @@ public class ChatMessagePane extends BorderPane {
 
 
 
-//    @PostConstruct
+
     public void initialize() {
         setupMessageListener();
         setupMessageDisplayArea();
@@ -431,7 +440,8 @@ public class ChatMessagePane extends BorderPane {
 
     /** 初始化发送区域面板 */
     private void setupSendPane() {
-        sendMessagePane = new SendMessagePane(sendMessage());
+        // 消息发送区域
+        SendMessagePane sendMessagePane = new SendMessagePane(sendMessage());
         sendMessagePane.setPrefHeight(50);
         sendMessagePane.prefHeightProperty().bind(
                 Bindings.multiply(this.heightProperty(), 0.1)

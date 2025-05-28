@@ -71,9 +71,17 @@ public class BView implements ViewLifeCycle {
 
         AppManager.getInstance().addViewFactory(viewName, () -> {
 
-            // 这里不要 new 出来view 存放 不然会出现两个view
+            // 这里不要 new 出来view 存放 不然会出现两个view ,因为 spring 容器已经存在了该bean， 复用即可
+
             View view = (View) presenter;
             getRegistry().putPresenterAndView(this, presenter);
+
+            /**
+             * 加个判断 用于加载不同平台的界面 {@link PlatformUI 平台ui}
+             */
+            if(presenter instanceof PlatformUI  ui) {
+                ui.loadUi();
+            }
             return view;
         });
 
@@ -91,8 +99,11 @@ public class BView implements ViewLifeCycle {
         Node menuIconNode = MaterialDesignIcon.HOME.graphic();
         ViewStackPolicy defaultViewStackPolicy = ViewStackPolicy.SKIP;
         if (this.item == null) {
-
+            /**
+             * 一些属性的判断
+             */
             if (presenter instanceof MenuItem) {
+                // 如果是 menuItem 类型， 那么需要加载到侧边栏
                 MenuItem menuItem = (MenuItem) presenter;
                 title = menuItem.title();
                 menuIconNode = menuItem.menuIcon();
@@ -103,6 +114,8 @@ public class BView implements ViewLifeCycle {
                 viewStackPolicy = defaultViewStackPolicy;
 
             }
+
+
         }
 
         this.item = new NavigationDrawer.ViewItem(title, menuIconNode, getId(), defaultViewStackPolicy);

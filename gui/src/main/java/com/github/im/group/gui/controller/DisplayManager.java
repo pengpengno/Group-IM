@@ -10,6 +10,7 @@ package com.github.im.group.gui.controller;/**
 import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.group.gui.util.FxView;
 import com.github.im.group.gui.util.FxmlLoader;
+import com.github.im.group.gui.util.PlatformUtils;
 import com.github.im.group.gui.views.AppViewManager;
 import com.gluonhq.charm.glisten.afterburner.AppViewRegistry;
 import com.gluonhq.charm.glisten.application.AppManager;
@@ -80,7 +81,7 @@ public class DisplayManager {
 
 
 
-    public  static <T extends PlatformView> T getController(Class<T> displayClass) {
+    public  static <T> T getController(Class<T> displayClass) {
         return AppViewManager.getPresenter(displayClass);
 
     }
@@ -98,7 +99,7 @@ public class DisplayManager {
 
         // 获取当前平台信息
         var currentPlatform = com.gluonhq.attach.util.Platform.getCurrent();
-        var platformType = PlatformView.getPlatformType(currentPlatform);
+        var platformType = PlatformUtils.getPlatformType(currentPlatform);
 
         log.debug("Current platform is {} ,platformType {} ", currentPlatform, platformType);
 
@@ -173,29 +174,29 @@ public class DisplayManager {
         return FXML_PATH + platformPath + fxmlName + FXML_SUFFIX;
     }
 
-    /**
-     *
-     * @param displayClass
-     */
-    public static void start(Class<? extends PlatformView> displayClass) {
-        registerView(displayClass);
-        start();
-    }
-
-    public static void start() {
-        Platform.runLater(() -> {
-            var primaryStage = getPrimaryStage();
-            if (primaryStage != null) {
-                var primaryScene = getPrimaryScene();
-                if (primaryScene != null){
-                    postInit.accept(primaryScene);
-                }
-                if (!primaryStage.isShowing()){
-                    primaryStage.show();
-                }
-            }
-        });
-    }
+//    /**
+//     *
+//     * @param displayClass
+//     */
+//    public static void start(Class<? extends PlatformView> displayClass) {
+//        registerView(displayClass);
+//        start();
+//    }
+//
+//    public static void start() {
+//        Platform.runLater(() -> {
+//            var primaryStage = getPrimaryStage();
+//            if (primaryStage != null) {
+//                var primaryScene = getPrimaryScene();
+//                if (primaryScene != null){
+//                    postInit.accept(primaryScene);
+//                }
+//                if (!primaryStage.isShowing()){
+//                    primaryStage.show();
+//                }
+//            }
+//        });
+//    }
 
 
     /**

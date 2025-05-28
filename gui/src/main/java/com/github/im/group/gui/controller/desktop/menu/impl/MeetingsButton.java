@@ -1,7 +1,6 @@
 package com.github.im.group.gui.controller.desktop.menu.impl;
 
 import com.github.im.group.gui.controller.DisplayManager;
-import com.github.im.group.gui.controller.MainHomeView;
 import com.github.im.group.gui.views.MainPresenter;
 import com.github.im.group.gui.controller.desktop.meeting.MeetingMainView;
 import javafx.event.ActionEvent;
