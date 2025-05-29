@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Bean;
@@ -31,6 +32,7 @@ import java.net.InetSocketAddress;
 @Slf4j
 @ConfigurationProperties(value = "im.server")
 @Configuration
+@EnableConfigurationProperties(ServerConnectProperties.class) // ✅ 加这一句
 @Data
 public class ServerConnectProperties  {
 

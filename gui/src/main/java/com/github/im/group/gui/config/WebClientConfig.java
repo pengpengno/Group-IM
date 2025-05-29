@@ -2,7 +2,6 @@ package com.github.im.group.gui.config;
 
 import com.github.im.group.gui.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -58,38 +57,38 @@ public class WebClientConfig {
      * 细节支持 有待研究
      */
     @Bean
-    @ConditionalOnMissingBean(UserEndpoint.class)
+//    //@ConditionalOnMissingBean(UserEndpoint.class)
     public UserEndpoint userEndpoint(@Autowired HttpServiceProxyFactory webClient) {
         return webClient.createClient(UserEndpoint.class);
     }
 
 
     @Bean
-    @ConditionalOnMissingBean(GroupMemberEndpoint.class)
+//    //@ConditionalOnMissingBean(GroupMemberEndpoint.class)
     public GroupMemberEndpoint groupMemberEndpoint(@Autowired HttpServiceProxyFactory webClient) {
         return webClient.createClient(GroupMemberEndpoint.class);
     }
 
     @Bean
-    @ConditionalOnMissingBean(MessageEndpoint.class)
+    //@ConditionalOnMissingBean(MessageEndpoint.class)
     public MessageEndpoint MessageEndpoint(@Autowired HttpServiceProxyFactory webClient) {
         return webClient.createClient(MessageEndpoint.class);
     }
 
     @Bean
-    @ConditionalOnMissingBean(FriendShipEndpoint.class)
+    //@ConditionalOnMissingBean(FriendShipEndpoint.class)
     public FriendShipEndpoint FriendShipEndpoint(@Autowired HttpServiceProxyFactory webClient) {
         return webClient.createClient(FriendShipEndpoint.class);
     }
 
     @Bean
-    @ConditionalOnMissingBean(ConversationEndpoint.class)
+    //@ConditionalOnMissingBean(ConversationEndpoint.class)
     public ConversationEndpoint ConversationEndpoint(@Autowired HttpServiceProxyFactory webClient) {
         return webClient.createClient(ConversationEndpoint.class);
     }
 
     @Bean
-    @ConditionalOnMissingBean(FileEndpoint.class)
+    //@ConditionalOnMissingBean(FileEndpoint.class)
     public FileEndpoint fileEndpoint(@Autowired HttpServiceProxyFactory webClient) {
         return webClient.createClient(FileEndpoint.class);
     }

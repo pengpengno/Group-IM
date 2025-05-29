@@ -1,14 +1,14 @@
 #version: '3.8'
 services:
   compile:
-    container_name: compileApk
-    image: compileapk:1.0
+    container_name: compileEnv
+    image: compileapk:1.1
     volumes:
       - ./:/app  # 将当前目录挂载到容器的 /app 目录
-    environment:
-      - JAVA_HOME=/usr/lib/jvm/graalvm # 设置 Java 环境变量（如果有其他配置环境变量需要添加）
-      - GRAALVM_HOME=/usr/lib/jvm/graalvm  # 设置 Java 环境变量（如果有其他配置环境变量需要添加）
-      - PATH=/usr/lib/jvm/graalvm/bin:$PATH  # 确保能使用 GraalVM 和相关工具
+#    environment:
+#      - JAVA_HOME=/usr/lib/jvm/graalvm # 设置 Java 环境变量（如果有其他配置环境变量需要添加）
+#      - GRAALVM_HOME=/usr/lib/jvm/graalvm  # 设置 Java 环境变量（如果有其他配置环境变量需要添加）
+#      - PATH=/usr/lib/jvm/graalvm/bin:$PATH  # 确保能使用 GraalVM 和相关工具
 
   postgres:
     container_name: database

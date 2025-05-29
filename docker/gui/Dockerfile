@@ -13,13 +13,14 @@ RUN sed -i 's|http://archive.ubuntu.com|http://mirrors.aliyun.com|g' /etc/apt/so
     wget unzip curl git build-essential ninja-build \
     libglib2.0-dev libgtk-3-dev libpulse-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev \
     libasound2-dev libavcodec-dev libavformat-dev libavutil-dev libgl-dev libgtk-3-dev libpango1.0-dev libxtst-dev \
-    openjdk-21-jdk maven \
+#    openjdk-21-jdk  \
+    maven \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置工作目录
 WORKDIR /app
 
-#COPY ./graalvm.tar.gz /app/
+COPY graalvm.tar.gz /app/graalvm.tar.gz
 #RUN tar -xzf graalvm.tar.gz -C /usr/lib/jvm \
 #    && mv /usr/lib/jvm/graalvm-jdk-21* /usr/lib/jvm/graalvm \
 #    && rm graalvm.tar.gz \
@@ -31,20 +32,15 @@ ENV JAVA_HOME=/usr/lib/jvm/graalvm \
     ANDROID_NDK_HOME=/opt/android-sdk/ndk/25.1.8937393 \
     PATH="$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
 
-#COPY graalvm 的 压缩包
-#COPY ./graalvm.tar.gz /app/
-# 安装 GraalVM (Java 21)
-#RUN wget https://download.oracle.com/graalvm/21/latest/graalvm-jdk-21_linux-x64_bin.tar.gz -O graalvm.tar.gz \
-#    && tar -xzf graalvm.tar.gz -C /usr/lib/jvm \
-#    && mv /usr/lib/jvm/graalvm-jdk-21* /usr/lib/jvm/graalvm \
-#    && rm graalvm.tar.gz
-
+RUN tar -xzf graalvm.tar.gz -C /usr/lib/jvm \
+    && mv /usr/lib/jvm/graalvm-* /usr/lib/jvm/graalvm \
+    && rm graalvm.tar.gz
 #
 
 # 设置环境变量
-#ENV GRAALVM_HOME=/usr/lib/jvm/graalvm
-#ENV JAVA_HOME=$GRAALVM_HOME
-#ENV PATH="$GRAALVM_HOME/bin:$PATH"
+ENV GRAALVM_HOME=/usr/lib/jvm/graalvm
+ENV JAVA_HOME=$GRAALVM_HOME
+ENV PATH="$GRAALVM_HOME/bin:$PATH"
 
 
 
@@ -57,6 +53,13 @@ RUN mkdir -p $ANDROID_HOME/cmdline-tools && cd $ANDROID_HOME/cmdline-tools \
 
 # 接受 Android SDK 许可并安装 SDK 组件
 
+#RUN yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses && \
+#    $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME \
+#        "platform-tools" \
+#        "platforms;android-33" \
+#        "build-tools;33.0.2" \
+#        "ndk;25.1.8937393"
+
 # 安装 GluonFX Maven 插件
 
 # 设置工作目录
@@ -65,8 +68,6 @@ WORKDIR /app
 # 复制项目文件
 #COPY ../ /app
 # 构建 APK
-RUN #mvn clean install -DskipTests -s ./alisettings.xml
 RUN export ANDROID_SDK=$ANDROID_HOME
-RUN #mvn -Pandroid gluonfx:build gluonfx:package  -DskipTests -s ./alisettings.xml -am -f gui/pom.xml
 
 ENTRYPOINT ["/bin/bash", "-c", "while true; do sleep 10000; done"]

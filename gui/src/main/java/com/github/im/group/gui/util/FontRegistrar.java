@@ -6,10 +6,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class FontRegistrar {
     public static void registerFonts() {
-        loadFont("/com/gluonhq/charm/glisten/control/MaterialIcons-Regular.ttf");
-        loadFont("/com/gluonhq/charm/glisten/control/Roboto-Regular.ttf");
-        loadFont("/com/gluonhq/charm/glisten/control/Roboto-Bold.ttf");
-        loadFont("/com/gluonhq/charm/glisten/control/Roboto-Medium.ttf");
+//        loadFont("com/gluonhq/charm/glisten/control/MaterialIcons-Regular.ttf");
+//        loadFont("com/gluonhq/charm/glisten/control/Roboto-Regular.ttf");
+//        loadFont("com/gluonhq/charm/glisten/control/Roboto-Bold.ttf");
+//        loadFont("com/gluonhq/charm/glisten/control/Roboto-Medium.ttf");
     }
 
     private static void loadFont(String resourcePath) {

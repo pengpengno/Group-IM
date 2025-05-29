@@ -24,3 +24,12 @@ https://www.graalvm.org/latest/reference-manual/native-image/guides/configure-wi
 export PATH=$GRAALVM_HOME/bin:$PATH
 
 ```
+
+
+### Gluon Issue 
+
+use version  gluonfx: 1.0.25 
+graalvm version ;
+
+
+[Gluon Graalvm Release ](https://github.com/gluonhq/graal/releases)

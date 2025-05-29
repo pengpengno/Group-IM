@@ -21,13 +21,10 @@
         <gluon.connect.version>2.0.1</gluon.connect.version>
         <glisten.afterburner.version>2.1.0</glisten.afterburner.version>
         <gluonfx.target>host</gluonfx.target>
-        <gluonfx.maven.plugin.version>1.0.25</gluonfx.maven.plugin.version>
+        <gluonfx.maven.plugin.version>1.0.26</gluonfx.maven.plugin.version>
 <!--        <gluonfx.maven.plugin.version>1.0.23</gluonfx.maven.plugin.version>-->
-<!--        <main.class>com.github.im.group.gui.Main</main.class>-->
         <main.class>com.github.im.group.gui.Main</main.class>
-        <spring.class>com.github.im.group.gui.Launcher</spring.class>
-<!--        <main.class>com.github.im.group.gui.Main</main.class>-->
-<!--        <main.class>com.github.meeting.gui.Launcher</main.class>-->
+        <spring.class>com.github.im.group.gui.SpringApp</spring.class>
         <app.description>Group-IM</app.description>
         <app.identifier>${main.class}</app.identifier>
 
@@ -46,7 +43,14 @@
 
 
     <dependencies>
-
+        <dependency>
+            <groupId>org.jetbrains.kotlinx</groupId>
+            <artifactId>kotlinx-serialization-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.samskivert</groupId>
+            <artifactId>jmustache</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
@@ -75,6 +79,12 @@
         <dependency>
             <groupId>com.github.im</groupId>
             <artifactId>common</artifactId>
+            <exclusions>
+                <exclusion>
+                    <artifactId>spring-boot-autoconfigure</artifactId>
+                    <groupId>org.springframework.boot</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -217,6 +227,16 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-json</artifactId>
             <scope>compile</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>spring-web</artifactId>
+                    <groupId>org.springframework</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>spring-boot-starter</artifactId>
+                    <groupId>org.springframework.boot</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
 
@@ -323,7 +343,7 @@
                 https://github.com/oracle/graal/issues/5678
 https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error-com-oracle-graal-pointsto-constraints-unreso-->
                     <nativeImageArgs>
-                        <arg>-H:+UnlockExperimentalVMOptions</arg>
+<!--                        <arg>-H:+UnlockExperimentalVMOptions</arg>-->
                         <arg>--initialize-at-build-time=ch.qos.logback.classic.Logger,com.github.im.group.gui.config.ClientConfig$$SpringCGLIB$$0,com.github.im.group.gui.config.WebClientConfig$$SpringCGLIB$$0, ch.qos.logback.classic.Logger.effectiveLevelInt,org.slf4j.helpers.NOP_FallbackServiceProvider,org.slf4j.helpers.NOP_FallbackServiceProvider.loggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,org.slf4j.LoggerFactory,org.apache.commons.logging.LogAdapter$Slf4jLog, org.apache.commons.logging.LogAdapter$Slf4jLocationAwareLog,reactor.adapter.JdkFlowAdapter$PublisherAsFlowPublisher, ch.qos.logback.core.ContextBase, ch.qos.logback.core.*, ch.qos.logback, ch.qos.logback.classic, org.slf4j</arg>
                         <arg>--initialize-at-build-time=org.slf4j.helpers</arg>
                         <arg>--initialize-at-run-time=io.netty</arg>
@@ -331,8 +351,8 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                         <arg>--initialize-at-run-time=io.github.palexdev.materialfx.*</arg>
                         <arg>-H:IncludeResources=logback-spring.xml</arg>
 <!--                        <arg>-H:ResourceConfigurationFiles=META-INF/native-image/resource-config.json</arg>-->
-                        <arg>--no-fallback</arg>  <!-- 仅生成必要的部分 -->
-                        <arg>-H:+SharedLibrary</arg>
+<!--                        <arg>&#45;&#45;no-fallback</arg>  &lt;!&ndash; 仅生成必要的部分 &ndash;&gt;-->
+<!--                        <arg>-H:+SharedLibrary</arg>-->
                     </nativeImageArgs>
                     <verbose>true</verbose>
                     <target>${gluonfx.target}</target>
@@ -346,7 +366,6 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                     </attachList>
                     <mainClass>${main.class}</mainClass>
                     <appIdentifier>${app.identifier}</appIdentifier>
-
                     <releaseConfiguration>
 <!--                        <android>-->
 <!--                            <manifest>${project.basedir}/src/android/AndroidManifest.xml</manifest>-->
@@ -398,9 +417,10 @@ https://stackoverflow.com/questions/73401121/spring-native-with-buildpacks-error
                         </goals>
                     </execution>
                 </executions>
-<!--                <configuration>-->
-<!--                    <mainClass>com.github.im.group.gui.Launcher</mainClass>-->
-<!--                </configuration>-->
+                <configuration>
+                    <mainClass>com.github.im.group.gui.Launcher</mainClass>
+                    <mainClass>${spring.class}</mainClass>
+                </configuration>
             </plugin>
 
             <!-- JavaFX Maven Plugin -->

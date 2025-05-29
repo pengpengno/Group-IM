@@ -30,17 +30,8 @@
   },{
     "pattern":".*\\.ttf"
   },{
-    "pattern":"\\QMETA-INF\/services\/jdk.vm.ci.services.JVMCIServiceLocator\\E"
-  },{
     "pattern":"i18n\/.*\\.properties"
-  },{
-    "pattern":"javafx.graphics:\\Qcom\/sun\/glass\/utils\/NativeLibLoader.class\\E"
-  },{
-    "pattern":"javafx.graphics:\\Qlibglass.so\\E"
-  },{
-    "pattern":"javafx.graphics:\\Qlibprism_es2.so\\E"
-  },{
-    "pattern":"javafx.graphics:\\Qlibprism_sw.so\\E"
-  }]},
+  }
+  ]},
   "bundles":[]
 }

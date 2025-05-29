@@ -53,7 +53,7 @@ public class SecurityConfig  {
     }
 
 
-    @ConditionalOnBean(UserDetailsServiceImpl.class)
+    //@ConditionalOnBean(UserDetailsServiceImpl.class)
     @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http,
                                                        @Autowired UserDetailsServiceImpl userService,
