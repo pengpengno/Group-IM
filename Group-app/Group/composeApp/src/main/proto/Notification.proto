@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package com.github.im.common.connect.model.proto;
+option java_package = "com.github.im.common.connect.model.proto";
+option java_outer_classname = "Notification";
+
+
+message NotificationInfo {
+  oneof payload {
+
+    FriendRequest friendRequest = 1; // 好友请求申请
+
+  }
+
+
+
+  message FriendRequest{
+
+
+    int32  fromUserId = 1;
+
+    int32  toUserId = 2;
+
+    string  fromUserName =3 ;
+
+    string  toUserName =4;
+
+    string  remark = 5 ;
+
+    FriendRequest type = 6 ;
+
+    enum FriendRequestType{
+
+      ADD = 0 ;
+
+      DELETE = 1 ;
+
+      ACCEPT = 2 ;
+
+      REJECT = 3 ;
+
+    }
+
+  }
+
+
+//  enum NotificationType{
+//
+//
+//    FRIEND_REQUEST = 0 ;
+//
+//  }
+}
