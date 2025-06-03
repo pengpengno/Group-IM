@@ -70,7 +70,8 @@ kotlin {
         commonMain.dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.2")
 //            implementation( "androidx.compose.material:material-icons-extended:$compose_version")
-            runtimeOnly("org.jetbrains.compose.material:material-icons-extended:1.7.3")
+            implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
+//            runtimeOnly("org.jetbrains.compose.material:material-icons-extended:1.7.3")
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)

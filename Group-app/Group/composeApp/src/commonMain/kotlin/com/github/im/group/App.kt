@@ -1,16 +1,30 @@
 package com.github.im.group
 
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import com.github.im.group.model.UserInfo
+import com.github.im.group.ui.MainScreen
 
 @Composable
 @Preview
 fun App() {
-    LoginScreen {
-        loginResponse ->
-        println("登录成功：用户ID=${loginResponse.userId}, Token=${loginResponse.token?.take(10)}...")
-//        GlobalCredentialProvider.getStorage().saveUserInfo(loginResponse)
-        // 这里可以添加更多登录成功后的逻辑，比如跳转到主界面
-    }
+    var isLoggedIn by remember { mutableStateOf(false) }
+    val loginResponse = remember { mutableStateOf<UserInfo?>(null) }
 
+    if (!isLoggedIn) {
+        LoginScreen { userInfo ->
+            loginResponse.value = userInfo
+            isLoggedIn = true
+        }
+    } else {
+        loginResponse.value?.let { response ->
+            MainScreen(
+                userInfo = response,
+                friends = emptyList(),
+                onFriendClick = { /* 示例中的空操作 */ },
+                onLogout = { isLoggedIn = false }
+            )
+        }
+    }
 }

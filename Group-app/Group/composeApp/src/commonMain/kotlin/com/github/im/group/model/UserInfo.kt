@@ -1,4 +1,4 @@
-package com.github.im.group
+package com.github.im.group.model
 
 import kotlinx.serialization.Serializable
 
