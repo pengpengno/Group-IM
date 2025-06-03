@@ -5,12 +5,13 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.google.protobuf") version "0.9.4"
-    kotlin("plugin.serialization") version libs.versions.kotlin.get()  // 注意：这个插件一定要加
-    id("org.springframework.boot") version "3.1.2" // Spring Boot 3.1.x (包含 Spring Framework 6)
-    kotlin("plugin.spring") version libs.versions.kotlin.get()  // 这里必须加
-    id("io.spring.dependency-management") version "1.1.0"
+//    kotlin("plugin.serialization") version libs.versions.kotlin.get()  // 注意：这个插件一定要加
+//    id("org.springframework.boot") version "3.1.2" // Spring Boot 3.1.x (包含 Spring Framework 6)
+//    kotlin("plugin.spring") version libs.versions.kotlin.get()  // 这里必须加
+//    id("io.spring.dependency-management") version "1.1.0"
 
-
+    alias(libs.plugins.kotlinxSerialization)
+    alias(libs.plugins.sqldelight)
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
@@ -22,7 +23,7 @@ kotlin {
     androidTarget {
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
+            jvmTarget.set(JvmTarget.JVM_11)
         }
     }
     
@@ -59,13 +60,24 @@ kotlin {
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
+            implementation(libs.ktor.client.android)
+            implementation(libs.android.driver)
+            implementation(libs.androidx.compose.material3)
+            implementation(libs.koin.androidx.compose)
+            implementation(libs.androidx.lifecycle.viewmodel.compose)
+
         }
         commonMain.dependencies {
-            implementation("io.ktor:ktor-client-core:2.3.0")
-            implementation("io.ktor:ktor-client-content-negotiation:2.3.0")
-            implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.0")
-            implementation("io.ktor:ktor-client-logging:2.3.0")
-            implementation("io.ktor:ktor-client-cio:2.3.0") // for JVM/Desktop
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.2")
+//            implementation( "androidx.compose.material:material-icons-extended:$compose_version")
+            runtimeOnly("org.jetbrains.compose.material:material-icons-extended:1.7.3")
+            implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.runtime)
+            implementation(libs.kotlinx.datetime)
+            implementation(libs.koin.core)
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)
@@ -78,13 +90,27 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
+            implementation(libs.native.driver)
+        }
+
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
         }
     }
 }
-
+// 数据库插件
+sqldelight {
+//    ./gradlew generateCommonMainAppDatabaseInterface
+    databases {
+        create("AppDatabase") {
+//            packageName.set("com.github.im.group.db")
+            packageName.set("db")
+        }
+    }
+}
 android {
     namespace = "com.github.im.group"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -113,18 +139,11 @@ android {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.2")
-    implementation("org.springframework.boot:spring-boot-starter")
-    runtimeOnly("androidx.compose.material:material-icons-core:1.7.8")
-    implementation("androidx.compose.material:material-icons-extended:1.7.8")
-    // Spring Boot Starter WebFlux (包含 WebClient, Reactor 等)
-    implementation("org.springframework.boot:spring-boot-starter-webflux")
-    implementation("androidx.compose.foundation:foundation-layout-android:1.8.2")
-    implementation("androidx.compose.material3:material3-android:1.3.2")
+
     debugImplementation(compose.uiTooling)
-    implementation("io.vertx:vertx-core:4.5.1")
-    implementation("io.vertx:vertx-tcp-eventbus-bridge:4.5.1") // 如使用事件总线
-    // https://mvnrepository.com/artifact/com.google.protobuf/protobuf-java
+//    implementation("io.vertx:vertx-core:4.5.1")
+//    implementation("io.vertx:vertx-tcp-eventbus-bridge:4.5.1") // 如使用事件总线
+//     https://mvnrepository.com/artifact/com.google.protobuf/protobuf-java
     //noinspection UseTomlInstead
     implementation(libs.protobuf.java)
 }
@@ -153,7 +172,7 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "com.github.im.group"
+            packageName = "Group"
             packageVersion = "1.0.0"
         }
     }

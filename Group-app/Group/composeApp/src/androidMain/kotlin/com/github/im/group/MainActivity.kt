@@ -12,8 +12,23 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        GlobalCredentialProvider.storage = AndroidCredentialStorage(applicationContext)
+
         setContent {
             App()
+            val navController = rememberNavController()
+            NavHost(navController, startDestination = "login") {
+                composable("login") {
+                    LoginScreen(onLoginSuccess = {
+                        navController.navigate("main") {
+                            popUpTo("login") { inclusive = true }
+                        }
+                    })
+                }
+                composable("main") {
+                    MainScreen(userInfo = itUser, friends = itFriends, ...)
+                }
+            }
         }
     }
 }

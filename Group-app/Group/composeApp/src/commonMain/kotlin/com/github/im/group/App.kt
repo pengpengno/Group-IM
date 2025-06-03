@@ -6,9 +6,11 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 @Composable
 @Preview
 fun App() {
-    LoginScreen { username, password, autoLogin ->
-        println("正在尝试登录：$username / $password 自动登录：$autoLogin")
-        // 调用网络请求或本地验证逻辑
+    LoginScreen {
+        loginResponse ->
+        println("登录成功：用户ID=${loginResponse.userId}, Token=${loginResponse.token?.take(10)}...")
+//        GlobalCredentialProvider.getStorage().saveUserInfo(loginResponse)
+        // 这里可以添加更多登录成功后的逻辑，比如跳转到主界面
     }
 
 }

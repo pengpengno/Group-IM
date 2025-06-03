@@ -12,3 +12,15 @@ This is a Kotlin Multiplatform project targeting Android, iOS, Desktop.
 
 
 Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
+
+
+
+How to build project:
+
+Android 
+gradle composeApp:assembleDebug  
+
+and the apk  would  output on path composeApp/build/outputs/apk/debug/composeApp-debug.apk
+
+Windows
+gradlew.bat composeApp:assembleDebug

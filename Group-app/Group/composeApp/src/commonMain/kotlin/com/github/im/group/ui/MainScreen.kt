@@ -1,0 +1,98 @@
+package com.github.im.group.ui
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.Color
+import com.github.im.group.model.Friend
+import com.github.im.group.model.UserInfo
+import org.jetbrains.compose.resources.painterResource
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainScreen(
+    userInfo: UserInfo,
+    friends: List<Friend>,
+    onFriendClick: (Friend) -> Unit,
+    onLogout: () -> Unit,
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("欢迎, ${userInfo.username}") },
+                actions = {
+                    TextButton(onClick = onLogout) {
+                        Text("退出登录", color = Color.White)
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Row(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            FriendList(friends = friends, onFriendClick = onFriendClick, modifier = Modifier.weight(1f))
+            // 聊天窗口预留区域
+            Box(modifier = Modifier.weight(2f).fillMaxHeight()) {
+                Text(
+                    "请选择一个好友开始聊天",
+                    modifier = Modifier.align(Alignment.Center),
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FriendList(friends: List<Friend>, onFriendClick: (Friend) -> Unit, modifier: Modifier) {
+    LazyColumn(modifier = modifier.fillMaxHeight()) {
+        items(friends) { friend ->
+            FriendItem(friend = friend, onClick = { onFriendClick(friend) })
+            Divider()
+        }
+    }
+}
+
+@Composable
+fun FriendItem(friend: Friend, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 头像示意，替换成真实图片加载逻辑
+        Image(
+//            painter = painterResource("drawable/ic_avatar_placeholder.xml"),
+            painter = Icons,
+            contentDescription = "avatar",
+            modifier = Modifier.size(40.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column {
+            Text(friend.name, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                if (friend.online) "在线" else "离线",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (friend.online) Color.Green else Color.Gray
+            )
+        }
+    }
+}
+
+
