@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import com.github.im.group.api.LoginApi
+import com.github.im.group.model.Friend
 import com.github.im.group.model.UserInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -114,7 +114,10 @@ class LoginScreen :Screen{
                                     navigator?.push(
                                         Main(
                                             userInfo = response,
-                                            friends = emptyList(),
+                                            friends = listOf(
+                                                Friend(1, "test", true),
+                                                Friend(2, "peng", false)
+                                            ),
                                             onFriendClick = { /* 示例中的空操作 */ },
                                             onLogout = {  }
                                         )
@@ -157,9 +160,3 @@ class LoginScreen :Screen{
         }
     }
 }
-//fun LoginScreen(
-////    onLoginSuccess: (LoginResponse) -> Unit
-//    onLoginSuccess: @Composable (UserInfo) -> Unit
-//) {
-//
-//}
