@@ -2,6 +2,7 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+val voyagerVersion = "1.1.0-beta02"
 
 plugins {
     id("com.google.protobuf") version "0.9.4"
@@ -37,12 +38,7 @@ kotlin {
             isStatic = true
         }
     }
-//    jvm {
-//        withJava()
-//        compilations.all {
-//            kotlinOptions.jvmTarget = "17"
-//        }
-//    }
+
     jvm("desktop")
     
     sourceSets {
@@ -58,6 +54,12 @@ kotlin {
 
 
         androidMain.dependencies {
+
+            // Hilt integration
+            implementation("cafe.adriel.voyager:voyager-hilt:$voyagerVersion")
+
+            // LiveData integration
+            implementation("cafe.adriel.voyager:voyager-livedata:$voyagerVersion")
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.ktor.client.android)
@@ -68,10 +70,15 @@ kotlin {
 
         }
         commonMain.dependencies {
+            implementation("cafe.adriel.voyager:voyager-navigator:$voyagerVersion")
+            implementation("cafe.adriel.voyager:voyager-screenmodel:$voyagerVersion")
+            implementation("cafe.adriel.voyager:voyager-bottom-sheet-navigator:$voyagerVersion")
+            implementation("cafe.adriel.voyager:voyager-tab-navigator:$voyagerVersion")
+            implementation("cafe.adriel.voyager:voyager-transitions:$voyagerVersion")
+            implementation("cafe.adriel.voyager:voyager-koin:$voyagerVersion")
+
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.2")
-//            implementation( "androidx.compose.material:material-icons-extended:$compose_version")
             implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
-//            runtimeOnly("org.jetbrains.compose.material:material-icons-extended:1.7.3")
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)

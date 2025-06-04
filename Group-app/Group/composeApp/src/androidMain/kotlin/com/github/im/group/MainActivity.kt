@@ -4,8 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -16,25 +14,27 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             App()
-            val navController = rememberNavController()
-            NavHost(navController, startDestination = "login") {
-                composable("login") {
-                    LoginScreen(onLoginSuccess = {
-                        navController.navigate("main") {
-                            popUpTo("login") { inclusive = true }
-                        }
-                    })
-                }
-                composable("main") {
-                    MainScreen(userInfo = itUser, friends = itFriends, ...)
-                }
-            }
         }
     }
 }
-
-@Preview
-@Composable
-fun AppAndroidPreview() {
-    App()
-}
+//
+//@Composable
+//fun App() {
+//    Navigator(LoginScreen()
+////    { userInfo, navigator ->
+////        // 模拟好友数据
+////        val mockFriends = listOf(
+////            Friend(1, "Alice", true),
+////            Friend(2, "Bob", true)
+////        )
+////
+////        // 直接 push 到主界面
+////        navigator.push(MainScreen(userInfo, mockFriends,
+////            onFriendClick = {},
+////            onLogout = {
+////                navigator.popUntilRoot() // 登出返回登录页
+////            }
+////        ) as Screen)
+////    }
+//    )
+//}

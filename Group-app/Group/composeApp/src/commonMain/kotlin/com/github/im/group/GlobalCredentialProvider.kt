@@ -4,9 +4,5 @@ package com.github.im.group
 // commonMain
 object GlobalCredentialProvider {
     var storage: CredentialStorage = DefaultCredentialStorage
-    fun setStorage(custom: CredentialStorage) {
-        storage = custom
-    }
 
-    fun getStorage(): CredentialStorage = storage
 }

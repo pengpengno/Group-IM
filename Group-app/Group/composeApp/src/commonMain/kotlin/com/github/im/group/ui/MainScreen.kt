@@ -31,47 +31,54 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cafe.adriel.voyager.core.screen.Screen
 import com.github.im.group.model.Friend
 import com.github.im.group.model.UserInfo
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MainScreen(
-    userInfo: UserInfo,
-    friends: List<Friend>,
-    onFriendClick: (Friend) -> Unit,
-    onLogout: () -> Unit,
-) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("欢迎, ${userInfo.username}") },
-                actions = {
-                    TextButton(onClick = onLogout) {
-                        Text("退出登录", color = Color.White)
+
+class Main (
+    private val userInfo: UserInfo,
+    private val friends: List<Friend>,
+    private val onFriendClick: (Friend) -> Unit,
+    private val onLogout: () -> Unit
+):Screen{
+    @Composable
+    override fun Content() {
+
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("欢迎, ${userInfo.username}") },
+                    actions = {
+                        TextButton(onClick = onLogout) {
+                            Text("退出登录", color = Color.White)
+                        }
                     }
-                }
-            )
-        }
-    ) { padding ->
-        Row(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            FriendList(friends = friends, onFriendClick = onFriendClick, modifier = Modifier.weight(1f))
-            // 聊天窗口预留区域
-            Box(modifier = Modifier.weight(2f).fillMaxHeight()) {
-                Text(
-                    "请选择一个好友开始聊天",
-                    modifier = Modifier.align(Alignment.Center),
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center
                 )
+            }
+        ) { padding ->
+            Row(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
+                FriendList(friends = friends, onFriendClick = onFriendClick, modifier = Modifier.weight(1f))
+                // 聊天窗口预留区域
+                Box(modifier = Modifier.weight(2f).fillMaxHeight()) {
+                    Text(
+                        "请选择一个好友开始聊天",
+                        modifier = Modifier.align(Alignment.Center),
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
     }
 }
+
+
 
 @Composable
 fun FriendList(friends: List<Friend>, onFriendClick: (Friend) -> Unit, modifier: Modifier) {
