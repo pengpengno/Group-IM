@@ -80,6 +80,9 @@ kotlin {
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.2")
             implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
             implementation(libs.kotlinx.coroutines.core)
+            implementation("org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
+            implementation("org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
+
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
@@ -149,9 +152,7 @@ android {
 dependencies {
 
     debugImplementation(compose.uiTooling)
-//    implementation("io.vertx:vertx-core:4.5.1")
-//    implementation("io.vertx:vertx-tcp-eventbus-bridge:4.5.1") // 如使用事件总线
-//     https://mvnrepository.com/artifact/com.google.protobuf/protobuf-java
+
     //noinspection UseTomlInstead
     implementation(libs.protobuf.java)
 }

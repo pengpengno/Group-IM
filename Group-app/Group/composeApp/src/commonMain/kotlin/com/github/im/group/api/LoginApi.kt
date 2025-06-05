@@ -15,6 +15,45 @@ object LoginApi {
         )
     }
 }
+
+/**
+ * 会话 API
+ */
+object ConversationApi{
+
+
+    /**
+     * 获取用户已激活的会话
+     */
+    suspend fun getActiveConversationsByUserId(userId:Long ): List<ConversationRes> {
+        return ProxyApi.request(
+            hmethod = HttpMethod.Get,
+            path = "/api/conversation/${userId}"
+        )
+    }
+
+}
+
+@Serializable
+data class ConversationRes(val conversationId: Long,
+                           val groupName: String,
+                           val description: String?="",
+                           val members: List<UserInfo>,
+                           val status: ConversationStatus,
+                           val type: ConversationType
+)
+@Serializable
+enum class ConversationStatus {
+    ACTIVE,
+    INACTIVE,
+    DELETED
+
+}
+@Serializable
+enum class ConversationType {
+    GROUP,
+    PRIVATE_CHAT
+}
 @Serializable
 data class LoginRequest(val username: String,
                         val password: String,

@@ -27,134 +27,147 @@ import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import com.github.im.group.config.UserContext
 import com.github.im.group.model.Friend
 import com.github.im.group.model.UserInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.ui.tooling.preview.Preview
 
-//@Composable
+
 class LoginScreen :Screen{
     @Composable
     override fun Content() {
-        val navigator = LocalNavigator.currentOrThrow
-        var username by remember { mutableStateOf("") }
-        var password by remember { mutableStateOf("") }
-        var autoLogin by remember { mutableStateOf(false) }
-        var isLoggingIn by remember { mutableStateOf(false) }
-        var errorMessage by remember { mutableStateOf<String?>(null) }
+        screen()
+    }
+}
 
-        MaterialTheme {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+@Composable
+@Preview
+fun screen () {
+    val navigator = LocalNavigator.currentOrThrow
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var autoLogin by remember { mutableStateOf(false) }
+    var isLoggingIn by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    MaterialTheme {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("登录", style = MaterialTheme.typography.headlineMedium)
+
+            Spacer(Modifier.height(24.dp))
+
+            OutlinedTextField(
+                value = username,
+                onValueChange = { username = it },
+                label = { Text("用户名") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("密码") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("登录", style = MaterialTheme.typography.headlineMedium)
-
-                Spacer(Modifier.height(24.dp))
-
-                OutlinedTextField(
-                    value = username,
-                    onValueChange = { username = it },
-                    label = { Text("用户名") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                Checkbox(
+                    checked = autoLogin,
+                    onCheckedChange = { autoLogin = it }
                 )
+                Text("自动登录")
+            }
 
-                Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
 
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("密码") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth()
-                )
+            Button(
+                onClick = {
+                    isLoggingIn = true
+                    errorMessage = null
 
-                Spacer(Modifier.height(16.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = autoLogin,
-                        onCheckedChange = { autoLogin = it }
-                    )
-                    Text("自动登录")
-                }
-
-                Spacer(Modifier.height(24.dp))
-
-                Button(
-                    onClick = {
-                        isLoggingIn = true
-                        errorMessage = null
-
-                        // 使用 CoroutineScope 发起请求
-                        CoroutineScope(Dispatchers.Default).launch {
-                            try {
-                                // 修改为使用 ProxyApi
+                    // 使用 CoroutineScope 发起请求
+                    CoroutineScope(Dispatchers.Default).launch {
+                        try {
+                            // 修改为使用 ProxyApi
 //                                val response = LoginApi.login(username, password)
-                                val response = UserInfo(
-                                    userId = 1,
-                                    username = "test",
-                                    email = "test",
-                                    token = "test"
-                                )
-                                withContext(Dispatchers.Main) {
-                                    isLoggingIn = false
-
-                                    println("登录成功: $response")
-                                    // 登录成功后跳转
-                                    navigator?.push(
-                                        Main(
-                                            userInfo = response,
-                                            friends = listOf(
-                                                Friend(1, "test", true),
-                                                Friend(2, "peng", false)
-                                            ),
-                                            onFriendClick = { /* 示例中的空操作 */ },
-                                            onLogout = {  }
-                                        )
+                            val response = UserInfo(
+                                userId = 1,
+                                username = "test",
+                                email = "test",
+                                token = "test"
+                            )
+                            withContext(Dispatchers.Main) {
+                                isLoggingIn = false
+                                /**
+                                 * 设置登录用户信息
+                                 */
+                                UserContext.userInfo = response
+                                println("登录成功: $response")
+                                // 登录成功后跳转
+                                navigator.push(
+                                    Main(
+                                        userInfo = response,
+                                        friends = listOf(
+                                            Friend(1, "test", true),
+                                            Friend(2, "peng", false)
+                                        ),
+                                        onFriendClick = {
+                                            println("click ${it.name}")
+                                        /* 示例中的空操作 */ },
+                                        onLogout = {  /* 示例中的空操作 */ }
                                     )
+                                )
 //                                    onLoginSuccess(response)
-                                }
-                            } catch (e: Exception) {
-                                withContext(Dispatchers.Main) {
-                                    isLoggingIn = false
-                                    errorMessage = "登录失败: ${e.message}"
-                                }
+                            }
+                        } catch (e: Exception) {
+                            withContext(Dispatchers.Main) {
+                                isLoggingIn = false
+                                errorMessage = "登录失败: ${e.message}"
                             }
                         }
-                    },
-                    enabled = !isLoggingIn,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(if (isLoggingIn) "正在登录..." else "登录")
-                }
-
-                errorMessage?.let {
-                    Spacer(Modifier.height(12.dp))
-                    Text(it, color = Color.Red)
-                }
-
-                Spacer(Modifier.height(24.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    TextButton(onClick = { /* 忘记密码逻辑 */ }) {
-                        Text("忘记密码？")
                     }
-                    TextButton(onClick = { /* 注册逻辑 */ }) {
-                        Text("注册账号")
-                    }
+                },
+                enabled = !isLoggingIn,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (isLoggingIn) "正在登录..." else "登录")
+            }
+
+            errorMessage?.let {
+                Spacer(Modifier.height(12.dp))
+                Text(it, color = Color.Red)
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                TextButton(onClick = { /* 忘记密码逻辑 */ }) {
+                    Text("忘记密码？")
+                }
+                TextButton(onClick = { /* 注册逻辑 */ }) {
+                    Text("注册账号")
                 }
             }
         }

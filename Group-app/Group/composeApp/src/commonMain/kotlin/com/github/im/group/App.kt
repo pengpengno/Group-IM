@@ -17,21 +17,4 @@ fun App() {
     val loginResponse = remember { mutableStateOf<UserInfo?>(null) }
     Navigator(LoginScreen())
 
-//    LoginScreen ()
-//    if (!isLoggedIn) {
-////        LoginScreen { userInfo ->
-////            loginResponse.value = userInfo
-////            isLoggedIn = true
-////        }
-//        LoginScreen ()
-//    } else {
-////        loginResponse.value?.let { response ->
-////            MainScreen(
-////                userInfo = response,
-////                friends = emptyList(),
-////                onFriendClick = { /* 示例中的空操作 */ },
-////                onLogout = { isLoggedIn = false }
-////            )
-////        }
-//    }
 }
