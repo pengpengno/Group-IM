@@ -27,14 +27,15 @@ import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import com.github.im.group.config.UserContext
+import com.github.im.group.api.LoginApi
 import com.github.im.group.model.Friend
-import com.github.im.group.model.UserInfo
+import com.github.im.group.viewmodel.UserViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import org.koin.compose.viewmodel.koinViewModel
 
 
 class LoginScreen :Screen{
@@ -46,13 +47,18 @@ class LoginScreen :Screen{
 
 @Composable
 @Preview
-fun screen () {
+fun screen (
+//    viewModel: UserViewModel = viewModel{UserViewModel()}
+    viewModel: UserViewModel = koinViewModel()
+) {
     val navigator = LocalNavigator.currentOrThrow
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var autoLogin by remember { mutableStateOf(false) }
     var isLoggingIn by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+//    var userViewModel by remember { mutableStateOf<UserViewModel?>(UserViewModel()) }
+
 
     MaterialTheme {
         Column(
@@ -108,19 +114,20 @@ fun screen () {
                     CoroutineScope(Dispatchers.Default).launch {
                         try {
                             // 修改为使用 ProxyApi
-//                                val response = LoginApi.login(username, password)
-                            val response = UserInfo(
-                                userId = 1,
-                                username = "test",
-                                email = "test",
-                                token = "test"
-                            )
+                            val response = LoginApi.login(username, password)
+//                            val response = UserInfo(
+//                                userId = 1,
+//                                username = "test",
+//                                email = "test",
+//                                token = "test"
+//                            )
                             withContext(Dispatchers.Main) {
                                 isLoggingIn = false
                                 /**
                                  * 设置登录用户信息
                                  */
-                                UserContext.userInfo = response
+//                                UserContext.userInfo = response
+                                viewModel.updateUserInfo(response)
                                 println("登录成功: $response")
                                 // 登录成功后跳转
                                 navigator.push(

@@ -18,6 +18,8 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
+
+
 }
 
 kotlin {
@@ -82,6 +84,12 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation("org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
             implementation("org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
+
+
+            implementation(libs.koin.compose.viewmodel.nav)
+            implementation(libs.koin.compose.viewmodel)
+//            implementation("io.insert-koin:koin-core")
+            implementation(compose.material)
 
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)

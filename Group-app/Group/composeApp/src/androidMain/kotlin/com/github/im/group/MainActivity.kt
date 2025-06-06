@@ -4,9 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
-import com.github.im.group.ui.LoginScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -20,11 +17,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 //
-@Composable
-@Preview
-fun App() {
-    LoginScreen().Content()
-//    Navigator(
-//        LoginScreen()
-//    )
-}
+//@Composable
+//@Preview
+//fun App() {
+//    LoginScreen().Content()
+//}
