@@ -5,13 +5,14 @@ import com.github.im.group.model.UserInfo
 import io.ktor.http.HttpMethod
 import kotlinx.serialization.Serializable
 
+
 object LoginApi {
     suspend fun login(username: String, password: String): UserInfo {
         val requestBody = LoginRequest(username, password)
         return ProxyApi.request(
             hmethod = HttpMethod.Post,
-            path = "/api/user/login",
-            body = requestBody
+            path = "/api/users/login",
+            body = requestBody,
         )
     }
 }
@@ -26,13 +27,59 @@ object ConversationApi{
      * 获取用户已激活的会话
      */
     suspend fun getActiveConversationsByUserId(userId:Long ): List<ConversationRes> {
-        return ProxyApi.request(
+        return ProxyApi.request< List<ConversationRes> ,Unit?>(
+            hmethod = HttpMethod.Get,
+            path = "/api/conversation/${userId}"
+        )
+    }
+
+    /**
+     * 创建会话
+     */
+    suspend fun createConversation(userId:Long ): List<ConversationRes> {
+        return ProxyApi.request< List<ConversationRes> ,Unit?>(
+            hmethod = HttpMethod.Get,
+            path = "/api/conversation/${userId}"
+        )
+    }
+
+    /**
+     * 创建会话
+     */
+    suspend fun sd(userId:Long ): List<ConversationRes> {
+        return ProxyApi.request< List<ConversationRes> ,Unit?>(
             hmethod = HttpMethod.Get,
             path = "/api/conversation/${userId}"
         )
     }
 
 }
+
+/**
+ * 好友 API
+ */
+
+object FriendShipApi {
+
+    /**
+     * 查询用户连卸任
+     */
+    suspend fun getFriends(userId:Long) : List<FriendshipDTO>{
+
+        return ProxyApi.request< List<FriendshipDTO> ,Unit?>(
+            hmethod = HttpMethod.Get,
+            path = "/api/friendships/list",
+            requestParams = mapOf("userId" to userId.toString())
+        )
+    }
+}
+@Serializable
+data class FriendshipDTO(
+    val id: Long? = null,
+    val userInfo: UserInfo? = null,
+    val friendUserInfo: UserInfo? = null
+)
+
 
 @Serializable
 data class ConversationRes(val conversationId: Long,
@@ -55,9 +102,10 @@ enum class ConversationType {
     PRIVATE_CHAT
 }
 @Serializable
-data class LoginRequest(val username: String,
-                        val password: String,
-                        val refreshToken: String?="",
+data class LoginRequest(
+    val loginAccount: String,
+    val password: String,
+    val refreshToken: String? = "",
 )
 
 @Serializable

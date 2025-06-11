@@ -3,6 +3,7 @@ package com.github.im.server.config;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -46,8 +47,8 @@ public class GlobalExceptionHandler {
 
 
     // 处理文件异常
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, String>> handleExceptions(IllegalArgumentException ex) {
+    @ExceptionHandler({IllegalArgumentException.class, FileNotFoundException.class})
+    public ResponseEntity<Map<String, String>> handleException(Exception ex) {
         Map<String, String> errors = new HashMap<>();
         errors.put("message",ex.getMessage());
         log.error(" error processing  ",ex);
@@ -55,13 +56,15 @@ public class GlobalExceptionHandler {
     }
 
     // 处理文件异常
-    @ExceptionHandler({FileNotFoundException.class})
-    public ResponseEntity<Map<String, String>> handleExceptions(FileNotFoundException ex) {
+    @ExceptionHandler({BadCredentialsException.class})
+    public ResponseEntity<Map<String, String>> UNAUTHORIZED(BadCredentialsException ex) {
         Map<String, String> errors = new HashMap<>();
-        errors.put("message",ex.getMessage());
+        errors.put("message","用户鉴权验证失败！");
         log.error(" error processing  ",ex);
-        return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(errors, HttpStatus.UNAUTHORIZED);
     }
+
+
 
     // 处理所有验证异常
     @ExceptionHandler(Exception.class)

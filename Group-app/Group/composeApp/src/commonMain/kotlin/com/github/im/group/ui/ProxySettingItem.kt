@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -21,6 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
+import com.github.im.group.ui.LoginScreen
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
@@ -28,6 +32,7 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 fun ProxySettingItem() {
     var expanded by remember { mutableStateOf(false) }
     val focusRequester = FocusRequester()
+    val navigator = LocalNavigator.currentOrThrow
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -92,6 +97,17 @@ fun ProxySettingItem() {
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
+                Button(
+                    onClick = {
+                        ProxyConfig.enableProxy = true
+//                        ProxyConfig.host = "localhost"
+//                        ProxyConfig.port = 8080
+                        navigator.push(LoginScreen())
+                    },
+                ){
+                    Text("保存")
+                }
+
             }
         }
     }

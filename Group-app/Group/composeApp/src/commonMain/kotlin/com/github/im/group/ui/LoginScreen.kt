@@ -1,5 +1,6 @@
 package com.github.im.group.ui
 
+import ProxySettingScreen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,16 +9,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,7 +38,6 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import com.github.im.group.api.LoginApi
 import com.github.im.group.model.Friend
 import com.github.im.group.viewmodel.UserViewModel
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -45,6 +52,7 @@ class LoginScreen :Screen{
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Preview
 fun screen (
@@ -58,9 +66,35 @@ fun screen (
     var isLoggingIn by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 //    var userViewModel by remember { mutableStateOf<UserViewModel?>(UserViewModel()) }
+    val uiState by viewModel.uiState.collectAsState()
 
+    val scope = rememberCoroutineScope()
 
     MaterialTheme {
+        Column(
+//            modifier = Modifier.align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally
+
+        ) {
+            Button(
+                onClick = {
+                    navigator.push(ProxySettingScreen())
+                },
+//                modifier = Modifier.align(Alignment.TopStart)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Settings,
+                    contentDescription = "设置",
+                    tint = Color.Gray
+
+                )
+            }
+
+            Spacer(modifier = Modifier.size(12.dp))
+        }
+
+
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -111,7 +145,8 @@ fun screen (
                     errorMessage = null
 
                     // 使用 CoroutineScope 发起请求
-                    CoroutineScope(Dispatchers.Default).launch {
+//                    CoroutineScope(Dispatchers.Default).launch {
+                    scope.launch {
                         try {
                             // 修改为使用 ProxyApi
                             val response = LoginApi.login(username, password)
@@ -129,10 +164,11 @@ fun screen (
 //                                UserContext.userInfo = response
                                 viewModel.updateUserInfo(response)
                                 println("登录成功: $response")
+
                                 // 登录成功后跳转
                                 navigator.push(
                                     Main(
-                                        userInfo = response,
+                                        userInfo = uiState,
                                         friends = listOf(
                                             Friend(1, "test", true),
                                             Friend(2, "peng", false)
@@ -148,6 +184,7 @@ fun screen (
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {
                                 isLoggingIn = false
+                                println("登录失败: ${e.message}")
                                 errorMessage = "登录失败: ${e.message}"
                             }
                         }
