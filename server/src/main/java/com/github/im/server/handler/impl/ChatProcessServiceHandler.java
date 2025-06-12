@@ -44,8 +44,6 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
 
         final var chatMessage = message.getMessage();
 
-
-
         var saveMessage = messageService.saveMessage(chatMessage);
         // 复制一份 用于推送到各个客户端
         final var newChatMessage = Chat.ChatMessage.newBuilder(chatMessage)
@@ -67,10 +65,11 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
                     var bindAttr = BindAttr.getBindAttr(member.getUsername());
 
                     ReactiveConnectionManager.addBaseMessage(bindAttr, newBaseMessage);
+
                 });
             });
-//        TODO  1.  QOS ACK 2. Encryption
 
+//        TODO  1.  QOS ACK 2. Encryption
 
     }
 }

@@ -8,6 +8,6 @@ data class UserInfo(
     val userId: Long = 0,
     val username: String = "",
     val email: String = "",
-    val token: String? = null,
-    val refreshToken: String? = null
+    val token: String = "",
+    val refreshToken: String = ""
 )

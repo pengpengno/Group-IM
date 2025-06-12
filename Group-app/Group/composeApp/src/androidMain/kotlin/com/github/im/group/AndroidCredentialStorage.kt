@@ -16,6 +16,7 @@ class AndroidCredentialStorage(private val context: Context) : CredentialStorage
                 putLong("userId", userInfo.userId)
                 putString("username", userInfo.username)
                 putString("token", userInfo.token)
+                putString("refreshToken", userInfo.refreshToken)
                 apply()
             }
         }
@@ -29,8 +30,8 @@ class AndroidCredentialStorage(private val context: Context) : CredentialStorage
             userId = userId,
             username = prefs.getString("username", "") ?: "",
             email = prefs.getString("email", "") ?: "",
-            token = prefs.getString("token", null),
-            refreshToken = prefs.getString("refreshToken", null)
+            token = prefs.getString("token", "") ?:"",
+            refreshToken = prefs.getString("refreshToken", "") ?:"",
         )
     }
 

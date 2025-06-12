@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -29,6 +30,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,23 +42,44 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
-import com.github.im.group.model.Friend
+import com.github.im.group.api.ConversationRes
 import com.github.im.group.model.UserInfo
+import com.github.im.group.viewmodel.ChatViewModel
+import com.github.im.group.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
+import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 class ChatMainScreen(
     private val userInfo: UserInfo,
-    private val friends: List<Friend>,
-    private val onFriendClick: (Friend) -> Unit,
-    private val onLogout: () -> Unit
+//    private val conversations: List<ConversationRes>,
+//    private val friends: List<Friend>,
+    private val onFriendClick: (ConversationRes) -> Unit,
+    private val onLogout: () -> Unit,
 ) : Screen {
 
     @Composable
     override fun Content() {
+        val chatViewModel: ChatViewModel = koinViewModel()
+        val userViewModel: UserViewModel = koinViewModel()
+
+
         val drawerState = rememberDrawerState(DrawerValue.Closed)
         val scope = rememberCoroutineScope()
         var searchQuery by remember { mutableStateOf("") }
+
+//        val messages by viewModel.collectAsState()
+        val loading by chatViewModel.loading.collectAsState()
+        val conversations by chatViewModel.uiState.collectAsState()
+        val userInfo by userViewModel.uiState.collectAsState()
+
+        LaunchedEffect(userInfo) {
+            if(userInfo.userId != 0L){
+                chatViewModel.getConversations(userInfo.userId)
+            }
+        }
+
+        CircularProgressIndicator()
 
         ModalNavigationDrawer(
             drawerContent = {
@@ -115,8 +139,8 @@ class ChatMainScreen(
                             )
                         }
 
-                        friends.forEach { friend ->
-                            ChatItem(friend = friend, onClick = { onFriendClick(friend) })
+                        conversations.forEach { conversation ->
+                            ChatItem(conversation = conversation, onClick = { onFriendClick(conversation) })
                         }
                     }
 
@@ -140,7 +164,7 @@ class ChatMainScreen(
 }
 
 @Composable
-fun ChatItem(friend: Friend, onClick: () -> Unit) {
+fun ChatItem(conversation: ConversationRes, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -150,10 +174,10 @@ fun ChatItem(friend: Friend, onClick: () -> Unit) {
         Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF0088CC))
         Spacer(Modifier.width(12.dp))
         Column {
-            Text(friend.name, style = MaterialTheme.typography.titleMedium)
+            Text(conversation.getName(), style = MaterialTheme.typography.titleMedium)
             Text(
 //                text = friend.lastMessage.takeIf { e-> e?.isEmpty() ?: false } ?: "暂无消息",
-                text = friend.lastMessage.takeIf { e->e?.isEmpty() ?: false } ?: "暂无消息",
+                text = conversation.lastMessage.takeIf { e->e?.isEmpty() ?: false } ?: "暂无消息",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.Gray
             )

@@ -5,7 +5,9 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 val voyagerVersion = "1.1.0-beta02"
 
 plugins {
-    id("com.google.protobuf") version "0.9.4"
+    id("com.squareup.wire") version "4.8.1"
+
+//    id("com.google.protobuf") version "0.9.4"
 //    kotlin("plugin.serialization") version libs.versions.kotlin.get()  // 注意：这个插件一定要加
 //    id("org.springframework.boot") version "3.1.2" // Spring Boot 3.1.x (包含 Spring Framework 6)
 //    kotlin("plugin.spring") version libs.versions.kotlin.get()  // 这里必须加
@@ -72,12 +74,20 @@ kotlin {
 
         }
         commonMain.dependencies {
+
+            implementation("com.squareup.wire:wire-runtime:4.8.1")
+
             implementation("cafe.adriel.voyager:voyager-navigator:$voyagerVersion")
             implementation("cafe.adriel.voyager:voyager-screenmodel:$voyagerVersion")
             implementation("cafe.adriel.voyager:voyager-bottom-sheet-navigator:$voyagerVersion")
             implementation("cafe.adriel.voyager:voyager-tab-navigator:$voyagerVersion")
             implementation("cafe.adriel.voyager:voyager-transitions:$voyagerVersion")
             implementation("cafe.adriel.voyager:voyager-koin:$voyagerVersion")
+
+
+            implementation("org.jetbrains.androidx.navigation:navigation-compose:2.9.0-beta01")
+
+            implementation("com.squareup.okio:okio:3.7.0")
 
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.2")
             implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
@@ -120,6 +130,91 @@ kotlin {
         }
     }
 }
+//
+//wire {
+//    kotlin {
+//        // Proto types to include generated sources for. Types listed here will be
+//        // generated for this target and not for subsequent targets in the task.
+//        //
+//        // This list should contain package names (suffixed with `.*`) and type
+//        // names only. It should not contain member names.
+//        includes = ['com.example.pizza.*']
+//
+//        // Proto types to excluded generated sources for. Types listed here will not
+//        // be generated for this target.
+//        //
+//        // This list should contain package names (suffixed with `.*`) and type
+//        // names only. It should not contain member names.
+//        excludes = ['com.example.sales.*']
+//
+//        // True if types emitted for this target should not also be emitted for
+//        // other targets. Use this to cause multiple outputs to be emitted for the
+//        // same input type.
+//        exclusive = true
+//
+//        // Directory to emit to.
+//
+//        // True for emitted types to implement android.os.Parcelable.
+//        android = false
+//
+//        // True for emitted types to implement APIs for easier migration from the
+//        // Java target.
+//        javaInterop = false
+//
+//        // True to turn visibility of all generated types' constructors
+//        // to non-public.
+//        buildersOnly = false
+//
+//        // True to emit types for options declared on messages, fields, etc.
+//        emitDeclaredOptions = true
+//
+//        // True to emit annotations for options applied on messages, fields, etc.
+//        emitAppliedOptions = true
+//
+//        // `suspending` to generate coroutines APIs that require a Kotlin
+//        // coroutines context.
+//        // `blocking` to generate blocking APIs callable by Java and Kotlin.
+//        rpcCallStyle = 'blocking'
+//
+//        // `client` to generate interfaces best suited to sending outbound calls.
+//        // `server` to generate interfaces best suited to receiving inbound calls.
+//        // `none` to not generate services.
+//        rpcRole = 'server'
+//
+//        // If set, the value will be appended to generated service type names. If
+//        // null, their rpcRole will be used as a suffix instead.
+//        nameSuffix = "Suffix"
+//
+//        // True for emitted services to implement one interface per RPC.
+//        singleMethodServices = false
+//
+//        // Set how many oneof choices are necessary for generated message classes to use the
+//        // `OneOf<Key<T>, T>` form rather than the default, where options are flattened into the
+//        // enclosing type.
+//        boxOneOfsMinSize = 5000
+//
+//        // True to escape Kotlin keywords like `value` and `data` with backticks. Otherwise an
+//        // underscore underscore is added as a suffix, like `value_` and `data_`.
+//        escapeKotlinKeywords = false
+//
+//        // Defines how an protobuf enum type is to be generated. See `com.squareup.wire.kotlin.EnumMode`
+//        enumMode = "enum_class"
+//
+//        // True to emit a adapters that include a decode() function that accepts a `ProtoReader32`.
+//        // Use this optimization when targeting Kotlin/JS, where `Long` cursors are inefficient.
+//        emitProtoReader32 = false
+//    }
+//}
+wire {
+    kotlin {
+        // ✅ 这表示会生成 Kotlin 数据类到 commonMain 下
+        // 默认生成到 build/generated/source/wire
+        // 你可以自定义 outputPath
+        android = false         // 如果你希望针对 JVM，而不是 Android 目标
+        javaInterop = false
+    }
+}
+
 // 数据库插件
 sqldelight {
 //    ./gradlew generateCommonMainAppDatabaseInterface
@@ -162,26 +257,26 @@ dependencies {
     debugImplementation(compose.uiTooling)
 
     //noinspection UseTomlInstead
-    implementation(libs.protobuf.java)
+//    implementation(libs.protobuf.java)
 }
-
-protobuf {
-    protoc {
-        // 4. 指定 protoc（Protobuf 编译器）的 Maven 坐标。插件会下载这个版本并调用它去生成代码
-//        artifact = libs.protobuf.java.get().toString()
-        artifact = "com.google.protobuf:protoc:3.21.12"  // 指定 protoc 编译器版本
-    }
-
-    generateProtoTasks {
-        all().forEach { task ->
-            task.builtins {
-                create("java") {
-                    option("lite")
-                }
-            }
-        }
-    }
-}
+//
+//protobuf {
+//    protoc {
+//        // 4. 指定 protoc（Protobuf 编译器）的 Maven 坐标。插件会下载这个版本并调用它去生成代码
+////        artifact = libs.protobuf.java.get().toString()
+//        artifact = "com.google.protobuf:protoc:3.21.12"  // 指定 protoc 编译器版本
+//    }
+//
+//    generateProtoTasks {
+//        all().forEach { task ->
+//            task.builtins {
+//                create("java") {
+//                    option("lite")
+//                }
+//            }
+//        }
+//    }
+//}
 
 compose.desktop {
     application {

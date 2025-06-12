@@ -72,7 +72,6 @@ public class ReactiveConnectionManager {
      * @param ATTR
      * @param baseMessagePkg
      */
-
     public static void addBaseMessage(BindAttr<String> ATTR , BaseMessage.BaseMessagePkg baseMessagePkg) {
 
         if(isSubscribe(ATTR))

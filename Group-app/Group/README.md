@@ -17,10 +17,16 @@ Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-mu
 目标android desktop
 How to build project:
 
-Android 
-gradle composeApp:assembleDebug  
+
+1. generate protobuf
+```shell
+gradle generateProto
+```
+2. build apk
+Android
+```shell
+gradle composeApp:assembleDebug
+```
 
 and the apk  would  output on path composeApp/build/outputs/apk/debug/composeApp-debug.apk
 
-Windows
-gradlew.bat composeApp:assembleDebug

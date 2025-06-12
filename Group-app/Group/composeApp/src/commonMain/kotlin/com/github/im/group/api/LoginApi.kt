@@ -7,8 +7,8 @@ import kotlinx.serialization.Serializable
 
 
 object LoginApi {
-    suspend fun login(username: String, password: String): UserInfo {
-        val requestBody = LoginRequest(username, password)
+    suspend fun login(username: String, password: String,  refreshToken: String): UserInfo {
+        val requestBody = LoginRequest(username, password,refreshToken)
         return ProxyApi.request(
             hmethod = HttpMethod.Post,
             path = "/api/users/login",
@@ -27,29 +27,31 @@ object ConversationApi{
      * 获取用户已激活的会话
      */
     suspend fun getActiveConversationsByUserId(userId:Long ): List<ConversationRes> {
-        return ProxyApi.request< List<ConversationRes> ,Unit?>(
+        return ProxyApi.request<Unit, List<ConversationRes>>(
             hmethod = HttpMethod.Get,
-            path = "/api/conversation/${userId}"
+            path = "/api/conversations/${userId}/active"
         )
     }
 
     /**
      * 创建会话
      */
-    suspend fun createConversation(userId:Long ): List<ConversationRes> {
-        return ProxyApi.request< List<ConversationRes> ,Unit?>(
+    suspend fun createConversation(userId:Long ,friendId:Long): List<ConversationRes> {
+        return ProxyApi.request<Unit , List<ConversationRes> >(
             hmethod = HttpMethod.Get,
-            path = "/api/conversation/${userId}"
+            path = "/api/conversations/private-chat",
+            requestParams = mapOf("userId" to userId.toString(),"friendId" to friendId.toString())
         )
     }
 
     /**
      * 创建会话
      */
-    suspend fun sd(userId:Long ): List<ConversationRes> {
-        return ProxyApi.request< List<ConversationRes> ,Unit?>(
+    suspend fun createGroupConversation(groupInfo:GroupInfo ): ConversationRes {
+        return ProxyApi.request< GroupInfo,ConversationRes>(
             hmethod = HttpMethod.Get,
-            path = "/api/conversation/${userId}"
+            path = "/api/conversations/group",
+            body = groupInfo
         )
     }
 
@@ -66,7 +68,7 @@ object FriendShipApi {
      */
     suspend fun getFriends(userId:Long) : List<FriendshipDTO>{
 
-        return ProxyApi.request< List<FriendshipDTO> ,Unit?>(
+        return ProxyApi.request< Unit,List<FriendshipDTO>>(
             hmethod = HttpMethod.Get,
             path = "/api/friendships/list",
             requestParams = mapOf("userId" to userId.toString())
@@ -80,15 +82,35 @@ data class FriendshipDTO(
     val friendUserInfo: UserInfo? = null
 )
 
+@Serializable
+data class GroupInfo(
+    val groupName: String? = null,
+    val description: String? = null,
+    val members: List<UserInfo>? = listOf(),
+)
 
 @Serializable
-data class ConversationRes(val conversationId: Long,
-                           val groupName: String,
-                           val description: String?="",
-                           val members: List<UserInfo>,
-                           val status: ConversationStatus,
-                           val type: ConversationType
-)
+data class ConversationRes(
+    val conversationId: Long = -1,
+    val groupName: String = "",
+    val description: String? = "",
+    val members: List<UserInfo> = emptyList(),
+    val status: ConversationStatus = ConversationStatus.ACTIVE, // 或者默认值
+    val type: ConversationType = ConversationType.PRIVATE_CHAT, // 或者默认值
+    val lastMessage: String = "",
+) {
+    fun getName(): String {
+        return when (type) {
+            ConversationType.GROUP -> groupName
+            ConversationType.PRIVATE_CHAT -> members.firstOrNull()?.username ?: "未知用户"
+        }
+    }
+
+    companion object {
+        fun empty(): ConversationRes = ConversationRes()
+    }
+}
+
 @Serializable
 enum class ConversationStatus {
     ACTIVE,

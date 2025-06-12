@@ -4,5 +4,7 @@ package com.github.im.group
 // commonMain
 object GlobalCredentialProvider {
     var storage: CredentialStorage = DefaultCredentialStorage
+    var currentToken :String = ""
+
 
 }

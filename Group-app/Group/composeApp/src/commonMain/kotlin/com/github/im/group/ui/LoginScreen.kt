@@ -14,7 +14,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -35,8 +34,6 @@ import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import com.github.im.group.api.LoginApi
-import com.github.im.group.model.Friend
 import com.github.im.group.viewmodel.UserViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -52,7 +49,6 @@ class LoginScreen :Screen{
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Preview
 fun screen (
@@ -66,9 +62,13 @@ fun screen (
     var isLoggingIn by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 //    var userViewModel by remember { mutableStateOf<UserViewModel?>(UserViewModel()) }
-    val uiState by viewModel.uiState.collectAsState()
 
     val scope = rememberCoroutineScope()
+
+//    val uiState by viewModel.uiState.collectAsState()
+
+    val userInfo by  viewModel.uiState.collectAsState()
+
 
     MaterialTheme {
         Column(
@@ -149,32 +149,30 @@ fun screen (
                     scope.launch {
                         try {
                             // 修改为使用 ProxyApi
-                            val response = LoginApi.login(username, password)
-//                            val response = UserInfo(
-//                                userId = 1,
-//                                username = "test",
-//                                email = "test",
-//                                token = "test"
-//                            )
+//                            val response = LoginApi.login(username, password)
+                            viewModel.login(username, password)
+//                            GlobalCredentialProvider.storage.saveUserInfo(viewModel.uiState.value)
+//                            val userInfo =  viewModel.uiState.value
+                            // 查询当前用户激活的会话
+//                            val conversations = ConversationApi
+//                                .getActiveConversationsByUserId(userInfo.userId)
+
                             withContext(Dispatchers.Main) {
                                 isLoggingIn = false
                                 /**
                                  * 设置登录用户信息
                                  */
 //                                UserContext.userInfo = response
-                                viewModel.updateUserInfo(response)
-                                println("登录成功: $response")
+//                                viewModel.updateUserInfo(userInfo)
+                                println("登录成功: $userInfo")
 
                                 // 登录成功后跳转
                                 navigator.push(
-                                    Main(
-                                        userInfo = uiState,
-                                        friends = listOf(
-                                            Friend(1, "test", true),
-                                            Friend(2, "peng", false)
-                                        ),
+                                    ChatMainScreen(
+                                        userInfo = userInfo,
+//                                        conversations = conversations,
                                         onFriendClick = {
-                                            println("click ${it.name}")
+                                            println("click ${it.getName()}")
                                         /* 示例中的空操作 */ },
                                         onLogout = {  /* 示例中的空操作 */ }
                                     )

@@ -99,6 +99,7 @@ public class SecurityConfig  {
                 .sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling((exceptions) -> exceptions
                         .authenticationEntryPoint(new BearerTokenAuthenticationEntryPoint())
+//                        .accessDeniedHandler(new BearerTokenAccessDeniedHandler())
                         .accessDeniedHandler(new BearerTokenAccessDeniedHandler())
                 );
         ;

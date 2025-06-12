@@ -28,7 +28,7 @@ object ProxyApi  : KoinComponent {
 
     // 基础请求方法，使用全局代理配置
 //    suspend inline fun <reified T> request(
-    suspend inline fun <reified R : Any, reified B : Any?> request(
+    suspend inline fun <reified B : Any, reified R : Any?> request(
         hmethod: HttpMethod,
         path: String,
         body: B? = null,
@@ -55,9 +55,10 @@ object ProxyApi  : KoinComponent {
                 setBody(body)
             }
 
+//            val token = GlobalCredentialProvider.storage.getUserInfo()?.token
+            val token = GlobalCredentialProvider.currentToken
 
-            val token = GlobalCredentialProvider.storage.getUserInfo()?.token
-            if (token != null) {
+            if (token.isNotEmpty()) {
                 header("Proxy-Authorization", "Basic $token")
                 header("Authorization", "Bearer $token")
             }
