@@ -42,7 +42,7 @@ tcp:
 logging:
   level:
     org.springframework.web: DEBUG
-#    reactor.netty: DEBUG
+    reactor.netty: DEBUG
     root: INFO
 jwt:
   private.key: classpath:app.key

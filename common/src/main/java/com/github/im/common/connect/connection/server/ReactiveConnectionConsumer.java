@@ -23,21 +23,47 @@ public class ReactiveConnectionConsumer extends ConnectionConsumer {
     public ReactiveConnectionConsumer(){
         super((nettyInbound, nettyOutbound) -> {
             // 处理 BaseMessage（对象）
-            Flux<BaseMessage.BaseMessagePkg> handleBaseMessage = nettyInbound.receiveObject()
-                    .cast( BaseMessage.BaseMessagePkg.class)
-                    .handle((obj, sink) -> {
-                log.debug("Received Object: {}", obj);
-                if (obj != null) {
-                    // 处理 BaseMessage 类型
-                    MessageDispatcher.getInstance().dispatchMessage(nettyInbound ,nettyOutbound,obj);
+            var messageFlux = nettyInbound
+                    .receive()
+                    .asByteArray()
+                    .map(bytes -> {
+                        try {
+                            // 直接用 Protobuf 的 parseFrom 解码
+                            BaseMessage.BaseMessagePkg message = BaseMessage.BaseMessagePkg.parseFrom(bytes);
+                            log.debug("Received Protobuf Message: {}", message);
+                            return message;
+                        } catch (Exception e) {
+                            log.error("解析失败: {}", e.getMessage());
+                            return null;
+                        }
+                    })
+                    .filter(msg -> msg != null)
+                    .doOnNext(msg -> {
+//                    .subscribe(msg -> {
+                        try {
+                            MessageDispatcher.getInstance().dispatchMessage(nettyInbound, nettyOutbound, msg);
+                        } catch (Exception e) {
+                            log.error("消息处理异常: {}", e.getMessage());
+                        }
+                    });
 
-                }
-
-            });
-
+//                    .subscribe();
+//            Flux<BaseMessage.BaseMessagePkg> handleBaseMessage = nettyInbound.receiveObject()
+////                    .cast( BaseMessage.BaseMessagePkg.class)
+//                    .handle((obj, sink) -> {
+//                        log.debug("Received Object: {}", obj);
+//                        if (obj != null) {
+//                            // 处理 BaseMessage 类型
+//                            MessageDispatcher.getInstance().dispatchMessage(nettyInbound ,nettyOutbound, (BaseMessage.BaseMessagePkg) obj);
+//
+//                        }
+//
+//            });
+//
 
 //            var outbound = nettyOutbound.sendByteArray(Flux.concat(handle));
-            var outbound = nettyOutbound.sendObject(Flux.concat(handleBaseMessage));
+            var outbound = nettyOutbound.sendObject(Flux.concat(messageFlux));
+//            var outbound = nettyOutbound.sendObject(Flux.concat(handleBaseMessage));
 
             return outbound.then();
 
