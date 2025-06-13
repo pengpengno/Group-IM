@@ -41,7 +41,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import cafe.adriel.voyager.core.screen.Screen
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.model.UserInfo
 import com.github.im.group.viewmodel.ChatViewModel
@@ -50,16 +51,15 @@ import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
-class ChatMainScreen(
-    private val userInfo: UserInfo,
-//    private val conversations: List<ConversationRes>,
-//    private val friends: List<Friend>,
-    private val onFriendClick: (ConversationRes) -> Unit,
-    private val onLogout: () -> Unit,
-) : Screen {
+@Composable
+fun ChatMainScreen(
+    onFriendClick: (ConversationRes) -> Unit,
 
-    @Composable
-    override fun Content() {
+    onLogout: () -> Unit,
+    navHostController: NavHostController = rememberNavController(),
+)  {
+
+
         val chatViewModel: ChatViewModel = koinViewModel()
         val userViewModel: UserViewModel = koinViewModel()
 
@@ -71,11 +71,11 @@ class ChatMainScreen(
 //        val messages by viewModel.collectAsState()
         val loading by chatViewModel.loading.collectAsState()
         val conversations by chatViewModel.uiState.collectAsState()
-        val userInfo by userViewModel.uiState.collectAsState()
-
+//        val userInfo by userViewModel.uiState.collectAsState()
+        val userInfo  = userViewModel.getUser()
         LaunchedEffect(userInfo) {
-            if(userInfo.userId != 0L){
-                chatViewModel.getConversations(userInfo.userId)
+            if(userInfo?.userId != 0L){
+                userInfo?.userId?.let { chatViewModel.getConversations(it) }
             }
         }
 
@@ -83,7 +83,9 @@ class ChatMainScreen(
 
         ModalNavigationDrawer(
             drawerContent = {
-                SideDrawer(userInfo, onLogout)
+                if (userInfo != null) {
+                    SideDrawer(userInfo, onLogout)
+                }
             },
             drawerState = drawerState
         ) {
@@ -140,7 +142,10 @@ class ChatMainScreen(
                         }
 
                         conversations.forEach { conversation ->
-                            ChatItem(conversation = conversation, onClick = { onFriendClick(conversation) })
+                            if (userInfo != null) {
+                                ChatItem(conversation = conversation,userInfo = userInfo,
+                                    onClick = { onFriendClick(conversation) })
+                            }
                         }
                     }
 
@@ -160,11 +165,10 @@ class ChatMainScreen(
                 }
             }
         }
-    }
 }
 
 @Composable
-fun ChatItem(conversation: ConversationRes, onClick: () -> Unit) {
+fun ChatItem(conversation: ConversationRes, userInfo: UserInfo,onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -174,7 +178,7 @@ fun ChatItem(conversation: ConversationRes, onClick: () -> Unit) {
         Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF0088CC))
         Spacer(Modifier.width(12.dp))
         Column {
-            Text(conversation.getName(), style = MaterialTheme.typography.titleMedium)
+            Text(conversation.getName(userInfo), style = MaterialTheme.typography.titleMedium)
             Text(
 //                text = friend.lastMessage.takeIf { e-> e?.isEmpty() ?: false } ?: "暂无消息",
                 text = conversation.lastMessage.takeIf { e->e?.isEmpty() ?: false } ?: "暂无消息",
@@ -182,6 +186,7 @@ fun ChatItem(conversation: ConversationRes, onClick: () -> Unit) {
                 color = Color.Gray
             )
         }
+
     }
 }
 

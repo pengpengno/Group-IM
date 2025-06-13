@@ -30,3 +30,4 @@ gradle composeApp:assembleDebug
 
 and the apk  would  output on path composeApp/build/outputs/apk/debug/composeApp-debug.apk
 
+https://square.github.io/wire/wire_compiler/#customizing-output

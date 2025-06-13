@@ -2,7 +2,10 @@ package com.github.im.group.api
 
 import ProxyApi
 import com.github.im.group.model.UserInfo
+import com.github.im.group.model.proto.MessageType
 import io.ktor.http.HttpMethod
+import kotlinx.datetime.LocalDateTime
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 
@@ -58,6 +61,32 @@ object ConversationApi{
 }
 
 /**
+ * Chat Api
+ */
+object ChatApi {
+    /**
+     * 获取会话消息
+     */
+    suspend fun getMessages(conversationId: Long): PageResult<MessageDTO> {
+
+        val requestBody = MessagePullRequest(
+            conversationId = conversationId,
+            fromAccountId = null,
+            startTime = null,
+            endTime = null,
+            page = 0,
+            size = 50,
+            sort = null
+        )
+        return ProxyApi.request<MessagePullRequest, PageResult<MessageDTO>>(
+            hmethod = HttpMethod.Post,
+            path = "/api/messages/pull",
+            body = requestBody
+        )
+    }
+}
+
+/**
  * 好友 API
  */
 
@@ -75,6 +104,105 @@ object FriendShipApi {
         )
     }
 }
+
+
+@Serializable
+data class MessagePullRequest(
+    val conversationId: Long? = null,
+    val fromAccountId: Long? = null,
+    val startTime: LocalDateTime? = null,
+    val endTime: LocalDateTime? = null,
+    val page: Int = 0,
+    val size: Int = 50,
+    val sort: String? = null,
+)
+
+
+
+@Serializable
+data class MessageDTO(
+    val msgId: Long? = null,
+    val conversationId: Long? = null,
+    val content: String? = null,
+    val fromAccountId: Long? = null,
+    val sequenceId: Long? = null,
+    val fromAccount: UserInfo? = null,
+    val type: MessageType,
+    val status: MessageStatus,
+    val timestamp: String, // ISO 格式时间
+    val payload: MessagePayLoad? = null
+
+
+){
+    companion object {
+        val EMPTY = MessageDTO(
+            msgId = null,
+            conversationId = null,
+            content = null,
+            fromAccountId = null,
+            sequenceId = null,
+            fromAccount = null,
+            type = MessageType.TEXT,
+            status = MessageStatus.UNSENT,
+            timestamp = "",
+        )
+    }
+}
+
+/**
+ * 消息状态
+ */
+enum class MessageStatus {
+    REJECT,
+    OFFLINE,
+    SENTFAIL,
+    HISTORY,
+    READ,
+    UNREAD,
+    SENT,
+    UNSENT;
+
+    companion object {
+        fun fromCode(code: String): MessageStatus? {
+            return entries.find { it.toString() == code }
+        }
+    }
+}
+
+
+@Serializable
+/**
+ * 分页
+ */
+data class PageResult<T>(
+    val content: List<T>,
+    val page: PageMeta
+) {
+    @Serializable
+    data class PageMeta(
+        val size: Int,
+        val number: Int,
+        val totalElements: Long,
+        val totalPages: Int
+    )
+}
+@Serializable
+sealed interface MessagePayLoad
+
+@Serializable
+@SerialName("TEXT")
+data class DefaultMessagePayLoad(
+    val text: String
+) : MessagePayLoad
+
+@Serializable
+@SerialName("FILE")
+data class FileMeta(
+    val fileName: String,
+    val size: Long,
+    val url: String
+) : MessagePayLoad
+
 @Serializable
 data class FriendshipDTO(
     val id: Long? = null,
@@ -99,10 +227,15 @@ data class ConversationRes(
     val type: ConversationType = ConversationType.PRIVATE_CHAT, // 或者默认值
     val lastMessage: String = "",
 ) {
-    fun getName(): String {
+    fun getName(currentUser: UserInfo?): String {
         return when (type) {
             ConversationType.GROUP -> groupName
-            ConversationType.PRIVATE_CHAT -> members.firstOrNull()?.username ?: "未知用户"
+            ConversationType.PRIVATE_CHAT -> {
+                // 返回非当前用户的名称
+                val otherUser = members.first { it.userId != (currentUser?.userId ?: "") }
+                return otherUser.username
+
+            }
         }
     }
 

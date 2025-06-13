@@ -31,9 +31,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import cafe.adriel.voyager.core.screen.Screen
-import cafe.adriel.voyager.navigator.LocalNavigator
-import cafe.adriel.voyager.navigator.currentOrThrow
 import com.github.im.group.viewmodel.UserViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -48,14 +49,39 @@ class LoginScreen :Screen{
         screen()
     }
 }
+@Composable
+@Preview
+fun loginScreen (
+    navController: NavHostController = rememberNavController()
+) {
+
+    androidx.navigation.compose.NavHost(
+            navController = navController,
+            startDestination = Login
+        ) {
+            composable<Login> {
+                screen()
+            }
+            composable<Home> {
+                    ChatMainScreen(
+                        onFriendClick = {
+                                },
+                        onLogout = {
+                        }
+                    )
+
+
+            }
+        }
+}
 
 @Composable
 @Preview
 fun screen (
-//    viewModel: UserViewModel = viewModel{UserViewModel()}
-    viewModel: UserViewModel = koinViewModel()
+    viewModel: UserViewModel = koinViewModel(),
+    navController: NavHostController = rememberNavController(),
 ) {
-    val navigator = LocalNavigator.currentOrThrow
+//    val navigator = LocalNavigator.currentOrThrow
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var autoLogin by remember { mutableStateOf(false) }
@@ -65,7 +91,6 @@ fun screen (
 
     val scope = rememberCoroutineScope()
 
-//    val uiState by viewModel.uiState.collectAsState()
 
     val userInfo by  viewModel.uiState.collectAsState()
 
@@ -78,9 +103,8 @@ fun screen (
         ) {
             Button(
                 onClick = {
-                    navigator.push(ProxySettingScreen())
+                    navController.navigate(ProxySettingScreen())
                 },
-//                modifier = Modifier.align(Alignment.TopStart)
             ) {
                 Icon(
                     imageVector = Icons.Filled.Settings,
@@ -145,39 +169,23 @@ fun screen (
                     errorMessage = null
 
                     // 使用 CoroutineScope 发起请求
-//                    CoroutineScope(Dispatchers.Default).launch {
                     scope.launch {
                         try {
                             // 修改为使用 ProxyApi
-//                            val response = LoginApi.login(username, password)
                             viewModel.login(username, password)
-//                            GlobalCredentialProvider.storage.saveUserInfo(viewModel.uiState.value)
-//                            val userInfo =  viewModel.uiState.value
-                            // 查询当前用户激活的会话
-//                            val conversations = ConversationApi
-//                                .getActiveConversationsByUserId(userInfo.userId)
 
                             withContext(Dispatchers.Main) {
                                 isLoggingIn = false
                                 /**
                                  * 设置登录用户信息
                                  */
-//                                UserContext.userInfo = response
-//                                viewModel.updateUserInfo(userInfo)
                                 println("登录成功: $userInfo")
 
                                 // 登录成功后跳转
-                                navigator.push(
-                                    ChatMainScreen(
-                                        userInfo = userInfo,
-//                                        conversations = conversations,
-                                        onFriendClick = {
-                                            println("click ${it.getName()}")
-                                        /* 示例中的空操作 */ },
-                                        onLogout = {  /* 示例中的空操作 */ }
-                                    )
+//                                navController.navigate(Home)
+                                navController.navigate(
+                                    Home
                                 )
-//                                    onLoginSuccess(response)
                             }
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {
