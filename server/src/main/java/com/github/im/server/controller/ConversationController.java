@@ -29,6 +29,18 @@ public class ConversationController {
         return ResponseEntity.ok(group);
     }
 
+
+    /**
+     * 查询指定群聊
+     * @param conversationId 群组Id
+     * @return 群组
+     */
+    @GetMapping("/{conversationId}")
+    public ResponseEntity<ConversationRes> createGroup(@PathVariable Long  conversationId) {
+        var group = conversationService.getConversationById(conversationId);
+        return ResponseEntity.ok(group);
+    }
+
     /**
      * 创建或获取私聊会话
      *

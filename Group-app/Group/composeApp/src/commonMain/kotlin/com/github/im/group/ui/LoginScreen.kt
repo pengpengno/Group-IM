@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import cafe.adriel.voyager.core.screen.Screen
 import com.github.im.group.viewmodel.UserViewModel
 import kotlinx.coroutines.Dispatchers
@@ -46,7 +47,8 @@ import org.koin.compose.viewmodel.koinViewModel
 class LoginScreen :Screen{
     @Composable
     override fun Content() {
-        screen()
+//        screen()
+        loginScreen()
     }
 }
 @Composable
@@ -60,17 +62,27 @@ fun loginScreen (
             startDestination = Login
         ) {
             composable<Login> {
-                screen()
+                screen(navController = navController)
             }
             composable<Home> {
-                    ChatMainScreen(
-                        onFriendClick = {
-                                },
-                        onLogout = {
-                        }
-                    )
+                ChatMainScreen(
+                    onFriendClick = {
+                    },
+                    onLogout = {
+                    },
+                    navHostController = navController
+                )
+            }
+            composable<ChatRoom>{ backStackEntry ->
+                val chatRoom : ChatRoom = backStackEntry.toRoute()
 
-
+                ChatRoomScreen(
+                    conversationId = chatRoom.conversationId,
+                    onBack = {
+                        navController.popBackStack()
+                    },
+                    navHostController = navController
+                )
             }
         }
 }
@@ -183,14 +195,12 @@ fun screen (
 
                                 // 登录成功后跳转
 //                                navController.navigate(Home)
-                                navController.navigate(
-                                    Home
-                                )
+                                navController.navigate(Home)
                             }
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {
                                 isLoggingIn = false
-                                println("登录失败: ${e.message}")
+                                println("登录失败: ${e}")
                                 errorMessage = "登录失败: ${e.message}"
                             }
                         }

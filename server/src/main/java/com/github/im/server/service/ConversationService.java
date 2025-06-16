@@ -66,6 +66,11 @@ public class ConversationService {
         return conversationsMapper.toDTO(group);
     }
 
+    @Transactional
+    public ConversationRes getConversationById(Long conversationId) {
+        Conversation conversation = conversationRepository.findById(conversationId).orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
+        return conversationsMapper.toDTO(conversation);
+    }
     /**
      * 创建或获取私聊会话
      * @param userId1 第一个用户ID  group creator

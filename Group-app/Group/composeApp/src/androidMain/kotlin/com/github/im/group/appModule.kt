@@ -8,6 +8,7 @@ import com.github.im.group.db.SpaceXSDK
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.SenderSdk
 import com.github.im.group.viewmodel.ChatViewModel
+import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.TCPMessageViewModel
 import com.github.im.group.viewmodel.UserViewModel
 import org.koin.android.ext.koin.androidContext
@@ -31,11 +32,11 @@ val appModule = module {
     single { UserRepository() }
 //    single { (ChatViewModel()) }
     viewModelOf (::ChatViewModel)
+    viewModelOf (::ChatMessageViewModel)
     single { (TCPMessageViewModel()) }
     single { AndroidSocketClient(get()) } bind SocketClient::class
     single { (SenderSdk(get())) }
     viewModelOf(::UserViewModel)  // 注册为 ViewModel，由 Koin 自动管理生命周期
-//    single{ (UserViewModel(get())) } // 注册为 ViewModel，由 Koin 自动管理生命周期
 
 
 }

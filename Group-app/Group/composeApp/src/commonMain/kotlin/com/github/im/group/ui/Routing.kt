@@ -1,6 +1,5 @@
 package com.github.im.group.ui
 
-import com.github.im.group.model.UserInfo
 import kotlinx.serialization.Serializable
 
 
@@ -11,10 +10,12 @@ object Login
 object Chat
 
 @Serializable
-data class Home(
-    val userInfo: UserInfo,
-)
+object Home
 
+@Serializable
+data class ChatRoom(
+    val conversationId: Long,
+)
 
 
 @Serializable

@@ -42,7 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.model.UserInfo
 import com.github.im.group.viewmodel.ChatViewModel
@@ -54,9 +53,8 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun ChatMainScreen(
     onFriendClick: (ConversationRes) -> Unit,
-
     onLogout: () -> Unit,
-    navHostController: NavHostController = rememberNavController(),
+    navHostController: NavHostController,
 )  {
 
 
@@ -68,10 +66,9 @@ fun ChatMainScreen(
         val scope = rememberCoroutineScope()
         var searchQuery by remember { mutableStateOf("") }
 
-//        val messages by viewModel.collectAsState()
         val loading by chatViewModel.loading.collectAsState()
         val conversations by chatViewModel.uiState.collectAsState()
-//        val userInfo by userViewModel.uiState.collectAsState()
+
         val userInfo  = userViewModel.getUser()
         LaunchedEffect(userInfo) {
             if(userInfo?.userId != 0L){
@@ -144,7 +141,11 @@ fun ChatMainScreen(
                         conversations.forEach { conversation ->
                             if (userInfo != null) {
                                 ChatItem(conversation = conversation,userInfo = userInfo,
-                                    onClick = { onFriendClick(conversation) })
+                                    onClick = {
+                                        navHostController.navigate(ChatRoom(conversation.conversationId))
+//                                        onFriendClick(conversation)
+
+                                    })
                             }
                         }
                     }

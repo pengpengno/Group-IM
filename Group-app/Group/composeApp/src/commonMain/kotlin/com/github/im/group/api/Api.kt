@@ -35,6 +35,15 @@ object ConversationApi{
             path = "/api/conversations/${userId}/active"
         )
     }
+    /**
+     * 获取用户已激活的会话
+     */
+    suspend fun getConversation(conversationId:Long ): ConversationRes {
+        return ProxyApi.request<Unit, ConversationRes>(
+            hmethod = HttpMethod.Get,
+            path = "/api/conversations/${conversationId}"
+        )
+    }
 
     /**
      * 创建会话
@@ -119,36 +128,6 @@ data class MessagePullRequest(
 
 
 
-@Serializable
-data class MessageDTO(
-    val msgId: Long? = null,
-    val conversationId: Long? = null,
-    val content: String? = null,
-    val fromAccountId: Long? = null,
-    val sequenceId: Long? = null,
-    val fromAccount: UserInfo? = null,
-    val type: MessageType,
-    val status: MessageStatus,
-    val timestamp: String, // ISO 格式时间
-    val payload: MessagePayLoad? = null
-
-
-){
-    companion object {
-        val EMPTY = MessageDTO(
-            msgId = null,
-            conversationId = null,
-            content = null,
-            fromAccountId = null,
-            sequenceId = null,
-            fromAccount = null,
-            type = MessageType.TEXT,
-            status = MessageStatus.UNSENT,
-            timestamp = "",
-        )
-    }
-}
-
 /**
  * 消息状态
  */
@@ -162,11 +141,11 @@ enum class MessageStatus {
     SENT,
     UNSENT;
 
-    companion object {
-        fun fromCode(code: String): MessageStatus? {
-            return entries.find { it.toString() == code }
-        }
-    }
+//    companion object {
+//        fun fromCode(code: String): MessageStatus? {
+//            return entries.find { it.toString() == code }
+//        }
+//    }
 }
 
 
@@ -192,15 +171,20 @@ sealed interface MessagePayLoad
 @Serializable
 @SerialName("TEXT")
 data class DefaultMessagePayLoad(
-    val text: String
+    val content: String
 ) : MessagePayLoad
 
 @Serializable
 @SerialName("FILE")
 data class FileMeta(
+    @SerialName("filename")
     val fileName: String,
+
+    @SerialName("fileSize")
     val size: Long,
-    val url: String
+
+    val contentType: String,
+    val hash: String
 ) : MessagePayLoad
 
 @Serializable
@@ -209,6 +193,37 @@ data class FriendshipDTO(
     val userInfo: UserInfo? = null,
     val friendUserInfo: UserInfo? = null
 )
+
+@Serializable
+data class MessageDTO(
+    val msgId: Long? = null,
+    val conversationId: Long? = null,
+    val content: String? = null,
+    val fromAccountId: Long? = null,
+    val sequenceId: Long? = null,
+    val fromAccount: UserInfo? = null,
+    val type: MessageType,
+    val status: MessageStatus,
+    val timestamp: String, // ISO 格式时间
+    val payload: MessagePayLoad? = null
+
+
+){
+//    companion object {
+//        val EMPTY = MessageDTO(
+//            msgId = null,
+//            conversationId = null,
+//            content = null,
+//            fromAccountId = null,
+//            sequenceId = null,
+//            fromAccount = null,
+//            type = MessageType.TEXT,
+//            status = MessageStatus.UNSENT,
+//            timestamp = "",
+//        )
+//    }
+}
+
 
 @Serializable
 data class GroupInfo(
@@ -231,17 +246,19 @@ data class ConversationRes(
         return when (type) {
             ConversationType.GROUP -> groupName
             ConversationType.PRIVATE_CHAT -> {
+                if (members.isEmpty()) return "无成员"
+
                 // 返回非当前用户的名称
-                val otherUser = members.first { it.userId != (currentUser?.userId ?: "") }
-                return otherUser.username
+                val otherUser = members.firstOrNull() { it.userId != (currentUser?.userId ?: "") }
+                otherUser?.username ?: ""
 
             }
         }
     }
 
-    companion object {
-        fun empty(): ConversationRes = ConversationRes()
-    }
+//    companion object {
+//        fun empty(): ConversationRes = ConversationRes()
+//    }
 }
 
 @Serializable

@@ -21,8 +21,39 @@ class AndroidSocketClient(
     private lateinit var output: OutputStream
     private var receiveJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.IO)
+    private var reconnectJob: Job? = null
+
+//    private val _host = MutableStateFlow(ProxyConfig.host)
+//    private val _port = MutableStateFlow(ProxyConfig.tcp_port)
+
+
+    /**
+     * 连接一次 成功返回true
+     */
+    private suspend fun connectOnce(host: String, port: Int): Boolean {
+         return try {
+             connect(host, port)
+             true
+         }catch (e: Exception)
+         {
+             false
+         }
+    }
+
+//     suspend fun registerToRemote(data: AccountInfo) {
+//
+//        _loginPkg.value = data
+//
+//        if (connectOnce(_host.value, _port.value)) {
+//            val pkg = BaseMessagePkg(accountInfo = data)
+//            val bytes = pkg.encode()
+//            send(bytes)
+//        }
+//
+//    }
 
     override suspend fun connect(host: String, port: Int) {
+
         socket = withContext(Dispatchers.IO) {
             Socket(host, port)
         }
@@ -33,31 +64,22 @@ class AndroidSocketClient(
             socket.getOutputStream()
         }
 
+        startReceiving()
         // 启动接收协程
-        scope.launch {
-            val adapter = BaseMessagePkg.ADAPTER
-            val buffer = ByteArray(4096)
+    }
 
-            while (true) {
-                try {
-                    val length = input.read(buffer)
-                    if (length == -1) break
-                    val msg = adapter.decode(buffer.copyOfRange(0, length))
-                    withContext(Dispatchers.Main) {
-                        viewModel.onNewMessage(msg)
-                    }
-                    println("接收到消息: $msg")
-                    viewModel.updateMessage(msg)
-                } catch (e: Exception) {
-                    println("接收失败: ${e.message}")
-                    break
-                }
-            }
-        }
+
+    /**
+     * 重新启动接收协程
+     */
+    private fun restartReceiving() {
+        receiveJob?.cancel()
+        startReceiving()
     }
 
     override suspend fun send(data: ByteArray) {
         withContext(Dispatchers.IO) {
+            // 首先判断当前是否 已经 连接了， 没连接就  重连
             output.write(data)
             output.flush()
         }
@@ -68,6 +90,10 @@ class AndroidSocketClient(
      * 开始 接收消息
      */
     private fun startReceiving() {
+
+        if(reconnectJob?.isActive == true){
+            receiveJob?.cancel()
+        }
         receiveJob = CoroutineScope(Dispatchers.IO).launch {
             try {
                 val buffer = ByteArray(4096)
@@ -88,12 +114,22 @@ class AndroidSocketClient(
             }
         }
     }
+
     override suspend fun receive(): ByteArray {
         val buffer = ByteArray(4096)
         val length = withContext(Dispatchers.IO) {
             input.read(buffer)
         }
         return buffer.copyOfRange(0, length)
+    }
+
+
+    override fun isActive(): Boolean {
+        return if (::socket.isInitialized) {
+            socket.isConnected && !socket.isClosed
+        } else {
+            false
+        }
     }
 
     override fun close() {

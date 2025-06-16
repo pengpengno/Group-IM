@@ -25,7 +25,7 @@ class ChatViewModel (
     val tcpClient: SocketClient
 ): ViewModel() {
 
-    private val _conversations = MutableStateFlow(listOf(ConversationRes.empty()))
+    private val _conversations = MutableStateFlow(listOf(ConversationRes()))
 
     val uiState:  StateFlow<List<ConversationRes>> = _conversations.asStateFlow()
 
@@ -34,19 +34,7 @@ class ChatViewModel (
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading
 
-    fun getConversation (uId: Long ) {
-        viewModelScope.launch {
-            _loading.value = true
-            try {
-                val response = ConversationApi.getConversationInfo(uId)
-                _conversations.value = response
-            } catch (e: Exception) {
-                println("加载失败: $e")
-            } finally {
-                _loading.value = false
-            }
-        }
-    }
+
     fun getConversations(uId: Long ) {
         viewModelScope.launch {
             _loading.value = true
@@ -78,23 +66,7 @@ class ChatViewModel (
                 println("发送失败: $e")
             }
         }
-//        withContext(Dispatchers.IO) {  // 切换到IO协程
-//            val chatMessage = ChatMessage(
-//                content = message,
-//                conversationId = conversationId,
-//                conversationName = "",
-//                fromAccountInfo = null,
-//                toAccountInfo = null,
-//                clientTimeStamp = 0,
-//                serverTimeStamp = 0,
-//                type = MessageType.TEXT,
-//                messagesStatus = ChatMessage.MessagesStatus.UNSENT,
-//                sequenceId = 0
-//            )
-//            val baseMessage  = BaseMessagePkg(message = chatMessage)
-//
-//            tcpClient.send(BaseMessagePkg.ADAPTER.encode(baseMessage))
-//        }
+
     }
 
     fun loadMessages(conversationId: Long) {
