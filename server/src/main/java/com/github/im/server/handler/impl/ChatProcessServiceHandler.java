@@ -62,7 +62,8 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
                 members.stream()
                         .filter(e-> !Objects.equals(e.getUsername(), chatMessage.getFromAccountInfo().getAccount()))
                         .forEach(member -> {
-                    var bindAttr = BindAttr.getBindAttr(member.getUsername());
+
+                    var bindAttr = BindAttr.getBindAttrForPush(member.getUsername());
 
                     ReactiveConnectionManager.addBaseMessage(bindAttr, newBaseMessage);
 

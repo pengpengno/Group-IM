@@ -23,9 +23,6 @@ class AndroidSocketClient(
     private val scope = CoroutineScope(Dispatchers.IO)
     private var reconnectJob: Job? = null
 
-//    private val _host = MutableStateFlow(ProxyConfig.host)
-//    private val _port = MutableStateFlow(ProxyConfig.tcp_port)
-
 
     /**
      * 连接一次 成功返回true
@@ -39,18 +36,6 @@ class AndroidSocketClient(
              false
          }
     }
-
-//     suspend fun registerToRemote(data: AccountInfo) {
-//
-//        _loginPkg.value = data
-//
-//        if (connectOnce(_host.value, _port.value)) {
-//            val pkg = BaseMessagePkg(accountInfo = data)
-//            val bytes = pkg.encode()
-//            send(bytes)
-//        }
-//
-//    }
 
     override suspend fun connect(host: String, port: Int) {
 
@@ -69,13 +54,6 @@ class AndroidSocketClient(
     }
 
 
-    /**
-     * 重新启动接收协程
-     */
-    private fun restartReceiving() {
-        receiveJob?.cancel()
-        startReceiving()
-    }
 
     override suspend fun send(data: ByteArray) {
         withContext(Dispatchers.IO) {

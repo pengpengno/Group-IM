@@ -5,10 +5,11 @@ import com.github.im.group.api.SpaceXApi
 import com.github.im.group.config.SocketClient
 import com.github.im.group.connect.AndroidSocketClient
 import com.github.im.group.db.SpaceXSDK
+import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.SenderSdk
-import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.ChatMessageViewModel
+import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.TCPMessageViewModel
 import com.github.im.group.viewmodel.UserViewModel
 import org.koin.android.ext.koin.androidContext
@@ -33,9 +34,13 @@ val appModule = module {
 //    single { (ChatViewModel()) }
     viewModelOf (::ChatViewModel)
     viewModelOf (::ChatMessageViewModel)
-    single { (TCPMessageViewModel()) }
+    single { ChatSessionManager() }
+    single { TCPMessageViewModel(get()) }
+
     single { AndroidSocketClient(get()) } bind SocketClient::class
+
     single { (SenderSdk(get())) }
+
     viewModelOf(::UserViewModel)  // 注册为 ViewModel，由 Koin 自动管理生命周期
 
 

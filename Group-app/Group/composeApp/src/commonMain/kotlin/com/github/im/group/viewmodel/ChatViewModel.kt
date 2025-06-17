@@ -7,6 +7,8 @@ import com.github.im.group.api.ConversationRes
 import com.github.im.group.config.SocketClient
 import com.github.im.group.model.proto.BaseMessagePkg
 import com.github.im.group.model.proto.ChatMessage
+import com.github.im.group.model.proto.MessageType
+import com.github.im.group.repository.UserRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +24,9 @@ class ChatRepository(private val api: ConversationApi, private val socket: Socke
 
 
 class ChatViewModel (
-    val tcpClient: SocketClient
+    val tcpClient: SocketClient,
+    val userRepository: UserRepository
+
 ): ViewModel() {
 
     private val _conversations = MutableStateFlow(listOf(ConversationRes()))
@@ -51,23 +55,7 @@ class ChatViewModel (
     }
 
 
-    fun sendMessage(conversationId:Long,message:String  ){
 
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val chatMessage = ChatMessage(
-                    content = message,
-                    conversationId = conversationId,
-                    // ...省略字段
-                )
-                val baseMessage = BaseMessagePkg(message = chatMessage)
-                tcpClient.send(BaseMessagePkg.ADAPTER.encode(baseMessage))
-            } catch (e: Exception) {
-                println("发送失败: $e")
-            }
-        }
-
-    }
 
     fun loadMessages(conversationId: Long) {
         viewModelScope.launch {

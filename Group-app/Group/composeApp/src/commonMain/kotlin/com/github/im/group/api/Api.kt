@@ -2,7 +2,6 @@ package com.github.im.group.api
 
 import ProxyApi
 import com.github.im.group.model.UserInfo
-import com.github.im.group.model.proto.MessageType
 import io.ktor.http.HttpMethod
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.SerialName
@@ -148,6 +147,15 @@ enum class MessageStatus {
 //    }
 }
 
+@Serializable
+enum class ChatMessageType {
+//   文本
+    TEXT,
+//   文件
+    FILE,
+
+}
+
 
 @Serializable
 /**
@@ -202,26 +210,14 @@ data class MessageDTO(
     val fromAccountId: Long? = null,
     val sequenceId: Long? = null,
     val fromAccount: UserInfo? = null,
-    val type: MessageType,
-    val status: MessageStatus,
+    val type: ChatMessageType ,
+    val status: MessageStatus ,
     val timestamp: String, // ISO 格式时间
     val payload: MessagePayLoad? = null
 
 
 ){
-//    companion object {
-//        val EMPTY = MessageDTO(
-//            msgId = null,
-//            conversationId = null,
-//            content = null,
-//            fromAccountId = null,
-//            sequenceId = null,
-//            fromAccount = null,
-//            type = MessageType.TEXT,
-//            status = MessageStatus.UNSENT,
-//            timestamp = "",
-//        )
-//    }
+
 }
 
 

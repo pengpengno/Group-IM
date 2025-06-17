@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.api.LoginApi
 import com.github.im.group.model.UserInfo
+import com.github.im.group.model.proto.AccountInfo
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.SenderSdk
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,11 @@ class UserViewModel(
 
     fun getUser(): UserInfo? {
         return userRepository.getUser()
+    }
+
+
+    fun getAccountInfo(): AccountInfo? {
+        return userRepository.getAccountInfo()
     }
 
     /**

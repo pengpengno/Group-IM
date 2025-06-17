@@ -55,7 +55,8 @@ public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
                 })
                 .flatMap(baseMessagePkg -> {
 //                        // 返回消息流给 connection.outbound() 进行发送
-                    return connection.outbound().sendObject(Mono.just(baseMessagePkg));
+//                    return connection.outbound().sendObject(Mono.just(baseMessagePkg));
+                    return connection.outbound().sendByteArray(Mono.just(baseMessagePkg.toByteArray()));
                 }).checkpoint()
                 .doOnTerminate(() -> {
                     // 可以在流终止时执行清理操作

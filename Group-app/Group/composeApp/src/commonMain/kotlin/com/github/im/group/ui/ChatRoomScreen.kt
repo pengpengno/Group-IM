@@ -2,16 +2,16 @@ package com.github.im.group.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -50,21 +50,52 @@ import org.koin.compose.viewmodel.koinViewModel
 fun ChatRoomScreen(
     conversationId: Long,
     navHostController: NavHostController = rememberNavController(),
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
 ) {
     val chatViewModel: ChatViewModel = koinViewModel()
     val userViewModel: UserViewModel = koinViewModel()
     val messageViewModel: ChatMessageViewModel = koinViewModel()
     var messageText by remember { mutableStateOf("") }
 
+
+
     LaunchedEffect(conversationId) {
         chatViewModel.getConversations(conversationId)
         messageViewModel.getConversation(conversationId)
         messageViewModel.loadMessages(conversationId)
+        messageViewModel.register(conversationId)
+//        onDispose {
+//            messageViewModel.unregister(conversationId)
+//        }
     }
+//    onDispose {
+//        messageViewModel.unregister(conversationId)
+//    }
+
+    // 加载完消息后自动滚动到底部
+
 
     val state by messageViewModel.uiState.collectAsState()
     val userInfo = userViewModel.getUser()
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(state.messages.size) {
+        if (state.messages.isNotEmpty()) {
+            listState.animateScrollToItem(state.messages.lastIndex)
+        }
+    }
+
+//    val tcpViewModel: TCPMessageViewModel = GlobalContext.get()
+//    LaunchedEffect(Unit) {
+//        tcpViewModel.uiState.collect { message ->
+//            // 根据类型主动通知 ChatMessageViewModel
+//            when {
+//                message.message != null -> {
+//                    messageViewModel.addMessage(message.message)
+//                }
+//            }
+//        }
+//    }
 
     Scaffold(
         topBar = {
@@ -96,7 +127,8 @@ fun ChatRoomScreen(
                 Button(
                     onClick = {
                         if (messageText.isNotBlank()) {
-                            chatViewModel.sendMessage(conversationId, messageText)
+                            messageViewModel.sendMessage(conversationId, messageText)
+                            // 发送完毕后展示再页面上
                             messageText = ""
                         }
                     },
@@ -107,30 +139,52 @@ fun ChatRoomScreen(
             }
         }
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .background(Color.White),
-            verticalArrangement = Arrangement.Bottom
+            state = listState,
+            reverseLayout = false, // false: 新消息在底部
+            contentPadding = PaddingValues(bottom = 40.dp) // 为输入框腾出空间
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
-            state.messages.forEach { msg ->
-                msg.content?.let {
-                    if (userInfo != null) {
-                        MessageBubble(
-                            isOwnMessage = msg.fromAccountId == userInfo.userId,
-                            content = it
-                        )
-                    }
+            items(state.messages) { msg ->
+                val content = msg.content
+                if (userInfo != null) {
+                    MessageBubble(
+                        isOwnMessage = msg.userInfo.userId == userInfo.userId,
+                        content = content
+                    )
                 }
             }
-            Spacer(modifier = Modifier.height(70.dp)) // 留出输入框空间
         }
+//        LazyColumn(
+//            modifier = Modifier
+//                .padding(padding)
+//                .fillMaxSize()
+//                .verticalScroll(rememberScrollState())
+//                .background(Color.White),
+//            verticalArrangement = Arrangement.Bottom
+//        ) {
+//            Spacer(modifier = Modifier.height(8.dp))
+//            state.messages.forEach { msg ->
+//                msg.content.let {
+//                    if (userInfo != null) {
+//                        MessageBubble(
+//                            isOwnMessage = msg.userInfo.userId == userInfo.userId,
+//                            content = it
+//                        )
+//                    }
+//                }
+//            }
+//            Spacer(modifier = Modifier.height(70.dp)) // 留出输入框空间
+//        }
     }
 }
 
+/**
+ * 聊天气泡
+ */
 @Composable
 fun MessageBubble(isOwnMessage: Boolean, content: String) {
     Row(

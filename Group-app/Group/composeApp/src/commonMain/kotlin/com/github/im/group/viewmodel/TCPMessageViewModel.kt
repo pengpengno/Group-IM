@@ -1,12 +1,15 @@
 package com.github.im.group.viewmodel
 
+import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.model.proto.BaseMessagePkg
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class TCPMessageViewModel {
+class TCPMessageViewModel(
+    private val sessionManager: ChatSessionManager
+) {
 
     private val _messages = MutableStateFlow<BaseMessagePkg>(BaseMessagePkg())
 
@@ -16,6 +19,7 @@ class TCPMessageViewModel {
 
 
     fun updateMessage(message: BaseMessagePkg) {
+
         //  先判断 message 的具体类型
         when {
             message.accountInfo != null -> {
@@ -41,7 +45,10 @@ class TCPMessageViewModel {
     }
 
     fun onNewMessage(msg: BaseMessagePkg) {
-        _messages.value = msg
+//        _messages.value = msg
+//        updateMessage(msg)
+        sessionManager.routeMessage(msg)
+
     }
 
 }

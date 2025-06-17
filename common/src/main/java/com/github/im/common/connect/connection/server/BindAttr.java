@@ -1,5 +1,6 @@
 package com.github.im.common.connect.connection.server;
 
+import com.github.im.common.connect.connection.ReactiveConnectionManager;
 import com.github.im.common.connect.enums.PlatformType;
 import com.github.im.common.connect.model.proto.Account;
 import lombok.Getter;
@@ -23,11 +24,27 @@ public class BindAttr<T> {
 
     /**
      * 构造用于与 连接 绑定的对象
+     *
      * @param account
      * @return BindAttr
      */
     public static BindAttr<String> getBindAttr(String account) {
         return getBindAttr(account,PlatformType.DESKTOP);
+//        var ATTRKEY = String.join("_", account , ReactiveConnectionManager.ALL_PLATFORM_PUSH_TAG);
+//        return getAttr(ATTRKEY);
+    }
+
+
+    /**
+     * 构造用于与 进行推送的连接
+     *
+     * @param account
+     * @return BindAttr
+     */
+    public static BindAttr<String> getBindAttrForPush(String account) {
+//        return getBindAttr(account,PlatformType.DESKTOP);
+        var ATTRKEY = String.join("_", account , ReactiveConnectionManager.ALL_PLATFORM_PUSH_TAG);
+        return getAttr(ATTRKEY);
     }
 
     public static List<BindAttr<String>> getAllPlatformBindAttr(String account) {

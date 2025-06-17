@@ -73,7 +73,7 @@ object ProxyApi  : KoinComponent {
             }
             in 400..499 -> {
                 val errorText = response.bodyAsText()
-                println("ProxyApi error: $response")
+                println("ProxyApi error: $response, paramter= {$body} " )
 
 //                Logger .d("ProxyApi", "ProxyApi error: $errorText")
                 throw RuntimeException("客户端请求错误：${response.status}，内容: $errorText")

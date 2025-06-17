@@ -10,7 +10,13 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 import reactor.netty.Connection;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
+
+import static java.util.Collections.emptyList;
 
 @Slf4j
 public class ReactiveConnectionManager {
@@ -19,6 +25,8 @@ public class ReactiveConnectionManager {
 
     private static final ConcurrentMap<BindAttr<String>, Sinks.Many<BaseMessage.BaseMessagePkg>> BASE_MESSAGE_SINKS
             = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static final String ALL_PLATFORM_PUSH_TAG = "ALL";
 
     /**
      * 注册一个Sink流程用于处理特定属性的消息
@@ -62,8 +70,10 @@ public class ReactiveConnectionManager {
      * @return 存在返回true  不存在返回false
      */
     public static boolean isSubscribe(BindAttr<String> ATTR) {
-        return BASE_MESSAGE_SINKS.containsKey(ATTR);
+//        return BASE_MESSAGE_SINKS.containsKey(ATTR);
+        return !getAllSubscribeAttr(ATTR).isEmpty();
     }
+
 
 
     /**
@@ -76,12 +86,52 @@ public class ReactiveConnectionManager {
 
         if(isSubscribe(ATTR))
         {
-            BASE_MESSAGE_SINKS.get(ATTR).tryEmitNext(baseMessagePkg).orThrow();
+            getAllSubscribeAttr(ATTR).forEach(
+                    bindAttr -> {
+                        BASE_MESSAGE_SINKS.get(bindAttr).tryEmitNext(baseMessagePkg).orThrow();
+                    }
+            );
+//            BASE_MESSAGE_SINKS.get(ATTR).tryEmitNext(baseMessagePkg).orThrow();
 
         }else{
             log.debug("未找到对应的 sink , ATTR : {}",ATTR);
         }
 
+    }
+
+    /**
+     * 获取当前bind key 下所有在线 的绑定key
+     * @param ATTR
+     * @return
+     */
+    public static List<BindAttr<String>> getAllSubscribeAttr(BindAttr<String> ATTR) {
+        if (ATTR != null){
+            var key = ATTR.getKey();
+            if (key != null){
+                if (key.contains(ALL_PLATFORM_PUSH_TAG)){
+                    // 如果是推送全平台的标识
+                    log.debug("推送全平台的标识");
+                    var i = key.lastIndexOf("_");
+                    var account = key.substring(0,i);
+                    return Arrays.stream(PlatformType.values()).map(
+                            platformType -> {
+                                var bindAttr = BindAttr.getBindAttr(account, platformType);
+                                var PLATFORM_IS_ONLINE = BASE_MESSAGE_SINKS.containsKey(bindAttr);
+                                if (PLATFORM_IS_ONLINE){
+                                    return bindAttr;
+                                }
+                                return null;
+                            }
+                    ).filter(Objects::nonNull).collect(Collectors.toList());
+
+                }else{
+                    if (BASE_MESSAGE_SINKS.containsKey(ATTR)){
+                        return List.of(ATTR);
+                    }
+                }
+            }
+        }
+        return emptyList();
     }
 
 

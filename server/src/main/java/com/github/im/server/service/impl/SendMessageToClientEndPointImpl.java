@@ -72,7 +72,7 @@ public class SendMessageToClientEndPointImpl implements SendMessageToClientEndPo
 
         var friendAccount = friend.getAccount();
 
-        BindAttr<String> bindAttr = BindAttr.getBindAttr(friendAccount);
+        BindAttr<String> bindAttr = BindAttr.getBindAttrForPush(friendAccount);
 
 
         BaseMessage.BaseMessagePkg baseMessagePkg =

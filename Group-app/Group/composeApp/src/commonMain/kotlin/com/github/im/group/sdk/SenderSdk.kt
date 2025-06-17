@@ -5,6 +5,7 @@ import com.github.im.group.config.SocketClient
 import com.github.im.group.model.UserInfo
 import com.github.im.group.model.proto.AccountInfo
 import com.github.im.group.model.proto.BaseMessagePkg
+import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.model.proto.PlatformType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +40,7 @@ class SenderSdk(
             eMail = userInfo.email,
             platformType = PlatformType.ANDROID,
         )
+
         _loginPkg.value = BaseMessagePkg(
             accountInfo = accountInfo
         )
@@ -47,6 +49,16 @@ class SenderSdk(
             registerToRemote()
         }
 
+    }
+
+    fun sendMessage(chatMessage: ChatMessage){
+
+        val baseMessage = BaseMessagePkg(message = chatMessage)
+
+        CoroutineScope(Dispatchers.IO).launch {
+            send(BaseMessagePkg.ADAPTER.encode(baseMessage))
+
+        }
     }
 
     fun startAutoReconnect() {
@@ -72,6 +84,8 @@ class SenderSdk(
             }
         }
     }
+
+
 
 
     private suspend fun send(data: ByteArray){
