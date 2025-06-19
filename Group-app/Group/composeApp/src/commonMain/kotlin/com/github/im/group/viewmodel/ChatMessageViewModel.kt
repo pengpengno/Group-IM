@@ -45,10 +45,6 @@ class ChatMessageViewModel(
 
     val loading: StateFlow<Boolean> = _loading
 
-
-    fun startListenMessage(){
-
-    }
     fun onReceiveMessage(message: MessageItem){
         _uiState.update {
             it.copy(messages = it.messages + message)
@@ -73,7 +69,12 @@ class ChatMessageViewModel(
 
                 val wrappedMessages = response.content.map {
                     MessageWrapper(messageDto = it)
+                }.sortedByDescending { it.seqId }
+
+                val wrappedMessages2 = response.content.map {
+                    MessageWrapper(messageDto = it)
                 }.sortedBy { it.seqId }
+                println("receive $wrappedMessages")
 
                 _uiState.update {
                     it.copy(messages = wrappedMessages)
@@ -108,6 +109,7 @@ class ChatMessageViewModel(
             _uiState.update {
                 it.copy(loading = true)
             }
+
             try {
                 val response = ConversationApi.getConversation(uId)
                 _uiState.update {

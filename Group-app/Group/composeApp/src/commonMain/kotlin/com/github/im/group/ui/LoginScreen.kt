@@ -53,9 +53,8 @@ class LoginScreen :Screen{
 }
 @Composable
 @Preview
-fun loginScreen (
-    navController: NavHostController = rememberNavController()
-) {
+fun loginScreen () {
+    val navController: NavHostController = rememberNavController()
 
     androidx.navigation.compose.NavHost(
             navController = navController,
@@ -66,10 +65,6 @@ fun loginScreen (
             }
             composable<Home> {
                 ChatMainScreen(
-                    onFriendClick = {
-                    },
-                    onLogout = {
-                    },
                     navHostController = navController
                 )
             }
@@ -94,8 +89,8 @@ fun screen (
     navController: NavHostController = rememberNavController(),
 ) {
 //    val navigator = LocalNavigator.currentOrThrow
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("wangpeng") }
+    var password by remember { mutableStateOf("1") }
     var autoLogin by remember { mutableStateOf(false) }
     var isLoggingIn by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -195,7 +190,9 @@ fun screen (
 
                                 // 登录成功后跳转
 //                                navController.navigate(Home)
-                                navController.navigate(Home)
+                                navController.navigate(Home){
+                                    popUpTo(Login) { inclusive = true } // 清空登录页栈
+                                }
                             }
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {

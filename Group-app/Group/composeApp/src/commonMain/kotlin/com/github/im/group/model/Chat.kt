@@ -35,7 +35,7 @@ data class MessageWrapper(
     override val time: LocalDateTime =
         LocalDateTime.parse( messageDto?.timestamp ?:"1970-01-01T00:00:00.000")
 
-    override val seqId: Long = message?.sequenceId ?: 0L
+    override val seqId: Long = message?.sequenceId ?: messageDto?.sequenceId ?: 0L
 
     override val type: ChatMessageType get() = when{
         message?.type != null -> typeTransForm(message.type)

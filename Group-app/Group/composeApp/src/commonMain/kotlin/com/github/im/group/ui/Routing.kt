@@ -19,6 +19,12 @@ data class ChatRoom(
 
 
 @Serializable
+object Contacts
+
+@Serializable
+object Profile
+
+@Serializable
 object Settings
 
 class Routing {

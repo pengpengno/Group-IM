@@ -1,3 +1,5 @@
+@file:JvmName("MainScreenKt")
+
 package com.github.im.group.ui
 
 import androidx.compose.foundation.background
@@ -10,203 +12,270 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.BottomNavigation
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import cafe.adriel.voyager.core.screen.Screen
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.github.im.group.api.ConversationRes
-import com.github.im.group.model.Friend
 import com.github.im.group.model.UserInfo
-import org.jetbrains.compose.ui.tooling.preview.Preview
+import com.github.im.group.viewmodel.ChatViewModel
+import com.github.im.group.viewmodel.UserViewModel
+import kotlinx.coroutines.launch
+import org.koin.compose.viewmodel.koinViewModel
+import kotlin.jvm.JvmName
 
 @OptIn(ExperimentalMaterial3Api::class)
-
-class Main(
-    private val userInfo: UserInfo,
-    private val friends: List<Friend>,
-    private val onFriendClick: (Friend) -> Unit,
-    private val onLogout: () -> Unit
-) : Screen {
-    @Composable
-    @Preview()
-    override fun Content() {
+@Composable
+fun ChatMainScreen(
+    navHostController: NavHostController,
+)  {
 
 
-        Scaffold(
-            containerColor = Color(0xFFEFEFEF),
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "欢迎, ${userInfo.username}",
-                            color = Color.White
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = {}) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Localized description"
-                            )
-                        }
-                    },
-                    actions = {
-                        TextButton(onClick = onLogout) {
-                            Text("退出登录", color = Color.White)
-                        }
-                    },
-                    colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFF0088CC)
-                    )
-                )
+        val chatViewModel: ChatViewModel = koinViewModel()
+        val userViewModel: UserViewModel = koinViewModel()
+
+
+        val drawerState = rememberDrawerState(DrawerValue.Closed)
+
+        val scope = rememberCoroutineScope()
+
+        var searchQuery by remember { mutableStateOf("") }
+
+        val loading by chatViewModel.loading.collectAsState()
+        val conversations by chatViewModel.uiState.collectAsState()
+
+        val userInfo  = userViewModel.getUser()
+        LaunchedEffect(userInfo) {
+            if(userInfo?.userId != 0L){
+                userInfo?.userId?.let { chatViewModel.getConversations(it) }
             }
-        ) { padding ->
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(8.dp)
-            ) {
-                FriendList(
-                    friends = friends,
-                    onFriendClick = onFriendClick,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                )
+        }
+//    val topLevelRoutes = listOf(
+//        TopLevelRoute("Profile", Profile, Icons.Filled. Profile),
+//        TopLevelRoute("Friends", Friends, Icons.Default.Friends Friends)
+//    )
+
+        CircularProgressIndicator()
+
+        ModalNavigationDrawer(
+            drawerContent = {
+//                if (userInfo != null) {
+//                    SideDrawer(userInfo, {println("logout")})
+//                }
                 Box(
                     modifier = Modifier
-                        .weight(2f)
                         .fillMaxHeight()
-                        .padding(16.dp)
+//                        .width(LocalConfiguration.current.screenWidthDp.dp * 0.75f) // 3/4 屏幕宽度
                 ) {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = Color.Gray,
-                            modifier = Modifier.size(64.dp)
+                    if (userInfo != null) {
+//                        SideDrawer(userInfo, { println("logout") })
+                        SideDrawer(
+                            userInfo = userInfo,
+                            onLogout = { println("logout") },
+                            onProfileClick = { navHostController.navigate("Profile") },
+                            onContactsClick = { navHostController.navigate("Contacts") },
+                            onGroupsClick = { navHostController.navigate("Groups") },
+                            onMeetingsClick = { navHostController.navigate("Meetings") },
+                            onSettingsClick = { navHostController.navigate("Settings") },
+                            appVersion = "v1.2.3"
                         )
-                        Spacer(modifier = Modifier.size(12.dp))
+
+                    }
+                }
+            },
+            drawerState = drawerState
+        ) {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = {
+                            Text(text = "Conversation", color = Color.White)
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                Icon(Icons.Default.Menu, contentDescription = "菜单", tint = Color.White)
+                            }
+                        },
+                        actions = {
+                            IconButton(onClick = {
+                                // 切换搜索框显示
+                                searchQuery = if (searchQuery.isEmpty()) " " else ""
+                            }) {
+                                Icon(Icons.Default.Search, contentDescription = "搜索", tint = Color.White)
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color(0xFF0088CC),
+                            titleContentColor = Color.White,
+                            navigationIconContentColor = Color.White,
+                            actionIconContentColor = Color.White
+                        )
+                    )
+                },
+                bottomBar = {
+                    BottomNavigation {
+                        val navBackStackEntry by navHostController.currentBackStackEntryAsState()
+                        val currentDestination = navBackStackEntry?.destination
+
+//                        val currentRoute = currentBackStackEntryAsState(navHostController).value?.destination?.route
+//                        topLevelRoutes.forEach { screen ->
+//                            NavigationBarItem(
+//                                icon = { Icon(screen.icon, contentDescription = screen.title) },
+//                                label = { Text(screen.title) },
+//                                selected = currentRoute == screen.name,
+//                                onClick = {
+//                                    if (currentRoute != screen.name) {
+//                                        navHostController.navigate(screen.name) {
+//                                            popUpTo(navHostController.graph.startDestinationId) { saveState = true }
+//                                            launchSingleTop = true
+//                                            restoreState = true
+//                                        }
+//                                    }
+//                                }
+//                            )
+//                        }
+                    }
+
+                }
+
+            ) { padding ->
+                Row(
+                    Modifier
+                        .padding(padding)
+                        .fillMaxSize()
+                ) {
+//                    NavHost(
+//                        navController = navController,
+//                        startDestination = BottomNavScreen.Chat.name,
+//                        modifier = Modifier.padding(innerPadding)
+//                    ) {
+//                        composable(BottomNavScreen.Chat.name) { ChatRoomListScreen(navController) }
+//                        composable(BottomNavScreen.Contacts.name) { ContactScreen() }
+//                        composable(BottomNavScreen.Profile.name) { ProfileScreen() }
+//                    }
+                    // 左侧面板：会话列表
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .background(Color(0xFFF6F6F6))
+                            .padding(8.dp)
+                    ) {
+                        if (searchQuery.isNotBlank()) {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                label = { Text("搜索会话") },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp)
+                            )
+                        }
+
+                        conversations.forEach { conversation ->
+                            if (userInfo != null) {
+                                ChatItem(conversation = conversation,userInfo = userInfo,
+                                    onClick = {
+                                        navHostController.navigate(ChatRoom(conversation.conversationId))
+//                                        onFriendClick(conversation)
+
+                                    })
+                            }
+                        }
+                    }
+
+                    // 右侧面板：聊天预览
+                    Box(
+                        modifier = Modifier
+                            .weight(2f)
+                            .fillMaxHeight()
+                            .background(Color.White),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
-                            "请选择一个好友开始聊天",
-                            style = MaterialTheme.typography.bodyLarge,
+                            text = "请选择一个会话开始聊天",
                             color = Color.Gray
                         )
                     }
                 }
             }
         }
-    }
-}
-
-
-@Composable
-fun ConversationListPane (conversationList:List<ConversationRes>) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp)
-    ) {
-        conversationList.forEach {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-                    .clickable {
-                        // 处理点击事件
-                    }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    tint = Color.Gray,
-                    modifier = Modifier.size(40.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-        }
-    }
-}
-@Composable
-fun FriendList(friends: List<Friend>, onFriendClick: (Friend) -> Unit, modifier: Modifier) {
-    Column(modifier = modifier.padding(8.dp)) {
-        friends.forEach { friend ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-                    .clickable { onFriendClick(friend) }
-            ) {
-                Icon(Icons.Default.Person, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(friend.name)
-                Spacer(modifier = Modifier.weight(1f))
-                if (friend.online) {
-                    Text("在线", color = Color.Green)
-                } else {
-                    Text("离线", color = Color.Gray)
-                }
-            }
-        }
-    }
 }
 
 @Composable
-fun FriendItem(friend: Friend, onClick: () -> Unit) {
+fun ChatItem(conversation: ConversationRes, userInfo: UserInfo,onClick: () -> Unit) {
     Row(
-        modifier = Modifier
+        Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp, horizontal = 8.dp)
             .clickable(onClick = onClick)
             .padding(12.dp)
-            .background(
-                color = Color.White,
-                shape = MaterialTheme.shapes.medium
-            )
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = Icons.Default.Person,
-            contentDescription = "avatar",
-            tint = if (friend.online) Color(0xFF4CAF50) else Color.Gray,
-            modifier = Modifier
-                .size(40.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
+        Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF0088CC))
+        Spacer(Modifier.width(12.dp))
         Column {
+            Text(conversation.getName(userInfo), style = MaterialTheme.typography.titleMedium)
             Text(
-                text = friend.name,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = if (friend.online) "在线" else "离线",
+//                text = friend.lastMessage.takeIf { e-> e?.isEmpty() ?: false } ?: "暂无消息",
+                text = conversation.lastMessage.takeIf { e-> e.isEmpty() ?: false } ?: "暂无消息",
                 style = MaterialTheme.typography.bodySmall,
-                color = if (friend.online) Color(0xFF4CAF50) else Color.Gray
+                color = Color.Gray
             )
         }
+
     }
 }
+//
+///**
+// * 侧边栏
+// */
+//@Composable
+//fun SideDrawer(userInfo: UserInfo, onLogout: () -> Unit) {
+//    Column(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .background(Color.White)
+//            .padding(16.dp)
+//    ) {
+//
+//        Text("用户：${userInfo.username}",
+//            style = MaterialTheme.typography.titleLarge)
+//        Divider(modifier = Modifier.padding(vertical = 12.dp))
+//
+//        Text("联系人", modifier = Modifier.clickable { })
+//        Divider(modifier = Modifier.padding(vertical = 8.dp))
+//
+//        Text("设置", modifier = Modifier.clickable { })
+//        Divider(modifier = Modifier.padding(vertical = 8.dp))
+//
+//        Text("退出登录", modifier = Modifier.clickable(onClick = onLogout))
+//    }
+//}

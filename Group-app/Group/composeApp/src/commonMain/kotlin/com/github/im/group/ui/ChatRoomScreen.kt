@@ -1,6 +1,7 @@
 package com.github.im.group.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,7 +14,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.InsertEmoticon
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -85,17 +91,6 @@ fun ChatRoomScreen(
         }
     }
 
-//    val tcpViewModel: TCPMessageViewModel = GlobalContext.get()
-//    LaunchedEffect(Unit) {
-//        tcpViewModel.uiState.collect { message ->
-//            // 根据类型主动通知 ChatMessageViewModel
-//            when {
-//                message.message != null -> {
-//                    messageViewModel.addMessage(message.message)
-//                }
-//            }
-//        }
-//    }
 
     Scaffold(
         topBar = {
@@ -103,7 +98,7 @@ fun ChatRoomScreen(
                 title = { Text(state.conversation.getName(userInfo), color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0088CC))
@@ -158,27 +153,6 @@ fun ChatRoomScreen(
                 }
             }
         }
-//        LazyColumn(
-//            modifier = Modifier
-//                .padding(padding)
-//                .fillMaxSize()
-//                .verticalScroll(rememberScrollState())
-//                .background(Color.White),
-//            verticalArrangement = Arrangement.Bottom
-//        ) {
-//            Spacer(modifier = Modifier.height(8.dp))
-//            state.messages.forEach { msg ->
-//                msg.content.let {
-//                    if (userInfo != null) {
-//                        MessageBubble(
-//                            isOwnMessage = msg.userInfo.userId == userInfo.userId,
-//                            content = it
-//                        )
-//                    }
-//                }
-//            }
-//            Spacer(modifier = Modifier.height(70.dp)) // 留出输入框空间
-//        }
     }
 }
 
@@ -204,5 +178,95 @@ fun MessageBubble(isOwnMessage: Boolean, content: String) {
                 color = Color.Black
             )
         }
+    }
+}
+
+/**
+ * 消息输入框
+ */
+@Composable
+fun ChatInputBar(
+    messageText: String,
+    onTextChanged: (String) -> Unit,
+    onSendClick: () -> Unit,
+    onVoiceRecordStart: () -> Unit,
+    onVoiceRecordStop: () -> Unit,
+    onEmojiClick: () -> Unit,
+    onMoreClick: () -> Unit,
+    isVoiceMode: Boolean,
+    onToggleVoiceMode: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .padding(8.dp)
+            .background(Color.White)
+            .fillMaxWidth()
+    ) {
+        IconButton(onClick = onEmojiClick) {
+            Icon(Icons.Default.InsertEmoticon, contentDescription = "表情")
+        }
+
+        IconButton(onClick = onToggleVoiceMode) {
+            Icon(
+                if (isVoiceMode) Icons.Default.Keyboard else Icons.Default.Mic,
+                contentDescription = "切换输入方式"
+            )
+        }
+
+        if (isVoiceMode) {
+            VoiceRecordButton(
+                onStart = onVoiceRecordStart,
+                onStop = onVoiceRecordStop
+            )
+        } else {
+            OutlinedTextField(
+                value = messageText,
+                onValueChange = onTextChanged,
+                placeholder = { Text("输入消息...") },
+                modifier = Modifier.weight(1f),
+                maxLines = 4
+            )
+        }
+
+        IconButton(onClick = onMoreClick) {
+            Icon(Icons.Default.Add, contentDescription = "更多功能")
+        }
+    }
+}
+
+
+/**
+ * 录音按钮
+ */
+@Composable
+fun VoiceRecordButton(
+    onStart: () -> Unit,
+    onStop: () -> Unit
+) {
+    var isRecording by remember { mutableStateOf(false) }
+
+    Surface(
+        modifier = Modifier
+            .padding(4.dp)
+            .background(Color(0xFFEEEEEE))
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        isRecording = true
+                        onStart()
+                        tryAwaitRelease()
+                        isRecording = false
+                        onStop()
+                    }
+                )
+            },
+        tonalElevation = 2.dp
+    ) {
+        Text(
+            text = if (isRecording) "松开发送" else "按住 说话",
+            modifier = Modifier.padding(12.dp),
+            color = Color.Black
+        )
     }
 }
