@@ -104,7 +104,7 @@ public class MessageService {
         var type = message.getType();
 
         MessageDTO<MessagePayLoad> dto = messageMapper.toDTO(message);
-        dto.getUserInfo(message.getFromAccountId());
+//        dto.gs(message.getFromAccountId());
 
         switch(type) {
             case TEXT:

@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.github.im.group.sdk.VoiceRecorderFactory
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
@@ -13,6 +14,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         GlobalCredentialProvider.storage = AndroidCredentialStorage(applicationContext)
+        VoiceRecorderFactory.context = applicationContext
         startKoin {
             androidLogger()
             androidContext(this@MainActivity)
@@ -23,9 +25,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-//
-//@Composable
-//@Preview
-//fun App() {
-//    LoginScreen().Content()
-//}
+

@@ -31,7 +31,6 @@ val appModule = module {
 
     single { Greeting() }
     single { UserRepository() }
-//    single { (ChatViewModel()) }
     viewModelOf (::ChatViewModel)
     viewModelOf (::ChatMessageViewModel)
     single { ChatSessionManager() }

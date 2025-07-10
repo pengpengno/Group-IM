@@ -15,10 +15,9 @@ public interface MessageMapper {
     @Mapping(source = "conversation.conversationId", target = "conversationId")
     @Mapping(source = "fromAccountId.userId", target = "fromAccountId")
     @Mapping(source = "fromAccountId.username", target = "fromAccount.username")
-    @Mapping(target = "fromAccountId.refreshToken",ignore = true)
-    @Mapping(target = "fromAccountId.token",ignore = true)
+    @Mapping(target = "fromAccount.refreshToken",ignore = true)
+    @Mapping(target = "fromAccount.token",ignore = true)
     @Mapping(source = "fromAccountId.userId", target = "fromAccount.userId")
-    @Mapping(target = "payload" , ignore = true)
     MessageDTO<MessagePayLoad> toDTO(Message message);
 
 

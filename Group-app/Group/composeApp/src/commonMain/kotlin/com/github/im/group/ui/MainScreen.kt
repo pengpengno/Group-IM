@@ -253,29 +253,3 @@ fun ChatItem(conversation: ConversationRes, userInfo: UserInfo,onClick: () -> Un
 
     }
 }
-//
-///**
-// * 侧边栏
-// */
-//@Composable
-//fun SideDrawer(userInfo: UserInfo, onLogout: () -> Unit) {
-//    Column(
-//        modifier = Modifier
-//            .fillMaxSize()
-//            .background(Color.White)
-//            .padding(16.dp)
-//    ) {
-//
-//        Text("用户：${userInfo.username}",
-//            style = MaterialTheme.typography.titleLarge)
-//        Divider(modifier = Modifier.padding(vertical = 12.dp))
-//
-//        Text("联系人", modifier = Modifier.clickable { })
-//        Divider(modifier = Modifier.padding(vertical = 8.dp))
-//
-//        Text("设置", modifier = Modifier.clickable { })
-//        Divider(modifier = Modifier.padding(vertical = 8.dp))
-//
-//        Text("退出登录", modifier = Modifier.clickable(onClick = onLogout))
-//    }
-//}

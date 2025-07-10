@@ -38,7 +38,7 @@ object ProxyApi  : KoinComponent {
         val baseUrl = if (ProxyConfig.enableProxy) {
             "http://${ProxyConfig.host}:${ProxyConfig.port}"
         } else {
-            "http://192.168.1.14:8080"
+            "http://${ProxyConfig.host}:${ProxyConfig.port}"
         }
 
         val response = client.request("$baseUrl$path") {

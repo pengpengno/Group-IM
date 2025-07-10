@@ -45,6 +45,33 @@ class ChatMessageViewModel(
 
     val loading: StateFlow<Boolean> = _loading
 
+
+//    private val recorder = AudioRecorderHelper()
+
+//    fun startVoiceRecord(conversationId: Long) {
+//        recorder.startRecording(conversationId)
+//    }
+//
+//    fun stopVoiceRecord(conversationId: Long) {
+//        val audioFile = recorder.stopRecording()
+//        audioFile?.let {
+////            val url = uploadAudioFile(it) // 你的上传逻辑
+////            sendVoiceMessage(conversationId, url)
+//            sendVoiceMessage(conversationId,"")
+//        }
+//    }
+
+    fun sendVoiceMessage(conversationId: Long, url: String) {
+        val voiceMessage = ChatMessage(
+            conversationId = conversationId,
+            content = "[语音]",
+//            mediaUrl = url,
+            type = MessageType.FILE
+        )
+//        sendMessage(conversationId, voiceMessage)
+//        sendMessage(conversationId, voiceMessage)
+    }
+
     fun onReceiveMessage(message: MessageItem){
         _uiState.update {
             it.copy(messages = it.messages + message)
