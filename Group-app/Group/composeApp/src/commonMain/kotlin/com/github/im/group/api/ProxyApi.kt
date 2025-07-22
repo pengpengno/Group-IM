@@ -16,7 +16,9 @@ import kotlinx.serialization.json.Json
 import org.koin.core.component.KoinComponent
 
 
-object ProxyApi  : KoinComponent {
+object ProxyApi
+//     val proxyConfigProvider: () -> ProxySettingsState
+  : KoinComponent {
 
     val client = HttpClient() {
         install(ContentNegotiation) {
@@ -33,8 +35,11 @@ object ProxyApi  : KoinComponent {
         path: String,
         body: B? = null,
         requestParams : Map<String,String>?=null,
+        headers : Map<String,Any>?=null,
         block: HttpRequestBuilder.() -> Unit = {}
     ): R {
+//        val config = proxyConfigProvider()
+
         val baseUrl = if (ProxyConfig.enableProxy) {
             "http://${ProxyConfig.host}:${ProxyConfig.port}"
         } else {
@@ -57,7 +62,11 @@ object ProxyApi  : KoinComponent {
 
 //            val token = GlobalCredentialProvider.storage.getUserInfo()?.token
             val token = GlobalCredentialProvider.currentToken
-
+            if (headers != null) {
+                headers.forEach { (key, value) ->
+                    header(key, value)
+                }
+            }
             if (token.isNotEmpty()) {
                 header("Proxy-Authorization", "Basic $token")
                 header("Authorization", "Bearer $token")

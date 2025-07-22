@@ -22,8 +22,8 @@ class SenderSdk(
 
     private val scope = CoroutineScope(Dispatchers.IO)
     private val _connected = MutableStateFlow(false)
-    private val _host = MutableStateFlow(ProxyConfig.host)
-    private val _port = MutableStateFlow(ProxyConfig.tcp_port)
+    private val _host =ProxyConfig.host
+    private val _port = ProxyConfig.tcp_port
     private val _loginPkg = MutableStateFlow<BaseMessagePkg?>(null)
     private var reconnectJob: Job? = null
 
@@ -31,7 +31,7 @@ class SenderSdk(
     /***
      * 用于 向远程长连接服务器建立连接
      */
-    suspend fun loginConnect(userInfo: UserInfo) {
+    fun loginConnect(userInfo: UserInfo) {
 
         val accountInfo = AccountInfo(
             account = userInfo.username,
@@ -51,6 +51,9 @@ class SenderSdk(
 
     }
 
+    /**
+     * 发送消息
+     */
     fun sendMessage(chatMessage: ChatMessage){
 
         val baseMessage = BaseMessagePkg(message = chatMessage)
@@ -68,7 +71,7 @@ class SenderSdk(
                 try {
                     if (!tcpClient.isActive()) {
                         println("检测到断线，尝试重连...")
-                         tcpClient.connect(_host.value, _port.value)
+                         tcpClient.connect(_host, _port)
                         println("重连成功，重新启动接收协程")
                         _connected.value = true
                     } else {
@@ -105,7 +108,7 @@ class SenderSdk(
     private suspend fun registerToRemote() {
         // 首先 建立TCP 连接通道
         if (!tcpClient.isActive()){
-            tcpClient.connect(_host.value,_port.value)
+            tcpClient.connect(_host,_port)
         }
 
         if (_loginPkg.value != null){

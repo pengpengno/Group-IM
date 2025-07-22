@@ -65,9 +65,7 @@ fun ChatRoomScreen(
 //            messageViewModel.unregister(conversationId)
 //        }
     }
-//    onDispose {
-//        messageViewModel.unregister(conversationId)
-//    }
+
 
     // 加载完消息后自动滚动到底部
 
@@ -95,35 +93,6 @@ fun ChatRoomScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0088CC))
             )
         },
-//        bottomBar = {
-//            Row(
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .padding(8.dp),
-//                verticalAlignment = Alignment.CenterVertically
-//            ) {
-//                OutlinedTextField(
-//                    value = messageText,
-//                    onValueChange = { messageText = it },
-//                    modifier = Modifier.weight(1f),
-//                    placeholder = { Text("输入消息") },
-//                    maxLines = 3
-//                )
-//                Spacer(Modifier.width(8.dp))
-//                Button(
-//                    onClick = {
-//                        if (messageText.isNotBlank()) {
-//                            messageViewModel.sendMessage(conversationId, messageText)
-//                            // 发送完毕后展示再页面上
-//                            messageText = ""
-//                        }
-//                    },
-//                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0088CC))
-//                ) {
-//                    Text("发送", color = Color.White)
-//                }
-//            }
-//        }
         bottomBar = {
             ChatInputArea(
                 onSendText = { text ->
@@ -139,7 +108,9 @@ fun ChatRoomScreen(
                     // TODO: 拍照逻辑
                 },
                 onStartRecording = {
+//                    RequestRecordPermission({})
                     voiceRecorder.startRecording(conversationId)
+
 
 //                    messageViewModel.startVoiceRecord(conversationId)
                 },
@@ -205,26 +176,4 @@ fun MessageBubble(isOwnMessage: Boolean, content: String) {
         }
     }
 }
-//class AudioRecorderHelper {
-//    private var outputFile: File? = null
-//    private val recorder = MediaRecorder()
-//
-//    fun startRecording(conversationId: Long) {
-//        outputFile = File.createTempFile("voice_$conversationId", ".m4a")
-//        recorder.apply {
-//            setAudioSource(MediaRecorder.AudioSource.MIC)
-//            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-//            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-//            setOutputFile(outputFile!!.absolutePath)
-//            prepare()
-//            start()
-//        }
-//    }
-//
-//    fun stopRecording(): File? {
-//        recorder.stop()
-//        recorder.release()
-//        return outputFile
-//    }
-//}
 

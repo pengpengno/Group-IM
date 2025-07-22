@@ -13,6 +13,9 @@ object Chat
 object Home
 
 @Serializable
+object ProxySetting
+
+@Serializable
 data class ChatRoom(
     val conversationId: Long,
 )

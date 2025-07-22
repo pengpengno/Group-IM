@@ -67,11 +67,15 @@ fun accountInfoTransForm ( accountInfo: AccountInfo) : UserInfo{
     )
 }
 
+/**
+ * 转化
+ */
 fun typeTransForm ( type: MessageType) : ChatMessageType{
 
     return when(type){
         MessageType.TEXT -> ChatMessageType.TEXT
         MessageType.FILE -> ChatMessageType.FILE
+//        MessageType.VOICE -> ChatMessageType.VOICE
         MessageType.MARKDOWN -> TODO()
         MessageType.STREAM -> TODO()
         MessageType.VIDEO -> TODO()

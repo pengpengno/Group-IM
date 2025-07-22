@@ -2,22 +2,30 @@ package com.github.im.group.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.InsertEmoticon
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +33,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +45,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.github.im.group.sdk.VoiceRecordingResult
+import com.github.im.group.sdk.WithRecordPermission
+import com.github.im.group.sdk.playAudio
 
 @Composable
 fun ChatInputArea(
@@ -44,7 +56,7 @@ fun ChatInputArea(
     onSendVoice: () -> Unit,
     onSelectFile: () -> Unit,
     onTakePhoto: () -> Unit,
-    onStartRecording: () -> Unit,
+    onStartRecording:  () ->  Unit,
     onStopRecording: () -> Unit,
     onEmojiSelected: (String) -> Unit
 ) {
@@ -60,9 +72,6 @@ fun ChatInputArea(
                 .padding(8.dp)
                 .fillMaxWidth()
         ) {
-            IconButton(onClick = { showEmojiPanel = !showEmojiPanel }) {
-                Icon(Icons.Default.InsertEmoticon, contentDescription = "Emoji")
-            }
 
             IconButton(onClick = { isVoiceMode = !isVoiceMode }) {
                 Icon(
@@ -70,6 +79,10 @@ fun ChatInputArea(
                     contentDescription = "Toggle input mode"
                 )
             }
+            IconButton(onClick = { showEmojiPanel = !showEmojiPanel }) {
+                Icon(Icons.Default.InsertEmoticon, contentDescription = "Emoji")
+            }
+
 
             if (isVoiceMode) {
                 VoiceRecordButton(
@@ -87,17 +100,21 @@ fun ChatInputArea(
                 )
             }
 
-            IconButton(onClick = {
-                if (messageText.isNotBlank()) {
-                    onSendText(messageText)
-                    messageText = ""
+            // ruguo  messageText不为空那么隐藏 + 附件按钮
+            if(messageText.isNotBlank()){
+                IconButton(onClick = {
+                    if (messageText.isNotBlank()) {
+                        onSendText(messageText)
+                        messageText = ""
+                    }
+                }) {
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
                 }
-            }) {
-                Icon(Icons.Default.Send, contentDescription = "Send")
-            }
+            }else{
 
-            IconButton(onClick = { showMorePanel = !showMorePanel }) {
-                Icon(Icons.Default.Add, contentDescription = "More")
+                IconButton(onClick = { showMorePanel = !showMorePanel }) {
+                    Icon(Icons.Default.Add, contentDescription = "More")
+                }
             }
         }
 
@@ -119,9 +136,30 @@ fun ChatInputArea(
     }
 }
 
+/**
+ * 语音录制按钮
+ */
 @Composable
 fun VoiceRecordButton(onStart: () -> Unit, onStop: () -> Unit) {
     var isRecording by remember { mutableStateOf(false) }
+
+    var needPermission by remember { mutableStateOf(false) }
+
+    if (needPermission) {
+        WithRecordPermission(
+            onGranted = {
+                isRecording = true
+                onStart()
+            },
+            onDenied = {
+                println("未授权")
+            }
+        )
+        needPermission = false
+    }
+    // 在按下录音按钮后，生成一个遮罩层，同时想微信一样，如果录音时，拖动到指定位置那就停止录音
+    val maskModifier = Modifier.fillMaxWidth().height(48.dp)
+
 
     Surface(
         tonalElevation = 1.dp,
@@ -130,10 +168,11 @@ fun VoiceRecordButton(onStart: () -> Unit, onStop: () -> Unit) {
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
-                        isRecording = true
-                        onStart()
+                        needPermission = true
                         tryAwaitRelease()
-                        isRecording = false
+                        if(isRecording){
+                            isRecording = false
+                        }
                         onStop()
                     }
                 )
@@ -146,6 +185,88 @@ fun VoiceRecordButton(onStart: () -> Unit, onStop: () -> Unit) {
         )
     }
 }
+
+
+/**
+ * 音量遮罩
+ */
+@Composable
+fun MaskVoiceButton(
+    onStart: () -> Unit,
+    onStop: (canceled: Boolean) -> Unit,
+    overlayState: MutableState<Boolean>,
+    cancelingState: MutableState<Boolean>
+) {
+    val touchY = remember { mutableStateOf(0f) }
+
+    Surface(
+        modifier = Modifier
+            .padding(8.dp)
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = {
+                        touchY.value = it.y
+                        overlayState.value = true
+                        cancelingState.value = false
+                        onStart()
+                    },
+                    onDrag = { change, dragAmount ->
+                        val dy = dragAmount.y
+                        if (dy < -50) { // 向上拖动超过一定阈值则视为取消
+                            cancelingState.value = true
+                        } else {
+                            cancelingState.value = false
+                        }
+                    },
+                    onDragEnd = {
+                        val cancel = cancelingState.value
+                        overlayState.value = false
+                        cancelingState.value = false
+                        onStop(cancel)
+                    }
+                )
+            }
+    ) {
+        Text(
+            text = "按住说话",
+            modifier = Modifier.padding(16.dp),
+            color = Color.Black
+        )
+    }
+}
+
+
+/**
+ * 遮罩层ui
+ */
+@Composable
+fun RecordingOverlay(
+    show: Boolean,
+    isCanceling: Boolean
+) {
+    if (show) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0x88000000)) // 半透明黑背景
+        ) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(32.dp),
+                tonalElevation = 4.dp,
+                shape = MaterialTheme.shapes.medium,
+            ) {
+                Text(
+                    text = if (isCanceling) "松开取消发送" else "正在录音...",
+                    modifier = Modifier.padding(32.dp),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+        }
+    }
+}
+
 
 @Composable
 fun EmojiPanel(onEmojiSelected: (String) -> Unit) {
@@ -163,6 +284,9 @@ fun EmojiPanel(onEmojiSelected: (String) -> Unit) {
     }
 }
 
+/**
+ * 功能区
+ */
 @Composable
 fun FunctionPanel(
     onSelectFile: () -> Unit,
@@ -178,17 +302,48 @@ fun FunctionPanel(
             horizontalArrangement = Arrangement.SpaceEvenly,
             modifier = Modifier.padding(8.dp)
         ) {
-            IconTextButton(Icons.Default.InsertDriveFile, "文件", onSelectFile)
+            IconTextButton(Icons.AutoMirrored.Filled.InsertDriveFile, "文件", onSelectFile)
             IconTextButton(Icons.Default.PhotoCamera, "拍照", onTakePhoto)
             IconTextButton(Icons.Default.Mic, "语音", onRecordAudio)
         }
     }
 }
 
+
+/**
+ * 表情输入框
+ */
 @Composable
 fun IconTextButton(icon: ImageVector, text: String, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onClick)) {
         Icon(icon, contentDescription = text, modifier = Modifier.size(32.dp))
         Text(text, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+
+@Composable
+fun AudioPlaybackControl(
+    result: VoiceRecordingResult,
+    onSend: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(8.dp)
+    ) {
+        Text("录音时长: ${result.durationMillis / 1000}s")
+        Spacer(Modifier.width(8.dp))
+        Button(onClick = { playAudio(result.bytes) }) {
+            Text("播放")
+        }
+        Spacer(Modifier.width(8.dp))
+        Button(onClick = onSend) {
+            Text("发送")
+        }
+        Spacer(Modifier.width(8.dp))
+        Button(onClick = onCancel, colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)) {
+            Text("取消")
+        }
     }
 }

@@ -6,6 +6,8 @@ import io.ktor.http.HttpMethod
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 
 object LoginApi {
@@ -68,6 +70,20 @@ object ConversationApi{
 
 }
 
+/**
+ * 文件处理 API
+ */
+object FileApi {
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun uploadFile(file: ByteArray): FileUploadResponse {
+        return ProxyApi.request<ByteArray, FileUploadResponse>(
+            hmethod = HttpMethod.Post,
+            path = "/api/files/upload",
+            requestParams = mapOf("uploaderId" to Uuid.random().toString()),
+            body = file
+        )
+    }
+}
 /**
  * Chat Api
  */
@@ -182,6 +198,12 @@ data class DefaultMessagePayLoad(
     val content: String
 ) : MessagePayLoad
 
+@Serializable
+data class FileUploadResponse(
+    val id: String    ,
+
+    val fileMeta: FileMeta ,
+)
 @Serializable
 @SerialName("FILE")
 data class FileMeta(

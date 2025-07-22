@@ -45,21 +45,16 @@ class ChatMessageViewModel(
 
     val loading: StateFlow<Boolean> = _loading
 
+    fun sendFileMessage(conversationId: Long, url: String) {
+        val fileMessage = ChatMessage(
+            conversationId = conversationId,
+            content = "[文件]",
+//            mediaUrl = url,
+            type = MessageType.FILE
+        )
+//        sendMessage(conversationId, fileMessage)
+    }
 
-//    private val recorder = AudioRecorderHelper()
-
-//    fun startVoiceRecord(conversationId: Long) {
-//        recorder.startRecording(conversationId)
-//    }
-//
-//    fun stopVoiceRecord(conversationId: Long) {
-//        val audioFile = recorder.stopRecording()
-//        audioFile?.let {
-////            val url = uploadAudioFile(it) // 你的上传逻辑
-////            sendVoiceMessage(conversationId, url)
-//            sendVoiceMessage(conversationId,"")
-//        }
-//    }
 
     fun sendVoiceMessage(conversationId: Long, url: String) {
         val voiceMessage = ChatMessage(
@@ -96,11 +91,12 @@ class ChatMessageViewModel(
 
                 val wrappedMessages = response.content.map {
                     MessageWrapper(messageDto = it)
-                }.sortedByDescending { it.seqId }
-
-                val wrappedMessages2 = response.content.map {
-                    MessageWrapper(messageDto = it)
                 }.sortedBy { it.seqId }
+
+//                val wrappedMessages2 = response.content.map {
+//                    MessageWrapper(messageDto = it)
+//                }.sortedBy { it.seqId }
+
                 println("receive $wrappedMessages")
 
                 _uiState.update {

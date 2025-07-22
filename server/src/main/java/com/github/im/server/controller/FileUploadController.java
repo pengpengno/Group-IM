@@ -33,13 +33,6 @@ public class FileUploadController {
                                                      @RequestParam("uploaderId") UUID uploaderId) throws IOException {
         var fileInfo = fileStorageService.storeFile(file, uploaderId);
 
-//        var fileMeta = FileMeta.builder()
-//                .filename(fileInfo.getOriginalName())
-//                .fileSize(fileInfo.getSize())
-//                .contentType(fileInfo.getContentType())
-//                .hash(fileInfo.getHash())
-//                .build();
-
         return ResponseEntity.ok(fileInfo);
     }
 

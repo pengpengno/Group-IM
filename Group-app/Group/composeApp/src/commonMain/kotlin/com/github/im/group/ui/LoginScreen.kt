@@ -1,7 +1,8 @@
 package com.github.im.group.ui
 
-import ProxySettingScreen
+import ProxyScreen
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,7 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
@@ -61,12 +62,20 @@ fun loginScreen () {
             startDestination = Login
         ) {
             composable<Login> {
-                screen(navController = navController)
+                LoginScreenUI(navController = navController)
             }
             composable<Home> {
                 ChatMainScreen(
                     navHostController = navController
                 )
+            }
+            composable<ProxySetting> {
+                ProxyScreen(
+                    navHostController = navController,
+                )
+//                ProxySettingScreen(
+////                    navHostController = navController
+//                )
             }
             composable<ChatRoom>{ backStackEntry ->
                 val chatRoom : ChatRoom = backStackEntry.toRoute()
@@ -81,150 +90,141 @@ fun loginScreen () {
             }
         }
 }
-
 @Composable
-@Preview
-fun screen (
+fun LoginScreenUI(
     viewModel: UserViewModel = koinViewModel(),
     navController: NavHostController = rememberNavController(),
 ) {
-//    val navigator = LocalNavigator.currentOrThrow
-    var username by remember { mutableStateOf("wangpeng") }
+    var username by  mutableStateOf("wangpeng")
     var password by remember { mutableStateOf("1") }
     var autoLogin by remember { mutableStateOf(false) }
     var isLoggingIn by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-//    var userViewModel by remember { mutableStateOf<UserViewModel?>(UserViewModel()) }
-
     val scope = rememberCoroutineScope()
-
-
-    val userInfo by  viewModel.uiState.collectAsState()
-
+    val userInfo by viewModel.uiState.collectAsState()
 
     MaterialTheme {
-        Column(
-//            modifier = Modifier.align(Alignment.Center),
-            horizontalAlignment = Alignment.CenterHorizontally
-
-        ) {
-            Button(
-                onClick = {
-                    navController.navigate(ProxySettingScreen())
-                },
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Settings,
-                    contentDescription = "设置",
-                    tint = Color.Gray
-
-                )
-            }
-
-            Spacer(modifier = Modifier.size(12.dp))
-        }
-
-
-
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Text("登录", style = MaterialTheme.typography.headlineMedium)
-
-            Spacer(Modifier.height(24.dp))
-
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("用户名") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("密码") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .then(Modifier),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Checkbox(
-                    checked = autoLogin,
-                    onCheckedChange = { autoLogin = it }
+                Text(
+                    text = "登录",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.primary
                 )
-                Text("自动登录")
-            }
 
-            Spacer(Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-            Button(
-                onClick = {
-                    isLoggingIn = true
-                    errorMessage = null
+                // 登录卡片
+                androidx.compose.material3.Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    elevation = androidx.compose.material3.CardDefaults.cardElevation(6.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        OutlinedTextField(
+                            value = username,
+                            onValueChange = { username = it },
+                            label = { Text("用户名") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
-                    // 使用 CoroutineScope 发起请求
-                    scope.launch {
-                        try {
-                            // 修改为使用 ProxyApi
-                            viewModel.login(username, password)
+                        Spacer(Modifier.height(16.dp))
 
-                            withContext(Dispatchers.Main) {
-                                isLoggingIn = false
-                                /**
-                                 * 设置登录用户信息
-                                 */
-                                println("登录成功: $userInfo")
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            label = { Text("密码") },
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
-                                // 登录成功后跳转
-//                                navController.navigate(Home)
-                                navController.navigate(Home){
-                                    popUpTo(Login) { inclusive = true } // 清空登录页栈
+                        Spacer(Modifier.height(16.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = autoLogin,
+                                onCheckedChange = { autoLogin = it }
+                            )
+                            Text("自动登录")
+                        }
+
+                        Spacer(Modifier.height(16.dp))
+
+                        Button(
+                            onClick = {
+                                isLoggingIn = true
+                                errorMessage = null
+                                scope.launch {
+                                    try {
+                                        viewModel.login(username, password)
+                                        withContext(Dispatchers.Main) {
+                                            isLoggingIn = false
+                                            navController.navigate(Home) {
+                                                popUpTo(Login) { inclusive = true }
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        withContext(Dispatchers.Main) {
+                                            isLoggingIn = false
+                                            errorMessage = "登录失败: ${e.message}"
+                                        }
+                                    }
                                 }
-                            }
-                        } catch (e: Exception) {
-                            withContext(Dispatchers.Main) {
-                                isLoggingIn = false
-                                println("登录失败: ${e}")
-                                errorMessage = "登录失败: ${e.message}"
-                            }
+                            },
+                            enabled = !isLoggingIn,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(if (isLoggingIn) "正在登录..." else "登 录")
+                        }
+
+                        if (errorMessage != null) {
+                            Spacer(Modifier.height(12.dp))
+                            Text(errorMessage ?: "", color = Color.Red)
                         }
                     }
-                },
-                enabled = !isLoggingIn,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (isLoggingIn) "正在登录..." else "登录")
-            }
-
-            errorMessage?.let {
-                Spacer(Modifier.height(12.dp))
-                Text(it, color = Color.Red)
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                TextButton(onClick = { /* 忘记密码逻辑 */ }) {
-                    Text("忘记密码？")
                 }
-                TextButton(onClick = { /* 注册逻辑 */ }) {
-                    Text("注册账号")
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    TextButton(onClick = { }) { Text("忘记密码？") }
+                    TextButton(onClick = { }) { Text("注册账号") }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = { navController.navigate(ProxySetting) },
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = "设置",
+                        tint = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("代理设置")
                 }
             }
         }

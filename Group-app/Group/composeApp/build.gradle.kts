@@ -1,6 +1,5 @@
 
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 val voyagerVersion = "1.1.0-beta02"
 
@@ -20,13 +19,13 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.composeHotReload)
+//    id("org.jetbrains.kotlin.android")
 
 
 }
 
 kotlin {
     androidTarget {
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
         }
@@ -55,12 +54,19 @@ kotlin {
         // 挂载 Protobuf 生成的 Java 源码
 //        androidMain.kotlin.srcDir("build/generated/source/proto/main/java")
 //        desktopMain.kotlin.srcDir("build/generated/source/proto/main/java")
+        val camerax_version = "1.2.2"
 
 
         androidMain.dependencies {
-
+            implementation ("androidx.camera:camera-core:${camerax_version}")
+            implementation ("androidx.camera:camera-camera2:${camerax_version}")
+            implementation ("androidx.camera:camera-lifecycle:${camerax_version}")
+            implementation ("androidx.camera:camera-video:${camerax_version}")
+            implementation ("androidx.camera:camera-extensions:${camerax_version}")
+            implementation ("androidx.camera:camera-view:${camerax_version}")
             // Hilt integration
             implementation("cafe.adriel.voyager:voyager-hilt:$voyagerVersion")
+            implementation("com.google.accompanist:accompanist-permissions:0.35.0-alpha")
 
             // LiveData integration
             implementation("cafe.adriel.voyager:voyager-livedata:$voyagerVersion")
@@ -130,81 +136,7 @@ kotlin {
         }
     }
 }
-//
-//wire {
-//    kotlin {
-//        // Proto types to include generated sources for. Types listed here will be
-//        // generated for this target and not for subsequent targets in the task.
-//        //
-//        // This list should contain package names (suffixed with `.*`) and type
-//        // names only. It should not contain member names.
-//        includes = ['com.example.pizza.*']
-//
-//        // Proto types to excluded generated sources for. Types listed here will not
-//        // be generated for this target.
-//        //
-//        // This list should contain package names (suffixed with `.*`) and type
-//        // names only. It should not contain member names.
-//        excludes = ['com.example.sales.*']
-//
-//        // True if types emitted for this target should not also be emitted for
-//        // other targets. Use this to cause multiple outputs to be emitted for the
-//        // same input type.
-//        exclusive = true
-//
-//        // Directory to emit to.
-//
-//        // True for emitted types to implement android.os.Parcelable.
-//        android = false
-//
-//        // True for emitted types to implement APIs for easier migration from the
-//        // Java target.
-//        javaInterop = false
-//
-//        // True to turn visibility of all generated types' constructors
-//        // to non-public.
-//        buildersOnly = false
-//
-//        // True to emit types for options declared on messages, fields, etc.
-//        emitDeclaredOptions = true
-//
-//        // True to emit annotations for options applied on messages, fields, etc.
-//        emitAppliedOptions = true
-//
-//        // `suspending` to generate coroutines APIs that require a Kotlin
-//        // coroutines context.
-//        // `blocking` to generate blocking APIs callable by Java and Kotlin.
-//        rpcCallStyle = 'blocking'
-//
-//        // `client` to generate interfaces best suited to sending outbound calls.
-//        // `server` to generate interfaces best suited to receiving inbound calls.
-//        // `none` to not generate services.
-//        rpcRole = 'server'
-//
-//        // If set, the value will be appended to generated service type names. If
-//        // null, their rpcRole will be used as a suffix instead.
-//        nameSuffix = "Suffix"
-//
-//        // True for emitted services to implement one interface per RPC.
-//        singleMethodServices = false
-//
-//        // Set how many oneof choices are necessary for generated message classes to use the
-//        // `OneOf<Key<T>, T>` form rather than the default, where options are flattened into the
-//        // enclosing type.
-//        boxOneOfsMinSize = 5000
-//
-//        // True to escape Kotlin keywords like `value` and `data` with backticks. Otherwise an
-//        // underscore underscore is added as a suffix, like `value_` and `data_`.
-//        escapeKotlinKeywords = false
-//
-//        // Defines how an protobuf enum type is to be generated. See `com.squareup.wire.kotlin.EnumMode`
-//        enumMode = "enum_class"
-//
-//        // True to emit a adapters that include a decode() function that accepts a `ProtoReader32`.
-//        // Use this optimization when targeting Kotlin/JS, where `Long` cursors are inefficient.
-//        emitProtoReader32 = false
-//    }
-//}
+
 wire {
     kotlin {
         // ✅ 这表示会生成 Kotlin 数据类到 commonMain 下
@@ -250,10 +182,21 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    buildFeatures {
+        viewBinding = true
+    }
 }
 
 dependencies {
 
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("androidx.recyclerview:recyclerview:1.3.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation("com.google.android.material:material:1.4.+")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.1")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1")
+    implementation("androidx.navigation:navigation-fragment-ktx:2.6.0")
+    implementation("androidx.navigation:navigation-ui-ktx:2.6.0")
     debugImplementation(compose.uiTooling)
 
     //noinspection UseTomlInstead

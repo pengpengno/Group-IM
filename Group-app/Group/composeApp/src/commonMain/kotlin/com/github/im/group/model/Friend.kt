@@ -6,5 +6,5 @@ data class Friend(
     val online: Boolean,
 
     val lastMessage: String? = "" ,
-//    val lastMessage: List<String>? = null,
+
 )

@@ -5,6 +5,10 @@ import com.github.im.group.model.proto.BaseMessagePkg
 import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.viewmodel.ChatMessageViewModel
 
+
+/**
+ * 客户端 会话的管理
+ */
 class ChatSessionManager {
 
     // 已初始化的 VM

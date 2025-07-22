@@ -19,7 +19,6 @@ class TCPMessageViewModel(
 
 
     fun updateMessage(message: BaseMessagePkg) {
-
         //  先判断 message 的具体类型
         when {
             message.accountInfo != null -> {
@@ -45,10 +44,7 @@ class TCPMessageViewModel(
     }
 
     fun onNewMessage(msg: BaseMessagePkg) {
-//        _messages.value = msg
-//        updateMessage(msg)
         sessionManager.routeMessage(msg)
-
     }
 
 }

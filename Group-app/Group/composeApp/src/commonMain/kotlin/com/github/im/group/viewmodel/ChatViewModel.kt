@@ -5,12 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.config.SocketClient
-import com.github.im.group.model.proto.BaseMessagePkg
-import com.github.im.group.model.proto.ChatMessage
-import com.github.im.group.model.proto.MessageType
 import com.github.im.group.repository.UserRepository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
