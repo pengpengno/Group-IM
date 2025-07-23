@@ -7,6 +7,8 @@ import com.github.im.group.connect.AndroidSocketClient
 import com.github.im.group.db.SpaceXSDK
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.repository.UserRepository
+import com.github.im.group.sdk.AndroidFilePicker
+import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.SenderSdk
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
@@ -28,6 +30,8 @@ val appModule = module {
     }
 
     single<LoginApi> { LoginApi }
+
+    single<FilePicker> { AndroidFilePicker(androidContext()) }
 
     single { Greeting() }
     single { UserRepository() }

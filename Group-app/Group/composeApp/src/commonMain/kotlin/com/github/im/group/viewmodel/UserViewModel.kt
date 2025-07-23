@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class UserViewModel(
     private val senderSdk: SenderSdk,
-     val userRepository: UserRepository
+    val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<UserInfo>(UserInfo())

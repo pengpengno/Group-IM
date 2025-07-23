@@ -1,10 +1,7 @@
 package com.github.im.group.sdk
 
+
 import android.annotation.SuppressLint
-
-
-// File: androidMain/kotlin/FilePickerAndroid.kt
-
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -13,21 +10,85 @@ import android.provider.MediaStore
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
-import androidx.compose.foundation.layout.Column
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.view.LifecycleCameraController
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * 文件 Picker
+ */
+interface FilePickerLauncher {
+    suspend fun pick(mimeType: String): List<Uri>
+}
+
+/**
+ * 创建并记住一个文件选择器启动器
+ * @return 返回一个 FilePickerLauncher 对象，用于启动文件选择并获取结果
+ */
+@Composable
+fun rememberFilePickerLauncher(): FilePickerLauncher {
+    // 创建一个 MutableSharedFlow 用于发射文件选择结果
+    val resultFlow = remember { MutableSharedFlow<List<Uri>>() }
+
+    // 创建相机启动器（当前未实现具体功能）
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        // handle photo result here
+    }
+    
+    // 创建文件选择启动器，用于处理文件选择结果
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        // 当文件选择完成后，通过 CoroutineScope 发射结果
+        CoroutineScope(Dispatchers.Main).launch {
+            resultFlow.emit(uris)
+        }
+    }
+
+    // 返回一个 FilePickerLauncher 对象
+    return object : FilePickerLauncher {
+        /**
+         * 挂起函数，用于启动文件选择器并返回选择的文件 URI 列表
+         * @param mimeType 需要选择的文件类型
+         * @return 返回一个包含选择文件 URI 的列表
+         */
+        override suspend fun pick(mimeType: String): List<Uri> {
+            // 创建 Intent 用于打开文档
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                type = mimeType
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            }
+            // 启动文件选择器
+            launcher.launch(arrayOf(mimeType))
+            // 等待并返回选择结果
+            return resultFlow.first()
+        }
+    }
+}
+
+
 class AndroidFilePicker(private val context: Context,
-                        private val fileLauncher: ActivityResultLauncher<Intent>,
-                        private val mediaLauncher: ActivityResultLauncher<Intent>,
-                        private val cameraLauncher: ActivityResultLauncher<Intent>
+
     ) : FilePicker {
 
+
     override suspend fun pickImage(): List<PickedFile> {
+
         return pickFiles("image/*")
     }
 
@@ -37,6 +98,10 @@ class AndroidFilePicker(private val context: Context,
 
     override suspend fun pickFile(): List<PickedFile> {
         return pickFiles("*/*")
+    }
+
+    override suspend fun takePhoto(): PickedFile? {
+        TODO("Not yet implemented")
     }
 
     /**
@@ -56,6 +121,7 @@ class AndroidFilePicker(private val context: Context,
         }
         launcher.launch(intent)
     }
+
     private suspend fun pickFiles(mimeType: String): List<PickedFile> {
         val result = CompletableDeferred<List<Uri>>()
 
@@ -103,51 +169,26 @@ lateinit var androidContext: Context
 fun initAndroidContext(ctx: Context) {
     androidContext = ctx
 }
-
-
 @Composable
-fun FilePickerScreen() {
+actual fun CameraPreviewView() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // 使用 rememberLauncherForActivityResult 注册
-    val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val uris = mutableListOf<Uri>()
-        result.data?.data?.let { uris.add(it) }
-        result.data?.clipData?.let { clip ->
-            for (i in 0 until clip.itemCount) {
-                uris.add(clip.getItemAt(i).uri)
-            }
-        }
-        filePicker?.onFilePicked(uris)
-    }
+    AndroidView(
+        factory = { ctx ->
+            val previewView = PreviewView(ctx)
 
-    val dummyLauncher = fileLauncher // 提供给 Platform Code 初始化用
-    val mediaLauncher = fileLauncher
-    val cameraLauncher = fileLauncher
+            val cameraController = LifecycleCameraController(ctx)
+            cameraController.bindToLifecycle(lifecycleOwner)
+            cameraController.cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
-    LaunchedEffect(Unit) {
-        if (!::filePicker.isInitialized) {
-            filePicker = AndroidFilePicker(context, fileLauncher, mediaLauncher, cameraLauncher)
-        }
-    }
+            previewView.controller = cameraController
 
-    Column {
-        Button(onClick = {
-            lifecycleOwner.lifecycleScope.launch {
-                val files = filePicker?.pickFile()
-                println("选中文件：$files")
-            }
-        }) {
-            Text("选择文件")
-        }
-
-        Button(onClick = {
-            filePicker?.takePhoto()
-        }) {
-            Text("拍照")
-        }
-    }
+            previewView
+        },
+        modifier = Modifier.fillMaxSize()
+    )
 }
+
 
 actual fun getPlatformFilePicker(): FilePicker = AndroidFilePicker(androidContext)

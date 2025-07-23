@@ -98,15 +98,15 @@ fun ChatRoomScreen(
                 onSendText = { text ->
                     messageViewModel.sendMessage(conversationId, text)
                 },
-                onSendVoice = {
-                    messageViewModel.sendVoiceMessage(conversationId,"") // 定义见下
-                },
-                onSelectFile = {
-                    // TODO: 文件选择逻辑
-                },
-                onTakePhoto = {
-                    // TODO: 拍照逻辑
-                },
+//                onSendVoice = {
+//                    messageViewModel.sendVoiceMessage(conversationId,"") // 定义见下
+//                },
+//                onSelectFile = {
+//                    // TODO: 文件选择逻辑
+//                },
+//                onTakePhoto = {
+//                    // TODO: 拍照逻辑
+//                },
                 onStartRecording = {
 //                    RequestRecordPermission({})
                     voiceRecorder.startRecording(conversationId)

@@ -5,9 +5,7 @@
     <!-- <uses-feature android:name="android.hardware.camera.front" android:required="false" /> -->
     <uses-permission android:name="android.permission.INTERNET" /> <!-- debug  调试 http 允许明文 android:usesCleartextTraffic="true" -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.CAMERA" /> <!-- Android 13+ 针对媒体读取分开了权限 -->
     <!-- <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" /> -->
     <!-- <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" /> -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
@@ -27,22 +25,29 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        android:usesCleartextTraffic="true">
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
-            android:name=".MainActivity"
+            android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|fontScale|fontWeightAdjustment|keyboard|layoutDirection|locale|mcc|navigation|smallestScreenSize|touchscreen|uiMode"
-            android:exported="false"
-            android:label="@string/title_activity_main"
-            android:resizeableActivity="true"
-            android:theme="@style/NoActionBar"
-            tools:targetApi="24">
+            android:name=".MainActivity"
+            >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"/>
+        </provider>
     </application>
+
 
 </manifest>

@@ -17,13 +17,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.InsertEmoticon
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -45,17 +43,19 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.VoiceRecordingResult
 import com.github.im.group.sdk.WithRecordPermission
+import com.github.im.group.sdk.getPlatformFilePicker
 import com.github.im.group.sdk.playAudio
 
 @Composable
 fun ChatInputArea(
     modifier: Modifier = Modifier,
     onSendText: (String) -> Unit,
-    onSendVoice: () -> Unit,
-    onSelectFile: () -> Unit,
-    onTakePhoto: () -> Unit,
+//    onSendVoice: () -> Unit,
+//    onSelectFile: () -> Unit,
+//    onTakePhoto: () -> Unit,
     onStartRecording:  () ->  Unit,
     onStopRecording: () -> Unit,
     onEmojiSelected: (String) -> Unit
@@ -64,6 +64,7 @@ fun ChatInputArea(
     var isVoiceMode by remember { mutableStateOf(false) }
     var showMorePanel by remember { mutableStateOf(false) }
     var showEmojiPanel by remember { mutableStateOf(false) }
+    var filerPicker =  remember { getPlatformFilePicker() }
 
     Column(modifier = modifier.background(Color.White)) {
         Row(
@@ -127,9 +128,9 @@ fun ChatInputArea(
 
         if (showMorePanel) {
             FunctionPanel(
-                onSelectFile = onSelectFile,
-                onTakePhoto = onTakePhoto,
-                onRecordAudio = onSendVoice,
+//                onSelectFile = onSelectFile,
+//                onTakePhoto = onTakePhoto,
+//                onRecordAudio = onSendVoice,
                 onDismiss = { showMorePanel = false }
             )
         }
@@ -284,42 +285,17 @@ fun EmojiPanel(onEmojiSelected: (String) -> Unit) {
     }
 }
 
-/**
- * 功能区
- */
-@Composable
-fun FunctionPanel(
-    onSelectFile: () -> Unit,
-    onTakePhoto: () -> Unit,
-    onRecordAudio: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color(0xFFF5F5F5)
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            modifier = Modifier.padding(8.dp)
-        ) {
-            IconTextButton(Icons.AutoMirrored.Filled.InsertDriveFile, "文件", onSelectFile)
-            IconTextButton(Icons.Default.PhotoCamera, "拍照", onTakePhoto)
-            IconTextButton(Icons.Default.Mic, "语音", onRecordAudio)
-        }
-    }
-}
 
-
-/**
- * 表情输入框
- */
-@Composable
-fun IconTextButton(icon: ImageVector, text: String, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onClick)) {
-        Icon(icon, contentDescription = text, modifier = Modifier.size(32.dp))
-        Text(text, style = MaterialTheme.typography.bodySmall)
-    }
-}
+///**
+// * 表情输入框
+// */
+//@Composable
+//fun IconTextButton(icon: ImageVector, text: String, onClick: () -> Unit) {
+//    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onClick)) {
+//        Icon(icon, contentDescription = text, modifier = Modifier.size(32.dp))
+//        Text(text, style = MaterialTheme.typography.bodySmall)
+//    }
+//}
 
 
 @Composable

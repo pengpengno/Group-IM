@@ -21,7 +21,6 @@ plugins {
     alias(libs.plugins.composeHotReload)
 //    id("org.jetbrains.kotlin.android")
 
-
 }
 
 kotlin {
@@ -30,7 +29,7 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_11)
         }
     }
-    
+
     listOf(
         iosX64(),
         iosArm64(),
@@ -189,37 +188,9 @@ android {
 
 dependencies {
 
-    implementation("androidx.appcompat:appcompat:1.6.1")
-    implementation("androidx.recyclerview:recyclerview:1.3.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    implementation("com.google.android.material:material:1.4.+")
-    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.1")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1")
-    implementation("androidx.navigation:navigation-fragment-ktx:2.6.0")
-    implementation("androidx.navigation:navigation-ui-ktx:2.6.0")
     debugImplementation(compose.uiTooling)
 
-    //noinspection UseTomlInstead
-//    implementation(libs.protobuf.java)
 }
-//
-//protobuf {
-//    protoc {
-//        // 4. 指定 protoc（Protobuf 编译器）的 Maven 坐标。插件会下载这个版本并调用它去生成代码
-////        artifact = libs.protobuf.java.get().toString()
-//        artifact = "com.google.protobuf:protoc:3.21.12"  // 指定 protoc 编译器版本
-//    }
-//
-//    generateProtoTasks {
-//        all().forEach { task ->
-//            task.builtins {
-//                create("java") {
-//                    option("lite")
-//                }
-//            }
-//        }
-//    }
-//}
 
 compose.desktop {
     application {

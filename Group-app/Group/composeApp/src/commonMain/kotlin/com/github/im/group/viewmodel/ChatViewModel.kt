@@ -6,6 +6,7 @@ import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.config.SocketClient
 import com.github.im.group.repository.UserRepository
+import com.github.im.group.sdk.FilePicker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,11 +18,13 @@ class ChatRepository(private val api: ConversationApi, private val socket: Socke
 }
 
 
-
+/**
+ * 聊天界面的 ViewModel
+ */
 class ChatViewModel (
     val tcpClient: SocketClient,
-    val userRepository: UserRepository
-
+    val userRepository: UserRepository,
+    val filePicker: FilePicker,
 ): ViewModel() {
 
     private val _conversations = MutableStateFlow(listOf(ConversationRes()))
