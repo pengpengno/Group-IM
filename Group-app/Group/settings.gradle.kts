@@ -5,6 +5,8 @@ pluginManagement {
     repositories {
 //        maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
 //        gradlePluginPortal()
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
         mavenCentral()
         google()
         google {
