@@ -3,6 +3,12 @@ import android.content.Context
 import android.media.MediaRecorder
 import android.os.Build
 import androidx.annotation.RequiresApi
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import java.io.File
 
 class AndroidVoiceRecorder(private val context: Context) : VoiceRecorder {
@@ -10,8 +16,13 @@ class AndroidVoiceRecorder(private val context: Context) : VoiceRecorder {
     private var outputFile: File? = null
     private var recorder: MediaRecorder? = null
     private var startTime: Long = 0
+    private var _isRecording = false
 
-     @RequiresApi(Build.VERSION_CODES.S)
+    private val _amplitude = MutableStateFlow(0)
+    val amplitude: StateFlow<Int> = _amplitude
+
+
+    @RequiresApi(Build.VERSION_CODES.S)
      override fun startRecording(conversationId: Long) {
         outputFile = File.createTempFile("voice_${conversationId}_", ".m4a", context.cacheDir)
 
@@ -24,9 +35,26 @@ class AndroidVoiceRecorder(private val context: Context) : VoiceRecorder {
             start()
         }
         startTime = System.currentTimeMillis()
+        _isRecording = true
+        CoroutineScope(Dispatchers.IO).launch {
+            delay(200) // 给 MediaRecorder 启动缓冲时间
+            while (_isRecording) {
+                try {
+                    _amplitude.value = recorder?.maxAmplitude ?: 0
+                } catch (e: Exception) {
+                    _amplitude.value = 0 // 捕获异常，避免崩溃
+                }
+                delay(100)
+            }
+        }
     }
 
-     override fun stopRecording(): VoiceRecordingResult? {
+    override fun getAmplitude(): Int {
+        return _amplitude.value
+    }
+    override fun getOutputFile(): String? = outputFile?.absolutePath
+
+    override fun stopRecording(): VoiceRecordingResult? {
         val recorder = recorder ?: return null
         return try {
             recorder.stop()
@@ -38,43 +66,10 @@ class AndroidVoiceRecorder(private val context: Context) : VoiceRecorder {
             null
         } finally {
             this.recorder = null
+            _isRecording = false
         }
     }
 }
-
-///**
-// * 音量可视化
-// */
-//@Composable
-//fun VolumeVisualizer(volume: Int) {
-//    // 直观：音量越大，圆越大
-//    val size = 40.dp + (volume * 0.6f).dp
-//    Box(
-//        modifier = Modifier
-//            .size(size)
-//            .background(Color.Red, shape = CircleShape)
-//    )
-//}
-
-//@Composable
-//fun rememberVolumeLevel(recorder: MediaRecorder?): State<Int> {
-//    val volumeLevel = remember { mutableStateOf(0) }
-//
-//    LaunchedEffect(recorder) {
-//        while (recorder != null) {
-//            val amp = try {
-//                recorder.maxAmplitude
-//            } catch (e: Exception) {
-//                0
-//            }
-//            // Normalize to [0..100]
-//            volumeLevel.value = (amp / 32767.0 * 100).toInt().coerceIn(0, 100)
-//            delay(100)
-//        }
-//    }
-//
-//    return volumeLevel
-//}
 
 
 actual object VoiceRecorderFactory {

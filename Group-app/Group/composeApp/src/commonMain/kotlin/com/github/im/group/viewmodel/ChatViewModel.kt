@@ -27,6 +27,7 @@ class ChatViewModel (
     val filePicker: FilePicker,
 ): ViewModel() {
 
+
     private val _conversations = MutableStateFlow(listOf(ConversationRes()))
 
     val uiState:  StateFlow<List<ConversationRes>> = _conversations.asStateFlow()

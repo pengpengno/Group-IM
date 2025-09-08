@@ -23,7 +23,6 @@ import kotlinx.coroutines.launch
 /**
  * 聊天消息记录model
  */
-
 data class ChatUiState(
     val messages: List<MessageItem> = emptyList(),
     val conversation: ConversationRes = ConversationRes(),
@@ -56,6 +55,12 @@ class ChatMessageViewModel(
     }
 
 
+    /**
+     * 发送语音消息
+     *
+     * @param conversationId 会话ID
+     * @param url 语音文件的URL地址
+     */
     fun sendVoiceMessage(conversationId: Long, url: String) {
         val voiceMessage = ChatMessage(
             conversationId = conversationId,
@@ -63,16 +68,20 @@ class ChatMessageViewModel(
 //            mediaUrl = url,
             type = MessageType.FILE
         )
-//        sendMessage(conversationId, voiceMessage)
-//        sendMessage(conversationId, voiceMessage)
     }
 
+    /**
+     * 接收到消息
+     */
     fun onReceiveMessage(message: MessageItem){
         _uiState.update {
             it.copy(messages = it.messages + message)
         }
     }
 
+    /**
+     * 注册会话
+     */
     fun register(conversationId: Long){
         chatSessionManager.register(conversationId,this)
     }

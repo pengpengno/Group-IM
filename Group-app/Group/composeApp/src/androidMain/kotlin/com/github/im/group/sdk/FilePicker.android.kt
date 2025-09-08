@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.CompletableDeferred
@@ -166,10 +167,18 @@ class AndroidFilePicker(private val context: Context,
 @SuppressLint("StaticFieldLeak")
 lateinit var androidContext: Context
 
+/**
+ * 初始化 安卓 上下文
+ */
 fun initAndroidContext(ctx: Context) {
     androidContext = ctx
 }
+
+/**
+ * 音视频预览
+ */
 @Composable
+@Preview
 actual fun CameraPreviewView() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current

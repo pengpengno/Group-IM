@@ -7,12 +7,7 @@ import com.github.im.group.ui.LoginScreen
 @Composable
 //@Preview
 fun App() {
+
     Navigator(LoginScreen())
-//    KoinApplication(application = {
-//        modules(appModule)
-//
-//    }){
-//        Navigator(LoginScreen())
-//    }
 
 }

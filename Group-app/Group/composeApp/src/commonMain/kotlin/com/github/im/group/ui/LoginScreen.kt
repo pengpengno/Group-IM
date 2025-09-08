@@ -73,9 +73,7 @@ fun loginScreen () {
                 ProxyScreen(
                     navHostController = navController,
                 )
-//                ProxySettingScreen(
-////                    navHostController = navController
-//                )
+
             }
             composable<ChatRoom>{ backStackEntry ->
                 val chatRoom : ChatRoom = backStackEntry.toRoute()

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -30,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -39,11 +39,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.VoiceRecordingResult
 import com.github.im.group.sdk.WithRecordPermission
 import com.github.im.group.sdk.getPlatformFilePicker
@@ -53,9 +51,6 @@ import com.github.im.group.sdk.playAudio
 fun ChatInputArea(
     modifier: Modifier = Modifier,
     onSendText: (String) -> Unit,
-//    onSendVoice: () -> Unit,
-//    onSelectFile: () -> Unit,
-//    onTakePhoto: () -> Unit,
     onStartRecording:  () ->  Unit,
     onStopRecording: () -> Unit,
     onEmojiSelected: (String) -> Unit
@@ -64,7 +59,7 @@ fun ChatInputArea(
     var isVoiceMode by remember { mutableStateOf(false) }
     var showMorePanel by remember { mutableStateOf(false) }
     var showEmojiPanel by remember { mutableStateOf(false) }
-    var filerPicker =  remember { getPlatformFilePicker() }
+    var filerPicker = remember {getPlatformFilePicker()}
 
     Column(modifier = modifier.background(Color.White)) {
         Row(
@@ -73,7 +68,7 @@ fun ChatInputArea(
                 .padding(8.dp)
                 .fillMaxWidth()
         ) {
-
+//                语音
             IconButton(onClick = { isVoiceMode = !isVoiceMode }) {
                 Icon(
                     if (isVoiceMode) Icons.Default.Keyboard else Icons.Default.Mic,
@@ -101,7 +96,7 @@ fun ChatInputArea(
                 )
             }
 
-            // ruguo  messageText不为空那么隐藏 + 附件按钮
+            //   messageText不为空那么隐藏 + 附件按钮
             if(messageText.isNotBlank()){
                 IconButton(onClick = {
                     if (messageText.isNotBlank()) {
@@ -131,6 +126,7 @@ fun ChatInputArea(
 //                onSelectFile = onSelectFile,
 //                onTakePhoto = onTakePhoto,
 //                onRecordAudio = onSendVoice,
+                filePicker = filerPicker,
                 onDismiss = { showMorePanel = false }
             )
         }
@@ -243,26 +239,31 @@ fun MaskVoiceButton(
 @Composable
 fun RecordingOverlay(
     show: Boolean,
-    isCanceling: Boolean
+    amplitude: Int,
+//    amplitude: Flow<Int>,
+    isCanceling: ()->Unit
 ) {
+//    val amplitudeValue by amplitude.collectAsState(initial = 0)  // 👈 转成 Compose 状态
+
     if (show) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0x88000000)) // 半透明黑背景
+                .background(Color(0x88000000)), // 半透明黑色遮罩
+            contentAlignment = Alignment.Center
         ) {
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(32.dp),
-                tonalElevation = 4.dp,
-                shape = MaterialTheme.shapes.medium,
-            ) {
-                Text(
-                    text = if (isCanceling) "松开取消发送" else "正在录音...",
-                    modifier = Modifier.padding(32.dp),
-                    style = MaterialTheme.typography.titleMedium
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("正在录音...", color = Color.White)
+                Box(
+                    modifier = Modifier
+                        .padding(top = 16.dp)
+                        .width(50.dp)
+                        .height((amplitude / 500).coerceAtMost(200).dp) // 按音量动态变化
+                        .background(Color.Green)
                 )
+                TextButton(onClick = isCanceling) {
+                    Text("取消", color = Color.Red)
+                }
             }
         }
     }
@@ -284,18 +285,6 @@ fun EmojiPanel(onEmojiSelected: (String) -> Unit) {
         }
     }
 }
-
-
-///**
-// * 表情输入框
-// */
-//@Composable
-//fun IconTextButton(icon: ImageVector, text: String, onClick: () -> Unit) {
-//    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onClick)) {
-//        Icon(icon, contentDescription = text, modifier = Modifier.size(32.dp))
-//        Text(text, style = MaterialTheme.typography.bodySmall)
-//    }
-//}
 
 
 @Composable

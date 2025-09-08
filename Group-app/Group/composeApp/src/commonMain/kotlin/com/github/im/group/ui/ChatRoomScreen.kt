@@ -37,6 +37,7 @@ import com.github.im.group.sdk.VoiceRecorderFactory
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.UserViewModel
+import com.github.im.group.viewmodel.VoiceViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 
@@ -49,12 +50,15 @@ fun ChatRoomScreen(
 ) {
     val chatViewModel: ChatViewModel = koinViewModel()
     val userViewModel: UserViewModel = koinViewModel()
+    val voiceViewModel: VoiceViewModel = koinViewModel()
     val messageViewModel: ChatMessageViewModel = koinViewModel()
     val voiceRecorder = remember { VoiceRecorderFactory.create() }
 
     var messageText by remember { mutableStateOf("") }
+    val recordState = voiceViewModel.recorderState.collectAsState()
 
 
+    var previewDuration by remember { mutableStateOf(0L) }
 
     LaunchedEffect(conversationId) {
         chatViewModel.getConversations(conversationId)
@@ -79,8 +83,9 @@ fun ChatRoomScreen(
             listState.animateScrollToItem(state.messages.lastIndex)
         }
     }
-
-
+    if(recordState.value._isRecording){
+        RecordingOverlay(show = recordState.value._isRecording, amplitude = recordState.value.amplitude, isCanceling = {})
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -98,29 +103,24 @@ fun ChatRoomScreen(
                 onSendText = { text ->
                     messageViewModel.sendMessage(conversationId, text)
                 },
-//                onSendVoice = {
-//                    messageViewModel.sendVoiceMessage(conversationId,"") // 定义见下
-//                },
-//                onSelectFile = {
-//                    // TODO: 文件选择逻辑
-//                },
-//                onTakePhoto = {
-//                    // TODO: 拍照逻辑
-//                },
                 onStartRecording = {
 //                    RequestRecordPermission({})
-                    voiceRecorder.startRecording(conversationId)
-
-
-//                    messageViewModel.startVoiceRecord(conversationId)
+                    voiceViewModel.startRecording(conversationId)
+//                    voiceRecorder.startRecording(conversationId)
+//                    _isRecording = true
+//                    println(_isRecording)
+//                    CoroutineScope(Dispatchers.IO).launch {
+//                        delay(200) // 给MediaRecorder启动缓冲时间
+//
+//                        while (_isRecording == true) {
+//                            amplitude = voiceRecorder.getAmplitude()
+//                            delay(100)
+//                        }
+//                    }
                 },
                 onStopRecording = {
-                    val result = voiceRecorder.stopRecording()
-                    if (result != null) {
-                        // 例如通过 messageViewModel 发送语音消息
-                        messageViewModel.sendVoiceMessage(conversationId, "")
-                    }
-//                    messageViewModel.stopVoiceRecord(conversationId)
+                    voiceViewModel.stopRecording()
+
                 },
                 onEmojiSelected = { emoji ->
                     // emoji 已经拼接在 ChatInputArea 内
