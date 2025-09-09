@@ -1,24 +1,39 @@
-
-import kotlin.Boolean;
-
-CREATE TABLE Launch (
-    flightNumber INTEGER NOT NULL,
-    missionName TEXT NOT NULL,
-    details TEXT,
-    launchSuccess INTEGER AS Boolean DEFAULT NULL,
-    launchDateUTC TEXT NOT NULL,
-    patchUrlSmall TEXT,
-    patchUrlLarge TEXT,
-    articleUrl TEXT
+-- commonMain/sqldelight/com/example/database/Message.sq
+CREATE TABLE message (
+    msg_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id TEXT NOT NULL,  -- 外键保存 conversationId
+    from_account_id TEXT NOT NULL,  -- 外键保存 userId
+    content TEXT,
+    sequence_id INTEGER NOT NULL DEFAULT 0,
+    type TEXT NOT NULL,             -- MessageType
+    status TEXT NOT NULL,           -- MessageStatus
+    client_timestamp INTEGER,       -- 存为时间戳
+    timestamp INTEGER,              -- 存为时间戳
+    create_time INTEGER NOT NULL    -- 存为时间戳
 );
 
-insertLaunch:
-INSERT INTO Launch(flightNumber, missionName, details, launchSuccess, launchDateUTC, patchUrlSmall, patchUrlLarge, articleUrl)
-VALUES(?, ?, ?, ?, ?, ?, ?, ?);
+-- 查询全部消息
+selectAll:
+SELECT * FROM message;
 
-removeAllLaunches:
-DELETE FROM Launch;
+-- 插入消息
+insertMessage:
+INSERT INTO message(
+    conversation_id,
+    from_account_id,
+    content,
+    sequence_id,
+    type,
+    status,
+    client_timestamp,
+    timestamp,
+    create_time
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
-selectAllLaunchesInfo:
-SELECT Launch.*
-FROM Launch;
+-- 根据 msgId 删除
+deleteMessage:
+DELETE FROM message WHERE msg_id = ?;
+
+-- 根据 msgId 查询
+selectMessageById:
+SELECT * FROM message WHERE msg_id = ?;

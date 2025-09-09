@@ -76,9 +76,9 @@ fun typeTransForm ( type: MessageType) : ChatMessageType{
         MessageType.TEXT -> ChatMessageType.TEXT
         MessageType.FILE -> ChatMessageType.FILE
 //        MessageType.VOICE -> ChatMessageType.VOICE
-        MessageType.MARKDOWN -> TODO()
-        MessageType.STREAM -> TODO()
-        MessageType.VIDEO -> TODO()
-        MessageType.IMAGE -> TODO()
+        MessageType.MARKDOWN -> ChatMessageType.FILE
+        MessageType.STREAM -> ChatMessageType.FILE
+        MessageType.VIDEO -> ChatMessageType.FILE
+        MessageType.IMAGE -> ChatMessageType.FILE
     }
 }
