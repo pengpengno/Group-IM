@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.VoiceRecorder
+import com.github.im.group.sdk.VoiceRecordingResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.delay
@@ -17,7 +18,7 @@ sealed class RecorderUiState {
     data class Playback(
         val filePath: String,
         val duration: Long
-    ) : RecorderUiState() // 回放中
+    ) : RecorderUiState() // 录音完毕 回放中
 }
 
 
@@ -70,15 +71,38 @@ class VoiceViewModel(
         }
     }
 
+    /**
+     * 获取录音数据
+     */
+    fun getVoiceData(): VoiceRecordingResult? {
+        return voiceRecorder.getVoiceData()
+    }
     fun cancel() {
         _uiState.value = RecorderUiState.Idle
     }
 
 
-    fun send(onSend: (filePath: String, duration: Long) -> Unit) {
-        val playback = _uiState.value as? RecorderUiState.Playback ?: return
-        onSend(playback.filePath, playback.duration)
-        _uiState.value = RecorderUiState.Idle
-    }
+//    fun send(conversationId: Long) {
+//        val playback = _uiState.value as? RecorderUiState.Playback ?: return
+//        voiceRecorder.getVoiceData()?.let {
+//
+//            senderSdk.sendVoiceMessage(
+//                conversationId,
+//                it.bytes,
+//                it.durationMillis
+//            )
+//        }
+//    }
+//    fun send(onSend: (filePath: String, duration: Long) -> Unit) {
+//        val playback = _uiState.value as? RecorderUiState.Playback ?: return
+//        onSend(playback.filePath, playback.duration)
+//        _uiState.value = RecorderUiState.Idle
+//    }
+
+
+
+
+
+
 }
 

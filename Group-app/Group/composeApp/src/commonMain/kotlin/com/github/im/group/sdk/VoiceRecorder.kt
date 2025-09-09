@@ -18,9 +18,14 @@ interface VoiceRecorder {
 
 
     /**
-     * 获取输出的文件
+     * 获取输出的文件路径
      */
     fun getOutputFile(): String?
+
+    /**
+     * 获取音频数据
+     */
+    fun getVoiceData(): VoiceRecordingResult?
 
 }
 

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.github.im.group.api.ChatApi
 import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
+import com.github.im.group.api.FileApi
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
@@ -44,31 +45,7 @@ class ChatMessageViewModel(
 
     val loading: StateFlow<Boolean> = _loading
 
-    fun sendFileMessage(conversationId: Long, url: String) {
-        val fileMessage = ChatMessage(
-            conversationId = conversationId,
-            content = "[文件]",
-//            mediaUrl = url,
-            type = MessageType.FILE
-        )
-//        sendMessage(conversationId, fileMessage)
-    }
 
-
-    /**
-     * 发送语音消息
-     *
-     * @param conversationId 会话ID
-     * @param url 语音文件的URL地址
-     */
-    fun sendVoiceMessage(conversationId: Long, url: String) {
-        val voiceMessage = ChatMessage(
-            conversationId = conversationId,
-            content = "[语音]",
-//            mediaUrl = url,
-            type = MessageType.FILE
-        )
-    }
 
     /**
      * 接收到消息
@@ -90,21 +67,29 @@ class ChatMessageViewModel(
         chatSessionManager.unregister(conversationId)
     }
 
-    fun loadMessages(uId: Long )  {
+
+    /**
+     * 分页加载数据
+     */
+    fun loadMessages(conversationId: Long , page: Int = 1 , size: Int = 50){
+
+    }
+    /**
+     * 加载消息
+     * @param conversationId 会话id
+     * 默认加载最新的 50 条消息
+     */
+    fun loadMessages(conversationId: Long )  {
         viewModelScope.launch {
             _uiState.update {
                 it.copy(loading = true)
             }
             try {
-                val response = ChatApi.getMessages(uId)
+                val response = ChatApi.getMessages(conversationId)
 
                 val wrappedMessages = response.content.map {
                     MessageWrapper(messageDto = it)
                 }.sortedBy { it.seqId }
-
-//                val wrappedMessages2 = response.content.map {
-//                    MessageWrapper(messageDto = it)
-//                }.sortedBy { it.seqId }
 
                 println("receive $wrappedMessages")
 
@@ -158,9 +143,45 @@ class ChatMessageViewModel(
         }
     }
 
+//    /**
+//     * 发送语音消息
+//     *
+//     * @param conversationId 会话ID
+//     * @param url 语音文件的URL地址
+//     */
+//    suspend fun sendVoiceMessage(conversationId: Long,data: ByteArray) {
+//
+//        sendFileMessage(conversationId,data)
+//    }
+    /**
+     * 发送文件消息
+     */
+     fun sendFileMessage(conversationId: Long ,data:ByteArray,fileName:String){
+         viewModelScope.launch {
+             val response  = FileApi.uploadFile(data,fileName).let {
+                 var fileMeta = it.fileMeta
 
+                 val message = ChatMessage(
+                     conversationId = conversationId,
+                     fromAccountInfo = userViewModel.getAccountInfo(),
+                     content = it.id,
+                     type = MessageType.FILE
+                 )
+                 senderSdk.sendMessage(message)
+
+                 _uiState.update {
+                     it.copy(messages = it.messages + MessageWrapper(message))
+                 }
+             }
+         }
+
+
+
+    }
     /**
      * 发送消息
+     * @param conversationId 会话
+     * @param message 消息
      */
     fun sendMessage(conversationId:Long,message:String ){
 

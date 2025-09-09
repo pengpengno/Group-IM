@@ -43,7 +43,6 @@ val appModule = module {
             audioPlayer = get()
         )
     }
-//    viewModelOf (::VoiceViewModel)
     single { (SenderSdk(get())) }
 
     viewModelOf(::UserViewModel)  // 注册为 ViewModel，由 Koin 自动管理生命周期

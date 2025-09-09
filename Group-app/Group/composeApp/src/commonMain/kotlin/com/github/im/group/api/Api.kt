@@ -7,7 +7,6 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 
 object LoginApi {
@@ -75,13 +74,14 @@ object ConversationApi{
  */
 object FileApi {
     @OptIn(ExperimentalUuidApi::class)
-    suspend fun uploadFile(file: ByteArray): FileUploadResponse {
-        return ProxyApi.request<ByteArray, FileUploadResponse>(
-            hmethod = HttpMethod.Post,
-            path = "/api/files/upload",
-            requestParams = mapOf("uploaderId" to Uuid.random().toString()),
-            body = file
-        )
+    suspend fun uploadFile(file: ByteArray,fileName:String): FileUploadResponse {
+//        return ProxyApi.request<ByteArray, FileUploadResponse>(
+//            hmethod = HttpMethod.Post,
+//            path = "/api/files/upload",
+//            requestParams = mapOf("uploaderId" to Uuid.random().toString()),
+//            body = file
+//        )
+        return ProxyApi.uploadFile(file, fileName)
     }
 }
 /**

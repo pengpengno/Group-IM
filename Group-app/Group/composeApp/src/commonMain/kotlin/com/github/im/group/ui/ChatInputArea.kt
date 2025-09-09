@@ -336,7 +336,7 @@ fun MaskVoiceButton(
 fun RecordingPlaybackOverlay(
     audioPlayer: AudioPlayer,
     filePath: String,
-    onSend: () -> Unit,
+    onSend:  () -> Unit,
     onCancel: () -> Unit
 ) {
     val scope = rememberCoroutineScope()

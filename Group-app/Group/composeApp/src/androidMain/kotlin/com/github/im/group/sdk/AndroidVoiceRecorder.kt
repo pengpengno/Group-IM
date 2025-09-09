@@ -16,6 +16,7 @@ class AndroidVoiceRecorder(private val context: Context) : VoiceRecorder {
     private var outputFile: File? = null
     private var recorder: MediaRecorder? = null
     private var startTime: Long = 0
+    private var duration:Long = 0
     private var _isRecording = false
 
     private val _amplitude = MutableStateFlow(0)
@@ -54,13 +55,28 @@ class AndroidVoiceRecorder(private val context: Context) : VoiceRecorder {
     }
     override fun getOutputFile(): String? = outputFile?.absolutePath
 
+    override fun getVoiceData(): VoiceRecordingResult? {
+        // 确保录音已停止
+        if (_isRecording) return null
+
+        return try {
+            val file = outputFile ?: return null
+            val bytes = file.readBytes()
+            VoiceRecordingResult(bytes, duration)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+
+    }
+
     override fun stopRecording(): VoiceRecordingResult? {
         val recorder = recorder ?: return null
         return try {
             recorder.stop()
             recorder.release()
             val bytes = outputFile?.readBytes() ?: return null
-            val duration = System.currentTimeMillis() - startTime
+             duration = System.currentTimeMillis() - startTime
             VoiceRecordingResult(bytes, duration)
         } catch (e: Exception) {
             null

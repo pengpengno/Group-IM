@@ -1,24 +1,33 @@
 
 import com.github.im.group.GlobalCredentialProvider
+import com.github.im.group.api.FileUploadResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.forms.formData
+import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.header
+import io.ktor.client.request.headers
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import org.koin.core.component.KoinComponent
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 
 object ProxyApi
 //     val proxyConfigProvider: () -> ProxySettingsState
   : KoinComponent {
+//    private val logger = LoggerFactory.getLogger("ProxyApi")
 
     val client = HttpClient() {
         install(ContentNegotiation) {
@@ -28,6 +37,60 @@ object ProxyApi
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun uploadFile(file: ByteArray, fileName: String ):FileUploadResponse {
+
+        val baseUrl = if (ProxyConfig.enableProxy) {
+            "http://${ProxyConfig.host}:${ProxyConfig.port}"
+        } else {
+            "http://${ProxyConfig.host}:${ProxyConfig.port}"
+        }
+
+
+        var response =  client.submitFormWithBinaryData(
+            url = baseUrl + "/api/files/upload",
+            formData = formData {
+
+                append("uploaderId", Uuid.random().toString())
+                append("file", file, Headers.build {
+                    append(HttpHeaders.ContentDisposition, "filename=$fileName")
+                    // 不需要添加 服务端会自行判断
+//                    append(HttpHeaders.ContentType, ContentType.Audio.MPEG.toString())
+                })
+            },
+
+        ){
+            method = HttpMethod.Post
+            headers {
+                val token = GlobalCredentialProvider.currentToken
+                if (token.isNotEmpty()) {
+                    header("Authorization", "Bearer $token")
+                    header("Proxy-Authorization", "Bearer $token")
+                }
+            }
+
+        }
+        return when (response.status.value) {
+            in 200..299 -> {
+                val responseBody = response.body<FileUploadResponse>()
+                return responseBody
+            }
+
+            in 400..499 -> {
+                val errorText = response.bodyAsText()
+//                logger("ProxyApi", "ProxyApi error: $errorText")
+                throw RuntimeException("客户端请求错误：${response.status}，内容: $errorText")
+            }
+            in 500..599 -> {
+                val errorText = response.bodyAsText()
+                throw RuntimeException("服务器错误：${response.status}，内容: $errorText")
+            }
+            else -> {
+                val errorText = response.bodyAsText()
+                throw RuntimeException("未知响应状态：${response.status}，内容: $errorText")
+            }
+        }
+    }
     // 基础请求方法，使用全局代理配置
 //    suspend inline fun <reified T> request(
     suspend inline fun <reified B : Any, reified R : Any?> request(

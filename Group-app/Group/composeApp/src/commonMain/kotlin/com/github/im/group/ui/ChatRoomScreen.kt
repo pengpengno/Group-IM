@@ -25,20 +25,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import com.github.im.group.sdk.VoiceRecorderFactory
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
 
 
@@ -53,16 +52,10 @@ fun ChatRoomScreen(
     val userViewModel: UserViewModel = koinViewModel()
     val voiceViewModel: VoiceViewModel = koinViewModel()
     val messageViewModel: ChatMessageViewModel = koinViewModel()
-    val voiceRecorder = remember { VoiceRecorderFactory.create() }
 
-    var messageText by remember { mutableStateOf("") }
-//    val recordState = voiceViewModel.uiState.collectAsState()
     val uiState by voiceViewModel.uiState.collectAsState()
     val amplitude by voiceViewModel.amplitude.collectAsState()
 
-
-
-    var previewDuration by remember { mutableStateOf(0L) }
 
     LaunchedEffect(conversationId) {
         chatViewModel.getConversations(conversationId)
@@ -151,12 +144,14 @@ fun ChatRoomScreen(
             val playback = uiState as RecorderUiState.Playback
             RecordingPlaybackOverlay(
                 audioPlayer = voiceViewModel.audioPlayer,
-
                 filePath = playback.filePath,
-//                duration = playback.duration,
                 onSend = {
-                    voiceViewModel.send { path, duration ->
-                        messageViewModel.sendVoiceMessage(conversationId, path)
+                    voiceViewModel.getVoiceData()?.let {
+                        // {conversationId}-{dateTime}.m4a
+
+                        val fileName = "voice-$conversationId-" + Clock.System.now()
+                            .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
+                        messageViewModel.sendFileMessage(conversationId, it.bytes,fileName)
                     }
                 },
                 onCancel = { voiceViewModel.cancel() }
