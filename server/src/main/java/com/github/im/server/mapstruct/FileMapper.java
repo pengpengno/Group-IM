@@ -26,6 +26,7 @@ public interface FileMapper {
     FileMeta toMeta(FileResource fileResource);
 
 //    @Mapping(target = "fileMeta", ignore = true)
+    @Mapping(target = "fileMeta", expression = "java(toMeta(fileResource))")
     FileUploadResponse toDTO(FileResource fileResource);
 
 

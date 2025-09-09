@@ -97,6 +97,15 @@ public class MessageService {
         return messageRepository.save(message);
     }
 
+    /**
+     * message.getContent()
+     * <ul>
+     *     <li>TEXT: 纯文本</li>
+     *     <li>FILE: 文件  内容为 文件UUid</li>
+     * </ul>
+     * @param message
+     * @return
+     */
 
     @SneakyThrows
     private MessageDTO<MessagePayLoad> convertMessage(Message message) {

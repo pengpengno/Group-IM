@@ -13,9 +13,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 import org.springframework.util.FileSystemUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.FileNotFoundException;
@@ -74,6 +77,10 @@ public class FileStorageService {
         String originalName = file.getOriginalFilename();
         String ext = FileNameUtil.extName(originalName);
         String contentType = file.getContentType();
+        if(StringUtils.isEmpty(contentType)){
+            contentType = MediaTypeFactory.getMediaType(originalName).orElse(MediaType.APPLICATION_OCTET_STREAM).getType();
+        }
+
         long size = file.getSize();
         String hash;
         try (InputStream is = file.getInputStream()) {

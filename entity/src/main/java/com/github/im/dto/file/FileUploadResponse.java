@@ -11,9 +11,10 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 public class FileUploadResponse {
+    // 必须返回
     private UUID id;
 //    private String fileName;
 //    private String path;
-
+    //必须返回  不为空
     private FileMeta fileMeta;
 }
