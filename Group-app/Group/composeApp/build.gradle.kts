@@ -6,11 +6,6 @@ val voyagerVersion = "1.1.0-beta02"
 plugins {
     id("com.squareup.wire") version "4.8.1"
 
-//    id("com.google.protobuf") version "0.9.4"
-//    kotlin("plugin.serialization") version libs.versions.kotlin.get()  // 注意：这个插件一定要加
-//    id("org.springframework.boot") version "3.1.2" // Spring Boot 3.1.x (包含 Spring Framework 6)
-//    kotlin("plugin.spring") version libs.versions.kotlin.get()  // 这里必须加
-//    id("io.spring.dependency-management") version "1.1.0"
 
     alias(libs.plugins.kotlinxSerialization)
     alias(libs.plugins.sqldelight)
