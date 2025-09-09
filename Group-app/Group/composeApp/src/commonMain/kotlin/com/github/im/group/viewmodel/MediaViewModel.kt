@@ -2,68 +2,83 @@ package com.github.im.group.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.VoiceRecorder
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class RecorderState(
-    val _isRecording:Boolean =false,
-    val amplitude: Int =0
+sealed class RecorderUiState {
+    object Idle : RecorderUiState() // 空闲状态
+    object Recording : RecorderUiState() // 正在录音
+    data class Playback(
+        val filePath: String,
+        val duration: Long
+    ) : RecorderUiState() // 回放中
+}
 
-)
 
 /**
  * 聊天界面的 ViewModel
  */
-class VoiceViewModel (
-    val voiceRecorder: VoiceRecorder,
-): ViewModel() {
+class VoiceViewModel(
+    private val voiceRecorder: VoiceRecorder,
+     val audioPlayer: AudioPlayer
+) : ViewModel() {
 
-    private val _uiState = MutableStateFlow( RecorderState())
+    private val _uiState = MutableStateFlow<RecorderUiState>(RecorderUiState.Idle)
+    val uiState: StateFlow<RecorderUiState> = _uiState
 
-   val  recorderState: StateFlow<RecorderState> = _uiState
+    private val _amplitude = MutableStateFlow(0)
+    val amplitude: StateFlow<Int> = _amplitude
 
-
+    private var lastFilePath: String? = null
+    private var lastDuration: Long = 0
 
     fun startRecording(conversationId: Long) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             voiceRecorder.startRecording(conversationId)
-        }
-        _uiState.update {
-            it.copy(
-                _isRecording = true
-            )
-        }
-        CoroutineScope(Dispatchers.IO).launch {
-            delay(200) // 给MediaRecorder启动缓冲时间
+            _uiState.value = RecorderUiState.Recording
 
-            // 循环更新音量
-            while (_uiState.value._isRecording) {
-                val amp = voiceRecorder.getAmplitude()
-                _uiState.update { it.copy(amplitude = amp) }
-                delay(100) // 每100ms更新一次
+            delay(200) // 给 MediaRecorder 启动缓冲时间
+            while (_uiState.value is RecorderUiState.Recording) {
+                try {
+                    _amplitude.value = voiceRecorder.getAmplitude()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    stopRecording()
+                }
+                delay(100)
             }
         }
-
     }
+
     fun stopRecording() {
-         voiceRecorder.stopRecording()
-        _uiState.update {
-            it.copy(
-                _isRecording = false
+        val result = voiceRecorder.stopRecording()
+        if (result != null) {
+            lastFilePath = voiceRecorder.getOutputFile()
+            lastDuration = result.durationMillis
+            _uiState.value = RecorderUiState.Playback(
+                filePath = lastFilePath ?: "",
+                duration = lastDuration
             )
+        } else {
+            _uiState.value = RecorderUiState.Idle
         }
-        println(voiceRecorder.getOutputFile())
+    }
 
+    fun cancel() {
+        _uiState.value = RecorderUiState.Idle
     }
 
 
-
-
+    fun send(onSend: (filePath: String, duration: Long) -> Unit) {
+        val playback = _uiState.value as? RecorderUiState.Playback ?: return
+        onSend(playback.filePath, playback.duration)
+        _uiState.value = RecorderUiState.Idle
+    }
 }
+

@@ -1,5 +1,12 @@
 package com.github.im.group.ui
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -13,39 +20,53 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.InsertEmoticon
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.VoiceRecordingResult
 import com.github.im.group.sdk.WithRecordPermission
 import com.github.im.group.sdk.getPlatformFilePicker
 import com.github.im.group.sdk.playAudio
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun ChatInputArea(
@@ -123,13 +144,89 @@ fun ChatInputArea(
 
         if (showMorePanel) {
             FunctionPanel(
-//                onSelectFile = onSelectFile,
-//                onTakePhoto = onTakePhoto,
-//                onRecordAudio = onSendVoice,
                 filePicker = filerPicker,
                 onDismiss = { showMorePanel = false }
             )
         }
+    }
+}
+@Composable
+fun RecordingOverlay(
+    show: Boolean,
+    amplitude: Int,  // 来自 VoiceRecorder 的振幅
+    isCanceling: () -> Unit = {}
+) {
+    if (!show) return
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0x55000000)), // 半透明背景
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xDD222222)) // 深灰背景
+                .padding(32.dp)
+        ) {
+            // 波纹效果 + 麦克风
+            Box(contentAlignment = Alignment.Center) {
+                RippleAnimation(amplitude = amplitude)
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Mic",
+                    tint = Color.White,
+                    modifier = Modifier.size(64.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 提示语
+            Text(
+                text = "上滑取消",
+                color = Color.White,
+                fontSize = 14.sp
+            )
+        }
+    }
+}
+
+
+/**
+ * 动态波纹动画
+ */
+@Composable
+fun RippleAnimation(amplitude: Int) {
+    val infiniteTransition = rememberInfiniteTransition(label = "ripple")
+
+    // 波纹半径动画
+    val radius by infiniteTransition.animateFloat(
+        initialValue = 40f,
+        targetValue = 80f + (amplitude / 50f).coerceAtMost(100f),
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ), label = "radiusAnim"
+    )
+
+    // 波纹透明度动画
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ), label = "alphaAnim"
+    )
+
+    Canvas(modifier = Modifier.size(160.dp)) {
+        drawCircle(
+            color = Color.Green.copy(alpha = alpha),
+            radius = radius
+        )
     }
 }
 
@@ -232,42 +329,115 @@ fun MaskVoiceButton(
     }
 }
 
-
 /**
- * 遮罩层ui
+ * 回放录音
  */
 @Composable
-fun RecordingOverlay(
-    show: Boolean,
-    amplitude: Int,
-//    amplitude: Flow<Int>,
-    isCanceling: ()->Unit
+fun RecordingPlaybackOverlay(
+    audioPlayer: AudioPlayer,
+    filePath: String,
+    onSend: () -> Unit,
+    onCancel: () -> Unit
 ) {
-//    val amplitudeValue by amplitude.collectAsState(initial = 0)  // 👈 转成 Compose 状态
+    val scope = rememberCoroutineScope()
+    var currentPosition by remember { mutableStateOf(0L) }
+    var isPlaying by remember { mutableStateOf(false) }
 
-    if (show) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0x88000000)), // 半透明黑色遮罩
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("正在录音...", color = Color.White)
-                Box(
-                    modifier = Modifier
-                        .padding(top = 16.dp)
-                        .width(50.dp)
-                        .height((amplitude / 500).coerceAtMost(200).dp) // 按音量动态变化
-                        .background(Color.Green)
-                )
-                TextButton(onClick = isCanceling) {
-                    Text("取消", color = Color.Red)
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            audioPlayer.play(filePath)
+            scope.launch {
+                while (isPlaying && currentPosition < audioPlayer.duration) {
+                    delay(100)
+                    currentPosition = audioPlayer.currentPosition
                 }
+                if (currentPosition >= audioPlayer.duration) {
+                    isPlaying = false
+                }
+            }
+        } else {
+            audioPlayer.pause()
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0x55000000)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xDD222222))
+                .padding(24.dp)
+                .width(300.dp)
+        ) {
+            Text("语音回放", color = Color.White, fontSize = 16.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 播放/暂停按钮
+            IconButton(onClick = { isPlaying = !isPlaying }) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+
+            // 进度条可拖动
+            Slider(
+                value = currentPosition.toFloat(),
+                onValueChange = { newPos ->
+                    currentPosition = newPos.toLong()
+                    audioPlayer.seekTo(currentPosition)
+                },
+                valueRange = 0f..audioPlayer.duration.toFloat(),
+                modifier = Modifier.fillMaxWidth(),
+                colors = SliderDefaults.colors(
+                    thumbColor = Color.Green,
+                    activeTrackColor = Color.Green
+                )
+            )
+
+            Text("${(currentPosition/1000)}s / ${(audioPlayer.duration/1000)}s",
+                color = Color.LightGray, fontSize = 14.sp)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "取消",
+                    tint = Color.Red,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clickable {
+                            audioPlayer.stop()
+                            onCancel()
+                        }
+                )
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "发送",
+                    tint = Color.Green,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clickable {
+                            audioPlayer.stop()
+                            onSend()
+                        }
+                )
             }
         }
     }
 }
+
 
 
 @Composable

@@ -36,6 +36,7 @@ import androidx.navigation.compose.rememberNavController
 import com.github.im.group.sdk.VoiceRecorderFactory
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
+import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -55,7 +56,10 @@ fun ChatRoomScreen(
     val voiceRecorder = remember { VoiceRecorderFactory.create() }
 
     var messageText by remember { mutableStateOf("") }
-    val recordState = voiceViewModel.recorderState.collectAsState()
+//    val recordState = voiceViewModel.uiState.collectAsState()
+    val uiState by voiceViewModel.uiState.collectAsState()
+    val amplitude by voiceViewModel.amplitude.collectAsState()
+
 
 
     var previewDuration by remember { mutableStateOf(0L) }
@@ -65,14 +69,10 @@ fun ChatRoomScreen(
         messageViewModel.getConversation(conversationId)
         messageViewModel.loadMessages(conversationId)
         messageViewModel.register(conversationId)
-//        onDispose {
-//            messageViewModel.unregister(conversationId)
-//        }
     }
 
 
     // 加载完消息后自动滚动到底部
-
 
     val state by messageViewModel.uiState.collectAsState()
     val userInfo = userViewModel.getUser()
@@ -83,9 +83,8 @@ fun ChatRoomScreen(
             listState.animateScrollToItem(state.messages.lastIndex)
         }
     }
-    if(recordState.value._isRecording){
-        RecordingOverlay(show = recordState.value._isRecording, amplitude = recordState.value.amplitude, isCanceling = {})
-    }
+
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -104,19 +103,7 @@ fun ChatRoomScreen(
                     messageViewModel.sendMessage(conversationId, text)
                 },
                 onStartRecording = {
-//                    RequestRecordPermission({})
                     voiceViewModel.startRecording(conversationId)
-//                    voiceRecorder.startRecording(conversationId)
-//                    _isRecording = true
-//                    println(_isRecording)
-//                    CoroutineScope(Dispatchers.IO).launch {
-//                        delay(200) // 给MediaRecorder启动缓冲时间
-//
-//                        while (_isRecording == true) {
-//                            amplitude = voiceRecorder.getAmplitude()
-//                            delay(100)
-//                        }
-//                    }
                 },
                 onStopRecording = {
                     voiceViewModel.stopRecording()
@@ -148,6 +135,32 @@ fun ChatRoomScreen(
                     )
                 }
             }
+        }
+
+        // 录音时遮罩
+        if (uiState is RecorderUiState.Recording) {
+            RecordingOverlay(
+                show = true,
+                amplitude = amplitude,
+                isCanceling = { voiceViewModel.cancel() }
+            )
+        }
+
+        // 回放浮窗
+        if (uiState is RecorderUiState.Playback) {
+            val playback = uiState as RecorderUiState.Playback
+            RecordingPlaybackOverlay(
+                audioPlayer = voiceViewModel.audioPlayer,
+
+                filePath = playback.filePath,
+//                duration = playback.duration,
+                onSend = {
+                    voiceViewModel.send { path, duration ->
+                        messageViewModel.sendVoiceMessage(conversationId, path)
+                    }
+                },
+                onCancel = { voiceViewModel.cancel() }
+            )
         }
     }
 }
