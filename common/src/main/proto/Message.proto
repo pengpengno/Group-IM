@@ -65,15 +65,14 @@ enum MessageType{
 
   TEXT = 0 ;
 
-  MARKDOWN = 5;
-
   FILE = 1 ;
-
-  STREAM = 2 ;
 
   VIDEO = 3 ;
 
   IMAGE = 6;
+
+  VOICE = 4 ;
+
 
 
 }

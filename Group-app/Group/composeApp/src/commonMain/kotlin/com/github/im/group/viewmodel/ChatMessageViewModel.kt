@@ -143,29 +143,37 @@ class ChatMessageViewModel(
         }
     }
 
-//    /**
-//     * 发送语音消息
-//     *
-//     * @param conversationId 会话ID
-//     * @param url 语音文件的URL地址
-//     */
-//    suspend fun sendVoiceMessage(conversationId: Long,data: ByteArray) {
-//
-//        sendFileMessage(conversationId,data)
-//    }
+    /**
+     * 发送语音消息
+     *
+     * @param conversationId 会话ID
+     * @param url 语音文件的URL地址
+     */
+    fun sendVoiceMessage(conversationId: Long,
+                         data: ByteArray,
+                         fileName:String,
+                         duration:Long
+                         ) {
+
+        sendFileMessage(conversationId,data,fileName,duration,MessageType.VOICE)
+    }
     /**
      * 发送文件消息
+     * @param conversationId 会话ID
+     * @param data 文件数据
+     * @param fileName 文件名
+     * @param type 消息类型
      */
-     fun sendFileMessage(conversationId: Long ,data:ByteArray,fileName:String){
+     fun sendFileMessage(conversationId: Long ,data:ByteArray,fileName:String,duration: Long=0,type:MessageType = MessageType.FILE){
          viewModelScope.launch {
-             val response  = FileApi.uploadFile(data,fileName).let {
+             val response  = FileApi.uploadFile(data,fileName,duration).let {
                  var fileMeta = it.fileMeta
 
                  val message = ChatMessage(
                      conversationId = conversationId,
                      fromAccountInfo = userViewModel.getAccountInfo(),
                      content = it.id,
-                     type = MessageType.FILE
+                     type = type,
                  )
                  senderSdk.sendMessage(message)
 

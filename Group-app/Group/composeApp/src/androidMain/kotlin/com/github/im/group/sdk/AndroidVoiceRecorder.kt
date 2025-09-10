@@ -56,7 +56,7 @@ class AndroidVoiceRecorder(private val context: Context) : VoiceRecorder {
     override fun getOutputFile(): String? = outputFile?.absolutePath
 
     override fun getVoiceData(): VoiceRecordingResult? {
-        // 确保录音已停止
+        // 确保录音已停止 正在录音的时候返回空
         if (_isRecording) return null
 
         return try {

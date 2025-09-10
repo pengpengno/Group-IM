@@ -75,10 +75,8 @@ fun typeTransForm ( type: MessageType) : ChatMessageType{
     return when(type){
         MessageType.TEXT -> ChatMessageType.TEXT
         MessageType.FILE -> ChatMessageType.FILE
-//        MessageType.VOICE -> ChatMessageType.VOICE
-        MessageType.MARKDOWN -> ChatMessageType.FILE
-        MessageType.STREAM -> ChatMessageType.FILE
-        MessageType.VIDEO -> ChatMessageType.FILE
-        MessageType.IMAGE -> ChatMessageType.FILE
+        MessageType.VIDEO -> ChatMessageType.VIDEO
+        MessageType.VOICE -> ChatMessageType.VOICE
+        MessageType.IMAGE -> ChatMessageType.IMAGE
     }
 }

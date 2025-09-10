@@ -24,6 +24,7 @@ interface VoiceRecorder {
 
     /**
      * 获取音频数据
+     * 只有录音停止才会返回数据 ，正在录音则返回null
      */
     fun getVoiceData(): VoiceRecordingResult?
 

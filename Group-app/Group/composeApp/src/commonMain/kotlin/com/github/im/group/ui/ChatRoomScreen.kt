@@ -30,6 +30,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.github.im.group.api.ChatMessageType
+import com.github.im.group.model.MessageItem
+import com.github.im.group.ui.chat.MessageContent
+import com.github.im.group.ui.chat.TextMessage
+import com.github.im.group.ui.chat.VoiceMessage
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.RecorderUiState
@@ -124,6 +129,7 @@ fun ChatRoomScreen(
                 if (userInfo != null) {
                     MessageBubble(
                         isOwnMessage = msg.userInfo.userId == userInfo.userId,
+                        msg = msg,
                         content = content
                     )
                 }
@@ -147,13 +153,13 @@ fun ChatRoomScreen(
                 filePath = playback.filePath,
                 onSend = {
                     voiceViewModel.getVoiceData()?.let {
-                        // {conversationId}-{dateTime}.m4a
-
+                        // voice-{conversationId}-{dateTime}.m4a
                         val fileName = "voice-$conversationId-" + Clock.System.now()
                             .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
-                        messageViewModel.sendFileMessage(conversationId, it.bytes,fileName)
+                        messageViewModel.sendVoiceMessage(conversationId, it.bytes,fileName,it.durationMillis)
                     }
                 },
+                duration = voiceViewModel.getVoiceData()?.durationMillis ?: 0,
                 onCancel = { voiceViewModel.cancel() }
             )
         }
@@ -164,7 +170,7 @@ fun ChatRoomScreen(
  * 聊天气泡
  */
 @Composable
-fun MessageBubble(isOwnMessage: Boolean, content: String) {
+fun MessageBubble(isOwnMessage: Boolean, msg : MessageItem, content: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -176,11 +182,20 @@ fun MessageBubble(isOwnMessage: Boolean, content: String) {
             shape = MaterialTheme.shapes.medium,
             tonalElevation = 1.dp
         ) {
-            Text(
-                text = content,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                color = Color.Black
-            )
+            val type = msg.type
+            when(type)
+                {
+                    ChatMessageType.TEXT -> TextMessage(MessageContent.Text(msg.content))
+                    ChatMessageType.VOICE -> VoiceMessage(MessageContent.Voice(msg.content,1),{})
+                    ChatMessageType.FILE -> println(msg)
+                    ChatMessageType.VIDEO -> TODO()
+                    ChatMessageType.IMAGE -> TODO()
+            }
+//            Text(
+//                text = content,
+//                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+//                color = Color.Black
+//            )
         }
     }
 }

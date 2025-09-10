@@ -51,6 +51,8 @@ class SenderSdk(
 
     }
 
+
+
     /**
      * 发送消息
      */
@@ -59,6 +61,7 @@ class SenderSdk(
         val baseMessage = BaseMessagePkg(message = chatMessage)
 
         CoroutineScope(Dispatchers.IO).launch {
+
             send(BaseMessagePkg.ADAPTER.encode(baseMessage))
 
         }
@@ -89,8 +92,9 @@ class SenderSdk(
     }
 
 
-
-
+    /**
+     * 发送数据
+     */
     private suspend fun send(data: ByteArray){
 
         if (!tcpClient.isActive()){
@@ -104,6 +108,7 @@ class SenderSdk(
 
     /**
      * 注册到远程服务器
+     * 开始连接
      */
     private suspend fun registerToRemote() {
         // 首先 建立TCP 连接通道
@@ -127,6 +132,7 @@ class SenderSdk(
             }
 
         }
+        startAutoReconnect()
 
     }
 

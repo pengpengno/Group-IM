@@ -5,7 +5,6 @@ import cafe.adriel.voyager.navigator.Navigator
 import com.github.im.group.ui.LoginScreen
 
 @Composable
-//@Preview
 fun App() {
 
     Navigator(LoginScreen())

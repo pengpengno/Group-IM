@@ -82,27 +82,5 @@ class VoiceViewModel(
     }
 
 
-//    fun send(conversationId: Long) {
-//        val playback = _uiState.value as? RecorderUiState.Playback ?: return
-//        voiceRecorder.getVoiceData()?.let {
-//
-//            senderSdk.sendVoiceMessage(
-//                conversationId,
-//                it.bytes,
-//                it.durationMillis
-//            )
-//        }
-//    }
-//    fun send(onSend: (filePath: String, duration: Long) -> Unit) {
-//        val playback = _uiState.value as? RecorderUiState.Playback ?: return
-//        onSend(playback.filePath, playback.duration)
-//        _uiState.value = RecorderUiState.Idle
-//    }
-
-
-
-
-
-
 }
 

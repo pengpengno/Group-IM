@@ -6,7 +6,6 @@ import io.ktor.http.HttpMethod
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlin.uuid.ExperimentalUuidApi
 
 
 object LoginApi {
@@ -73,16 +72,13 @@ object ConversationApi{
  * 文件处理 API
  */
 object FileApi {
-    @OptIn(ExperimentalUuidApi::class)
-    suspend fun uploadFile(file: ByteArray,fileName:String): FileUploadResponse {
-//        return ProxyApi.request<ByteArray, FileUploadResponse>(
-//            hmethod = HttpMethod.Post,
-//            path = "/api/files/upload",
-//            requestParams = mapOf("uploaderId" to Uuid.random().toString()),
-//            body = file
-//        )
-        return ProxyApi.uploadFile(file, fileName)
+    suspend fun uploadFile(file: ByteArray,fileName:String,duration:Long): FileUploadResponse {
+        return ProxyApi.uploadFile(file, fileName,duration)
     }
+
+//    suspend fun uploadVoiceFile(file: ByteArray,fileName:String,duration:Long): FileUploadResponse {
+//        return ProxyApi.uploadFile(file, fileName,duration)
+//    }
 }
 /**
  * Chat Api
@@ -156,11 +152,6 @@ enum class MessageStatus {
     SENT,
     UNSENT;
 
-//    companion object {
-//        fun fromCode(code: String): MessageStatus? {
-//            return entries.find { it.toString() == code }
-//        }
-//    }
 }
 
 @Serializable
@@ -169,6 +160,12 @@ enum class ChatMessageType {
     TEXT,
 //   文件
     FILE,
+
+    VOICE,
+
+    VIDEO,
+
+    IMAGE ,
 
 }
 
@@ -206,6 +203,7 @@ data class FileUploadResponse(
 )
 @Serializable
 @SerialName("FILE")
+//Kotlinx Serialization 默认会使用 "type" 字段 进行多态
 data class FileMeta(
     @SerialName("filename")
     val fileName: String,
@@ -214,7 +212,9 @@ data class FileMeta(
     val size: Long,
 
     val contentType: String,
-    val hash: String
+
+    val hash: String,
+
 ) : MessagePayLoad
 
 @Serializable
@@ -235,8 +235,8 @@ data class MessageDTO(
     val type: ChatMessageType ,
     val status: MessageStatus ,
     val timestamp: String, // ISO 格式时间
-    val payload: MessagePayLoad? = null
 
+    val payload: MessagePayLoad? = null
 
 ){
 
@@ -273,10 +273,6 @@ data class ConversationRes(
             }
         }
     }
-
-//    companion object {
-//        fun empty(): ConversationRes = ConversationRes()
-//    }
 }
 
 @Serializable

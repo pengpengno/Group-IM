@@ -1,0 +1,86 @@
+CREATE TABLE ConversationMember (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  conversationId INTEGER NOT NULL,   -- 外键，指向 Conversation
+  userId INTEGER NOT NULL,           -- 外键，指向 User
+  joinedAt INTEGER NOT NULL,         -- LocalDateTime → epoch millis
+  leftAt INTEGER                     -- LocalDateTime → epoch millis，可为空
+
+  -- 如果你要严格外键，可以加：
+  -- FOREIGN KEY (conversationId) REFERENCES Conversation(conversationId),
+  -- FOREIGN KEY (userId) REFERENCES User(userId)
+);
+
+selectAll:
+SELECT * FROM ConversationMember;
+
+selectByConversation:
+SELECT * FROM ConversationMember WHERE conversationId = ?;
+
+selectByUser:
+SELECT * FROM ConversationMember WHERE userId = ?;
+
+insertMember:
+INSERT INTO ConversationMember(
+  conversationId, userId, joinedAt, leftAt
+) VALUES (?, ?, ?, ?);
+
+updateMember:
+UPDATE ConversationMember
+SET conversationId = ?, userId = ?, joinedAt = ?, leftAt = ?
+WHERE id = ?;
+
+deleteMember:
+DELETE FROM ConversationMember WHERE id = ?;
+
+deleteByConversation:
+DELETE FROM ConversationMember WHERE conversationId = ?;
+
+deleteByUser:
+DELETE FROM ConversationMember WHERE userId = ?;
+
+--  查询某会话的所有用户（带 member 信息）
+selectUsersByConversation:
+SELECT
+  cm.id AS cm_id,
+  cm.conversationId AS cm_conversationId,
+  cm.userId AS cm_userId,
+  cm.joinedAt AS cm_joinedAt,
+  cm.leftAt AS cm_leftAt,
+  u.userId AS u_userId,
+  u.username AS u_username,
+  u.email AS u_email,
+  u.avatarUrl AS u_avatarUrl
+FROM ConversationMember AS cm
+JOIN User AS u ON u.userId = cm.userId
+WHERE cm.conversationId = ?;
+
+
+--  查询某用户加入的所有会话（带 member 信息）
+selectConversationsByUser:
+SELECT
+  cm.id AS cm_id,
+  cm.conversationId AS cm_conversationId,
+  cm.userId AS cm_userId,
+  cm.joinedAt AS cm_joinedAt,
+  c.conversationId AS c_conversationId,
+  c.groupName AS groupName,
+  c.updatedAt AS c_updatedAt
+FROM ConversationMember AS cm
+JOIN Conversation AS c ON c.conversationId = cm.conversationId
+WHERE cm.userId = ?;
+
+--  分页查询会话成员（按加入时间）
+selectMembersPaged:
+SELECT
+  cm.id AS cm_id,
+  cm.conversationId AS cm_conversationId,
+  cm.userId AS cm_userId,
+  cm.joinedAt AS cm_joinedAt,
+  cm.leftAt AS cm_leftAt,
+  u.userId AS u_userId,
+  u.username AS u_username
+FROM ConversationMember AS cm
+JOIN User AS u ON u.userId = cm.userId
+WHERE cm.conversationId = ?
+ORDER BY cm.joinedAt DESC
+LIMIT ? OFFSET ?;

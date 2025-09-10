@@ -48,7 +48,6 @@ import org.koin.compose.viewmodel.koinViewModel
 class LoginScreen :Screen{
     @Composable
     override fun Content() {
-//        screen()
         loginScreen()
     }
 }

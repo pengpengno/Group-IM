@@ -6,15 +6,14 @@ interface SocketClient {
 
     suspend fun connect(host: String, port: Int)
 
-    /**
-     * 连接注册到远程服务器
-     */
-//    suspend fun registerToRemote(data: AccountInfo)
+
 
     /**
      * 发送消息
+     * @param data 字节流数据 如果是 Protobuf的 数据请注意编解码
      */
     suspend fun send(data: ByteArray)
+
     suspend fun receive(): ByteArray
 
     fun isActive(): Boolean

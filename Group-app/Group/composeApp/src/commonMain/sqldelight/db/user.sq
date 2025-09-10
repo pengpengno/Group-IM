@@ -1,0 +1,34 @@
+import com.github.im.group.db.entities.UserStatus;
+
+CREATE TABLE User (
+  userId INTEGER NOT NULL PRIMARY KEY  ,
+  username TEXT ,
+  email TEXT ,
+  phoneNumber TEXT ,
+  avatarUrl TEXT,
+  bio TEXT,
+  userStatus TEXT AS UserStatus NOT NULL DEFAULT 'ACTIVE'          -- 对应枚举 Status (ACTIVE, INACTIVE 等)
+);
+
+selectAll:
+SELECT * FROM User;
+
+selectById:
+SELECT * FROM User WHERE userId = ?;
+
+selectByUsername:
+SELECT * FROM User WHERE username = ?;
+
+insertUser:
+INSERT INTO User (
+  userId,
+  username, email, phoneNumber, avatarUrl, bio,  userStatus
+) VALUES (?,?, ?, ?, ?, ?, ?);
+
+updateUser:
+UPDATE User
+SET username = ?, email = ?, phoneNumber = ? ,avatarUrl = ?, bio = ? ,userStatus = ?
+WHERE userId = ?;
+
+deleteUser:
+DELETE FROM User WHERE userId = ?;

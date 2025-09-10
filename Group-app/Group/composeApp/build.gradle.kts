@@ -1,6 +1,7 @@
 
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 val voyagerVersion = "1.1.0-beta02"
 
 plugins {
@@ -46,8 +47,7 @@ kotlin {
         val desktopMain by getting
 
         // 挂载 Protobuf 生成的 Java 源码
-//        androidMain.kotlin.srcDir("build/generated/source/proto/main/java")
-//        desktopMain.kotlin.srcDir("build/generated/source/proto/main/java")
+
         val camerax_version = "1.2.2"
 
 
@@ -74,6 +74,7 @@ kotlin {
 
         }
         commonMain.dependencies {
+            implementation("media.kamel:kamel-image:0.9.5")
 
             implementation("com.squareup.wire:wire-runtime:4.8.1")
 
@@ -136,7 +137,7 @@ wire {
         // ✅ 这表示会生成 Kotlin 数据类到 commonMain 下
         // 默认生成到 build/generated/source/wire
         // 你可以自定义 outputPath
-        android = false         // 如果你希望针对 JVM，而不是 Android 目标
+        android = false         // 针对 JVM，而不是 Android 目标
         javaInterop = false
     }
 }
@@ -146,8 +147,8 @@ sqldelight {
 //    ./gradlew generateCommonMainAppDatabaseInterface
     databases {
         create("AppDatabase") {
-//            packageName.set("com.github.im.group.db")
-            packageName.set("db")
+            packageName.set("com.github.im.group.db")
+//            packageName.set("db")
         }
     }
 }
@@ -198,3 +199,76 @@ compose.desktop {
         }
     }
 }
+//
+//// 自动生成 SQLDelight 文件的 Gradle Task
+//tasks.register("generateSqlDelight") {
+//    //TODO 等待 自动生成任务
+//
+//    group = "sqldelight"
+//    description = "Generate .sq files from Kotlin data classes"
+//    dependsOn("compileKotlinMetadata") // 先编译 commonMain
+//
+//    doLast {
+//        // 1. Kotlin 数据类包路径
+//        val entityPackage = "com.github.im.group.db.entities" // 你的实体包
+//
+//        // 2. 输出路径
+//        val outputDir =
+//            File(layout.buildDirectory.get().asFile, "sqldelight/com/github/im/group/db")
+//        outputDir.mkdirs()
+//
+//        // 3. 反射扫描实体类
+//        val classLoader = Thread.currentThread().contextClassLoader
+//        val classes = Class.forName(entityPackage + "", true, classLoader).kotlin // 可扩展扫描多个类
+//
+//        // ✅ 手动维护实体列表
+//        val entities: List<KClass<*>> = listOf(
+////            com.github.im.group.db.entities.ChatMessage::class,
+////            com.github.im.group.db.entities.Conversation::class,
+////            com.github.im.group.db.entities.User::class
+//        )
+//
+//        entities.forEach { kClass ->
+//            val tableName = kClass.simpleName!!.replaceFirstChar { it.lowercase() }
+//            fun generateSql(kClass: KClass<*>): String {
+//                val tableName = kClass.simpleName!!.replaceFirstChar { it.lowercase() }
+//
+//                val columns = kClass.memberProperties.joinToString(",\n") { prop ->
+//                    val sqlType = when (prop.returnType.toString()) {
+//                        "kotlin.Long", "kotlin.Long?" -> "INTEGER"
+//                        "kotlin.Int", "kotlin.Int?" -> "INTEGER"
+//                        "kotlin.String", "kotlin.String?" -> "TEXT"
+//                        "kotlin.Boolean", "kotlin.Boolean?" -> "INTEGER"
+//                        else -> "TEXT"
+//                    }
+//                    val primaryKey = if (prop.name == "msgId") " PRIMARY KEY AUTOINCREMENT" else ""
+//                    "${prop.name} $sqlType$primaryKey"
+//                }
+//
+//                val columnNames = kClass.memberProperties.joinToString(", ") { it.name }
+//                val columnParams = kClass.memberProperties.joinToString(", ") { "?" }
+//
+//                return """
+//                CREATE TABLE $tableName (
+//                    $columns
+//                );
+//
+//                selectAll:
+//                SELECT * FROM $tableName;
+//
+//                insert:
+//                INSERT INTO $tableName($columnNames) VALUES ($columnParams);
+//
+//                deleteById:
+//                DELETE FROM $tableName WHERE msgId = ?;
+//            """.trimIndent()
+//            }
+//
+//            // 生成 SQL 文件
+//            val sqlFile = File(outputDir, "${classes.simpleName}.sq")
+//            sqlFile.writeText(generateSql(classes))
+//
+//            println("Generated SQLDelight file: ${sqlFile.absolutePath}")
+//        }
+//    }
+//}

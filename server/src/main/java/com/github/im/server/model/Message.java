@@ -1,5 +1,6 @@
 package com.github.im.server.model;
 
+import cn.hutool.json.JSONObject;
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.enums.MessageStatus;
 import com.github.im.enums.MessageType;
@@ -33,7 +34,7 @@ public class Message {
      *
      * <ul>
      *     <li>文本消息</li>
-     *     <li>文件</li>
+     *     <li>文件 会使用 {@link FileResource#getId()}</li>
      *     <li>链接消息</li>
      * </ul>
      */
@@ -58,6 +59,11 @@ public class Message {
     @Enumerated(EnumType.STRING)
     private MessageStatus status;  // 消息状态
 
+//    /**
+//     * 额外的元数据信息
+//     */
+//    private FileExtraMeta extraMeta; // 额外的元数据信息
+
     private LocalDateTime clientTimestamp;  // 客户端发送时间
 
     private LocalDateTime timestamp;  // 消息时间戳
@@ -69,7 +75,5 @@ public class Message {
     protected void onPersist() {
         createTime = LocalDateTime.now();;
     }
-
-
 
 }

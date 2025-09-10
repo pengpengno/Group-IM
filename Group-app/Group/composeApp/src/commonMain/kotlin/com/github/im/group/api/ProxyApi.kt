@@ -25,20 +25,26 @@ import kotlin.uuid.Uuid
 
 
 object ProxyApi
-//     val proxyConfigProvider: () -> ProxySettingsState
   : KoinComponent {
-//    private val logger = LoggerFactory.getLogger("ProxyApi")
 
     val client = HttpClient() {
         install(ContentNegotiation) {
             json(Json {
+                classDiscriminator = "type"  // 指定多态字段名
                 ignoreUnknownKeys = true
+                coerceInputValues = true     // null 值使用默认
             })
         }
     }
 
+    /**
+     * 文件上传
+     * @param file  文件
+     * @param fileName 文件名
+     * @param duration 文件时长 适用于音频/ 视频文件
+     */
     @OptIn(ExperimentalUuidApi::class)
-    suspend fun uploadFile(file: ByteArray, fileName: String ):FileUploadResponse {
+    suspend fun uploadFile(file: ByteArray, fileName: String , duration: Long=0):FileUploadResponse {
 
         val baseUrl = if (ProxyConfig.enableProxy) {
             "http://${ProxyConfig.host}:${ProxyConfig.port}"
@@ -52,6 +58,7 @@ object ProxyApi
             formData = formData {
 
                 append("uploaderId", Uuid.random().toString())
+                append("duration", duration)
                 append("file", file, Headers.build {
                     append(HttpHeaders.ContentDisposition, "filename=$fileName")
                     // 不需要添加 服务端会自行判断

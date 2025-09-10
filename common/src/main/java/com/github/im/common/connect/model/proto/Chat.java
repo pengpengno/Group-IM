@@ -35,17 +35,9 @@ public final class Chat {
      */
     TEXT(0),
     /**
-     * <code>MARKDOWN = 5;</code>
-     */
-    MARKDOWN(5),
-    /**
      * <code>FILE = 1;</code>
      */
     FILE(1),
-    /**
-     * <code>STREAM = 2;</code>
-     */
-    STREAM(2),
     /**
      * <code>VIDEO = 3;</code>
      */
@@ -54,6 +46,10 @@ public final class Chat {
      * <code>IMAGE = 6;</code>
      */
     IMAGE(6),
+    /**
+     * <code>VOICE = 4;</code>
+     */
+    VOICE(4),
     UNRECOGNIZED(-1),
     ;
 
@@ -71,17 +67,9 @@ public final class Chat {
      */
     public static final int TEXT_VALUE = 0;
     /**
-     * <code>MARKDOWN = 5;</code>
-     */
-    public static final int MARKDOWN_VALUE = 5;
-    /**
      * <code>FILE = 1;</code>
      */
     public static final int FILE_VALUE = 1;
-    /**
-     * <code>STREAM = 2;</code>
-     */
-    public static final int STREAM_VALUE = 2;
     /**
      * <code>VIDEO = 3;</code>
      */
@@ -90,6 +78,10 @@ public final class Chat {
      * <code>IMAGE = 6;</code>
      */
     public static final int IMAGE_VALUE = 6;
+    /**
+     * <code>VOICE = 4;</code>
+     */
+    public static final int VOICE_VALUE = 4;
 
 
     public final int getNumber() {
@@ -117,11 +109,10 @@ public final class Chat {
     public static MessageType forNumber(int value) {
       switch (value) {
         case 0: return TEXT;
-        case 5: return MARKDOWN;
         case 1: return FILE;
-        case 2: return STREAM;
         case 3: return VIDEO;
         case 6: return IMAGE;
+        case 4: return VOICE;
         default: return null;
       }
     }
@@ -2206,11 +2197,11 @@ public final class Chat {
       "essage.MessagesStatus\022\022\n\nsequenceId\030\005 \001(" +
       "\003\"p\n\016MessagesStatus\022\n\n\006REJECT\020\000\022\013\n\007OFFLI" +
       "NE\020\001\022\014\n\010SENTFAIL\020\007\022\013\n\007HISTORY\020\n\022\010\n\004READ\020" +
-      "\003\022\n\n\006UNREAD\020\002\022\010\n\004SENT\020\005\022\n\n\006UNSENT\020\013*Q\n\013M" +
-      "essageType\022\010\n\004TEXT\020\000\022\014\n\010MARKDOWN\020\005\022\010\n\004FI" +
-      "LE\020\001\022\n\n\006STREAM\020\002\022\t\n\005VIDEO\020\003\022\t\n\005IMAGE\020\006B0" +
-      "\n(com.github.im.common.connect.model.pro" +
-      "toB\004Chatb\006proto3"
+      "\003\022\n\n\006UNREAD\020\002\022\010\n\004SENT\020\005\022\n\n\006UNSENT\020\013*B\n\013M" +
+      "essageType\022\010\n\004TEXT\020\000\022\010\n\004FILE\020\001\022\t\n\005VIDEO\020" +
+      "\003\022\t\n\005IMAGE\020\006\022\t\n\005VOICE\020\004B0\n(com.github.im" +
+      ".common.connect.model.protoB\004Chatb\006proto" +
+      "3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,

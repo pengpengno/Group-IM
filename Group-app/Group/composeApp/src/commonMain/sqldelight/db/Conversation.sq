@@ -1,0 +1,30 @@
+CREATE TABLE Conversation (
+  conversationId INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  conversationType TEXT NOT NULL,   -- 映射 ConversationType 枚举
+  groupName TEXT,
+  description TEXT,
+  createdBy INTEGER NOT NULL,       -- 对应 User.userId
+  createdAt INTEGER,
+  updatedAt INTEGER,
+  status TEXT NOT NULL              -- 映射 ConversationStatus 枚举
+);
+
+selectAllConversations:
+SELECT * FROM Conversation;
+
+selectConversationById:
+SELECT * FROM Conversation
+WHERE conversationId = ?;
+
+insertConversation:
+INSERT INTO Conversation(
+  conversationType, groupName, description, createdBy, createdAt, updatedAt, status
+) VALUES (?, ?, ?, ?, ?, ?, ?);
+
+updateConversationStatus:
+UPDATE Conversation
+SET status = ?, updatedAt = ?
+WHERE conversationId = ?;
+
+deleteConversation:
+DELETE FROM Conversation WHERE conversationId = ?;

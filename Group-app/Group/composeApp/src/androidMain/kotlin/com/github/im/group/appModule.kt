@@ -1,8 +1,10 @@
 package com.github.im.group
 
+import android.content.Context
 import com.github.im.group.api.LoginApi
 import com.github.im.group.config.SocketClient
 import com.github.im.group.connect.AndroidSocketClient
+import com.github.im.group.db.AndroidDatabaseDriverFactory
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.AndroidAudioPlayer
@@ -26,11 +28,13 @@ val appModule = module {
 
     single<LoginApi> { LoginApi }
 
+    single { AndroidDatabaseDriverFactory(get<Context>()) }  // 注册工厂
+    single { get<AndroidDatabaseDriverFactory>().createDatabase() }  // 注册 AppDatabase 单例
+
     single<FilePicker> { AndroidFilePicker(androidContext()) }
     single<AudioPlayer> { AndroidAudioPlayer(androidContext()) }
 
-    single { Greeting() }
-    single { UserRepository() }
+    single { UserRepository(get()) }
     viewModelOf (::ChatViewModel)
     viewModelOf (::ChatMessageViewModel)
     single { ChatSessionManager() }
@@ -46,7 +50,5 @@ val appModule = module {
     single { (SenderSdk(get())) }
 
     viewModelOf(::UserViewModel)  // 注册为 ViewModel，由 Koin 自动管理生命周期
-
-
 
 }

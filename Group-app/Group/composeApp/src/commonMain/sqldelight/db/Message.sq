@@ -1,4 +1,7 @@
--- commonMain/sqldelight/com/example/database/Message.sq
+-- commonMain/sqldelight/com/github/im/db/Message.sq
+import com.github.im.group.db.entities.EnumData;
+import com.github.im.group.db.entities.MessageStatus;
+
 CREATE TABLE message (
     msg_id INTEGER PRIMARY KEY AUTOINCREMENT,
     conversation_id TEXT NOT NULL,  -- 外键保存 conversationId
@@ -6,7 +9,7 @@ CREATE TABLE message (
     content TEXT,
     sequence_id INTEGER NOT NULL DEFAULT 0,
     type TEXT NOT NULL,             -- MessageType
-    status TEXT NOT NULL,           -- MessageStatus
+    status TEXT AS MessageStatus NOT NULL ,           -- MessageStatus
     client_timestamp INTEGER,       -- 存为时间戳
     timestamp INTEGER,              -- 存为时间戳
     create_time INTEGER NOT NULL    -- 存为时间戳

@@ -336,6 +336,7 @@ fun MaskVoiceButton(
 fun RecordingPlaybackOverlay(
     audioPlayer: AudioPlayer,
     filePath: String,
+    duration: Long,
     onSend:  () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -347,11 +348,12 @@ fun RecordingPlaybackOverlay(
         if (isPlaying) {
             audioPlayer.play(filePath)
             scope.launch {
-                while (isPlaying && currentPosition < audioPlayer.duration) {
+//                while (isPlaying && currentPosition < audioPlayer.duration) {
+                while (isPlaying && currentPosition < duration) {
                     delay(100)
                     currentPosition = audioPlayer.currentPosition
                 }
-                if (currentPosition >= audioPlayer.duration) {
+                if (currentPosition >= duration) {
                     isPlaying = false
                 }
             }

@@ -1,0 +1,32 @@
+
+-- 文件资源表
+CREATE TABLE FileResource (
+  id TEXT NOT NULL PRIMARY KEY,         -- UUID 存为 TEXT
+  originalName TEXT,
+  extension TEXT,
+  contentType TEXT,
+  size INTEGER NOT NULL,                -- long → INTEGER
+  storagePath TEXT,
+  storageType TEXT,                     -- StorageType 枚举 → TEXT
+  hash TEXT,
+  md5 TEXT,
+  uploadTime INTEGER,                   -- Instant 存为 epoch millis
+  uploaderId TEXT,                      -- UUID 存为 TEXT
+  status TEXT ,                           -- FileStatus 枚举 → TEXT
+  remark TEXT
+);
+
+selectAllFiles:
+SELECT * FROM FileResource;
+
+selectFileById:
+SELECT * FROM FileResource
+WHERE id = ?;
+
+insertFile:
+INSERT INTO FileResource(
+  id, originalName, extension, contentType, size, storagePath, storageType, hash, uploadTime, uploaderId, status, remark
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteFile:
+DELETE FROM FileResource WHERE id = ?;

@@ -3,12 +3,11 @@ package com.github.im.enums;
 public enum MessageType {
     TEXT(0),
     FILE(1),
-    @Deprecated
-    STREAM(2),
-    @Deprecated
+    VOICE(2),
     VIDEO(3),
-    @Deprecated
-    MARKDOWN(5);
+    IMAGE(4),
+
+    ;
 
     private final int code;
 

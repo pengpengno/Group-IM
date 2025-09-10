@@ -15,36 +15,18 @@ import org.koin.core.context.startKoin
  * 主程序入口
  */
 class MainActivity : ComponentActivity() {
-//    private val activityResultLauncher =
-//        registerForActivityResult(
-//            ActivityResultContracts.RequestMultiplePermissions())
-//        { permissions ->
-//            // Handle Permission granted/rejected
-//            var permissionGranted = true
-//            permissions.entries.forEach {
-//                if (it.key in REQUIRED_PERMISSIONS && it.value == false)
-//                    permissionGranted = false
-//            }
-//            if (!permissionGranted) {
-//                Toast.makeText(baseContext,
-//                    "Permission request denied",
-//                    Toast.LENGTH_SHORT).show()
-//            } else {
-//                startCamera()
-//            }
-//        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         GlobalCredentialProvider.storage = AndroidCredentialStorage(applicationContext)
         VoiceRecorderFactory.context = applicationContext
 
-
         initAndroidContext(applicationContext)
         startKoin {
             androidLogger()
             androidContext(this@MainActivity)
-            modules(appModule)
+            modules(appModule, appModule)
         }
         setContent {
             App()
