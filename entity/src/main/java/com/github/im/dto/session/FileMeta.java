@@ -20,6 +20,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FileMeta implements MessagePayLoad{
 
+    private String fileId;   // 服务端生成的文件Id
+
+    private String clientId; // 客户端生成的文件Id
 
     private String filename;
 
@@ -28,6 +31,12 @@ public class FileMeta implements MessagePayLoad{
     private String contentType;
 
     private String hash ;
+
+    /**
+     * 文件时长 单位 mills
+     * 适用于 视频音频文件
+     */
+    private Long duration;
 
 
 }

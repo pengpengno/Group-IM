@@ -1,32 +1,65 @@
+import com.github.im.group.db.entities.FileStatus;
+import kotlinx.datetime.LocalDateTime;
 
 -- 文件资源表
 CREATE TABLE FileResource (
-  id TEXT NOT NULL PRIMARY KEY,         -- UUID 存为 TEXT
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT ,         --自增
   originalName TEXT,
-  extension TEXT,
   contentType TEXT,
-  size INTEGER NOT NULL,                -- long → INTEGER
-  storagePath TEXT,
-  storageType TEXT,                     -- StorageType 枚举 → TEXT
-  hash TEXT,
-  md5 TEXT,
-  uploadTime INTEGER,                   -- Instant 存为 epoch millis
-  uploaderId TEXT,                      -- UUID 存为 TEXT
-  status TEXT ,                           -- FileStatus 枚举 → TEXT
-  remark TEXT
+  serverId TEXT ,    -- 服务端文件uuId
+  size INTEGER NOT NULL,
+  storagePath TEXT NOT NULL,   -- 在 本地的存储路径
+  hash TEXT NOT NULL,
+  uploadTime INTEGER AS LocalDateTime,                   -- Instant 存为 epoch millis 文件上传完毕得时间
+  clientId TEXT NOT NULL,                      -- 客户端生成得 UUID
+  status TEXT AS FileStatus NOT NULL DEFAULT 'NORMAL'     -- FileStatus 枚举 → TEXT
 );
-
-selectAllFiles:
-SELECT * FROM FileResource;
 
 selectFileById:
 SELECT * FROM FileResource
 WHERE id = ?;
 
+-- 根据客户端生成的 ID 查询文件
+selectFileByClientId:
+SELECT * FROM FileResource
+WHERE clientId = ?;
+
 insertFile:
-INSERT INTO FileResource(
-  id, originalName, extension, contentType, size, storagePath, storageType, hash, uploadTime, uploaderId, status, remark
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO FileResource (
+  originalName,
+  contentType,
+  size,
+  storagePath,
+  hash,
+  uploadTime,
+  clientId,
+  status
+) VALUES (
+  ?,
+  ?,
+  ?,
+  ?,
+  ?,
+  ?,
+  ?,
+  ?
+);
+
 
 deleteFile:
 DELETE FROM FileResource WHERE id = ?;
+
+
+updateFileByClientId:
+UPDATE FileResource
+SET
+  originalName = ?,
+  contentType = ?,
+  size = ?,
+  storagePath = ?,
+  hash = ?,
+  uploadTime = ?,
+  clientId = ?,
+  status = ?
+WHERE clientId = ?;
+

@@ -1,12 +1,14 @@
+import com.github.im.group.db.entities.ConversationStatus;
+import kotlinx.datetime.LocalDateTime;
+
 CREATE TABLE Conversation (
-  conversationId INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  conversationType TEXT NOT NULL,   -- 映射 ConversationType 枚举
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  conversationId INTEGER NOT NULL,          -- 会话Id
   groupName TEXT,
-  description TEXT,
+  description TEXT,                 -- 秒速
   createdBy INTEGER NOT NULL,       -- 对应 User.userId
-  createdAt INTEGER,
-  updatedAt INTEGER,
-  status TEXT NOT NULL              -- 映射 ConversationStatus 枚举
+  createdAt INTEGER AS LocalDateTime DEFAULT CURRENT_TIMESTAMP,
+  status TEXT AS ConversationStatus NOT NULL               -- 映射 ConversationStatus 枚举
 );
 
 selectAllConversations:
@@ -18,12 +20,12 @@ WHERE conversationId = ?;
 
 insertConversation:
 INSERT INTO Conversation(
-  conversationType, groupName, description, createdBy, createdAt, updatedAt, status
-) VALUES (?, ?, ?, ?, ?, ?, ?);
+   conversationId ,groupName, description, createdBy, createdAt, status
+) VALUES ( ?, ?, ?, ?, ?, ?);
 
 updateConversationStatus:
 UPDATE Conversation
-SET status = ?, updatedAt = ?
+SET status = ?
 WHERE conversationId = ?;
 
 deleteConversation:

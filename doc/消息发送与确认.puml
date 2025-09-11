@@ -1,0 +1,20 @@
+@startuml
+title 消息发送与确认QoS1 + ACK
+actor User as U
+participant ClientApp as C
+database LocalDB as DB
+participant Server as S
+
+U -> C : 发送消息 "Hello"
+C -> DB : INSERT message(\n content="Hello",\n client_msg_id="uuid-123",\n status="SENDING")
+DB --> C : 本地 id=5
+
+C -> S : 发送消息请求\n{client_msg_id="uuid-123", content="Hello"}
+S -> S : 入库消息\n分配 sequence_id=141
+S -> C : 返回 ACK\n{client_msg_id="uuid-123", sequence_id=141, status="SENT"}
+
+C -> DB : UPDATE message\nSET sequence_id=141, status="SENT"\nWHERE client_msg_id="uuid-123"
+DB --> C : 更新完成
+
+C -> U : 显示消息，按 sequence_id 排序
+@enduml

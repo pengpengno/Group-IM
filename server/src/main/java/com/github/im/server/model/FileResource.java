@@ -26,6 +26,10 @@ public class FileResource {
     private long size;
 
     private String storagePath;
+    /**
+     * 文件时长  ， 适用于 视频 / 音频文件 单位为秒
+     */
+    private Long duration;
 
     @Enumerated(EnumType.STRING)
     private StorageType storageType;
@@ -34,14 +38,15 @@ public class FileResource {
 
     private Instant uploadTime;
 
+    private UUID clientId;
     private UUID uploaderId;
+
 
     @Enumerated(EnumType.STRING)
     private FileStatus status;
 
     private String remark;
 
-    // Getters and Setters
 
 
 

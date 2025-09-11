@@ -1,0 +1,21 @@
+@startuml
+actor Client
+participant "Local DB" as DB
+participant Server
+
+== 消息发送流程 ==
+Client -> DB : 插入消息\n(status=SENDING, client_msg_id=UUID)
+Client -> Server : 发送消息(payload+client_msg_id)
+Server -> Server : 入库并分配 seq_id
+Server --> Client : ACK(client_msg_id, seq_id)
+
+== 客户端更新 ==
+Client -> DB : 更新消息\n(status=SENT, seq_id=xxx)
+
+== 异常情况 ==
+... 如果 ACK 超时 ...
+Client -> Server : 重发消息(payload+client_msg_id)
+Server -> Server : 幂等检查\n(根据 client_msg_id)
+Server --> Client : ACK(client_msg_id, seq_id)
+
+@enduml

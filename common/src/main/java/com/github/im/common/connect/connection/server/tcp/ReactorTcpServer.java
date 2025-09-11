@@ -87,12 +87,12 @@ public class ReactorTcpServer implements ReactiveServer {
                 .doOnConnection(connection -> {
                     allChannels.add(connection.channel()); // 将连接添加到管理组
 
-//                    connection
-//                            .addHandlerLast(new ProtobufVarint32FrameDecoder())
-//                            .addHandlerLast(protobufDecoder)
-//                            .addHandlerLast(protobufVarint32LengthFieldPrepender)
-//                            .addHandlerLast(protobufEncoder)
-//                            ;
+                    connection
+                            .addHandlerLast(new ProtobufVarint32FrameDecoder())
+                            .addHandlerLast(protobufDecoder)
+                            .addHandlerLast(protobufVarint32LengthFieldPrepender)
+                            .addHandlerLast(protobufEncoder)
+                            ;
                 })
                 .doOnChannelInit((observer, channel, remoteAddress) ->   channel.pipeline()
                         .addFirst(new LoggingHandler("reactor.netty")))

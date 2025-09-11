@@ -10,7 +10,7 @@ import "Account.proto";
 message ChatMessage  {
 
 
-  int64 msgId = 1 ;
+  int64 msgId = 1 ;  // 服务端的消息标识
 
 //  int32 clientSeq = 4; // client sequence
 
@@ -18,10 +18,9 @@ message ChatMessage  {
   //client-server
   int64 conversationId = 9 ;
 
-
   string conversationName = 10 ;
 
-  AccountInfo fromAccountInfo = 2 ;
+  AccountInfo fromAccountInfo = 2 ;F
  // server-client 需要使用 用于指示推送到的客户端
   AccountInfo toAccountInfo = 8 ;
 
@@ -53,6 +52,8 @@ message ChatMessage  {
       SENT = 5 ;
 
       UNSENT = 11 ;  // 用于客户端标识发送状态
+
+      SENDING = 12 ;
 
 
   }

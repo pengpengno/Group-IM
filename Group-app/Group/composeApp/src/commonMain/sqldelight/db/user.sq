@@ -1,4 +1,5 @@
 import com.github.im.group.db.entities.UserStatus;
+import kotlinx.datetime.LocalDateTime;
 
 CREATE TABLE User (
   userId INTEGER NOT NULL PRIMARY KEY  ,
@@ -22,8 +23,10 @@ SELECT * FROM User WHERE username = ?;
 insertUser:
 INSERT INTO User (
   userId,
-  username, email, phoneNumber, avatarUrl, bio,  userStatus
-) VALUES (?,?, ?, ?, ?, ?, ?);
+  username,
+  email,
+  phoneNumber
+) VALUES (?,?, ?, ?);
 
 updateUser:
 UPDATE User

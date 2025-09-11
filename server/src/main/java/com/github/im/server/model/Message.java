@@ -1,14 +1,10 @@
 package com.github.im.server.model;
 
-import cn.hutool.json.JSONObject;
-import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.enums.MessageStatus;
 import com.github.im.enums.MessageType;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.cglib.core.Local;
-
 import java.time.LocalDateTime;
 
 // 消息实体类

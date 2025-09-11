@@ -69,11 +69,24 @@ public class FileStorageService {
         return repository.findById(UUID.fromString(id)).orElseThrow(() -> new FileNotFoundException("File not found: " + id));
     }
 
+//    /**
+//     * 上传 音频文件
+//     * @param file
+//     * @param uploaderId
+//     * @param duration
+//     * @return
+//     * @throws IOException
+//     */
+//    public FileUploadResponse storeVoiceFile(MultipartFile file, UUID uploaderId,Long  duration) throws IOException {
+//
+//    }
+
+
 
     /**
      * 存储单文件（小文件直传）
      */
-    public FileUploadResponse storeFile(MultipartFile file, UUID uploaderId) throws IOException {
+    public FileUploadResponse storeFile(MultipartFile file, UUID uploaderId,Long duration) throws IOException {
         String originalName = file.getOriginalFilename();
         String ext = FileNameUtil.extName(originalName);
         String contentType = file.getContentType();
@@ -105,19 +118,24 @@ public class FileStorageService {
         info.setStorageType(StorageType.LOCAL);
         info.setHash(hash);
         info.setUploadTime(Instant.now());
-        info.setUploaderId(uploaderId);
+        info.setClientId(uploaderId);
         info.setStatus(FileStatus.NORMAL);
+        info.setDuration(duration);
 
         var save = repository.save(info);
         return fileMapper.toDTO(save);
-//        return save;
     }
 
     /**
      * 存储分片
+     * @param file  文件
+     * @param fileHash 文件 hash
+     * @param chunkIndex 当前分片索引
+     * @param totalChunks 总分片数
+     * @param clientId 客户端生成得Id
      */
     public void uploadChunk(MultipartFile file, String fileHash, int chunkIndex,
-                            int totalChunks, UUID uploaderId) throws IOException {
+                            int totalChunks, UUID clientId) throws IOException {
         Path sessionDir = chunkTempDir.resolve(fileHash).normalize();
         Files.createDirectories(sessionDir);
 

@@ -30,11 +30,24 @@ public class FileUploadController {
      */
     @PostMapping("/upload")
     public ResponseEntity<FileUploadResponse> upload(@RequestParam("file") MultipartFile file,
-                                                     @RequestParam("uploaderId") UUID uploaderId) throws IOException {
-        var fileInfo = fileStorageService.storeFile(file, uploaderId);
+                                                     @RequestParam("clientId") UUID clientId,
+                                                     @RequestParam() Long duration   // 音频时长
+    ) throws IOException {
+        var fileInfo = fileStorageService.storeFile(file, clientId,duration);
 
         return ResponseEntity.ok(fileInfo);
     }
+//    /**
+//     * 单文件直接上传接口（小文件适用）
+//     */
+//    @PostMapping("/upload/voice")
+//    public ResponseEntity<FileUploadResponse> voiceUpload(@RequestParam("file") MultipartFile file,
+//                                                     @RequestParam("uploaderId") UUID uploaderId,
+//                                                      @RequestParam() Long duration   // 音频时长
+//    ) throws IOException {
+//        var fileInfo = fileStorageService.storeFile(file, uploaderId,duration);
+//        return ResponseEntity.ok(fileInfo);
+//    }
 
     /**
      * 上传文件分片（支持断点续传）
@@ -44,8 +57,8 @@ public class FileUploadController {
                                             @RequestParam("fileHash") String fileHash,
                                             @RequestParam("chunkIndex") Integer chunkIndex,
                                             @RequestParam("totalChunks") Integer totalChunks,
-                                            @RequestParam("uploaderId") UUID uploaderId) throws IOException {
-        fileStorageService.uploadChunk(file, fileHash, chunkIndex, totalChunks, uploaderId);
+                                            @RequestParam("clientId") UUID clientId) throws IOException {
+        fileStorageService.uploadChunk(file, fileHash, chunkIndex, totalChunks, clientId);
         return ResponseEntity.ok().build();
     }
 

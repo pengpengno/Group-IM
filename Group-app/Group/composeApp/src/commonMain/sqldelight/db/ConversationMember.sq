@@ -1,3 +1,5 @@
+import kotlinx.datetime.LocalDateTime;
+
 CREATE TABLE ConversationMember (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   conversationId INTEGER NOT NULL,   -- 外键，指向 Conversation
@@ -63,8 +65,7 @@ SELECT
   cm.userId AS cm_userId,
   cm.joinedAt AS cm_joinedAt,
   c.conversationId AS c_conversationId,
-  c.groupName AS groupName,
-  c.updatedAt AS c_updatedAt
+  c.groupName AS groupName
 FROM ConversationMember AS cm
 JOIN Conversation AS c ON c.conversationId = cm.conversationId
 WHERE cm.userId = ?;

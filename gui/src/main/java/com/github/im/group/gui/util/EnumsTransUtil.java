@@ -30,15 +30,15 @@ public class EnumsTransUtil {
             case FILE:
                 // 转换为文件消息类型
                 return com.github.im.common.connect.model.proto.Chat.MessageType.FILE;
-            case STREAM:
-                // 转换为流消息类型
-                return com.github.im.common.connect.model.proto.Chat.MessageType.STREAM;
             case VIDEO:
                 // 转换为视频消息类型
                 return com.github.im.common.connect.model.proto.Chat.MessageType.VIDEO;
-            case MARKDOWN:
-                // 转换为Markdown消息类型
-                return com.github.im.common.connect.model.proto.Chat.MessageType.MARKDOWN;
+            case IMAGE:
+                // 转换为图片消息类型
+                return com.github.im.common.connect.model.proto.Chat.MessageType.IMAGE;
+            case VOICE:
+                // 转换为语音消息类型
+                return com.github.im.common.connect.model.proto.Chat.MessageType.VOICE;
             default:
                 // 默认转换为文本消息类型
                 return com.github.im.common.connect.model.proto.Chat.MessageType.TEXT;
@@ -96,12 +96,12 @@ public class EnumsTransUtil {
                 return MessageType.TEXT;
             case FILE:
                 return MessageType.FILE;
-            case STREAM:
-                return MessageType.STREAM;
             case VIDEO:
                 return MessageType.VIDEO;
-            case MARKDOWN:
-                return MessageType.MARKDOWN;
+            case IMAGE:
+                return MessageType.IMAGE;
+            case VOICE:
+                return MessageType.VOICE;
             // 对于未处理的消息类型，默认为TEXT，确保总是有返回值
             default:
                 return MessageType.TEXT;

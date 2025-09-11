@@ -55,6 +55,7 @@ class SenderSdk(
 
     /**
      * 发送消息
+     * @param chatMessage 消息体
      */
     fun sendMessage(chatMessage: ChatMessage){
 
