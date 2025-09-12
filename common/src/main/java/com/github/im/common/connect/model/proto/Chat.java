@@ -174,10 +174,34 @@ public final class Chat {
       com.google.protobuf.MessageOrBuilder {
 
     /**
+     * <pre>
+     * 服务端的消息标识
+     * </pre>
+     *
      * <code>int64 msgId = 1;</code>
      * @return The msgId.
      */
     long getMsgId();
+
+    /**
+     * <pre>
+     * client msg Id 配合 sequenceId 用于QOS ACK
+     * </pre>
+     *
+     * <code>string clientMsgId = 4;</code>
+     * @return The clientMsgId.
+     */
+    java.lang.String getClientMsgId();
+    /**
+     * <pre>
+     * client msg Id 配合 sequenceId 用于QOS ACK
+     * </pre>
+     *
+     * <code>string clientMsgId = 4;</code>
+     * @return The bytes for clientMsgId.
+     */
+    com.google.protobuf.ByteString
+        getClientMsgIdBytes();
 
     /**
      * <code>string content = 3;</code>
@@ -256,12 +280,20 @@ public final class Chat {
     com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getToAccountInfoOrBuilder();
 
     /**
+     * <pre>
+     * 客户端时间
+     * </pre>
+     *
      * <code>sint32 clientTimeStamp = 7;</code>
      * @return The clientTimeStamp.
      */
     int getClientTimeStamp();
 
     /**
+     * <pre>
+     * 服务端时间
+     * </pre>
+     *
      * <code>sint32 serverTimeStamp = 12;</code>
      * @return The serverTimeStamp.
      */
@@ -341,6 +373,7 @@ public final class Chat {
       super(builder);
     }
     private ChatMessage() {
+      clientMsgId_ = "";
       content_ = "";
       conversationName_ = "";
       type_ = 0;
@@ -370,17 +403,9 @@ public final class Chat {
        */
       REJECT(0),
       /**
-       * <code>OFFLINE = 1;</code>
-       */
-      OFFLINE(1),
-      /**
        * <code>SENTFAIL = 7;</code>
        */
       SENTFAIL(7),
-      /**
-       * <code>HISTORY = 10;</code>
-       */
-      HISTORY(10),
       /**
        * <code>READ = 3;</code>
        */
@@ -393,14 +418,6 @@ public final class Chat {
        * <code>SENT = 5;</code>
        */
       SENT(5),
-      /**
-       * <pre>
-       * 用于客户端标识发送状态
-       * </pre>
-       *
-       * <code>UNSENT = 11;</code>
-       */
-      UNSENT(11),
       UNRECOGNIZED(-1),
       ;
 
@@ -418,17 +435,9 @@ public final class Chat {
        */
       public static final int REJECT_VALUE = 0;
       /**
-       * <code>OFFLINE = 1;</code>
-       */
-      public static final int OFFLINE_VALUE = 1;
-      /**
        * <code>SENTFAIL = 7;</code>
        */
       public static final int SENTFAIL_VALUE = 7;
-      /**
-       * <code>HISTORY = 10;</code>
-       */
-      public static final int HISTORY_VALUE = 10;
       /**
        * <code>READ = 3;</code>
        */
@@ -441,14 +450,6 @@ public final class Chat {
        * <code>SENT = 5;</code>
        */
       public static final int SENT_VALUE = 5;
-      /**
-       * <pre>
-       * 用于客户端标识发送状态
-       * </pre>
-       *
-       * <code>UNSENT = 11;</code>
-       */
-      public static final int UNSENT_VALUE = 11;
 
 
       public final int getNumber() {
@@ -476,13 +477,10 @@ public final class Chat {
       public static MessagesStatus forNumber(int value) {
         switch (value) {
           case 0: return REJECT;
-          case 1: return OFFLINE;
           case 7: return SENTFAIL;
-          case 10: return HISTORY;
           case 3: return READ;
           case 2: return UNREAD;
           case 5: return SENT;
-          case 11: return UNSENT;
           default: return null;
         }
       }
@@ -543,12 +541,63 @@ public final class Chat {
     public static final int MSGID_FIELD_NUMBER = 1;
     private long msgId_ = 0L;
     /**
+     * <pre>
+     * 服务端的消息标识
+     * </pre>
+     *
      * <code>int64 msgId = 1;</code>
      * @return The msgId.
      */
     @java.lang.Override
     public long getMsgId() {
       return msgId_;
+    }
+
+    public static final int CLIENTMSGID_FIELD_NUMBER = 4;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object clientMsgId_ = "";
+    /**
+     * <pre>
+     * client msg Id 配合 sequenceId 用于QOS ACK
+     * </pre>
+     *
+     * <code>string clientMsgId = 4;</code>
+     * @return The clientMsgId.
+     */
+    @java.lang.Override
+    public java.lang.String getClientMsgId() {
+      java.lang.Object ref = clientMsgId_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        clientMsgId_ = s;
+        return s;
+      }
+    }
+    /**
+     * <pre>
+     * client msg Id 配合 sequenceId 用于QOS ACK
+     * </pre>
+     *
+     * <code>string clientMsgId = 4;</code>
+     * @return The bytes for clientMsgId.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getClientMsgIdBytes() {
+      java.lang.Object ref = clientMsgId_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        clientMsgId_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
     }
 
     public static final int CONTENT_FIELD_NUMBER = 3;
@@ -711,6 +760,10 @@ public final class Chat {
     public static final int CLIENTTIMESTAMP_FIELD_NUMBER = 7;
     private int clientTimeStamp_ = 0;
     /**
+     * <pre>
+     * 客户端时间
+     * </pre>
+     *
      * <code>sint32 clientTimeStamp = 7;</code>
      * @return The clientTimeStamp.
      */
@@ -722,6 +775,10 @@ public final class Chat {
     public static final int SERVERTIMESTAMP_FIELD_NUMBER = 12;
     private int serverTimeStamp_ = 0;
     /**
+     * <pre>
+     * 服务端时间
+     * </pre>
+     *
      * <code>sint32 serverTimeStamp = 12;</code>
      * @return The serverTimeStamp.
      */
@@ -820,6 +877,9 @@ public final class Chat {
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(content_)) {
         com.google.protobuf.GeneratedMessage.writeString(output, 3, content_);
       }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(clientMsgId_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 4, clientMsgId_);
+      }
       if (sequenceId_ != 0L) {
         output.writeInt64(5, sequenceId_);
       }
@@ -863,6 +923,9 @@ public final class Chat {
       }
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(content_)) {
         size += com.google.protobuf.GeneratedMessage.computeStringSize(3, content_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(clientMsgId_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(4, clientMsgId_);
       }
       if (sequenceId_ != 0L) {
         size += com.google.protobuf.CodedOutputStream
@@ -912,6 +975,8 @@ public final class Chat {
 
       if (getMsgId()
           != other.getMsgId()) return false;
+      if (!getClientMsgId()
+          .equals(other.getClientMsgId())) return false;
       if (!getContent()
           .equals(other.getContent())) return false;
       if (getConversationId()
@@ -950,6 +1015,8 @@ public final class Chat {
       hash = (37 * hash) + MSGID_FIELD_NUMBER;
       hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
           getMsgId());
+      hash = (37 * hash) + CLIENTMSGID_FIELD_NUMBER;
+      hash = (53 * hash) + getClientMsgId().hashCode();
       hash = (37 * hash) + CONTENT_FIELD_NUMBER;
       hash = (53 * hash) + getContent().hashCode();
       hash = (37 * hash) + CONVERSATIONID_FIELD_NUMBER;
@@ -1119,6 +1186,7 @@ public final class Chat {
         super.clear();
         bitField0_ = 0;
         msgId_ = 0L;
+        clientMsgId_ = "";
         content_ = "";
         conversationId_ = 0L;
         conversationName_ = "";
@@ -1174,40 +1242,43 @@ public final class Chat {
           result.msgId_ = msgId_;
         }
         if (((from_bitField0_ & 0x00000002) != 0)) {
-          result.content_ = content_;
+          result.clientMsgId_ = clientMsgId_;
         }
         if (((from_bitField0_ & 0x00000004) != 0)) {
-          result.conversationId_ = conversationId_;
+          result.content_ = content_;
         }
         if (((from_bitField0_ & 0x00000008) != 0)) {
+          result.conversationId_ = conversationId_;
+        }
+        if (((from_bitField0_ & 0x00000010) != 0)) {
           result.conversationName_ = conversationName_;
         }
         int to_bitField0_ = 0;
-        if (((from_bitField0_ & 0x00000010) != 0)) {
+        if (((from_bitField0_ & 0x00000020) != 0)) {
           result.fromAccountInfo_ = fromAccountInfoBuilder_ == null
               ? fromAccountInfo_
               : fromAccountInfoBuilder_.build();
           to_bitField0_ |= 0x00000001;
         }
-        if (((from_bitField0_ & 0x00000020) != 0)) {
+        if (((from_bitField0_ & 0x00000040) != 0)) {
           result.toAccountInfo_ = toAccountInfoBuilder_ == null
               ? toAccountInfo_
               : toAccountInfoBuilder_.build();
           to_bitField0_ |= 0x00000002;
         }
-        if (((from_bitField0_ & 0x00000040) != 0)) {
+        if (((from_bitField0_ & 0x00000080) != 0)) {
           result.clientTimeStamp_ = clientTimeStamp_;
         }
-        if (((from_bitField0_ & 0x00000080) != 0)) {
+        if (((from_bitField0_ & 0x00000100) != 0)) {
           result.serverTimeStamp_ = serverTimeStamp_;
         }
-        if (((from_bitField0_ & 0x00000100) != 0)) {
+        if (((from_bitField0_ & 0x00000200) != 0)) {
           result.type_ = type_;
         }
-        if (((from_bitField0_ & 0x00000200) != 0)) {
+        if (((from_bitField0_ & 0x00000400) != 0)) {
           result.messagesStatus_ = messagesStatus_;
         }
-        if (((from_bitField0_ & 0x00000400) != 0)) {
+        if (((from_bitField0_ & 0x00000800) != 0)) {
           result.sequenceId_ = sequenceId_;
         }
         result.bitField0_ |= to_bitField0_;
@@ -1228,9 +1299,14 @@ public final class Chat {
         if (other.getMsgId() != 0L) {
           setMsgId(other.getMsgId());
         }
+        if (!other.getClientMsgId().isEmpty()) {
+          clientMsgId_ = other.clientMsgId_;
+          bitField0_ |= 0x00000002;
+          onChanged();
+        }
         if (!other.getContent().isEmpty()) {
           content_ = other.content_;
-          bitField0_ |= 0x00000002;
+          bitField0_ |= 0x00000004;
           onChanged();
         }
         if (other.getConversationId() != 0L) {
@@ -1238,7 +1314,7 @@ public final class Chat {
         }
         if (!other.getConversationName().isEmpty()) {
           conversationName_ = other.conversationName_;
-          bitField0_ |= 0x00000008;
+          bitField0_ |= 0x00000010;
           onChanged();
         }
         if (other.hasFromAccountInfo()) {
@@ -1297,54 +1373,59 @@ public final class Chat {
                 input.readMessage(
                     getFromAccountInfoFieldBuilder().getBuilder(),
                     extensionRegistry);
-                bitField0_ |= 0x00000010;
+                bitField0_ |= 0x00000020;
                 break;
               } // case 18
               case 26: {
                 content_ = input.readStringRequireUtf8();
-                bitField0_ |= 0x00000002;
+                bitField0_ |= 0x00000004;
                 break;
               } // case 26
+              case 34: {
+                clientMsgId_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000002;
+                break;
+              } // case 34
               case 40: {
                 sequenceId_ = input.readInt64();
-                bitField0_ |= 0x00000400;
+                bitField0_ |= 0x00000800;
                 break;
               } // case 40
               case 48: {
                 type_ = input.readEnum();
-                bitField0_ |= 0x00000100;
+                bitField0_ |= 0x00000200;
                 break;
               } // case 48
               case 56: {
                 clientTimeStamp_ = input.readSInt32();
-                bitField0_ |= 0x00000040;
+                bitField0_ |= 0x00000080;
                 break;
               } // case 56
               case 66: {
                 input.readMessage(
                     getToAccountInfoFieldBuilder().getBuilder(),
                     extensionRegistry);
-                bitField0_ |= 0x00000020;
+                bitField0_ |= 0x00000040;
                 break;
               } // case 66
               case 72: {
                 conversationId_ = input.readInt64();
-                bitField0_ |= 0x00000004;
+                bitField0_ |= 0x00000008;
                 break;
               } // case 72
               case 82: {
                 conversationName_ = input.readStringRequireUtf8();
-                bitField0_ |= 0x00000008;
+                bitField0_ |= 0x00000010;
                 break;
               } // case 82
               case 88: {
                 messagesStatus_ = input.readEnum();
-                bitField0_ |= 0x00000200;
+                bitField0_ |= 0x00000400;
                 break;
               } // case 88
               case 96: {
                 serverTimeStamp_ = input.readSInt32();
-                bitField0_ |= 0x00000080;
+                bitField0_ |= 0x00000100;
                 break;
               } // case 96
               default: {
@@ -1366,6 +1447,10 @@ public final class Chat {
 
       private long msgId_ ;
       /**
+       * <pre>
+       * 服务端的消息标识
+       * </pre>
+       *
        * <code>int64 msgId = 1;</code>
        * @return The msgId.
        */
@@ -1374,6 +1459,10 @@ public final class Chat {
         return msgId_;
       }
       /**
+       * <pre>
+       * 服务端的消息标识
+       * </pre>
+       *
        * <code>int64 msgId = 1;</code>
        * @param value The msgId to set.
        * @return This builder for chaining.
@@ -1386,12 +1475,108 @@ public final class Chat {
         return this;
       }
       /**
+       * <pre>
+       * 服务端的消息标识
+       * </pre>
+       *
        * <code>int64 msgId = 1;</code>
        * @return This builder for chaining.
        */
       public Builder clearMsgId() {
         bitField0_ = (bitField0_ & ~0x00000001);
         msgId_ = 0L;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object clientMsgId_ = "";
+      /**
+       * <pre>
+       * client msg Id 配合 sequenceId 用于QOS ACK
+       * </pre>
+       *
+       * <code>string clientMsgId = 4;</code>
+       * @return The clientMsgId.
+       */
+      public java.lang.String getClientMsgId() {
+        java.lang.Object ref = clientMsgId_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          clientMsgId_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <pre>
+       * client msg Id 配合 sequenceId 用于QOS ACK
+       * </pre>
+       *
+       * <code>string clientMsgId = 4;</code>
+       * @return The bytes for clientMsgId.
+       */
+      public com.google.protobuf.ByteString
+          getClientMsgIdBytes() {
+        java.lang.Object ref = clientMsgId_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          clientMsgId_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <pre>
+       * client msg Id 配合 sequenceId 用于QOS ACK
+       * </pre>
+       *
+       * <code>string clientMsgId = 4;</code>
+       * @param value The clientMsgId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setClientMsgId(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        clientMsgId_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * client msg Id 配合 sequenceId 用于QOS ACK
+       * </pre>
+       *
+       * <code>string clientMsgId = 4;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearClientMsgId() {
+        clientMsgId_ = getDefaultInstance().getClientMsgId();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * client msg Id 配合 sequenceId 用于QOS ACK
+       * </pre>
+       *
+       * <code>string clientMsgId = 4;</code>
+       * @param value The bytes for clientMsgId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setClientMsgIdBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        clientMsgId_ = value;
+        bitField0_ |= 0x00000002;
         onChanged();
         return this;
       }
@@ -1439,7 +1624,7 @@ public final class Chat {
           java.lang.String value) {
         if (value == null) { throw new NullPointerException(); }
         content_ = value;
-        bitField0_ |= 0x00000002;
+        bitField0_ |= 0x00000004;
         onChanged();
         return this;
       }
@@ -1449,7 +1634,7 @@ public final class Chat {
        */
       public Builder clearContent() {
         content_ = getDefaultInstance().getContent();
-        bitField0_ = (bitField0_ & ~0x00000002);
+        bitField0_ = (bitField0_ & ~0x00000004);
         onChanged();
         return this;
       }
@@ -1463,7 +1648,7 @@ public final class Chat {
         if (value == null) { throw new NullPointerException(); }
         checkByteStringIsUtf8(value);
         content_ = value;
-        bitField0_ |= 0x00000002;
+        bitField0_ |= 0x00000004;
         onChanged();
         return this;
       }
@@ -1493,7 +1678,7 @@ public final class Chat {
       public Builder setConversationId(long value) {
 
         conversationId_ = value;
-        bitField0_ |= 0x00000004;
+        bitField0_ |= 0x00000008;
         onChanged();
         return this;
       }
@@ -1506,7 +1691,7 @@ public final class Chat {
        * @return This builder for chaining.
        */
       public Builder clearConversationId() {
-        bitField0_ = (bitField0_ & ~0x00000004);
+        bitField0_ = (bitField0_ & ~0x00000008);
         conversationId_ = 0L;
         onChanged();
         return this;
@@ -1555,7 +1740,7 @@ public final class Chat {
           java.lang.String value) {
         if (value == null) { throw new NullPointerException(); }
         conversationName_ = value;
-        bitField0_ |= 0x00000008;
+        bitField0_ |= 0x00000010;
         onChanged();
         return this;
       }
@@ -1565,7 +1750,7 @@ public final class Chat {
        */
       public Builder clearConversationName() {
         conversationName_ = getDefaultInstance().getConversationName();
-        bitField0_ = (bitField0_ & ~0x00000008);
+        bitField0_ = (bitField0_ & ~0x00000010);
         onChanged();
         return this;
       }
@@ -1579,7 +1764,7 @@ public final class Chat {
         if (value == null) { throw new NullPointerException(); }
         checkByteStringIsUtf8(value);
         conversationName_ = value;
-        bitField0_ |= 0x00000008;
+        bitField0_ |= 0x00000010;
         onChanged();
         return this;
       }
@@ -1592,7 +1777,7 @@ public final class Chat {
        * @return Whether the fromAccountInfo field is set.
        */
       public boolean hasFromAccountInfo() {
-        return ((bitField0_ & 0x00000010) != 0);
+        return ((bitField0_ & 0x00000020) != 0);
       }
       /**
        * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
@@ -1617,7 +1802,7 @@ public final class Chat {
         } else {
           fromAccountInfoBuilder_.setMessage(value);
         }
-        bitField0_ |= 0x00000010;
+        bitField0_ |= 0x00000020;
         onChanged();
         return this;
       }
@@ -1631,7 +1816,7 @@ public final class Chat {
         } else {
           fromAccountInfoBuilder_.setMessage(builderForValue.build());
         }
-        bitField0_ |= 0x00000010;
+        bitField0_ |= 0x00000020;
         onChanged();
         return this;
       }
@@ -1640,7 +1825,7 @@ public final class Chat {
        */
       public Builder mergeFromAccountInfo(com.github.im.common.connect.model.proto.Account.AccountInfo value) {
         if (fromAccountInfoBuilder_ == null) {
-          if (((bitField0_ & 0x00000010) != 0) &&
+          if (((bitField0_ & 0x00000020) != 0) &&
             fromAccountInfo_ != null &&
             fromAccountInfo_ != com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance()) {
             getFromAccountInfoBuilder().mergeFrom(value);
@@ -1651,7 +1836,7 @@ public final class Chat {
           fromAccountInfoBuilder_.mergeFrom(value);
         }
         if (fromAccountInfo_ != null) {
-          bitField0_ |= 0x00000010;
+          bitField0_ |= 0x00000020;
           onChanged();
         }
         return this;
@@ -1660,7 +1845,7 @@ public final class Chat {
        * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
        */
       public Builder clearFromAccountInfo() {
-        bitField0_ = (bitField0_ & ~0x00000010);
+        bitField0_ = (bitField0_ & ~0x00000020);
         fromAccountInfo_ = null;
         if (fromAccountInfoBuilder_ != null) {
           fromAccountInfoBuilder_.dispose();
@@ -1673,7 +1858,7 @@ public final class Chat {
        * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
        */
       public com.github.im.common.connect.model.proto.Account.AccountInfo.Builder getFromAccountInfoBuilder() {
-        bitField0_ |= 0x00000010;
+        bitField0_ |= 0x00000020;
         onChanged();
         return getFromAccountInfoFieldBuilder().getBuilder();
       }
@@ -1717,7 +1902,7 @@ public final class Chat {
        * @return Whether the toAccountInfo field is set.
        */
       public boolean hasToAccountInfo() {
-        return ((bitField0_ & 0x00000020) != 0);
+        return ((bitField0_ & 0x00000040) != 0);
       }
       /**
        * <pre>
@@ -1750,7 +1935,7 @@ public final class Chat {
         } else {
           toAccountInfoBuilder_.setMessage(value);
         }
-        bitField0_ |= 0x00000020;
+        bitField0_ |= 0x00000040;
         onChanged();
         return this;
       }
@@ -1768,7 +1953,7 @@ public final class Chat {
         } else {
           toAccountInfoBuilder_.setMessage(builderForValue.build());
         }
-        bitField0_ |= 0x00000020;
+        bitField0_ |= 0x00000040;
         onChanged();
         return this;
       }
@@ -1781,7 +1966,7 @@ public final class Chat {
        */
       public Builder mergeToAccountInfo(com.github.im.common.connect.model.proto.Account.AccountInfo value) {
         if (toAccountInfoBuilder_ == null) {
-          if (((bitField0_ & 0x00000020) != 0) &&
+          if (((bitField0_ & 0x00000040) != 0) &&
             toAccountInfo_ != null &&
             toAccountInfo_ != com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance()) {
             getToAccountInfoBuilder().mergeFrom(value);
@@ -1792,7 +1977,7 @@ public final class Chat {
           toAccountInfoBuilder_.mergeFrom(value);
         }
         if (toAccountInfo_ != null) {
-          bitField0_ |= 0x00000020;
+          bitField0_ |= 0x00000040;
           onChanged();
         }
         return this;
@@ -1805,7 +1990,7 @@ public final class Chat {
        * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
        */
       public Builder clearToAccountInfo() {
-        bitField0_ = (bitField0_ & ~0x00000020);
+        bitField0_ = (bitField0_ & ~0x00000040);
         toAccountInfo_ = null;
         if (toAccountInfoBuilder_ != null) {
           toAccountInfoBuilder_.dispose();
@@ -1822,7 +2007,7 @@ public final class Chat {
        * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
        */
       public com.github.im.common.connect.model.proto.Account.AccountInfo.Builder getToAccountInfoBuilder() {
-        bitField0_ |= 0x00000020;
+        bitField0_ |= 0x00000040;
         onChanged();
         return getToAccountInfoFieldBuilder().getBuilder();
       }
@@ -1864,6 +2049,10 @@ public final class Chat {
 
       private int clientTimeStamp_ ;
       /**
+       * <pre>
+       * 客户端时间
+       * </pre>
+       *
        * <code>sint32 clientTimeStamp = 7;</code>
        * @return The clientTimeStamp.
        */
@@ -1872,6 +2061,10 @@ public final class Chat {
         return clientTimeStamp_;
       }
       /**
+       * <pre>
+       * 客户端时间
+       * </pre>
+       *
        * <code>sint32 clientTimeStamp = 7;</code>
        * @param value The clientTimeStamp to set.
        * @return This builder for chaining.
@@ -1879,16 +2072,20 @@ public final class Chat {
       public Builder setClientTimeStamp(int value) {
 
         clientTimeStamp_ = value;
-        bitField0_ |= 0x00000040;
+        bitField0_ |= 0x00000080;
         onChanged();
         return this;
       }
       /**
+       * <pre>
+       * 客户端时间
+       * </pre>
+       *
        * <code>sint32 clientTimeStamp = 7;</code>
        * @return This builder for chaining.
        */
       public Builder clearClientTimeStamp() {
-        bitField0_ = (bitField0_ & ~0x00000040);
+        bitField0_ = (bitField0_ & ~0x00000080);
         clientTimeStamp_ = 0;
         onChanged();
         return this;
@@ -1896,6 +2093,10 @@ public final class Chat {
 
       private int serverTimeStamp_ ;
       /**
+       * <pre>
+       * 服务端时间
+       * </pre>
+       *
        * <code>sint32 serverTimeStamp = 12;</code>
        * @return The serverTimeStamp.
        */
@@ -1904,6 +2105,10 @@ public final class Chat {
         return serverTimeStamp_;
       }
       /**
+       * <pre>
+       * 服务端时间
+       * </pre>
+       *
        * <code>sint32 serverTimeStamp = 12;</code>
        * @param value The serverTimeStamp to set.
        * @return This builder for chaining.
@@ -1911,16 +2116,20 @@ public final class Chat {
       public Builder setServerTimeStamp(int value) {
 
         serverTimeStamp_ = value;
-        bitField0_ |= 0x00000080;
+        bitField0_ |= 0x00000100;
         onChanged();
         return this;
       }
       /**
+       * <pre>
+       * 服务端时间
+       * </pre>
+       *
        * <code>sint32 serverTimeStamp = 12;</code>
        * @return This builder for chaining.
        */
       public Builder clearServerTimeStamp() {
-        bitField0_ = (bitField0_ & ~0x00000080);
+        bitField0_ = (bitField0_ & ~0x00000100);
         serverTimeStamp_ = 0;
         onChanged();
         return this;
@@ -1949,7 +2158,7 @@ public final class Chat {
        */
       public Builder setTypeValue(int value) {
         type_ = value;
-        bitField0_ |= 0x00000100;
+        bitField0_ |= 0x00000200;
         onChanged();
         return this;
       }
@@ -1979,7 +2188,7 @@ public final class Chat {
         if (value == null) {
           throw new NullPointerException();
         }
-        bitField0_ |= 0x00000100;
+        bitField0_ |= 0x00000200;
         type_ = value.getNumber();
         onChanged();
         return this;
@@ -1993,7 +2202,7 @@ public final class Chat {
        * @return This builder for chaining.
        */
       public Builder clearType() {
-        bitField0_ = (bitField0_ & ~0x00000100);
+        bitField0_ = (bitField0_ & ~0x00000200);
         type_ = 0;
         onChanged();
         return this;
@@ -2022,7 +2231,7 @@ public final class Chat {
        */
       public Builder setMessagesStatusValue(int value) {
         messagesStatus_ = value;
-        bitField0_ |= 0x00000200;
+        bitField0_ |= 0x00000400;
         onChanged();
         return this;
       }
@@ -2052,7 +2261,7 @@ public final class Chat {
         if (value == null) {
           throw new NullPointerException();
         }
-        bitField0_ |= 0x00000200;
+        bitField0_ |= 0x00000400;
         messagesStatus_ = value.getNumber();
         onChanged();
         return this;
@@ -2066,7 +2275,7 @@ public final class Chat {
        * @return This builder for chaining.
        */
       public Builder clearMessagesStatus() {
-        bitField0_ = (bitField0_ & ~0x00000200);
+        bitField0_ = (bitField0_ & ~0x00000400);
         messagesStatus_ = 0;
         onChanged();
         return this;
@@ -2097,7 +2306,7 @@ public final class Chat {
       public Builder setSequenceId(long value) {
 
         sequenceId_ = value;
-        bitField0_ |= 0x00000400;
+        bitField0_ |= 0x00000800;
         onChanged();
         return this;
       }
@@ -2110,7 +2319,7 @@ public final class Chat {
        * @return This builder for chaining.
        */
       public Builder clearSequenceId() {
-        bitField0_ = (bitField0_ & ~0x00000400);
+        bitField0_ = (bitField0_ & ~0x00000800);
         sequenceId_ = 0L;
         onChanged();
         return this;
@@ -2182,26 +2391,25 @@ public final class Chat {
   static {
     java.lang.String[] descriptorData = {
       "\n\rMessage.proto\022(com.github.im.common.co" +
-      "nnect.model.proto\032\rAccount.proto\"\330\004\n\013Cha" +
-      "tMessage\022\r\n\005msgId\030\001 \001(\003\022\017\n\007content\030\003 \001(\t" +
-      "\022\026\n\016conversationId\030\t \001(\003\022\030\n\020conversation" +
-      "Name\030\n \001(\t\022N\n\017fromAccountInfo\030\002 \001(\01325.co" +
-      "m.github.im.common.connect.model.proto.A" +
-      "ccountInfo\022L\n\rtoAccountInfo\030\010 \001(\01325.com." +
-      "github.im.common.connect.model.proto.Acc" +
-      "ountInfo\022\027\n\017clientTimeStamp\030\007 \001(\021\022\027\n\017ser" +
-      "verTimeStamp\030\014 \001(\021\022C\n\004type\030\006 \001(\01625.com.g" +
-      "ithub.im.common.connect.model.proto.Mess" +
-      "ageType\022\\\n\016messagesStatus\030\013 \001(\0162D.com.gi" +
-      "thub.im.common.connect.model.proto.ChatM" +
-      "essage.MessagesStatus\022\022\n\nsequenceId\030\005 \001(" +
-      "\003\"p\n\016MessagesStatus\022\n\n\006REJECT\020\000\022\013\n\007OFFLI" +
-      "NE\020\001\022\014\n\010SENTFAIL\020\007\022\013\n\007HISTORY\020\n\022\010\n\004READ\020" +
-      "\003\022\n\n\006UNREAD\020\002\022\010\n\004SENT\020\005\022\n\n\006UNSENT\020\013*B\n\013M" +
-      "essageType\022\010\n\004TEXT\020\000\022\010\n\004FILE\020\001\022\t\n\005VIDEO\020" +
-      "\003\022\t\n\005IMAGE\020\006\022\t\n\005VOICE\020\004B0\n(com.github.im" +
-      ".common.connect.model.protoB\004Chatb\006proto" +
-      "3"
+      "nnect.model.proto\032\rAccount.proto\"\307\004\n\013Cha" +
+      "tMessage\022\r\n\005msgId\030\001 \001(\003\022\023\n\013clientMsgId\030\004" +
+      " \001(\t\022\017\n\007content\030\003 \001(\t\022\026\n\016conversationId\030" +
+      "\t \001(\003\022\030\n\020conversationName\030\n \001(\t\022N\n\017fromA" +
+      "ccountInfo\030\002 \001(\01325.com.github.im.common." +
+      "connect.model.proto.AccountInfo\022L\n\rtoAcc" +
+      "ountInfo\030\010 \001(\01325.com.github.im.common.co" +
+      "nnect.model.proto.AccountInfo\022\027\n\017clientT" +
+      "imeStamp\030\007 \001(\021\022\027\n\017serverTimeStamp\030\014 \001(\021\022" +
+      "C\n\004type\030\006 \001(\01625.com.github.im.common.con" +
+      "nect.model.proto.MessageType\022\\\n\016messages" +
+      "Status\030\013 \001(\0162D.com.github.im.common.conn" +
+      "ect.model.proto.ChatMessage.MessagesStat" +
+      "us\022\022\n\nsequenceId\030\005 \001(\003\"J\n\016MessagesStatus" +
+      "\022\n\n\006REJECT\020\000\022\014\n\010SENTFAIL\020\007\022\010\n\004READ\020\003\022\n\n\006" +
+      "UNREAD\020\002\022\010\n\004SENT\020\005*B\n\013MessageType\022\010\n\004TEX" +
+      "T\020\000\022\010\n\004FILE\020\001\022\t\n\005VIDEO\020\003\022\t\n\005IMAGE\020\006\022\t\n\005V" +
+      "OICE\020\004B0\n(com.github.im.common.connect.m" +
+      "odel.protoB\004Chatb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -2213,7 +2421,7 @@ public final class Chat {
     internal_static_com_github_im_common_connect_model_proto_ChatMessage_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_com_github_im_common_connect_model_proto_ChatMessage_descriptor,
-        new java.lang.String[] { "MsgId", "Content", "ConversationId", "ConversationName", "FromAccountInfo", "ToAccountInfo", "ClientTimeStamp", "ServerTimeStamp", "Type", "MessagesStatus", "SequenceId", });
+        new java.lang.String[] { "MsgId", "ClientMsgId", "Content", "ConversationId", "ConversationName", "FromAccountInfo", "ToAccountInfo", "ClientTimeStamp", "ServerTimeStamp", "Type", "MessagesStatus", "SequenceId", });
     descriptor.resolveAllFeaturesImmutable();
     com.github.im.common.connect.model.proto.Account.getDescriptor();
   }

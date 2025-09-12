@@ -1,5 +1,6 @@
 package com.github.im.group.gui.util;
 
+import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.enums.MessageStatus;
 import com.github.im.enums.MessageType;
 
@@ -55,30 +56,30 @@ public class EnumsTransUtil {
      */
     public static com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus convertMessageStatus(MessageStatus messageStatus) {
         switch (messageStatus) {
-            case UNSENT:
-                // 当消息状态为未发送时，返回对应的protobuf未发送状态
-                return com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus.UNSENT;
+//            case UNSENT:
+//                // 当消息状态为未发送时，返回对应的protobuf未发送状态
+//                return com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus.UNSENT;
             case SENT:
                 // 当消息状态为已发送时，返回对应的protobuf已发送状态
                 return com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus.SENT;
-            case SENTFAIL:
-                // 当消息发送失败时，返回对应的protobuf发送失败状态
-                return com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus.SENTFAIL;
-            case HISTORY:
-                // 当消息为历史消息时，返回对应的protobuf历史消息状态
-                return com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus.HISTORY;
+//            case SENTFAIL:
+//                // 当消息发送失败时，返回对应的protobuf发送失败状态
+//                return com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus.SENTFAIL;
+//            case HISTORY:
+//                // 当消息为历史消息时，返回对应的protobuf历史消息状态
+//                return com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus.HISTORY;
             case READ:
                 // 当消息为已读状态时，返回对应的protobuf已读状态
                 return com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus.READ;
-            case UNREAD:
-                // 当消息为未读状态时，返回对应的protobuf未读状态
-                return com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus.UNREAD;
-            case OFFLINE:
-                // 当消息为离线消息时，返回对应的protobuf离线消息状态
-                return com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus.OFFLINE;
+//            case UNREAD:
+//                // 当消息为未读状态时，返回对应的protobuf未读状态
+//                return com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus.UNREAD;
+//            case OFFLINE:
+//                // 当消息为离线消息时，返回对应的protobuf离线消息状态
+//                return com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus.OFFLINE;
             default:
                 // 当消息状态未知或不匹配时，默认返回未发送状态
-                return com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus.UNSENT;
+                return Chat.ChatMessage.MessagesStatus.SENT;
         }
     }
 
@@ -117,30 +118,30 @@ public class EnumsTransUtil {
      */
     public static MessageStatus convertMessageStatus(com.github.im.common.connect.model.proto.Chat.ChatMessage.MessagesStatus messageStatus) {
         return switch (messageStatus) {
-            case UNSENT ->
-                // 消息未发送状态
-                    MessageStatus.UNSENT;
+//            case UNSENT ->
+//                 消息未发送状态
+//                    MessageStatus.UNSENT;
             case SENT ->
                 // 消息已发送状态
                     MessageStatus.SENT;
-            case SENTFAIL ->
-                // 消息发送失败状态
-                    MessageStatus.SENTFAIL;
-            case HISTORY ->
-                // 消息为历史记录状态
-                    MessageStatus.HISTORY;
+//            case SENTFAIL ->
+//                // 消息发送失败状态
+//                    MessageStatus.SENTFAIL;
+//            case HISTORY ->
+//                // 消息为历史记录状态
+//                    MessageStatus.HISTORY;
             case READ ->
                 // 消息已读状态
                     MessageStatus.READ;
-            case UNREAD ->
-                // 消息未读状态
-                    MessageStatus.UNREAD;
-            case OFFLINE ->
-                // 消息为离线状态
-                    MessageStatus.OFFLINE;
+//            case UNREAD ->
+//                // 消息未读状态
+//                    MessageStatus.UNREAD;
+//            case OFFLINE ->
+//                // 消息为离线状态
+//                    MessageStatus.OFFLINE;
             default ->
                 // 默认返回消息未发送状态，以确保所有可能的情况都有一个默认处理方式
-                    MessageStatus.UNSENT;
+                        MessageStatus.SENT;
         };
     }
 }

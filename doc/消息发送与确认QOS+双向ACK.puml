@@ -1,0 +1,29 @@
+@startuml
+actor ClientA as A
+participant "Local DB A" as DBA
+participant Server
+actor ClientB as B
+participant "Local DB B" as DBB
+
+== A 发送消息 ==
+A -> DBA : 插入消息\n(status=SENDING, client_msg_id=UUID)
+A -> Server : 发送消息(payload+client_msg_id)
+Server -> Server : 入库并分配 seq_id
+Server --> A : ACK(client_msg_id, seq_id)
+A -> DBA : 更新消息\n(status=SENT, seq_id=xxx)
+
+== Server 推送到 B ==
+Server -> B : 推送消息(seq_id, payload)
+B -> DBB : 插入消息\n(status=DELIVERED, seq_id)
+B --> Server : ACK(seq_id 已收到)
+Server -> Server : 标记消息为已送达
+
+== 异常情况 ==
+... 如果 A 未收到 Server ACK ...
+A -> Server : 重发消息(payload+client_msg_id)
+Server -> Server : 幂等检查(client_msg_id)
+Server --> A : ACK(client_msg_id, seq_id)
+
+... 如果 B 未 ACK ...
+Server -> B : 重发消息(seq_id, payload)
+@enduml

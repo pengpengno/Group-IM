@@ -12,12 +12,11 @@ message ChatMessage  {
 
   int64 msgId = 1 ;
 
-//  int32 clientSeq = 4; // client sequence
+  string clientMsgId = 4; // client msg Id 配合 sequenceId 用于QOS ACK
 
   string content  = 3 ;
   //client-server
   int64 conversationId = 9 ;
-
 
   string conversationName = 10 ;
 
@@ -60,6 +59,23 @@ message ChatMessage  {
 
 }
 
+
+/**
+*  ACK 应答消息
+ */
+message AckMessage {
+  string clientMsgId = 1;  // 客户端生成的唯一 ID
+  string serverMsgId = 2;  // 服务端生成的 msgId / sequenceId
+  string conversationId = 3;
+  string fromAccount = 4;  // 谁的消息被确认
+  int64 ackTimestamp = 5;  // 确认时间戳
+  enum AckType {
+    RECEIVED = 0; // 已收到
+    STORED   = 1; // 已存储
+    READ     = 2; // 已读
+  }
+  AckType type = 6;
+}
 
 enum MessageType{
 

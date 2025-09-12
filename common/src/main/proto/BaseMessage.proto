@@ -19,6 +19,8 @@ message BaseMessagePkg {
 
     NotificationInfo notification = 3;
 
+    AckMessage ack = 4;
+
   }
 
 }

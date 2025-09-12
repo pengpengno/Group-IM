@@ -17,12 +17,14 @@ class ChatSessionManager {
     // 缓存消息（ViewModel 未准备好前暂存）
     private val messageBuffer = mutableMapOf<Long, MutableList<ChatMessage>>()
 
+    /**
+     * 注册会话
+     * 避免重复进入页面重复刷新
+     */
     fun register(conversationId: Long, viewModel: ChatMessageViewModel) {
         sessionMap[conversationId] = viewModel
-
         // 若缓存中有消息，立即投递并清除
         messageBuffer.remove(conversationId)?.forEach { message ->
-//            val msg = message.message ?: return
             viewModel.onReceiveMessage(MessageWrapper(message))
         }
     }
@@ -30,6 +32,11 @@ class ChatSessionManager {
     fun unregister(conversationId: Long) {
         sessionMap.remove(conversationId)
     }
+
+    /**
+     * 路由消息
+     * 将 消息根据会话ID路由到对应的 VM 中
+     */
 
     fun routeMessage(pkg: BaseMessagePkg) {
         val msg = pkg.message ?: return

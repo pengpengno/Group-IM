@@ -18,6 +18,7 @@ message BaseMessagePkg {
     ChatMessage message = 2;
 
     NotificationInfo notification = 3;
+    AckMessage ack = 4;
 
   }
 
