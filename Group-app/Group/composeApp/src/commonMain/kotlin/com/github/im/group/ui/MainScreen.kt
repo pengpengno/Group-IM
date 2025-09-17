@@ -39,7 +39,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -63,7 +62,6 @@ fun ChatMainScreen(
         val chatViewModel: ChatViewModel = koinViewModel()
         val userViewModel: UserViewModel = koinViewModel()
 
-
         val drawerState = rememberDrawerState(DrawerValue.Closed)
 
         val scope = rememberCoroutineScope()
@@ -79,10 +77,7 @@ fun ChatMainScreen(
                 userInfo?.userId?.let { chatViewModel.getConversations(it) }
             }
         }
-//    val topLevelRoutes = listOf(
-//        TopLevelRoute("Profile", Profile, Icons.Filled. Profile),
-//        TopLevelRoute("Friends", Friends, Icons.Default.Friends Friends)
-//    )
+
 
         CircularProgressIndicator()
 
@@ -113,7 +108,8 @@ fun ChatMainScreen(
                 }
             },
             drawerState = drawerState
-        ) {
+        )
+        {
             Scaffold(
                 topBar = {
                     TopAppBar(
@@ -145,24 +141,6 @@ fun ChatMainScreen(
                     BottomNavigation {
                         val navBackStackEntry by navHostController.currentBackStackEntryAsState()
                         val currentDestination = navBackStackEntry?.destination
-
-//                        val currentRoute = currentBackStackEntryAsState(navHostController).value?.destination?.route
-//                        topLevelRoutes.forEach { screen ->
-//                            NavigationBarItem(
-//                                icon = { Icon(screen.icon, contentDescription = screen.title) },
-//                                label = { Text(screen.title) },
-//                                selected = currentRoute == screen.name,
-//                                onClick = {
-//                                    if (currentRoute != screen.name) {
-//                                        navHostController.navigate(screen.name) {
-//                                            popUpTo(navHostController.graph.startDestinationId) { saveState = true }
-//                                            launchSingleTop = true
-//                                            restoreState = true
-//                                        }
-//                                    }
-//                                }
-//                            )
-//                        }
                     }
 
                 }
@@ -173,15 +151,6 @@ fun ChatMainScreen(
                         .padding(padding)
                         .fillMaxSize()
                 ) {
-//                    NavHost(
-//                        navController = navController,
-//                        startDestination = BottomNavScreen.Chat.name,
-//                        modifier = Modifier.padding(innerPadding)
-//                    ) {
-//                        composable(BottomNavScreen.Chat.name) { ChatRoomListScreen(navController) }
-//                        composable(BottomNavScreen.Contacts.name) { ContactScreen() }
-//                        composable(BottomNavScreen.Profile.name) { ProfileScreen() }
-//                    }
                     // 左侧面板：会话列表
                     Column(
                         modifier = Modifier
@@ -213,19 +182,19 @@ fun ChatMainScreen(
                         }
                     }
 
-                    // 右侧面板：聊天预览
-                    Box(
-                        modifier = Modifier
-                            .weight(2f)
-                            .fillMaxHeight()
-                            .background(Color.White),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "请选择一个会话开始聊天",
-                            color = Color.Gray
-                        )
-                    }
+//                    // 右侧面板：聊天预览
+//                    Box(
+//                        modifier = Modifier
+//                            .weight(2f)
+//                            .fillMaxHeight()
+//                            .background(Color.White),
+//                        contentAlignment = Alignment.Center
+//                    ) {
+//                        Text(
+//                            text = "请选择一个会话开始聊天",
+//                            color = Color.Gray
+//                        )
+//                    }
                 }
             }
         }

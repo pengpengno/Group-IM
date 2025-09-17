@@ -1,6 +1,8 @@
 package com.github.im.group.api
 
 import ProxyApi
+import com.github.im.group.db.entities.MessageStatus
+import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.UserInfo
 import io.ktor.http.HttpMethod
 import kotlinx.datetime.LocalDateTime
@@ -75,10 +77,6 @@ object FileApi {
     suspend fun uploadFile(file: ByteArray,fileName:String,duration:Long): FileUploadResponse {
         return ProxyApi.uploadFile(file, fileName,duration)
     }
-
-//    suspend fun uploadVoiceFile(file: ByteArray,fileName:String,duration:Long): FileUploadResponse {
-//        return ProxyApi.uploadFile(file, fileName,duration)
-//    }
 }
 /**
  * Chat Api
@@ -139,35 +137,21 @@ data class MessagePullRequest(
 
 
 
-/**
- * 消息状态
- */
-enum class MessageStatus {
-    REJECT,
-    OFFLINE,
-    SENTFAIL,
-    HISTORY,
-    READ,
-    UNREAD,
-    SENT,
-    UNSENT;
-
-}
-
-@Serializable
-enum class ChatMessageType {
-//   文本
-    TEXT,
-//   文件
-    FILE,
-
-    VOICE,
-
-    VIDEO,
-
-    IMAGE ,
-
-}
+//
+//@Serializable
+//enum class MessageType {
+////   文本
+//    TEXT,
+////   文件
+//    FILE,
+//
+//    VOICE,
+//
+//    VIDEO,
+//
+//    IMAGE ,
+//
+//}
 
 
 @Serializable
@@ -230,10 +214,11 @@ data class MessageDTO(
     val conversationId: Long? = null,
     val content: String? = null,
     val fromAccountId: Long? = null,
+    val clientMsgId: String? = null,
     val sequenceId: Long? = null,
     val fromAccount: UserInfo? = null,
-    val type: ChatMessageType ,
-    val status: MessageStatus ,
+    val type: MessageType,
+    val status: MessageStatus,
     val timestamp: String, // ISO 格式时间
 
     val payload: MessagePayLoad? = null

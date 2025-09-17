@@ -30,6 +30,9 @@ interface VoiceRecorder {
 
 }
 
+/**
+ * 音频记录结果
+ */
 data class VoiceRecordingResult(
     val bytes: ByteArray,
     val durationMillis: Long

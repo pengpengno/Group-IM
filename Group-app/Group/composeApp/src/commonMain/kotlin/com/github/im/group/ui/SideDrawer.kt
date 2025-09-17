@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material3.Divider
@@ -28,6 +29,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.github.im.group.model.UserInfo
 
+/**
+ * 侧边栏
+ */
 @Composable
 fun SideDrawer(
     userInfo: UserInfo,
@@ -54,14 +58,14 @@ fun SideDrawer(
                 .padding(bottom = 24.dp)
         ) {
             UserAvatar(username = userInfo.username)
-//            Icon(
-//                imageVector = Icons.Default.Person,
-//                contentDescription = "用户头像",
-//                tint = Color(0xFF0088CC),
-//                modifier = Modifier
-//                    .background(Color(0x220088CC), shape = MaterialTheme.shapes.medium)
-//                    .padding(12.dp)
-//            )
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = "用户头像",
+                tint = Color(0xFF0088CC),
+                modifier = Modifier
+                    .background(Color(0x220088CC), shape = MaterialTheme.shapes.medium)
+                    .padding(12.dp)
+            )
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(

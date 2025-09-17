@@ -18,6 +18,7 @@ class AndroidVoiceRecorder(private val context: Context) : VoiceRecorder {
     private var startTime: Long = 0
     private var duration:Long = 0
     private var _isRecording = false
+    private var voiceRecordingResult : VoiceRecordingResult? = null
 
     private val _amplitude = MutableStateFlow(0)
     val amplitude: StateFlow<Int> = _amplitude
@@ -59,14 +60,16 @@ class AndroidVoiceRecorder(private val context: Context) : VoiceRecorder {
         // 确保录音已停止 正在录音的时候返回空
         if (_isRecording) return null
 
-        return try {
-            val file = outputFile ?: return null
-            val bytes = file.readBytes()
-            VoiceRecordingResult(bytes, duration)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
+        return voiceRecordingResult;
+
+//        return try {
+//            val file = outputFile ?: return null
+//            val bytes = file.readBytes()
+//            VoiceRecordingResult(bytes, duration)
+//        } catch (e: Exception) {
+//            e.printStackTrace()
+//            null
+//        }
 
     }
 
@@ -77,7 +80,8 @@ class AndroidVoiceRecorder(private val context: Context) : VoiceRecorder {
             recorder.release()
             val bytes = outputFile?.readBytes() ?: return null
              duration = System.currentTimeMillis() - startTime
-            VoiceRecordingResult(bytes, duration)
+            voiceRecordingResult =  VoiceRecordingResult(bytes, duration)
+            voiceRecordingResult
         } catch (e: Exception) {
             null
         } finally {

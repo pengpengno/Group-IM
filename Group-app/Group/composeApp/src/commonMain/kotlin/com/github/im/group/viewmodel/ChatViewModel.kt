@@ -12,9 +12,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-
+/**
+ * 聊天记录存储
+ */
 class ChatRepository(private val api: ConversationApi, private val socket: SocketClient) {
     suspend fun loadConversations(userId: Long): List<ConversationRes> = api.getActiveConversationsByUserId(userId)
+
+
 }
 
 

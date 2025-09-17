@@ -51,6 +51,10 @@ class LoginScreen :Screen{
         loginScreen()
     }
 }
+
+/**
+ * 登录界面
+ */
 @Composable
 @Preview
 fun loginScreen () {

@@ -24,9 +24,9 @@ message ChatMessage  {
  // server-client 需要使用 用于指示推送到的客户端
   AccountInfo toAccountInfo = 8 ;
 
-  sint32 clientTimeStamp = 7 ;  //  客户端时间
+  int64 clientTimeStamp = 7 ;  //  客户端时间
 
-  sint32 serverTimeStamp = 12 ;   // 服务端时间
+  int64 serverTimeStamp = 12 ;   // 服务端时间
 
   MessageType type = 6 ; // 消息类型
 
@@ -35,32 +35,20 @@ message ChatMessage  {
   int64 sequenceId = 5 ; // generateBy server
 
 
-  enum MessagesStatus{
-
-      REJECT = 0 ;
-
-//      OFFLINE = 1 ;
-
-      SENTFAIL = 7 ;
-
-//      HISTORY = 10 ;
-
-      READ = 3 ;
-
-      UNREAD = 2 ;
-
-      SENT = 5 ;
-
-//      UNSENT = 11 ;  // 用于客户端标识发送状态
-//
-//      SENDING = 12 ;
-
-
-  }
-
-
 }
 
+enum MessagesStatus{
+
+  SENDING = 0 ;  // 正在发送 用于客户端-》 服务端
+  SENT = 1 ;   //  已发送 -》 服务端已经接收
+  FAILED = 2 ; // 发送失败
+  RECEIVED = 3 ;    // 已接收 用于 服务端-》客户端 接收到的状态
+  READ = 4 ;   //  已读取  客户端消息回执状态
+  UNREAD = 5 ;  // 未读取 客户端消息回执状态
+  DELETED = 6 ;  // 删除
+  REVOKE = 7 ;  // 撤回
+
+}
 
 enum MessageType{
 
@@ -81,14 +69,15 @@ enum MessageType{
  */
 message AckMessage {
   string clientMsgId = 1;  // 客户端生成的唯一 ID
-  string serverMsgId = 2;  // 服务端生成的 msgId / sequenceId
-  string conversationId = 3;
-  string fromAccount = 4;  // 谁的消息被确认
+  int64 serverMsgId = 2;  // 服务端生成的 msgId
+  int64 conversationId = 3;
+  AccountInfo fromAccount = 4;  // 谁的消息被确认
   int64 ackTimestamp = 5;  // 确认时间戳
-  enum AckType {
-    RECEIVED = 0; // 已收到
-    STORED   = 1; // 已存储
-    READ     = 2; // 已读
-  }
-  AckType type = 6;
+  //  enum AckType {
+  //    RECEIVED = 0; // 已收到
+  //    STORED   = 1; // 已存储
+  //    READ     = 2; // 已读
+  //  }
+  //  AckType type = 6;
+  MessagesStatus status = 7;
 }

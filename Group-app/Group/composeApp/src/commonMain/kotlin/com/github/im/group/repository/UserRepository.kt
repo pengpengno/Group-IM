@@ -1,7 +1,6 @@
 package com.github.im.group.repository
 
 import com.github.im.group.db.AppDatabase
-import com.github.im.group.db.entities.UserStatus
 import com.github.im.group.model.UserInfo
 import com.github.im.group.model.proto.AccountInfo
 import com.github.im.group.model.proto.PlatformType
@@ -48,9 +47,9 @@ class UserRepository (
                 username = user.username,
                 email = user.email,
                 phoneNumber = "",
-                bio = "",
-                avatarUrl = "",
-                userStatus = UserStatus.ONLINE
+//                bio = "",
+//                avatarUrl = "",
+//                userStatus = UserStatus.ONLINE
             )
         }
     }

@@ -11,6 +11,8 @@ import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.model.proto.MessageType
+import com.github.im.group.model.proto.MessagesStatus
+import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.sdk.SenderSdk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -19,6 +21,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 
 /**
@@ -34,6 +40,7 @@ data class ChatUiState(
 class ChatMessageViewModel(
     val userViewModel: UserViewModel,
     val chatSessionManager: ChatSessionManager,
+    val chatMessageRepository: ChatMessageRepository,
     val senderSdk: SenderSdk ,
 ) : ViewModel() {
 
@@ -169,21 +176,21 @@ class ChatMessageViewModel(
              val response  = FileApi.uploadFile(data,fileName,duration).let {
                  var fileMeta = it.fileMeta
 
-                 val message = ChatMessage(
-                     conversationId = conversationId,
-                     fromAccountInfo = userViewModel.getAccountInfo(),
-                     content = it.id,
-                     type = type,
-                 )
-                 senderSdk.sendMessage(message)
 
-                 _uiState.update {
-                     it.copy(messages = it.messages + MessageWrapper(message))
-                 }
+//                 val message = ChatMessage(
+//                     conversationId = conversationId,
+//                     fromAccountInfo = userViewModel.getAccountInfo(),
+//                     content = it.id,
+//                     type = type,
+//                 )
+//                 senderSdk.sendMessage(message)
+//
+//                 _uiState.update {
+//                     it.copy(messages = it.messages + MessageWrapper(message))
+//                 }
+                 sendMessage(conversationId,it.id,type)
              }
          }
-
-
 
     }
     /**
@@ -191,8 +198,9 @@ class ChatMessageViewModel(
      * @param conversationId 会话
      * @param message 消息
      */
-    fun sendMessage(conversationId:Long,message:String ){
-
+    @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
+    fun sendMessage(conversationId:Long, message:String, type: MessageType = MessageType.TEXT){
+        // 发送的 数据需要 再本地先保存
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 if(message.isNotBlank()){
@@ -200,9 +208,14 @@ class ChatMessageViewModel(
                         content = message,
                         conversationId = conversationId,
                         fromAccountInfo = userViewModel.getAccountInfo(),
-                        type = MessageType.TEXT
+                        type = type,
+                        messagesStatus = MessagesStatus.SENDING,
+                        clientTimeStamp = Clock.System.now().toEpochMilliseconds(),
+                        clientMsgId =  Uuid.random().toString(),
                     )
                     senderSdk.sendMessage(chatMessage)
+
+                    chatMessageRepository.insertMessage(chatMessage)
                     _uiState.update {
                         it.copy(messages = it.messages + MessageWrapper(chatMessage))
                     }

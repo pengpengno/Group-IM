@@ -396,7 +396,8 @@ fun RecordingPlaybackOverlay(
                     currentPosition = newPos.toLong()
                     audioPlayer.seekTo(currentPosition)
                 },
-                valueRange = 0f..audioPlayer.duration.toFloat(),
+//                valueRange = 0f..audioPlayer.duration.toFloat(),
+                valueRange = 0f..duration.toFloat(),
                 modifier = Modifier.fillMaxWidth(),
                 colors = SliderDefaults.colors(
                     thumbColor = Color.Green,
@@ -404,7 +405,7 @@ fun RecordingPlaybackOverlay(
                 )
             )
 
-            Text("${(currentPosition/1000)}s / ${(audioPlayer.duration/1000)}s",
+            Text("${(currentPosition/1000)}s / ${(duration/1000)}s",
                 color = Color.LightGray, fontSize = 14.sp)
 
             Spacer(modifier = Modifier.height(16.dp))

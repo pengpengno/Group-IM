@@ -77,6 +77,10 @@ class VoiceViewModel(
     fun getVoiceData(): VoiceRecordingResult? {
         return voiceRecorder.getVoiceData()
     }
+
+    /**
+     * 取消录音
+     */
     fun cancel() {
         _uiState.value = RecorderUiState.Idle
     }

@@ -60,14 +60,15 @@ class SenderSdk(
     fun sendMessage(chatMessage: ChatMessage){
 
         val baseMessage = BaseMessagePkg(message = chatMessage)
-
-        CoroutineScope(Dispatchers.IO).launch {
-
+        scope.launch {
             send(BaseMessagePkg.ADAPTER.encode(baseMessage))
-
         }
+
     }
 
+    /**
+     * 自动重连逻辑
+     */
     fun startAutoReconnect() {
         if (reconnectJob != null) return  // 防止重复启动
         reconnectJob = scope.launch {
@@ -106,7 +107,6 @@ class SenderSdk(
     }
 
 
-
     /**
      * 注册到远程服务器
      * 开始连接
@@ -129,9 +129,7 @@ class SenderSdk(
             if (message != null){
                 // 发送远程注册包
                 tcpClient.send(message)
-
             }
-
         }
         startAutoReconnect()
 

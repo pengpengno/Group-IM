@@ -30,7 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import com.github.im.group.api.ChatMessageType
+import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
 import com.github.im.group.ui.chat.MessageContent
 import com.github.im.group.ui.chat.TextMessage
@@ -152,10 +152,12 @@ fun ChatRoomScreen(
                 audioPlayer = voiceViewModel.audioPlayer,
                 filePath = playback.filePath,
                 onSend = {
+
                     voiceViewModel.getVoiceData()?.let {
                         // voice-{conversationId}-{dateTime}.m4a
                         val fileName = "voice-$conversationId-" + Clock.System.now()
                             .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
+                        println("durationMillis is ${it.durationMillis}")
                         messageViewModel.sendVoiceMessage(conversationId, it.bytes,fileName,it.durationMillis)
                     }
                 },
@@ -185,17 +187,13 @@ fun MessageBubble(isOwnMessage: Boolean, msg : MessageItem, content: String) {
             val type = msg.type
             when(type)
                 {
-                    ChatMessageType.TEXT -> TextMessage(MessageContent.Text(msg.content))
-                    ChatMessageType.VOICE -> VoiceMessage(MessageContent.Voice(msg.content,1),{})
-                    ChatMessageType.FILE -> println(msg)
-                    ChatMessageType.VIDEO -> TODO()
-                    ChatMessageType.IMAGE -> TODO()
+                    MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content))
+                    MessageType.VOICE -> VoiceMessage(MessageContent.Voice(msg.content,1),{})
+                    MessageType.FILE -> println(msg)
+                    MessageType.VIDEO -> TODO()
+                    MessageType.IMAGE -> TODO()
             }
-//            Text(
-//                text = content,
-//                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-//                color = Color.Black
-//            )
+
         }
     }
 }

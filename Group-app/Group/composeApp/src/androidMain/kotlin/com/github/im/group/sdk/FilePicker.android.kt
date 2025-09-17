@@ -87,7 +87,6 @@ class AndroidFilePicker(private val context: Context,
 
     ) : FilePicker {
 
-
     override suspend fun pickImage(): List<PickedFile> {
 
         return pickFiles("image/*")

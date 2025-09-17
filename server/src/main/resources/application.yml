@@ -11,10 +11,19 @@ spring:
   resources:
     static-locations: classpath:/META-INF/resources/,classpath:/resources/,classpath:/static/,classpath:/public/
   datasource:
-    url: jdbc:postgresql://${DB_IP:localhost}:${DB_PORT:5432}/group
-    username: ${DB_USER:postgres}
+    hikari:
+      data-source-properties:
+        prepareThreshold: 0
+        cachePrepStmts: false
+    #    url: jdbc:postgresql://${DB_IP:localhost}:${DB_PORT:5432}/group
+    url: jdbc:postgresql://${DB_IP:aws-1-ap-southeast-1.pooler.supabase.com}:${DB_PORT:6543}/postgres
+#    url: jdbc:postgresql://${DB_IP:localhost}:${DB_PORT:5432}/group
+#    username: ${DB_USER:postgres}
+    username: ${DB_USER:postgres.jjivmxncgzvdqglxwnvq}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
+#    postgresql://postgres.jjivmxncgzvdqglxwnvq:[YOUR-PASSWORD]@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres
+
   jpa:
     open-in-view: false
     hibernate:

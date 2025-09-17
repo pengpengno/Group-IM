@@ -1,22 +1,36 @@
 package com.github.im.group.db.entities
 
+import kotlinx.serialization.Serializable
+
 
 /**
  * 消息状态
  */
+@Serializable
 enum class MessageStatus {
     SENDING,
     SENT,
-    FAILED,
+
     RECEIVED,
-    READ,
+    FAILED,
+    READ ,
+    UNREAD ,
+    DELETED,  // 删除
+    REVOKE,  // 撤回
+    ;
+
+
 }
+@Serializable
+
 enum class ConversationStatus {
     ACTIVE,
     ACHEIVED,
     DELETED,
     INACTIVE
 }
+@Serializable
+
 enum class FileStatus {
     NORMAL,
     DELETED,
@@ -30,6 +44,7 @@ enum class FileStatus {
 /**
  * 消息的类型
  */
+@Serializable
 enum class MessageType {
 
     TEXT,
@@ -40,6 +55,8 @@ enum class MessageType {
     ;
 }
 
+
+@Serializable
 enum class UserStatus {
 
     ONLINE,

@@ -80,9 +80,9 @@ class AndroidSocketClient(
             // 首先判断当前是否 已经 连接了， 没连接就  重连
             if (!isActive()) {
                 val isConnected = connectOnce(host, port)
+                println("连接成功: $isConnected")
             }
 
-            // 发送消息前先写 Netty 风格长度前缀
             val lengthPrefix = encodeVarint32(data.size)
             output.write(lengthPrefix)
             output.write(data)
@@ -93,7 +93,7 @@ class AndroidSocketClient(
 
 
     /**
-     * 开始 接收消息
+     * 接收消息
      */
     private fun startReceiving() {
 
@@ -102,7 +102,6 @@ class AndroidSocketClient(
         }
         receiveJob = CoroutineScope(Dispatchers.IO).launch {
             try {
-                val buffer = ByteArray(4096)
                 while (isActive) {
                     // 先读取长度前缀
                     val length = readVarint32(input)
@@ -119,7 +118,8 @@ class AndroidSocketClient(
                     }
                 }
             } catch (e: Exception) {
-                println("接收出错: ${e.message}")
+                e.printStackTrace()
+                println("接收出错: ${e}")
             }
         }
     }
@@ -129,6 +129,7 @@ class AndroidSocketClient(
         while (shift < 32) {
             val b = input.read()
             if (b == -1) throw Exception("Socket closed")
+//            if (b == -1) break
             result = result or ((b and 0x7F) shl shift)
             if ((b and 0x80) == 0) return result
             shift += 7

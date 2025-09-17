@@ -6,6 +6,7 @@ import com.github.im.group.config.SocketClient
 import com.github.im.group.connect.AndroidSocketClient
 import com.github.im.group.db.AndroidDatabaseDriverFactory
 import com.github.im.group.manager.ChatSessionManager
+import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.AndroidAudioPlayer
 import com.github.im.group.sdk.AndroidFilePicker
@@ -35,6 +36,7 @@ val appModule = module {
     single<AudioPlayer> { AndroidAudioPlayer(androidContext()) }
 
     single { UserRepository(get()) }
+    single { ChatMessageRepository(get()) }
     viewModelOf (::ChatViewModel)
     viewModelOf (::ChatMessageViewModel)
     single { ChatSessionManager() }

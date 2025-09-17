@@ -6,9 +6,13 @@ package com.github.im.enums;
 public enum MessageStatus {
     SENDING,
     SENT,
+
     RECEIVED,
     FAILED,
     READ ,
+    UNREAD ,
+    DELETED,  // 删除
+    REVOKE,  // 撤回
     ;
 
 

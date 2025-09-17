@@ -57,7 +57,7 @@ object ProxyApi
             url = baseUrl + "/api/files/upload",
             formData = formData {
 
-                append("uploaderId", Uuid.random().toString())
+                append("clientId", Uuid.random().toString())
                 append("duration", duration)
                 append("file", file, Headers.build {
                     append(HttpHeaders.ContentDisposition, "filename=$fileName")

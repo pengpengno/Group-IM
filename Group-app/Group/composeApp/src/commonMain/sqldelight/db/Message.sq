@@ -6,8 +6,8 @@ import kotlinx.datetime.LocalDateTime;
 CREATE TABLE message (
     id INTEGER PRIMARY KEY AUTOINCREMENT,  -- 客户端存储的消息 自增即可
     msg_id  INTEGER ,  -- 服务端的主键 消息Id
-    conversation_id TEXT NOT NULL,  -- 外键保存 conversationId
-    from_account_id TEXT NOT NULL,  -- 外键保存 userId
+    conversation_id INTEGER NOT NULL,  -- 外键保存 conversationId
+    from_account_id INTEGER NOT NULL,  -- 外键保存 userId
     content TEXT NOT NULL,
     client_msg_id TEXT,  -- 客户端生成的消息id ，配合 sequence_id 唯一使用
     sequence_id INTEGER ,   -- 服务端生成的 conversation 下的序列号 发送完毕

@@ -5,7 +5,7 @@ CREATE TABLE Conversation (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   conversationId INTEGER NOT NULL,          -- 会话Id
   groupName TEXT,
-  description TEXT,                 -- 秒速
+  description TEXT,                 -- 描述
   createdBy INTEGER NOT NULL,       -- 对应 User.userId
   createdAt INTEGER AS LocalDateTime DEFAULT CURRENT_TIMESTAMP,
   status TEXT AS ConversationStatus NOT NULL               -- 映射 ConversationStatus 枚举
