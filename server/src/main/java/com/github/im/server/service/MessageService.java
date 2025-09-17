@@ -86,13 +86,13 @@ public class MessageService {
         var proxy = entityManager.getReference(Conversation.class, chatMessage.getConversationId());
         message.setConversation(proxy);
         message.setContent(chatMessage.getContent());
-
+        message.setClientMsgId(chatMessage.getClientMsgId());
         var userProxy = entityManager.getReference(User.class,chatMessage.getFromAccountInfo().getUserId());
         // 生成 会话中的消息序列
         message.setSequenceId(conversationSequenceService.nextSequence(chatMessage.getConversationId()));
         message.setFromAccountId(userProxy);
         message.setType(EnumsTransUtil.convertMessageType(chatMessage.getType()));
-        message.setStatus(MessageStatus.UNREAD);
+        message.setStatus(MessageStatus.SENT);
         message.setTimestamp(LocalDateTime.now());
         return messageRepository.save(message);
     }
@@ -119,6 +119,7 @@ public class MessageService {
             case TEXT:
                 dto.setPayload(new DefaultMessagePayLoad(message.getContent()));
                 return dto;
+            case VOICE:
             case FILE:
                 var fileResourceById = fileStorageService.getFileResourceById(message.getContent());
                 var fileMeta = FileMeta.builder()

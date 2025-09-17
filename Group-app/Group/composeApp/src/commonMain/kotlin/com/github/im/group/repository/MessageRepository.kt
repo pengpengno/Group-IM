@@ -6,7 +6,6 @@ import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.proto.ChatMessage
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.ExperimentalTime
 
 /**
  * 聊天消息本地存储
@@ -16,7 +15,9 @@ class ChatMessageRepository (
 ){
 
 
-    @OptIn(ExperimentalTime::class)
+    /**
+     * 在本地数据库中插入消息
+     */
     fun insertMessage(messageItem: ChatMessage){
         db.transaction {
             // 1. 毫秒 → Instant

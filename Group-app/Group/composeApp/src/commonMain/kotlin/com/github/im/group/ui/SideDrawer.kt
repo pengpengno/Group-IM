@@ -5,15 +5,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material3.Divider
@@ -45,8 +45,9 @@ fun SideDrawer(
 ) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
+            .fillMaxHeight()
+            .width(260.dp)
+            .background(Color(0xFF111B21))
             .padding(16.dp)
     ) {
         // 顶部：用户信息
@@ -57,40 +58,33 @@ fun SideDrawer(
                 .clickable { onProfileClick() }
                 .padding(bottom = 24.dp)
         ) {
-            UserAvatar(username = userInfo.username)
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = "用户头像",
-                tint = Color(0xFF0088CC),
-                modifier = Modifier
-                    .background(Color(0x220088CC), shape = MaterialTheme.shapes.medium)
-                    .padding(12.dp)
-            )
+            UserAvatar(username = userInfo.username, size = 56)
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
                     text = userInfo.username,
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White
                 )
                 Text(
                     text = "点击查看个人资料",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = Color(0xFFA3A3A3)
                 )
             }
         }
 
-        Divider(modifier = Modifier.padding(vertical = 8.dp))
+        Divider(modifier = Modifier.padding(vertical = 8.dp), color = Color(0xFF202C33))
 
         // 菜单项区域
-        DrawerItem("联系人", Icons.Default.People, onContactsClick)
-        DrawerItem("群组", Icons.Default.Group, onGroupsClick)
-        DrawerItem("会议", Icons.Default.VideoCall, onMeetingsClick)
-        DrawerItem("设置", Icons.Default.Settings, onSettingsClick)
+        DrawerItem("联系人", Icons.Default.People, onContactsClick, Color.White)
+        DrawerItem("群组", Icons.Default.Group, onGroupsClick, Color.White)
+        DrawerItem("会议", Icons.Default.VideoCall, onMeetingsClick, Color.White)
+        DrawerItem("设置", Icons.Default.Settings, onSettingsClick, Color.White)
 
         Spacer(modifier = Modifier.weight(1f)) // 底部对齐
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color(0xFF202C33))
 
         // 退出 & 版本
         DrawerItem("退出登录", Icons.AutoMirrored.Filled.ExitToApp, onLogout, Color.Red)
@@ -98,7 +92,7 @@ fun SideDrawer(
         Text(
             text = "版本号：$appVersion",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.LightGray,
+            color = Color(0xFF667781),
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
                 .padding(top = 8.dp)
@@ -118,17 +112,19 @@ fun DrawerItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(vertical = 12.dp)
+            .padding(vertical = 14.dp)
     ) {
         Icon(
             icon,
             contentDescription = label,
-            tint = iconTint
+            tint = iconTint,
+            modifier = Modifier.size(24.dp)
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(24.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
+            color = Color.White
         )
     }
 }

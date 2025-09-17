@@ -3,12 +3,14 @@ package com.github.im.server.handler.impl;
 import com.github.im.common.connect.connection.ReactiveConnectionManager;
 import com.github.im.common.connect.connection.server.BindAttr;
 import com.github.im.common.connect.connection.server.ProtoBufProcessHandler;
+import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.server.service.ConversationService;
 import com.github.im.server.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Hooks;
 import reactor.netty.Connection;
@@ -49,6 +51,7 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
 
         var saveMessage = messageService.saveMessage(chatMessage);
         var sequenceId = saveMessage.getSequenceId();
+        val msgId = saveMessage.getMsgId();
         // 复制一份 用于推送到各个客户端
         final var newChatMessage = Chat.ChatMessage.newBuilder(chatMessage)
                 .setSequenceId(sequenceId)
@@ -61,10 +64,11 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
         var conversationId = chatMessage.getConversationId();
         var membersByGroupId = conversationService.getMembersByGroupId(conversationId);
 
+        val fromAccountInfo = chatMessage.getFromAccountInfo();
         Optional.ofNullable(membersByGroupId)
             .ifPresent(members -> {
                 members.stream()
-                        .filter(e-> !Objects.equals(e.getUsername(), chatMessage.getFromAccountInfo().getAccount()))
+                        .filter(e-> !Objects.equals(e.getUsername(), fromAccountInfo.getAccount()))
                         .forEach(member -> {
 
                     var bindAttr = BindAttr.getBindAttrForPush(member.getUsername());
@@ -76,5 +80,19 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
 
 //        TODO  1.  QOS ACK 2. Encryption
             // 先实现 单向 ACK
+
+        Chat.AckMessage ackMessage = Chat.AckMessage.newBuilder()
+                .setClientMsgId(clientMsgId)
+                .setServerMsgId(msgId)
+                .setConversationId(conversationId)
+                .setFromAccount( Account.AccountInfo.newBuilder().setAccount(fromAccountInfo.getAccount()))
+                .setAckTimestamp(System.currentTimeMillis())
+                .setStatus(Chat.MessagesStatus.SENT)
+                .build();
+        BaseMessage.BaseMessagePkg ackMessagePkg = BaseMessage.BaseMessagePkg.newBuilder()
+                .setAck(ackMessage)
+                .build();
+
+        con.outbound().sendObject(ackMessagePkg).then().subscribe();
     }
 }

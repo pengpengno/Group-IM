@@ -20,6 +20,7 @@ public class MessageDTO<T extends MessagePayLoad> {
     private String content;
     private Long fromAccountId;
     private Long sequenceId;
+    private String clientMsgId;
 
     private UserInfo fromAccount;
 

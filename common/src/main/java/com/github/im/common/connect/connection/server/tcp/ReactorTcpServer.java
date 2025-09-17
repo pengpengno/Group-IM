@@ -92,6 +92,7 @@ public class ReactorTcpServer implements ReactiveServer {
                             .addHandlerLast(protobufDecoder)
                             .addHandlerLast(protobufVarint32LengthFieldPrepender)
                             .addHandlerLast(protobufEncoder)
+
                             ;
                 })
                 .doOnChannelInit((observer, channel, remoteAddress) ->   channel.pipeline()
@@ -101,6 +102,7 @@ public class ReactorTcpServer implements ReactiveServer {
                 .handle(ReactiveHandlerSPI.wiredSpiHandler().handler())
 
                 .doOnUnbound(bound -> log.warn(" do on unbound!"))
+
         ;
 
         log.info("config netty  on port {}",address.getPort());

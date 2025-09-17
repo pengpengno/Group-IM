@@ -74,6 +74,21 @@ public final class BaseMessage {
      */
     com.github.im.common.connect.model.proto.Notification.NotificationInfoOrBuilder getNotificationOrBuilder();
 
+    /**
+     * <code>.com.github.im.common.connect.model.proto.AckMessage ack = 4;</code>
+     * @return Whether the ack field is set.
+     */
+    boolean hasAck();
+    /**
+     * <code>.com.github.im.common.connect.model.proto.AckMessage ack = 4;</code>
+     * @return The ack.
+     */
+    com.github.im.common.connect.model.proto.Chat.AckMessage getAck();
+    /**
+     * <code>.com.github.im.common.connect.model.proto.AckMessage ack = 4;</code>
+     */
+    com.github.im.common.connect.model.proto.Chat.AckMessageOrBuilder getAckOrBuilder();
+
     com.github.im.common.connect.model.proto.BaseMessage.BaseMessagePkg.PayloadCase getPayloadCase();
   }
   /**
@@ -122,6 +137,7 @@ public final class BaseMessage {
       ACCOUNTINFO(1),
       MESSAGE(2),
       NOTIFICATION(3),
+      ACK(4),
       PAYLOAD_NOT_SET(0);
       private final int value;
       private PayloadCase(int value) {
@@ -142,6 +158,7 @@ public final class BaseMessage {
           case 1: return ACCOUNTINFO;
           case 2: return MESSAGE;
           case 3: return NOTIFICATION;
+          case 4: return ACK;
           case 0: return PAYLOAD_NOT_SET;
           default: return null;
         }
@@ -250,6 +267,37 @@ public final class BaseMessage {
       return com.github.im.common.connect.model.proto.Notification.NotificationInfo.getDefaultInstance();
     }
 
+    public static final int ACK_FIELD_NUMBER = 4;
+    /**
+     * <code>.com.github.im.common.connect.model.proto.AckMessage ack = 4;</code>
+     * @return Whether the ack field is set.
+     */
+    @java.lang.Override
+    public boolean hasAck() {
+      return payloadCase_ == 4;
+    }
+    /**
+     * <code>.com.github.im.common.connect.model.proto.AckMessage ack = 4;</code>
+     * @return The ack.
+     */
+    @java.lang.Override
+    public com.github.im.common.connect.model.proto.Chat.AckMessage getAck() {
+      if (payloadCase_ == 4) {
+         return (com.github.im.common.connect.model.proto.Chat.AckMessage) payload_;
+      }
+      return com.github.im.common.connect.model.proto.Chat.AckMessage.getDefaultInstance();
+    }
+    /**
+     * <code>.com.github.im.common.connect.model.proto.AckMessage ack = 4;</code>
+     */
+    @java.lang.Override
+    public com.github.im.common.connect.model.proto.Chat.AckMessageOrBuilder getAckOrBuilder() {
+      if (payloadCase_ == 4) {
+         return (com.github.im.common.connect.model.proto.Chat.AckMessage) payload_;
+      }
+      return com.github.im.common.connect.model.proto.Chat.AckMessage.getDefaultInstance();
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -273,6 +321,9 @@ public final class BaseMessage {
       if (payloadCase_ == 3) {
         output.writeMessage(3, (com.github.im.common.connect.model.proto.Notification.NotificationInfo) payload_);
       }
+      if (payloadCase_ == 4) {
+        output.writeMessage(4, (com.github.im.common.connect.model.proto.Chat.AckMessage) payload_);
+      }
       getUnknownFields().writeTo(output);
     }
 
@@ -293,6 +344,10 @@ public final class BaseMessage {
       if (payloadCase_ == 3) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(3, (com.github.im.common.connect.model.proto.Notification.NotificationInfo) payload_);
+      }
+      if (payloadCase_ == 4) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(4, (com.github.im.common.connect.model.proto.Chat.AckMessage) payload_);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
@@ -323,6 +378,10 @@ public final class BaseMessage {
           if (!getNotification()
               .equals(other.getNotification())) return false;
           break;
+        case 4:
+          if (!getAck()
+              .equals(other.getAck())) return false;
+          break;
         case 0:
         default:
       }
@@ -349,6 +408,10 @@ public final class BaseMessage {
         case 3:
           hash = (37 * hash) + NOTIFICATION_FIELD_NUMBER;
           hash = (53 * hash) + getNotification().hashCode();
+          break;
+        case 4:
+          hash = (37 * hash) + ACK_FIELD_NUMBER;
+          hash = (53 * hash) + getAck().hashCode();
           break;
         case 0:
         default:
@@ -493,6 +556,9 @@ public final class BaseMessage {
         if (notificationBuilder_ != null) {
           notificationBuilder_.clear();
         }
+        if (ackBuilder_ != null) {
+          ackBuilder_.clear();
+        }
         payloadCase_ = 0;
         payload_ = null;
         return this;
@@ -546,6 +612,10 @@ public final class BaseMessage {
             notificationBuilder_ != null) {
           result.payload_ = notificationBuilder_.build();
         }
+        if (payloadCase_ == 4 &&
+            ackBuilder_ != null) {
+          result.payload_ = ackBuilder_.build();
+        }
       }
 
       @java.lang.Override
@@ -571,6 +641,10 @@ public final class BaseMessage {
           }
           case NOTIFICATION: {
             mergeNotification(other.getNotification());
+            break;
+          }
+          case ACK: {
+            mergeAck(other.getAck());
             break;
           }
           case PAYLOAD_NOT_SET: {
@@ -624,6 +698,13 @@ public final class BaseMessage {
                 payloadCase_ = 3;
                 break;
               } // case 26
+              case 34: {
+                input.readMessage(
+                    getAckFieldBuilder().getBuilder(),
+                    extensionRegistry);
+                payloadCase_ = 4;
+                break;
+              } // case 34
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -1082,6 +1163,148 @@ public final class BaseMessage {
         return notificationBuilder_;
       }
 
+      private com.google.protobuf.SingleFieldBuilder<
+          com.github.im.common.connect.model.proto.Chat.AckMessage, com.github.im.common.connect.model.proto.Chat.AckMessage.Builder, com.github.im.common.connect.model.proto.Chat.AckMessageOrBuilder> ackBuilder_;
+      /**
+       * <code>.com.github.im.common.connect.model.proto.AckMessage ack = 4;</code>
+       * @return Whether the ack field is set.
+       */
+      @java.lang.Override
+      public boolean hasAck() {
+        return payloadCase_ == 4;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.AckMessage ack = 4;</code>
+       * @return The ack.
+       */
+      @java.lang.Override
+      public com.github.im.common.connect.model.proto.Chat.AckMessage getAck() {
+        if (ackBuilder_ == null) {
+          if (payloadCase_ == 4) {
+            return (com.github.im.common.connect.model.proto.Chat.AckMessage) payload_;
+          }
+          return com.github.im.common.connect.model.proto.Chat.AckMessage.getDefaultInstance();
+        } else {
+          if (payloadCase_ == 4) {
+            return ackBuilder_.getMessage();
+          }
+          return com.github.im.common.connect.model.proto.Chat.AckMessage.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.AckMessage ack = 4;</code>
+       */
+      public Builder setAck(com.github.im.common.connect.model.proto.Chat.AckMessage value) {
+        if (ackBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          payload_ = value;
+          onChanged();
+        } else {
+          ackBuilder_.setMessage(value);
+        }
+        payloadCase_ = 4;
+        return this;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.AckMessage ack = 4;</code>
+       */
+      public Builder setAck(
+          com.github.im.common.connect.model.proto.Chat.AckMessage.Builder builderForValue) {
+        if (ackBuilder_ == null) {
+          payload_ = builderForValue.build();
+          onChanged();
+        } else {
+          ackBuilder_.setMessage(builderForValue.build());
+        }
+        payloadCase_ = 4;
+        return this;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.AckMessage ack = 4;</code>
+       */
+      public Builder mergeAck(com.github.im.common.connect.model.proto.Chat.AckMessage value) {
+        if (ackBuilder_ == null) {
+          if (payloadCase_ == 4 &&
+              payload_ != com.github.im.common.connect.model.proto.Chat.AckMessage.getDefaultInstance()) {
+            payload_ = com.github.im.common.connect.model.proto.Chat.AckMessage.newBuilder((com.github.im.common.connect.model.proto.Chat.AckMessage) payload_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            payload_ = value;
+          }
+          onChanged();
+        } else {
+          if (payloadCase_ == 4) {
+            ackBuilder_.mergeFrom(value);
+          } else {
+            ackBuilder_.setMessage(value);
+          }
+        }
+        payloadCase_ = 4;
+        return this;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.AckMessage ack = 4;</code>
+       */
+      public Builder clearAck() {
+        if (ackBuilder_ == null) {
+          if (payloadCase_ == 4) {
+            payloadCase_ = 0;
+            payload_ = null;
+            onChanged();
+          }
+        } else {
+          if (payloadCase_ == 4) {
+            payloadCase_ = 0;
+            payload_ = null;
+          }
+          ackBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.AckMessage ack = 4;</code>
+       */
+      public com.github.im.common.connect.model.proto.Chat.AckMessage.Builder getAckBuilder() {
+        return getAckFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.AckMessage ack = 4;</code>
+       */
+      @java.lang.Override
+      public com.github.im.common.connect.model.proto.Chat.AckMessageOrBuilder getAckOrBuilder() {
+        if ((payloadCase_ == 4) && (ackBuilder_ != null)) {
+          return ackBuilder_.getMessageOrBuilder();
+        } else {
+          if (payloadCase_ == 4) {
+            return (com.github.im.common.connect.model.proto.Chat.AckMessage) payload_;
+          }
+          return com.github.im.common.connect.model.proto.Chat.AckMessage.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.AckMessage ack = 4;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilder<
+          com.github.im.common.connect.model.proto.Chat.AckMessage, com.github.im.common.connect.model.proto.Chat.AckMessage.Builder, com.github.im.common.connect.model.proto.Chat.AckMessageOrBuilder> 
+          getAckFieldBuilder() {
+        if (ackBuilder_ == null) {
+          if (!(payloadCase_ == 4)) {
+            payload_ = com.github.im.common.connect.model.proto.Chat.AckMessage.getDefaultInstance();
+          }
+          ackBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              com.github.im.common.connect.model.proto.Chat.AckMessage, com.github.im.common.connect.model.proto.Chat.AckMessage.Builder, com.github.im.common.connect.model.proto.Chat.AckMessageOrBuilder>(
+                  (com.github.im.common.connect.model.proto.Chat.AckMessage) payload_,
+                  getParentForChildren(),
+                  isClean());
+          payload_ = null;
+        }
+        payloadCase_ = 4;
+        onChanged();
+        return ackBuilder_;
+      }
+
       // @@protoc_insertion_point(builder_scope:com.github.im.common.connect.model.proto.BaseMessagePkg)
     }
 
@@ -1149,16 +1372,17 @@ public final class BaseMessage {
     java.lang.String[] descriptorData = {
       "\n\021BaseMessage.proto\022(com.github.im.commo" +
       "n.connect.model.proto\032\rAccount.proto\032\rMe" +
-      "ssage.proto\032\022Notification.proto\"\207\002\n\016Base" +
+      "ssage.proto\032\022Notification.proto\"\314\002\n\016Base" +
       "MessagePkg\022L\n\013accountInfo\030\001 \001(\01325.com.gi" +
       "thub.im.common.connect.model.proto.Accou" +
       "ntInfoH\000\022H\n\007message\030\002 \001(\01325.com.github.i" +
       "m.common.connect.model.proto.ChatMessage" +
       "H\000\022R\n\014notification\030\003 \001(\0132:.com.github.im" +
       ".common.connect.model.proto.Notification" +
-      "InfoH\000B\t\n\007payloadB7\n(com.github.im.commo" +
-      "n.connect.model.protoB\013BaseMessageb\006prot" +
-      "o3"
+      "InfoH\000\022C\n\003ack\030\004 \001(\01324.com.github.im.comm" +
+      "on.connect.model.proto.AckMessageH\000B\t\n\007p" +
+      "ayloadB7\n(com.github.im.common.connect.m" +
+      "odel.protoB\013BaseMessageb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -1172,7 +1396,7 @@ public final class BaseMessage {
     internal_static_com_github_im_common_connect_model_proto_BaseMessagePkg_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_com_github_im_common_connect_model_proto_BaseMessagePkg_descriptor,
-        new java.lang.String[] { "AccountInfo", "Message", "Notification", "Payload", });
+        new java.lang.String[] { "AccountInfo", "Message", "Notification", "Ack", "Payload", });
     descriptor.resolveAllFeaturesImmutable();
     com.github.im.common.connect.model.proto.Account.getDescriptor();
     com.github.im.common.connect.model.proto.Chat.getDescriptor();

@@ -26,14 +26,16 @@ public class ReactiveConnectionConsumer extends ConnectionConsumer {
         super((nettyInbound, nettyOutbound) -> {
             // 处理 BaseMessage（对象）
             var messageFlux = nettyInbound
-                    .receive()
-                    .asByteArray()
+//                    .receive()
+//                    .asByteArray()
+                    .receiveObject()
+                    .cast(BaseMessage.BaseMessagePkg.class)
                     .handle( (obj,sink) -> {
                         try {
                             // 直接用 Protobuf 的 parseFrom 解码
-                            BaseMessage.BaseMessagePkg message = BaseMessage.BaseMessagePkg.parseFrom(obj);
-                            log.debug("Received Protobuf Message: {}", message);
-                            MessageDispatcher.getInstance().dispatchMessage(nettyInbound, nettyOutbound, message);
+//                            BaseMessage.BaseMessagePkg message = BaseMessage.BaseMessagePkg.parseFrom(obj);
+                            log.debug("Received Protobuf Message: {}", obj);
+                            MessageDispatcher.getInstance().dispatchMessage(nettyInbound, nettyOutbound, obj);
 
                         } catch (Exception e) {
                             log.error("解析失败: {}", e.getMessage());

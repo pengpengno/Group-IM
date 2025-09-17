@@ -23,6 +23,8 @@ public class Message {
     @JoinColumn(name = "conversation_id",referencedColumnName = "conversationId" , nullable = false)
     private Conversation conversation;
 
+    /**UUID**/
+    private String clientMsgId;
 
     /**
      * 消息内容
