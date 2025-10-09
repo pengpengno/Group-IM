@@ -32,6 +32,10 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Grant execute permission for gradlew
+        working-directory: Group-app/Group
+        run: chmod +x gradlew
+
       - name: Build Debug APK
         working-directory: Group-app/Group
         run: ./gradlew :composeApp:assembleDebug
