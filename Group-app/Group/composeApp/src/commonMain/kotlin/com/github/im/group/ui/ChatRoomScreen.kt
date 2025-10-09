@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -25,14 +26,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
+import com.github.im.group.model.proto.MessagesStatus
 import com.github.im.group.ui.chat.MessageContent
+import com.github.im.group.ui.chat.SendingSpinner
 import com.github.im.group.ui.chat.TextMessage
 import com.github.im.group.ui.chat.VoiceMessage
 import com.github.im.group.viewmodel.ChatMessageViewModel
@@ -167,33 +172,42 @@ fun ChatRoomScreen(
         }
     }
 }
-
 /**
  * 聊天气泡
  */
 @Composable
-fun MessageBubble(isOwnMessage: Boolean, msg : MessageItem, content: String) {
+fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem, content: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp),
         horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start
     ) {
-        Surface(
-            color = if (isOwnMessage) Color(0xFFB3E5FC) else Color(0xFFF0F0F0),
-            shape = MaterialTheme.shapes.medium,
-            tonalElevation = 1.dp
+        Row(
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            val type = msg.type
-            when(type)
-                {
-                    MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content))
-                    MessageType.VOICE -> VoiceMessage(MessageContent.Voice(msg.content,1),{})
-                    MessageType.FILE -> println(msg)
-                    MessageType.VIDEO -> TODO()
-                    MessageType.IMAGE -> TODO()
+
+            if (isOwnMessage && msg.status == MessageStatus.SENDING) {
+                SendingSpinner(
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .size(16.dp),
+                    color = Color.Gray
+                )
             }
 
+            Surface(
+                color = if (isOwnMessage) Color(0xFFB3E5FC) else Color(0xFFF0F0F0),
+                shape = MaterialTheme.shapes.medium,
+                tonalElevation = 1.dp
+            ) {
+                when (msg.type) {
+                    MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content))
+                    MessageType.VOICE -> VoiceMessage(MessageContent.Voice(msg.content, 1), {})
+                    MessageType.FILE -> println(msg)
+                    else -> TODO()
+                }
+            }
         }
     }
 }

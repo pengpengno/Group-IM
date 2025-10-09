@@ -39,7 +39,7 @@ val appModule = module {
     single { ChatMessageRepository(get()) }
     viewModelOf (::ChatViewModel)
     viewModelOf (::ChatMessageViewModel)
-    single { ChatSessionManager() }
+    single { ChatSessionManager(get()) }
     single { TCPMessageViewModel(get()) }
     single { VoiceRecorderFactory.create()}
     single { AndroidSocketClient(get()) } bind SocketClient::class

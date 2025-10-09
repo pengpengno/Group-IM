@@ -20,7 +20,9 @@ How to build project:
 
 1. generate protobuf
 ```shell
-gradle generateProto
+gradle generateProtos
+gradle generateSqlDelight
+gradle generateCommonMainAppDatabaseInterface
 ```
 2. build apk
 Android
@@ -28,6 +30,16 @@ Android
 gradle composeApp:assembleDebug
 ```
 
+
+3. adb connect 
+```shell
+
+adb pair {IP:PORT}
+
+Enter pair code
+
+adb connect {IP}:{PORT}
+```
 and the apk  would  output on path composeApp/build/outputs/apk/debug/composeApp-debug.apk
 
 https://square.github.io/wire/wire_compiler/#customizing-output

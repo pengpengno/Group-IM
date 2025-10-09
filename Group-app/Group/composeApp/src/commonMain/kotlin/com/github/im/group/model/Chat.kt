@@ -5,6 +5,7 @@ import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.proto.AccountInfo
 import com.github.im.group.model.proto.ChatMessage
+import com.github.im.group.model.proto.MessagesStatus
 import kotlinx.datetime.LocalDateTime
 
 class Chat {
@@ -38,6 +39,7 @@ data class MessageWrapper(
     val message: ChatMessage? = null,
     val messageDto: MessageDTO? = null
 ) : MessageItem {
+
 
 
     override val status: MessageStatus?

@@ -4,8 +4,8 @@ package com.github.im.common.connect.model.proto;
 option java_package = "com.github.im.group.model.proto";
 option java_outer_classname = "BaseMessage";
 import "Account.proto";
-import "Message.proto";
 import "Notification.proto";
+import "message.proto";
 
 /**
  * 基础消息包

@@ -14,7 +14,7 @@ CREATE TABLE message (
     type TEXT AS MessageType NOT NULL DEFAULT 'TEXT',             -- MessageType
     status TEXT AS MessageStatus NOT NULL DEFAULT 'SENDING',           -- MessageStatus
     client_timestamp INTEGER AS LocalDateTime,       --  本地客户端发送时间 ， 只有自己发送的消息需要这个
-    server_timestamp INTEGER AS LocalDateTime       -- 服务端创建时间
+    server_timestamp INTEGER AS LocalDateTime       -- 服务端创建时间时间戳
 
 );
 
@@ -35,6 +35,10 @@ DELETE FROM message WHERE msg_id = ?;
 -- 根据 msgId 查询
 selectMessageById:
 SELECT * FROM message WHERE msg_id = ?;
+
+-- 根据 clientMsgId 查询
+selectMessageByClientMsgId:
+SELECT * FROM message WHERE client_msg_id = ?;
 
 -- 根据 conversationId 删除
 deleteMessageByConversationId:

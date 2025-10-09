@@ -6,6 +6,7 @@ import com.github.im.group.api.ChatApi
 import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.api.FileApi
+import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
@@ -31,6 +32,7 @@ import kotlin.uuid.Uuid
  * 聊天消息记录model
  */
 data class ChatUiState(
+//    val messages: List<MessageWrapper> = emptyList(),
     val messages: List<MessageItem> = emptyList(),
     val conversation: ConversationRes = ConversationRes(),
     val loading: Boolean = false
@@ -46,11 +48,14 @@ class ChatMessageViewModel(
 
     private val _uiState = MutableStateFlow(ChatUiState())
 
+    private val messageIndex = mutableMapOf<String, Int>() // clientMsgId -> messages list index
+
+
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private val _loading = MutableStateFlow(false)
 
-    val loading: StateFlow<Boolean> = _loading
+//    val loading: StateFlow<Boolean> = _loading
 
 
 
@@ -60,6 +65,29 @@ class ChatMessageViewModel(
     fun onReceiveMessage(message: MessageItem){
         _uiState.update {
             it.copy(messages = it.messages + message)
+        }
+    }
+
+
+    /**
+     * 更新消息
+     * 从本地数据库中获取最新消息数据
+     * 更新 状态  ui
+     *
+     */
+    fun updateMessage(clientMsgId: String?) {
+        if (clientMsgId == null) return
+
+        val idx = messageIndex[clientMsgId] ?: return
+
+        // 从数据库中查询最新版本的消息
+        val latestMessage = chatMessageRepository.getMessageByClientMsgId(clientMsgId) ?: return
+
+        // 更新 StateFlow
+        _uiState.update { state ->
+            val updatedList = state.messages.toMutableList()
+            updatedList[idx] = latestMessage  // 替换为最新版本
+            state.copy(messages = updatedList)
         }
     }
 
@@ -118,11 +146,37 @@ class ChatMessageViewModel(
     /**
      * 接收新的消息
      */
-    fun addMessage(message: MessageItem){
+    private fun addMessage(chatMessage: ChatMessage){
+        senderSdk.sendMessage(chatMessage)
+
+        chatMessageRepository.insertMessage(chatMessage)
+        val message = MessageWrapper(chatMessage)
         _uiState.update {
-            it.copy(messages = it.messages + message)
+            // 更新消息列表
+            val updatedList = it.messages + message
+            // clientMsgId  建立索引
+            messageIndex[message.clientMsgId] = updatedList.lastIndex
+            it.copy(messages = updatedList)
         }
     }
+
+
+    /**
+     * 删除消息
+     */
+    fun removeMessage(clientMsgId: String) {
+        val idx = messageIndex.remove(clientMsgId) ?: return
+        _uiState.update { state ->
+            val updatedList = state.messages.toMutableList()
+            updatedList.removeAt(idx)
+            // 重新建立索引
+            updatedList.forEachIndexed { i, msg ->
+                messageIndex[msg.clientMsgId] = i
+            }
+            state.copy(messages = updatedList)
+        }
+    }
+
 
     /**
      * 查询指定 群聊
@@ -176,18 +230,6 @@ class ChatMessageViewModel(
              val response  = FileApi.uploadFile(data,fileName,duration).let {
                  var fileMeta = it.fileMeta
 
-
-//                 val message = ChatMessage(
-//                     conversationId = conversationId,
-//                     fromAccountInfo = userViewModel.getAccountInfo(),
-//                     content = it.id,
-//                     type = type,
-//                 )
-//                 senderSdk.sendMessage(message)
-//
-//                 _uiState.update {
-//                     it.copy(messages = it.messages + MessageWrapper(message))
-//                 }
                  sendMessage(conversationId,it.id,type)
              }
          }
@@ -213,12 +255,7 @@ class ChatMessageViewModel(
                         clientTimeStamp = Clock.System.now().toEpochMilliseconds(),
                         clientMsgId =  Uuid.random().toString(),
                     )
-                    senderSdk.sendMessage(chatMessage)
-
-                    chatMessageRepository.insertMessage(chatMessage)
-                    _uiState.update {
-                        it.copy(messages = it.messages + MessageWrapper(chatMessage))
-                    }
+                    addMessage(chatMessage)
                 }
 
             } catch (e: Exception) {

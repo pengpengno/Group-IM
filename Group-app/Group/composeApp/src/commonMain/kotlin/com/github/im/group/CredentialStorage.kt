@@ -12,4 +12,5 @@ interface CredentialStorage {
     suspend fun getUserInfo(): UserInfo?
 
     suspend fun clearUserInfo()
+
 }

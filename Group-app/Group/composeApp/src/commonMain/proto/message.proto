@@ -63,7 +63,7 @@ message AckMessage {
   int64 serverMsgId = 2;  // 服务端生成的 msgId
   int64 conversationId = 3;
   AccountInfo fromAccount = 4;  // 谁的消息被确认
-  int64 ackTimestamp = 5;  // 确认时间戳
+  int64 ackTimestamp = 5;  // 确认时间戳 服务端消息时间戳
 //  enum AckType {
 //    RECEIVED = 0; // 已收到
 //    STORED   = 1; // 已存储

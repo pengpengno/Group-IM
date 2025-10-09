@@ -28,6 +28,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.im.group.model.MessageWrapper
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.getValue
+
+import androidx.compose.ui.graphics.drawscope.rotate
 
 sealed class MessageContent {
     data class Text(val text: String) : MessageContent()
@@ -111,6 +116,33 @@ fun ImageMessage(content: MessageContent.Image) {
 //    )
 }
 
+/**
+ * 发送中的圆形动画
+ */
+@Composable
+fun SendingSpinner(modifier: Modifier = Modifier, color: Color = Color.Gray) {
+    // 无限旋转动画
+    val infiniteTransition = rememberInfiniteTransition()
+    val angle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing)
+        )
+    )
+
+    Canvas(modifier.size(12.dp)) {
+        rotate(angle) {
+            drawArc(
+                color = color,
+                startAngle = 0f,
+                sweepAngle = 270f,
+                useCenter = false,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f)
+            )
+        }
+    }
+}
 
 @Composable
 fun VideoBubble(content: MessageWrapper) {

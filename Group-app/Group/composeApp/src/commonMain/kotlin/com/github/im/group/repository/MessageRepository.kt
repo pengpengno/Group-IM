@@ -1,9 +1,14 @@
 package com.github.im.group.repository
 
+import com.github.im.group.api.MessageDTO
 import com.github.im.group.db.AppDatabase
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
+import com.github.im.group.model.MessageItem
+import com.github.im.group.model.MessageWrapper
+import com.github.im.group.model.UserInfo
 import com.github.im.group.model.proto.ChatMessage
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -14,6 +19,28 @@ class ChatMessageRepository (
     private val db: AppDatabase
 ){
 
+
+    /**
+     * 根据 clientMsgId 查询消息
+     */
+    fun getMessageByClientMsgId(clientMsgId: String): MessageItem? {
+        val entity = db.messageQueries.selectMessageByClientMsgId(clientMsgId).executeAsOneOrNull()
+        return entity?.let {
+            MessageWrapper(
+                messageDto = MessageDTO(
+                    msgId = it.msg_id,
+                    clientMsgId = it.client_msg_id,
+                    content = it.content,
+                    fromAccount = UserInfo(it.from_account_id),
+                    type =it.type,
+                    status =it.status,
+                    timestamp = it.client_timestamp.toString(),
+                    conversationId = it.conversation_id,
+                    sequenceId = it.sequence_id
+                )
+            )
+        }
+    }
 
     /**
      * 在本地数据库中插入消息

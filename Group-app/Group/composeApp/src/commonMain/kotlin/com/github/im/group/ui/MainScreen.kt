@@ -110,7 +110,7 @@ fun ChatMainScreen(
             topBar = {
                 TopAppBar(
                     title = {
-                        Text(text = "即时通讯", color = Color.White)
+                        Text(text = "首页", color = Color.White)
                     },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
