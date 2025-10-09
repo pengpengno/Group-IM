@@ -1,4 +1,4 @@
-package com.github.im.group.ui
+package com.github.im.group.sdk
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,8 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.github.im.group.sdk.FilePicker
-import com.github.im.group.sdk.PickedFile
 import kotlinx.coroutines.launch
 
 @Composable
@@ -34,9 +32,8 @@ actual fun PlatformFilePickerPanel(
     onDismiss: () -> Unit,
     onFileSelected: (List<PickedFile>) -> Unit
 ) {
-
     val scope = rememberCoroutineScope()
-
+    
     Surface(
         color = Color.White,
         tonalElevation = 8.dp,
@@ -50,20 +47,17 @@ actual fun PlatformFilePickerPanel(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            IconTextButton(
-                Icons.AutoMirrored.Filled.InsertDriveFile,
-                "文件",
-                {
-                    scope.launch {
-                        try {
-                            val files = filePicker.pickFile()
-                            onFileSelected(files)
-                            onDismiss()
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+            IconTextButton(Icons.AutoMirrored.Filled.InsertDriveFile, "文件", {
+                scope.launch {
+                    try {
+                        val files = filePicker.pickFile()
+                        onFileSelected(files)
+                        onDismiss()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
-                })
+                }
+            })
             IconTextButton(Icons.Default.PhotoCamera, "拍照", {
                 scope.launch {
                     try {
