@@ -1,4 +1,4 @@
-package com.github.im.group.ui
+package com.github.im.group.sdk
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,24 +18,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.github.im.group.sdk.FilePicker
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Composable
-fun FunctionPanel(
-//    onSelectFile: () -> Unit,
-//    onTakePhoto: () -> Unit,
-//    onRecordAudio: () -> Unit,
-    filePicker: FilePicker ,
-    onDismiss: () -> Unit
+actual fun PlatformFilePickerPanel(
+    filePicker: FilePicker,
+    onDismiss: () -> Unit,
+    onFileSelected: (List<PickedFile>) -> Unit
 ) {
+    val scope = rememberCoroutineScope()
+
     Surface(
         color = Color.White,
         tonalElevation = 8.dp,
@@ -50,21 +48,38 @@ fun FunctionPanel(
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             IconTextButton(Icons.AutoMirrored.Filled.InsertDriveFile, "文件", {
-                CoroutineScope(Dispatchers.Main).launch {
-                    filePicker.pickFile()
-                    onDismiss()
+                scope.launch {
+                    try {
+                        val files = filePicker.pickFile()
+                        onFileSelected(files)
+                        onDismiss()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
             })
             IconTextButton(Icons.Default.PhotoCamera, "拍照", {
-                CoroutineScope(Dispatchers.Main).launch {
-                    filePicker.takePhoto()
-                    onDismiss()
+                scope.launch {
+                    try {
+                        val photo = filePicker.takePhoto()
+                        if (photo != null) {
+                            onFileSelected(listOf(photo))
+                        }
+                        onDismiss()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
             })
-            IconTextButton(Icons.Default.Mic, "语音", {
-                CoroutineScope(Dispatchers.Main).launch {
-                    filePicker.pickVideo()
-                    onDismiss()
+            IconTextButton(Icons.Default.Mic, "视频", {
+                scope.launch {
+                    try {
+                        val videos = filePicker.pickVideo()
+                        onFileSelected(videos)
+                        onDismiss()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
             })
         }

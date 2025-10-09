@@ -61,6 +61,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.im.group.sdk.AudioPlayer
+import com.github.im.group.sdk.PickedFile
 import com.github.im.group.sdk.VoiceRecordingResult
 import com.github.im.group.sdk.WithRecordPermission
 import com.github.im.group.sdk.getPlatformFilePicker
@@ -72,15 +73,16 @@ import kotlinx.coroutines.launch
 fun ChatInputArea(
     modifier: Modifier = Modifier,
     onSendText: (String) -> Unit,
-    onStartRecording:  () ->  Unit,
+    onStartRecording: () -> Unit,
     onStopRecording: () -> Unit,
-    onEmojiSelected: (String) -> Unit
+    onEmojiSelected: (String) -> Unit,
+    onFileSelected: (List<PickedFile>) -> Unit
 ) {
     var messageText by remember { mutableStateOf("") }
     var isVoiceMode by remember { mutableStateOf(false) }
     var showMorePanel by remember { mutableStateOf(false) }
     var showEmojiPanel by remember { mutableStateOf(false) }
-    var filerPicker = remember {getPlatformFilePicker()}
+    var filePicker = remember { getPlatformFilePicker() }
 
     Column(modifier = modifier.background(Color.White)) {
         Row(
@@ -100,7 +102,6 @@ fun ChatInputArea(
                 Icon(Icons.Default.InsertEmoticon, contentDescription = "Emoji")
             }
 
-
             if (isVoiceMode) {
                 VoiceRecordButton(
                     onStart = onStartRecording,
@@ -118,7 +119,7 @@ fun ChatInputArea(
             }
 
             //   messageText不为空那么隐藏 + 附件按钮
-            if(messageText.isNotBlank()){
+            if (messageText.isNotBlank()) {
                 IconButton(onClick = {
                     if (messageText.isNotBlank()) {
                         onSendText(messageText)
@@ -127,7 +128,7 @@ fun ChatInputArea(
                 }) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
                 }
-            }else{
+            } else {
 
                 IconButton(onClick = { showMorePanel = !showMorePanel }) {
                     Icon(Icons.Default.Add, contentDescription = "More")
@@ -144,12 +145,15 @@ fun ChatInputArea(
 
         if (showMorePanel) {
             FunctionPanel(
-                filePicker = filerPicker,
-                onDismiss = { showMorePanel = false }
+                filePicker = filePicker,
+                onDismiss = { showMorePanel = false },
+                onFileSelected = onFileSelected
             )
         }
     }
 }
+
+
 @Composable
 fun RecordingOverlay(
     show: Boolean,

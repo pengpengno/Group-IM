@@ -36,6 +36,7 @@ import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.proto.MessagesStatus
+import com.github.im.group.sdk.PickedFile
 import com.github.im.group.ui.chat.MessageContent
 import com.github.im.group.ui.chat.SendingSpinner
 import com.github.im.group.ui.chat.TextMessage
@@ -114,6 +115,12 @@ fun ChatRoomScreen(
                 },
                 onEmojiSelected = { emoji ->
                     // emoji 已经拼接在 ChatInputArea 内
+                },
+                onFileSelected = { files ->
+                    // 处理选择的文件
+                    files.forEach { file ->
+                        messageViewModel.sendFileMessage(conversationId, file)
+                    }
                 }
             )
 
@@ -134,8 +141,7 @@ fun ChatRoomScreen(
                 if (userInfo != null) {
                     MessageBubble(
                         isOwnMessage = msg.userInfo.userId == userInfo.userId,
-                        msg = msg,
-                        content = content
+                        msg = msg
                     )
                 }
             }
@@ -163,7 +169,7 @@ fun ChatRoomScreen(
                         val fileName = "voice-$conversationId-" + Clock.System.now()
                             .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
                         println("durationMillis is ${it.durationMillis}")
-                        messageViewModel.sendVoiceMessage(conversationId, it.bytes,fileName,it.durationMillis)
+                        messageViewModel.sendVoiceMessage(conversationId, it.bytes, fileName, it.durationMillis)
                     }
                 },
                 duration = voiceViewModel.getVoiceData()?.durationMillis ?: 0,
@@ -172,11 +178,12 @@ fun ChatRoomScreen(
         }
     }
 }
+
 /**
  * 聊天气泡
  */
 @Composable
-fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem, content: String) {
+fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -204,7 +211,7 @@ fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem, content: String) {
                 when (msg.type) {
                     MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content))
                     MessageType.VOICE -> VoiceMessage(MessageContent.Voice(msg.content, 1), {})
-                    MessageType.FILE -> println(msg)
+                    MessageType.FILE -> FileMessageBubble(msg)
                     else -> TODO()
                 }
             }
@@ -212,3 +219,14 @@ fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem, content: String) {
     }
 }
 
+@Composable
+fun FileMessageBubble(msg: MessageItem) {
+    // 显示文件消息
+    com.github.im.group.ui.chat.FileMessage(
+        MessageContent.File(
+            fileName = msg.content,
+            fileSize = "文件大小", // 这里需要从消息中获取文件大小信息
+            fileUrl = "" // 这里需要文件URL
+        )
+    )
+}

@@ -18,7 +18,7 @@ interface FilePicker {
     suspend fun pickImage(): List<PickedFile>
 
     /**
-     * 悬着视频
+     * 选择视频
      */
     suspend fun pickVideo(): List<PickedFile>
 
@@ -69,6 +69,6 @@ fun FilePickerScreen(filePicker: FilePicker) {
 }
 
 @Composable
-expect fun CameraPreviewView()
+expect fun CameraPreviewView(): Unit
 
 expect fun getPlatformFilePicker(): FilePicker

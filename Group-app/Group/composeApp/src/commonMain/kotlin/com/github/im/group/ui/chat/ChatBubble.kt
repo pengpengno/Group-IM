@@ -76,8 +76,9 @@ fun FileMessage(content: MessageContent.File) {
         }
     }
 }
+
 @Composable
-fun VoiceMessage(content: MessageContent.Voice, onclick : () -> Unit) {
+fun VoiceMessage(content: MessageContent.Voice, onclick: () -> Unit) {
     Row(
         modifier = Modifier
             .padding(horizontal = 12.dp, vertical = 8.dp)
@@ -96,6 +97,7 @@ fun VoiceMessage(content: MessageContent.Voice, onclick : () -> Unit) {
         Text("${content.duration}\"", color = Color.Gray, fontSize = 12.sp)
     }
 }
+
 /**
  * 图片消息
  */
@@ -165,4 +167,3 @@ fun VideoBubble(content: MessageWrapper) {
         )
     }
 }
-

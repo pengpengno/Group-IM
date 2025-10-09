@@ -8,8 +8,9 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.view.LifecycleCameraController
@@ -46,11 +47,6 @@ fun rememberFilePickerLauncher(): FilePickerLauncher {
     // 创建一个 MutableSharedFlow 用于发射文件选择结果
     val resultFlow = remember { MutableSharedFlow<List<Uri>>() }
 
-    // 创建相机启动器（当前未实现具体功能）
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        // handle photo result here
-    }
-    
     // 创建文件选择启动器，用于处理文件选择结果
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
@@ -83,64 +79,31 @@ fun rememberFilePickerLauncher(): FilePickerLauncher {
 }
 
 
-class AndroidFilePicker(private val context: Context,
+class AndroidFilePicker(private val context: Context) : FilePicker {
+    private var filePickerLauncher: FilePickerLauncher? = null
 
-    ) : FilePicker {
+    fun setFilePickerLauncher(launcher: FilePickerLauncher) {
+        this.filePickerLauncher = launcher
+    }
 
     override suspend fun pickImage(): List<PickedFile> {
-
-        return pickFiles("image/*")
+        val uris = filePickerLauncher?.pick("image/*") ?: emptyList()
+        return uris.map { uriToPickedFile(it) }
     }
 
     override suspend fun pickVideo(): List<PickedFile> {
-        return pickFiles("video/*")
+        val uris = filePickerLauncher?.pick("video/*") ?: emptyList()
+        return uris.map { uriToPickedFile(it) }
     }
 
     override suspend fun pickFile(): List<PickedFile> {
-        return pickFiles("*/*")
+        val uris = filePickerLauncher?.pick("*/*") ?: emptyList()
+        return uris.map { uriToPickedFile(it) }
     }
 
     override suspend fun takePhoto(): PickedFile? {
-        TODO("Not yet implemented")
-    }
-
-    /**
-     * 拍照
-     */
-    fun takePhoto(context: Context, launcher: ActivityResultLauncher<Intent>) {
-        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        launcher.launch(intent)
-    }
-
-    /**
-     * 图片/视频选择
-     */
-    fun selectMedia(context: Context, launcher: ActivityResultLauncher<Intent>) {
-        val intent = Intent(Intent.ACTION_PICK).apply {
-            type = "image/* video/*"
-        }
-        launcher.launch(intent)
-    }
-
-    private suspend fun pickFiles(mimeType: String): List<PickedFile> {
-        val result = CompletableDeferred<List<Uri>>()
-
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            type = mimeType
-            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-            addCategory(Intent.CATEGORY_OPENABLE)
-        }
-
-        (context as? Activity)?.let { activity ->
-            activity.startActivityForResult(intent, 999)
-            // 用 registerForActivityResult 替代较好，但需绑定生命周期
-            // 简化处理为模拟返回
-            // 实际情况需你配合回调机制返回数据并 resume Coroutine
-        }
-
-        // 📝 实际项目中，这里要使用 registerForActivityResult + 回调挂起机制
-
-        return listOf() // TODO: 填写获取 Uri 并转为 PickedFile
+        // 拍照功能需要更复杂的实现
+        return null
     }
 
     private suspend fun uriToPickedFile(uri: Uri): PickedFile = withContext(Dispatchers.IO) {
@@ -151,7 +114,7 @@ class AndroidFilePicker(private val context: Context,
             val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
             val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
             if (cursor.moveToFirst()) {
-                name = cursor.getString(nameIndex)
+                name = cursor.getString(nameIndex) ?: "unknown"
                 size = cursor.getLong(sizeIndex)
             }
         }

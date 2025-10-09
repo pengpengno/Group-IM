@@ -14,6 +14,7 @@ import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.model.proto.MessageType
 import com.github.im.group.model.proto.MessagesStatus
 import com.github.im.group.repository.ChatMessageRepository
+import com.github.im.group.sdk.PickedFile
 import com.github.im.group.sdk.SenderSdk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -218,23 +219,40 @@ class ChatMessageViewModel(
 
         sendFileMessage(conversationId,data,fileName,duration,MessageType.VOICE)
     }
+
+    /**
+     * 发送文件消息
+     * @param conversationId 会话ID
+     * @param file 选择的文件
+     */
+    fun sendFileMessage(conversationId: Long, file: PickedFile) {
+        viewModelScope.launch {
+            // 这里应该上传文件并发送消息
+            // 暂时先发送一个包含文件信息的消息作为示例
+            sendMessage(conversationId, file.name, MessageType.FILE)
+        }
+    }
+
     /**
      * 发送文件消息
      * @param conversationId 会话ID
      * @param data 文件数据
      * @param fileName 文件名
+     * @param duration 时长（用于语音消息）
      * @param type 消息类型
      */
-     fun sendFileMessage(conversationId: Long ,data:ByteArray,fileName:String,duration: Long=0,type:MessageType = MessageType.FILE){
-         viewModelScope.launch {
-             val response  = FileApi.uploadFile(data,fileName,duration).let {
-                 var fileMeta = it.fileMeta
-
-                 sendMessage(conversationId,it.id,type)
-             }
-         }
-
+    fun sendFileMessage(conversationId: Long, data: ByteArray, fileName: String, duration: Long = 0, type: MessageType = MessageType.FILE) {
+        viewModelScope.launch {
+            try {
+                val response = FileApi.uploadFile(data, fileName, duration)
+                sendMessage(conversationId, response.id, type)
+            } catch (e: Exception) {
+                // 处理上传失败的情况
+                e.printStackTrace()
+            }
+        }
     }
+
     /**
      * 发送消息
      * @param conversationId 会话
