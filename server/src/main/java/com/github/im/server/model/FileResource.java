@@ -37,9 +37,11 @@ public class FileResource {
     private String hash;
 
     private Instant uploadTime;
-
+    /**
+     * 上传时候 客户端生成的 clientId ,  用当文件过大时， 会等待所有文件上传完毕
+     * 进行merge chunk 之后， 再 在数据库插入最新chunk
+     */
     private UUID clientId;
-    private UUID uploaderId;
 
 
     @Enumerated(EnumType.STRING)

@@ -62,14 +62,7 @@ class AndroidVoiceRecorder(private val context: Context) : VoiceRecorder {
 
         return voiceRecordingResult;
 
-//        return try {
-//            val file = outputFile ?: return null
-//            val bytes = file.readBytes()
-//            VoiceRecordingResult(bytes, duration)
-//        } catch (e: Exception) {
-//            e.printStackTrace()
-//            null
-//        }
+
 
     }
 

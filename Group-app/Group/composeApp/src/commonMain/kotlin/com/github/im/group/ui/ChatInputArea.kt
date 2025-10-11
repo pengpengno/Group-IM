@@ -58,6 +58,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.im.group.sdk.AudioPlayer
@@ -74,7 +75,7 @@ fun ChatInputArea(
     modifier: Modifier = Modifier,
     onSendText: (String) -> Unit,
     onStartRecording: () -> Unit,
-    onStopRecording: () -> Unit,
+    onStopRecording: (Boolean, SlideDirection) -> Unit,
     onEmojiSelected: (String) -> Unit,
     onFileSelected: (List<PickedFile>) -> Unit
 ) {
@@ -98,16 +99,25 @@ fun ChatInputArea(
                     contentDescription = "Toggle input mode"
                 )
             }
-            IconButton(onClick = { showEmojiPanel = !showEmojiPanel }) {
-                Icon(Icons.Default.InsertEmoticon, contentDescription = "Emoji")
-            }
+
 
             if (isVoiceMode) {
+                //语言模式在 只要战士一个 语言录入就行
                 VoiceRecordButton(
+                    modifier = Modifier.weight(1f),  // ✅ 父 Row 控制宽度
                     onStart = onStartRecording,
                     onStop = onStopRecording
                 )
+                // 表情
+                IconButton(onClick = { showEmojiPanel = !showEmojiPanel }) {
+                    Icon(Icons.Default.InsertEmoticon, contentDescription = "Emoji")
+                }
+                // 更多信息
+                IconButton(onClick = { showMorePanel = !showMorePanel }) {
+                    Icon(Icons.Default.Add, contentDescription = "More")
+                }
             } else {
+
                 OutlinedTextField(
                     value = messageText,
                     onValueChange = { messageText = it },
@@ -116,27 +126,34 @@ fun ChatInputArea(
                     maxLines = 4,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send)
                 )
-            }
-
-            //   messageText不为空那么隐藏 + 附件按钮
-            if (messageText.isNotBlank()) {
-                IconButton(onClick = {
-                    if (messageText.isNotBlank()) {
-                        onSendText(messageText)
-                        messageText = ""
+                // 表情
+                IconButton(onClick = { showEmojiPanel = !showEmojiPanel }) {
+                    Icon(Icons.Default.InsertEmoticon, contentDescription = "Emoji")
+                }
+                //   messageText不为空那么隐藏 + 附件按钮
+                if (messageText.isNotBlank()) {
+                    IconButton(onClick = {
+                        if (messageText.isNotBlank()) {
+                            onSendText(messageText)
+                            messageText = ""
+                        }
+                    }) {
+                        //发送按钮 ， 消息栏不为空 战士发送按钮
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
                     }
-                }) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
-                }
-            } else {
-
-                IconButton(onClick = { showMorePanel = !showMorePanel }) {
-                    Icon(Icons.Default.Add, contentDescription = "More")
+                } else {
+                    // 更多信息
+                    IconButton(onClick = { showMorePanel = !showMorePanel }) {
+                        Icon(Icons.Default.Add, contentDescription = "More")
+                    }
                 }
             }
+
+
         }
 
         if (showEmojiPanel) {
+            // 表情
             EmojiPanel(onEmojiSelected = {
                 messageText += it
                 showEmojiPanel = false
@@ -144,6 +161,7 @@ fun ChatInputArea(
         }
 
         if (showMorePanel) {
+            // 展示  文件 拍照
             FunctionPanel(
                 filePicker = filePicker,
                 onDismiss = { showMorePanel = false },
@@ -157,22 +175,25 @@ fun ChatInputArea(
 @Composable
 fun RecordingOverlay(
     show: Boolean,
-    amplitude: Int,  // 来自 VoiceRecorder 的振幅
-    isCanceling: () -> Unit = {}
+    amplitude: Int,
+    slideDirection: SlideDirection,
+    onCancel: () -> Unit,
+    onPreview: () -> Unit,
+    onSend: () -> Unit
 ) {
     if (!show) return
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0x55000000)), // 半透明背景
+            .background(Color(0x99000000)), // 半透明黑色背景
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xDD222222)) // 深灰背景
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF333333))
                 .padding(32.dp)
         ) {
             // 波纹效果 + 麦克风
@@ -186,14 +207,127 @@ fun RecordingOverlay(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // 提示语
-            Text(
-                text = "上滑取消",
-                color = Color.White,
-                fontSize = 14.sp
-            )
+            // 根据滑动方向显示不同提示
+            when (slideDirection) {
+                SlideDirection.LEFT -> {
+                    Text(
+                        text = "← 上滑取消",
+                        color = Color.Red,
+                        fontSize = 16.sp
+                    )
+                }
+                SlideDirection.RIGHT -> {
+                    Text(
+                        text = "→ 右滑预览",
+                        color = Color.Green,
+                        fontSize = 16.sp
+                    )
+                }
+                else -> {
+                    Text(
+                        text = "↑ 上滑取消",
+                        color = Color.White,
+                        fontSize = 16.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 底部操作指示器
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // 取消区域
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(
+                                color = if (slideDirection == SlideDirection.LEFT) Color.Red.copy(alpha = 0.3f) else Color.Transparent,
+                                shape = RoundedCornerShape(28.dp)
+                            )
+                            .padding(8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "取消",
+                            tint = if (slideDirection == SlideDirection.LEFT) Color.Red else Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Text(
+                        text = "取消发送",
+                        color = if (slideDirection == SlideDirection.LEFT) Color.Red else Color.White,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+
+                // 发送区域 (中间)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(Color.Transparent)
+                            .padding(8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "发送",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Text(
+                        text = "松开发送",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+
+                // 预览区域
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(
+                                color = if (slideDirection == SlideDirection.RIGHT) Color.Green.copy(alpha = 0.3f) else Color.Transparent,
+                                shape = RoundedCornerShape(28.dp)
+                            )
+                            .padding(8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "预览",
+                            tint = if (slideDirection == SlideDirection.RIGHT) Color.Green else Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Text(
+                        text = "预览",
+                        color = if (slideDirection == SlideDirection.RIGHT) Color.Green else Color.White,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -238,52 +372,140 @@ fun RippleAnimation(amplitude: Int) {
  * 语音录制按钮
  */
 @Composable
-fun VoiceRecordButton(onStart: () -> Unit, onStop: () -> Unit) {
+fun VoiceRecordButton(
+    modifier: Modifier = Modifier,
+    onStart: () -> Unit, 
+    onStop: (canceled: Boolean, slideDirection: SlideDirection) -> Unit
+) {
     var isRecording by remember { mutableStateOf(false) }
-
+    var slideDirection by remember { mutableStateOf(SlideDirection.NONE) }
+    var touchOffsetX by remember { mutableStateOf(0f) }
+    var touchOffsetY by remember { mutableStateOf(0f) }
+    
     var needPermission by remember { mutableStateOf(false) }
 
     if (needPermission) {
         WithRecordPermission(
             onGranted = {
                 isRecording = true
+                slideDirection = SlideDirection.NONE
                 onStart()
             },
             onDenied = {
                 println("未授权")
+                needPermission = false
             }
         )
         needPermission = false
     }
-    // 在按下录音按钮后，生成一个遮罩层，同时想微信一样，如果录音时，拖动到指定位置那就停止录音
-    val maskModifier = Modifier.fillMaxWidth().height(48.dp)
-
 
     Surface(
         tonalElevation = 1.dp,
-        modifier = Modifier
+        modifier = modifier
             .background(Color(0xFFEEEEEE))
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
-                        needPermission = true
-                        tryAwaitRelease()
-                        if(isRecording){
-                            isRecording = false
+                        // 按下时立即开始录音
+                        if (!isRecording) {
+                            needPermission = true
                         }
-                        onStop()
+                        tryAwaitRelease()
+                        // 松开时结束录音
+                        if (isRecording) {
+                            isRecording = false
+                            val canceled = slideDirection == SlideDirection.UP || slideDirection == SlideDirection.LEFT
+                            onStop(canceled, slideDirection)
+                        }
+                    }
+                )
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        touchOffsetX = offset.x
+                        touchOffsetY = offset.y
+                    },
+                    onDrag = { change, _ ->
+                        if (isRecording) {
+                            val dragOffsetX = change.position.x - touchOffsetX
+                            val dragOffsetY = change.position.y - touchOffsetY
+                            
+                            val newSlideDirection = when {
+                                dragOffsetY < -100 -> {
+                                    SlideDirection.UP
+                                }
+                                dragOffsetX < -100 -> {
+                                    SlideDirection.LEFT
+                                }
+                                dragOffsetX > 100 -> {
+                                    SlideDirection.RIGHT
+                                }
+                                else -> {
+                                    SlideDirection.NONE
+                                }
+                            }
+                            
+                            // 更新slideDirection
+                            if (slideDirection != newSlideDirection) {
+                                slideDirection = newSlideDirection
+                            }
+                            
+                            change.consume()
+                        }
                     }
                 )
             }
     ) {
-        Text(
-            text = if (isRecording) "松开发送" else "按住说话",
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            color = Color.Black
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp, horizontal = 16.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xFFDDDDDD)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = if (isRecording) "松开发送" else "按住说话",
+                textAlign = TextAlign.Center,
+                color = Color.Black,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            
+            // 显示滑动方向提示
+            if (isRecording) {
+                when (slideDirection) {
+                    SlideDirection.UP -> {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = 4.dp)
+                                .size(16.dp)
+                                .background(Color.Red, shape = RoundedCornerShape(4.dp))
+                        )
+                    }
+                    SlideDirection.LEFT -> {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(start = 8.dp)
+                                .size(16.dp)
+                                .background(Color.Red, shape = RoundedCornerShape(4.dp))
+                        )
+                    }
+                    SlideDirection.RIGHT -> {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 8.dp)
+                                .size(16.dp)
+                                .background(Color.Green, shape = RoundedCornerShape(4.dp))
+                        )
+                    }
+                    else -> {}
+                }
+            }
+        }
     }
 }
-
 
 /**
  * 音量遮罩
@@ -299,6 +521,7 @@ fun MaskVoiceButton(
 
     Surface(
         modifier = Modifier
+//            .weight(1f)
             .padding(8.dp)
             .pointerInput(Unit) {
                 detectDragGestures(
@@ -328,6 +551,7 @@ fun MaskVoiceButton(
         Text(
             text = "按住说话",
             modifier = Modifier.padding(16.dp),
+//            modifier = Modifier.(16.dp),
             color = Color.Black
         )
     }

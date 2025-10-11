@@ -53,6 +53,13 @@ enum class MessageType {
     VIDEO,
     IMAGE,
     ;
+
+    /**
+     * 用于判断是否为文件类型 ， 音视频图像等都为文件
+     */
+    public fun isFile(): Boolean {
+        return this == FILE || this == VOICE || this == VIDEO || this == IMAGE
+    }
 }
 
 

@@ -38,7 +38,18 @@ val appModule = module {
     single { UserRepository(get()) }
     single { ChatMessageRepository(get()) }
     viewModelOf (::ChatViewModel)
-    viewModelOf (::ChatMessageViewModel)
+    
+    // 为ChatMessageViewModel添加所有必需的依赖项
+    viewModel { 
+        ChatMessageViewModel(
+            userViewModel = get(),
+            chatSessionManager = get(),
+            chatMessageRepository = get(),
+            senderSdk = get(),
+            filePicker = get()  // 注入FilePicker依赖
+        )
+    }
+    
     single { ChatSessionManager(get()) }
     single { TCPMessageViewModel(get()) }
     single { VoiceRecorderFactory.create()}

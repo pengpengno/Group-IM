@@ -2,6 +2,7 @@ package com.github.im.server.service;
 
 import cn.hutool.core.io.file.FileNameUtil;
 import com.github.im.dto.file.FileUploadResponse;
+import com.github.im.dto.session.FileMeta;
 import com.github.im.server.config.FileUploadProperties;
 import com.github.im.server.mapstruct.FileMapper;
 import com.github.im.server.model.FileResource;
@@ -11,6 +12,7 @@ import com.github.im.server.repository.FileResourceRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.val;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.MediaType;
@@ -66,20 +68,28 @@ public class FileStorageService {
      * @throws FileNotFoundException 查询不到文件id 则抛出文件不存在异常
      */
     public FileResource getFileResourceById(String id ) throws FileNotFoundException {
-        return repository.findById(UUID.fromString(id)).orElseThrow(() -> new FileNotFoundException("File not found: " + id));
+        try{
+            val uuid = UUID.fromString(id);
+            return repository.findById(uuid).orElseThrow(() -> new FileNotFoundException("File not found: " + id));
+
+        }catch (IllegalArgumentException illegalArgumentException){
+            throw new FileNotFoundException("Uuid in wrong format + "+id);
+        }
     }
 
-//    /**
-//     * 上传 音频文件
-//     * @param file
-//     * @param uploaderId
-//     * @param duration
-//     * @return
-//     * @throws IOException
-//     */
-//    public FileUploadResponse storeVoiceFile(MultipartFile file, UUID uploaderId,Long  duration) throws IOException {
-//
-//    }
+    /**
+     * 根据文件Id 获取文件的元信息数据
+     * @param fileID
+     * @return
+     * @throws FileNotFoundException
+     */
+
+    public FileMeta getFileMeta(UUID fileID ) throws FileNotFoundException {
+         return repository.findById(fileID)
+                .map(fileMapper::toMeta)
+                .orElseThrow(()->new FileNotFoundException("File not found : "+fileID))
+                ;
+    }
 
 
 
@@ -203,8 +213,9 @@ public class FileStorageService {
 
     /**
      * 合并所有分片并保存为最终文件
+     * 所有的分片文件会存放在临时目录文件下
      */
-    public FileUploadResponse mergeChunks(String fileHash, String originalName, UUID uploaderId) throws IOException {
+    public FileUploadResponse mergeChunks(String fileHash, String originalName, UUID clientId) throws IOException {
         String ext = FileNameUtil.extName(originalName);
         String contentType = Files.probeContentType(Paths.get(originalName));
         String relative = DateTimeFormatter.ofPattern("yyyy/MM/dd")
@@ -246,7 +257,7 @@ public class FileStorageService {
         info.setStorageType(StorageType.LOCAL);
         info.setHash(hash);
         info.setUploadTime(Instant.now());
-        info.setUploaderId(uploaderId);
+        info.setClientId(clientId);
         info.setStatus(FileStatus.NORMAL);
 
 

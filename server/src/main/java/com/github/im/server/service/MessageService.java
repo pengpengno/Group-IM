@@ -16,6 +16,7 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MessageService {
 
     private final MessageRepository messageRepository;
@@ -103,8 +105,9 @@ public class MessageService {
      *     <li>TEXT: 纯文本</li>
      *     <li>FILE: 文件  内容为 文件UUid</li>
      * </ul>
+     * 出现一场无法解析 获取文件/ 音频内容资源时候，直接返回原始Content
      * @param message
-     * @return
+     * @return 返回给到前台战士 的 MessageDto
      */
 
     @SneakyThrows
@@ -113,26 +116,31 @@ public class MessageService {
         var type = message.getType();
 
         MessageDTO<MessagePayLoad> dto = messageMapper.toDTO(message);
-//        dto.gs(message.getFromAccountId());
-
-        switch(type) {
-            case TEXT:
-                dto.setPayload(new DefaultMessagePayLoad(message.getContent()));
-                return dto;
-            case VOICE:
-            case FILE:
-                var fileResourceById = fileStorageService.getFileResourceById(message.getContent());
-                var fileMeta = FileMeta.builder()
-                        .filename(fileResourceById.getOriginalName())
-                        .fileSize(fileResourceById.getSize())
-                        .contentType(fileResourceById.getContentType())
-                        .hash(fileResourceById.getHash())
-                        .build();
-                dto.setPayload(fileMeta);
-                return dto;
-            default:
-                return messageMapper.toDTO(message);
+        try{
+            switch(type) {
+                case TEXT:
+                    dto.setPayload(new DefaultMessagePayLoad(message.getContent()));
+                    return dto;
+                case VOICE:
+                case FILE:
+                    var fileResourceById = fileStorageService.getFileResourceById(message.getContent());
+                    var fileMeta = FileMeta.builder()
+                            .filename(fileResourceById.getOriginalName())
+                            .fileSize(fileResourceById.getSize())
+                            .contentType(fileResourceById.getContentType())
+                            .hash(fileResourceById.getHash())
+                            .build();
+                    dto.setPayload(fileMeta);
+                    return dto;
+                default:
+                    return messageMapper.toDTO(message);
+            }
+        } catch (Exception e) {
+            log.error("error message format ",e);
         }
+        dto.setPayload(new DefaultMessagePayLoad(message.getContent()));
+        return dto;
+
     }
 
 }

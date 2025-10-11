@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.VoiceRecorder
 import com.github.im.group.sdk.VoiceRecordingResult
+import com.github.im.group.ui.SlideDirection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.delay
@@ -14,7 +15,7 @@ import kotlinx.coroutines.launch
 
 sealed class RecorderUiState {
     object Idle : RecorderUiState() // 空闲状态
-    object Recording : RecorderUiState() // 正在录音
+    data class Recording(val slideDirection: SlideDirection = SlideDirection.NONE) : RecorderUiState() // 正在录音
     data class Playback(
         val filePath: String,
         val duration: Long
@@ -42,7 +43,7 @@ class VoiceViewModel(
     fun startRecording(conversationId: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             voiceRecorder.startRecording(conversationId)
-            _uiState.value = RecorderUiState.Recording
+            _uiState.value = RecorderUiState.Recording()
 
             delay(200) // 给 MediaRecorder 启动缓冲时间
             while (_uiState.value is RecorderUiState.Recording) {
@@ -54,6 +55,12 @@ class VoiceViewModel(
                 }
                 delay(100)
             }
+        }
+    }
+
+    fun updateSlideDirection(direction: SlideDirection) {
+        if (_uiState.value is RecorderUiState.Recording) {
+            _uiState.value = RecorderUiState.Recording(direction)
         }
     }
 

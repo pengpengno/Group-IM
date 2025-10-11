@@ -6,6 +6,7 @@ import com.github.im.group.api.ChatApi
 import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.api.FileApi
+import com.github.im.group.api.FileMeta
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.model.MessageItem
@@ -14,6 +15,7 @@ import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.model.proto.MessageType
 import com.github.im.group.model.proto.MessagesStatus
 import com.github.im.group.repository.ChatMessageRepository
+import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.PickedFile
 import com.github.im.group.sdk.SenderSdk
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
@@ -44,7 +47,8 @@ class ChatMessageViewModel(
     val userViewModel: UserViewModel,
     val chatSessionManager: ChatSessionManager,
     val chatMessageRepository: ChatMessageRepository,
-    val senderSdk: SenderSdk ,
+    val senderSdk: SenderSdk,
+    val filePicker: FilePicker,  // 通过构造函数注入FilePicker
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -227,10 +231,51 @@ class ChatMessageViewModel(
      */
     fun sendFileMessage(conversationId: Long, file: PickedFile) {
         viewModelScope.launch {
-            // 这里应该上传文件并发送消息
-            // 暂时先发送一个包含文件信息的消息作为示例
-            sendMessage(conversationId, file.name, MessageType.FILE)
+            try {
+                // 先读取文件字节数据
+                val fileBytes = filePicker.readFileBytes(file)
+                if (fileBytes != null) {
+                    // 上传文件并发送消息
+                    val response = FileApi.uploadFile(fileBytes, file.name, 0)
+                    sendMessage(conversationId, response.id, MessageType.FILE)
+                } else {
+                    // 如果无法读取文件，发送文件名作为消息
+                    sendMessage(conversationId, "文件: ${file.name}", MessageType.FILE)
+                }
+            } catch (e: Exception) {
+                // 处理上传失败的情况
+                e.printStackTrace()
+                // 即使上传失败，也发送文件名作为消息
+                sendMessage(conversationId, "文件: ${file.name}", MessageType.FILE)
+            }
         }
+    }
+
+     suspend fun getFileMessageMeta(fileId: String): FileMeta{
+         return FileApi.getFileMeta(fileId)
+    }
+
+    /**
+     * 获取文件元信息
+     */
+    fun getFileMessageMeta(messageItem: MessageItem): FileMeta? {
+        if(messageItem.type.isFile()){
+            messageItem.fileMeta?.let {
+                return it
+            }
+
+            // 如果没有，通过API获取
+            runBlocking {
+                try {
+                    getFileMessageMeta(messageItem.content)
+
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    null
+                }
+            }
+        }
+        return null
     }
 
     /**
@@ -284,4 +329,3 @@ class ChatMessageViewModel(
     }
 
 }
-

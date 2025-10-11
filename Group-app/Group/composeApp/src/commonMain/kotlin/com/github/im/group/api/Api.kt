@@ -74,8 +74,26 @@ object ConversationApi{
  * 文件处理 API
  */
 object FileApi {
+    /**
+     * 上传文件
+     * 不
+     * @param file 文件
+     * @param fileName 文件名
+     * @param duration 文件时长 多余 音视频文件，非音视频文件 传 0 即可
+     */
     suspend fun uploadFile(file: ByteArray,fileName:String,duration:Long): FileUploadResponse {
         return ProxyApi.uploadFile(file, fileName,duration)
+    }
+
+    /**
+     * 根据文件Id获取文件元数据
+     */
+    suspend fun getFileMeta(fileId:String) : FileMeta{
+        return ProxyApi.request< String,FileMeta>(
+            hmethod = HttpMethod.Get,
+            path = "/api/files/meta",
+            requestParams = mapOf("fileId" to fileId)
+        )
     }
 }
 /**
@@ -136,24 +154,6 @@ data class MessagePullRequest(
 )
 
 
-
-//
-//@Serializable
-//enum class MessageType {
-////   文本
-//    TEXT,
-////   文件
-//    FILE,
-//
-//    VOICE,
-//
-//    VIDEO,
-//
-//    IMAGE ,
-//
-//}
-
-
 @Serializable
 /**
  * 分页
@@ -171,8 +171,12 @@ data class PageResult<T>(
     )
 }
 @Serializable
+//sealed interface MessagePayLoad
 sealed interface MessagePayLoad
-
+@Serializable
+data class FileMetaPayload(
+    val fileMeta: FileMeta
+) : MessagePayLoad
 @Serializable
 @SerialName("TEXT")
 data class DefaultMessagePayLoad(
@@ -198,6 +202,8 @@ data class FileMeta(
     val contentType: String,
 
     val hash: String,
+
+    val type: String,
 
 ) : MessagePayLoad
 
@@ -225,6 +231,10 @@ data class MessageDTO(
 
 ){
 
+
+}
+public inline fun <reified T : MessagePayLoad> MessageDTO.extraAs(): T? {
+    return payload as? T
 }
 
 

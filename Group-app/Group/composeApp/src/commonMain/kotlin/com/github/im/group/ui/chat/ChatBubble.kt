@@ -60,7 +60,11 @@ fun FileMessage(content: MessageContent.File) {
         modifier = Modifier
             .padding(12.dp)
 //            .width(max = 250.dp)
-            .clickable { /* TODO: 下载 or 打开文件 */ },
+            .clickable { /* TODO:
+             文件在本地数据库中不存在   -》 下载
+              文件在本地数据库中存在 且 路径正确 -》 打开
+              文件在本地数据库中存在 且 路径错误 -》 提示不存在 ，重新下载
+             下载 or 打开文件 */ },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(

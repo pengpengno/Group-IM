@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,6 +38,8 @@ import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.proto.MessagesStatus
 import com.github.im.group.sdk.PickedFile
+import com.github.im.group.sdk.getPlatformFilePicker
+import com.github.im.group.ui.SlideDirection
 import com.github.im.group.ui.chat.MessageContent
 import com.github.im.group.ui.chat.SendingSpinner
 import com.github.im.group.ui.chat.TextMessage
@@ -109,9 +112,23 @@ fun ChatRoomScreen(
                 onStartRecording = {
                     voiceViewModel.startRecording(conversationId)
                 },
-                onStopRecording = {
-                    voiceViewModel.stopRecording()
+                onStopRecording = { canceled, slideDirection ->
+                    // 根据滑动方向处理不同的操作
+                    when (slideDirection) {
+                        SlideDirection.LEFT, SlideDirection.UP -> {
+                            // 取消录音
+                            voiceViewModel.cancel()
+                        }
+                        SlideDirection.RIGHT -> {
+                            // 预览录音
+                            voiceViewModel.stopRecording()
 
+                        }
+                        else -> {
+                            // 默认发送
+                            voiceViewModel.stopRecording()
+                        }
+                    }
                 },
                 onEmojiSelected = { emoji ->
                     // emoji 已经拼接在 ChatInputArea 内
@@ -149,10 +166,22 @@ fun ChatRoomScreen(
 
         // 录音时遮罩
         if (uiState is RecorderUiState.Recording) {
+            val recordingState = uiState as RecorderUiState.Recording
             RecordingOverlay(
                 show = true,
                 amplitude = amplitude,
-                isCanceling = { voiceViewModel.cancel() }
+                slideDirection = recordingState.slideDirection,
+                onCancel = { voiceViewModel.cancel() },
+                onPreview = { /* 预览功能 */ },
+                onSend = { /* 发送功能 */
+                    voiceViewModel.getVoiceData()?.let {
+                        // voice-{conversationId}-{dateTime}.m4a
+                        val fileName = "voice-$conversationId-" + Clock.System.now()
+                            .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
+                        println("durationMillis is ${it.durationMillis}")
+                        messageViewModel.sendVoiceMessage(conversationId, it.bytes,fileName,it.durationMillis)
+                    }
+                }
             )
         }
 
@@ -169,7 +198,7 @@ fun ChatRoomScreen(
                         val fileName = "voice-$conversationId-" + Clock.System.now()
                             .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
                         println("durationMillis is ${it.durationMillis}")
-                        messageViewModel.sendVoiceMessage(conversationId, it.bytes, fileName, it.durationMillis)
+                        messageViewModel.sendVoiceMessage(conversationId, it.bytes,fileName,it.durationMillis)
                     }
                 },
                 duration = voiceViewModel.getVoiceData()?.durationMillis ?: 0,
@@ -210,22 +239,36 @@ fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem) {
             ) {
                 when (msg.type) {
                     MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content))
-                    MessageType.VOICE -> VoiceMessage(MessageContent.Voice(msg.content, 1), {})
+                    MessageType.VOICE -> VoiceMessage(MessageContent.Voice(msg.content, 1), {/** 播放音频 **/})
                     MessageType.FILE -> FileMessageBubble(msg)
                     else -> TODO()
                 }
             }
+
         }
     }
 }
-
+/**
+ * 文件类型气泡
+ */
 @Composable
 fun FileMessageBubble(msg: MessageItem) {
+    val messageViewModel: ChatMessageViewModel = koinViewModel()
+
     // 显示文件消息
+    val fileSize = messageViewModel.getFileMessageMeta(msg)?.size ?: 0
+    val displaySize = if (fileSize > 1024 * 1024) {
+        "${fileSize / 1024 / 1024}MB"
+    } else if (fileSize > 1024) {
+        "${fileSize / 1024}KB"
+    } else {
+        "${fileSize}B"
+    }
+    
     com.github.im.group.ui.chat.FileMessage(
         MessageContent.File(
             fileName = msg.content,
-            fileSize = "文件大小", // 这里需要从消息中获取文件大小信息
+            fileSize = displaySize,
             fileUrl = "" // 这里需要文件URL
         )
     )

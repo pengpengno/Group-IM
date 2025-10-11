@@ -31,7 +31,11 @@ interface FilePicker {
      * 拍照
      */
     suspend fun takePhoto(): PickedFile?
-
+    
+    /**
+     * 读取文件内容为字节数组
+     */
+    suspend fun readFileBytes(file: PickedFile): ByteArray?
 }
 
 data class PickedFile(

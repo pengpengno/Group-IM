@@ -1,5 +1,8 @@
 package com.github.im.group.ui.chat
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,7 +31,9 @@ import com.github.im.group.sdk.AndroidFilePicker
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.PickedFile
 import com.github.im.group.sdk.rememberFilePickerLauncher
+import com.github.im.group.sdk.rememberTakePictureLauncher
 import kotlinx.coroutines.launch
+import java.io.File
 
 @Composable
 fun AndroidFilePickerPanel(
@@ -39,9 +44,13 @@ fun AndroidFilePickerPanel(
     val filePickerLauncher = rememberFilePickerLauncher()
     val scope = rememberCoroutineScope()
     
-    // 将filePickerLauncher设置到AndroidFilePicker实例中
+    // 创建拍照启动器
+    val takePictureLauncher = rememberTakePictureLauncher()
+    
+    // 将filePickerLauncher和takePictureLauncher设置到AndroidFilePicker实例中
     if (filePicker is AndroidFilePicker) {
         filePicker.setFilePickerLauncher(filePickerLauncher)
+        filePicker.setTakePictureLauncher(takePictureLauncher)
     }
     
     Surface(
@@ -95,6 +104,7 @@ fun AndroidFilePickerPanel(
         }
     }
 }
+
 
 @Composable
 fun IconTextButton(icon: ImageVector, text: String, onClick: () -> Unit) {

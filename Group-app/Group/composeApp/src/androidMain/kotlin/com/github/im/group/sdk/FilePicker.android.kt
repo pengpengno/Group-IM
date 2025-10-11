@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.MediaStore
 import android.provider.OpenableColumns
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +32,11 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * 文件 Picker
@@ -78,12 +85,29 @@ fun rememberFilePickerLauncher(): FilePickerLauncher {
     }
 }
 
+/**
+ * 创建并记住一个拍照启动器
+ * @return 返回一个用于启动拍照的ActivityResultLauncher
+ */
+@Composable
+fun rememberTakePictureLauncher(): ManagedActivityResultLauncher<Uri, Boolean> {
+    return rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        // 拍照结果处理在ActivityResultCallback中进行
+    }
+}
+
 
 class AndroidFilePicker(private val context: Context) : FilePicker {
     private var filePickerLauncher: FilePickerLauncher? = null
+    private var takePictureLauncher: ManagedActivityResultLauncher<Uri, Boolean>? = null
+    private var currentPhotoUri: Uri? = null
 
     fun setFilePickerLauncher(launcher: FilePickerLauncher) {
         this.filePickerLauncher = launcher
+    }
+    
+    fun setTakePictureLauncher(launcher: ManagedActivityResultLauncher<Uri, Boolean>) {
+        this.takePictureLauncher = launcher
     }
 
     override suspend fun pickImage(): List<PickedFile> {
@@ -102,8 +126,65 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
     }
 
     override suspend fun takePhoto(): PickedFile? {
-        // 拍照功能需要更复杂的实现
-        return null
+        return try {
+            // 创建临时图片文件
+            val photoFile = createImageFile()
+            
+            // 创建文件 URI
+            val authority = context.packageName + ".provider"
+            currentPhotoUri = FileProvider.getUriForFile(context, authority, photoFile)
+            
+            // 启动拍照
+//            takePictureLauncher?.launch(currentPhotoUri)
+            
+            // 返回 PickedFile 对象
+            PickedFile(
+                name = photoFile.name,
+                path = currentPhotoUri.toString(),
+                mimeType = "image/jpeg",
+                size = photoFile.length()
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    
+    /**
+     * 创建临时图片文件
+     */
+    private fun createImageFile(): File {
+        // 创建图片文件名
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val imageFileName = "JPEG_${timeStamp}_"
+        val storageDir = context.getExternalFilesDir(null) // 使用应用私有目录
+        return File.createTempFile(
+            imageFileName,  /* 前缀 */
+            ".jpg",         /* 后缀 */
+            storageDir      /* 目录 */
+        )
+    }
+    
+    /**
+     * 读取文件内容为字节数组
+     */
+    override suspend fun readFileBytes(file: PickedFile): ByteArray? = withContext(Dispatchers.IO) {
+        return@withContext try {
+            val uri = Uri.parse(file.path)
+            val inputStream = context.contentResolver.openInputStream(uri)
+            inputStream?.use { stream ->
+                val buffer = ByteArrayOutputStream()
+                val data = ByteArray(1024)
+                var nRead: Int
+                while (stream.read(data).also { nRead = it } != -1) {
+                    buffer.write(data, 0, nRead)
+                }
+                buffer.toByteArray()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 
     private suspend fun uriToPickedFile(uri: Uri): PickedFile = withContext(Dispatchers.IO) {
