@@ -1,6 +1,9 @@
 package com.github.im.group.ui.chat
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -26,15 +29,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.github.im.group.sdk.AndroidFilePicker
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.PickedFile
 import com.github.im.group.sdk.rememberFilePickerLauncher
 import com.github.im.group.sdk.rememberTakePictureLauncher
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import kotlinx.coroutines.launch
-import java.io.File
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun AndroidFilePickerPanel(
     filePicker: FilePicker,
@@ -43,9 +51,18 @@ fun AndroidFilePickerPanel(
 ) {
     val filePickerLauncher = rememberFilePickerLauncher()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    
+    // 使用 Accompanist 权限库请求相机权限
+    val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
     
     // 创建拍照启动器
-    val takePictureLauncher = rememberTakePictureLauncher()
+    val takePictureLauncher = rememberTakePictureLauncher { success ->
+        // 处理拍照结果
+        if (filePicker is AndroidFilePicker) {
+            filePicker.onTakePictureResult(success)
+        }
+    }
     
     // 将filePickerLauncher和takePictureLauncher设置到AndroidFilePicker实例中
     if (filePicker is AndroidFilePicker) {
@@ -78,16 +95,15 @@ fun AndroidFilePickerPanel(
                 }
             })
             IconTextButton(Icons.Default.PhotoCamera, "拍照", {
-                scope.launch {
-                    try {
-                        val photo = filePicker.takePhoto()
-                        if (photo != null) {
-                            onFileSelected(listOf(photo))
-                        }
-                        onDismiss()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+                // 检查是否已有相机权限
+                if (cameraPermissionState.status.isGranted) {
+                    // 已有权限，直接拍照
+                    scope.launch {
+                        takePhotoAndHandleResult(filePicker, onFileSelected, onDismiss)
                     }
+                } else {
+                    // 请求相机权限
+                    cameraPermissionState.launchPermissionRequest()
                 }
             })
             IconTextButton(Icons.Default.Mic, "视频", {
@@ -102,6 +118,22 @@ fun AndroidFilePickerPanel(
                 }
             })
         }
+    }
+}
+
+private suspend fun takePhotoAndHandleResult(
+    filePicker: FilePicker,
+    onFileSelected: (List<PickedFile>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    try {
+        val photo = filePicker.takePhoto()
+        if (photo != null) {
+            onFileSelected(listOf(photo))
+        }
+        onDismiss()
+    } catch (e: Exception) {
+        e.printStackTrace()
     }
 }
 

@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
@@ -230,13 +231,23 @@ class ChatMessageViewModel(
      * @param file 选择的文件
      */
     fun sendFileMessage(conversationId: Long, file: PickedFile) {
-        viewModelScope.launch {
+        // TODO 发送 存在延迟
+        //  优化项
+        /**
+         * 1. 发送带有 clientId 的消息体
+         * 2. 服务端接受 返回 ACK 消息
+         * 。。。 没想好
+          */
+
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 // 先读取文件字节数据
                 val fileBytes = filePicker.readFileBytes(file)
                 if (fileBytes != null) {
-                    // 上传文件并发送消息
-                    val response = FileApi.uploadFile(fileBytes, file.name, 0)
+                    // 在后台线程中上传文件并发送消息
+                    val response = withContext(Dispatchers.IO) {
+                        FileApi.uploadFile(fileBytes, file.name, 0)
+                    }
                     sendMessage(conversationId, response.id, MessageType.FILE)
                 } else {
                     // 如果无法读取文件，发送文件名作为消息

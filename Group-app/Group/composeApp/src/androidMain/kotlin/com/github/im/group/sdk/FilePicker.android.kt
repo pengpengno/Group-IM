@@ -90,9 +90,9 @@ fun rememberFilePickerLauncher(): FilePickerLauncher {
  * @return 返回一个用于启动拍照的ActivityResultLauncher
  */
 @Composable
-fun rememberTakePictureLauncher(): ManagedActivityResultLauncher<Uri, Boolean> {
+fun rememberTakePictureLauncher(onResult: (Boolean) -> Unit): ManagedActivityResultLauncher<Uri, Boolean> {
     return rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        // 拍照结果处理在ActivityResultCallback中进行
+        onResult(success)
     }
 }
 
@@ -100,7 +100,8 @@ fun rememberTakePictureLauncher(): ManagedActivityResultLauncher<Uri, Boolean> {
 class AndroidFilePicker(private val context: Context) : FilePicker {
     private var filePickerLauncher: FilePickerLauncher? = null
     private var takePictureLauncher: ManagedActivityResultLauncher<Uri, Boolean>? = null
-    private var currentPhotoUri: Uri? = null
+    private lateinit var currentPhotoUri: Uri
+    private var photoResult: CompletableDeferred<Boolean>? = null
 
     fun setFilePickerLauncher(launcher: FilePickerLauncher) {
         this.filePickerLauncher = launcher
@@ -126,6 +127,8 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
     }
 
     override suspend fun takePhoto(): PickedFile? {
+        val takePictureLauncher = this.takePictureLauncher ?: return null
+        
         return try {
             // 创建临时图片文件
             val photoFile = createImageFile()
@@ -134,20 +137,36 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
             val authority = context.packageName + ".provider"
             currentPhotoUri = FileProvider.getUriForFile(context, authority, photoFile)
             
-            // 启动拍照
-//            takePictureLauncher?.launch(currentPhotoUri)
+            // 初始化结果等待器
+            photoResult = CompletableDeferred()
             
-            // 返回 PickedFile 对象
-            PickedFile(
-                name = photoFile.name,
-                path = currentPhotoUri.toString(),
-                mimeType = "image/jpeg",
-                size = photoFile.length()
-            )
+            // 启动拍照
+            takePictureLauncher.launch(currentPhotoUri)
+            
+            // 等待拍照结果
+            val success = photoResult?.await() ?: false
+            
+            if (success && photoFile.exists() && photoFile.length() > 0) {
+                // 返回 PickedFile 对象
+                PickedFile(
+                    name = photoFile.name,
+                    path = currentPhotoUri.toString(),
+                    mimeType = "image/jpeg",
+                    size = photoFile.length()
+                )
+            } else {
+                null
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             null
+        } finally {
+            photoResult = null
         }
+    }
+    
+    fun onTakePictureResult(success: Boolean) {
+        photoResult?.complete(success)
     }
     
     /**

@@ -125,8 +125,15 @@ fun ChatRoomScreen(
 
                         }
                         else -> {
-                            // 默认发送
+                            // 默认 直接发送
                             voiceViewModel.stopRecording()
+                            voiceViewModel.getVoiceData()?.let {
+                                // voice-{conversationId}-{dateTime}.m4a
+                                val fileName = "voice-$conversationId-" + Clock.System.now()
+                                    .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
+                                println("durationMillis is ${it.durationMillis}")
+                                messageViewModel.sendVoiceMessage(conversationId, it.bytes,fileName,it.durationMillis)
+                            }
                         }
                     }
                 },

@@ -1,27 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-    <!-- <uses-feature android:name="android.hardware.camera" android:required="false" /> -->
-    <!-- <uses-feature android:name="android.hardware.camera.front" android:required="false" /> -->
-    <uses-permission android:name="android.permission.INTERNET" /> <!-- debug  调试 http 允许明文 android:usesCleartextTraffic="true" -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <!-- <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" /> -->
-    <!-- <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" /> -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 
     <uses-feature android:name="android.hardware.camera.any" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" /> <!-- Android 12 及以下 -->
+        android:maxSdkVersion="28" />
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
     <application
         android:usesCleartextTraffic="true"
-
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -39,7 +35,6 @@
             </intent-filter>
         </activity>
 
-
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
@@ -50,6 +45,4 @@
                 android:resource="@xml/file_paths"/>
         </provider>
     </application>
-
-
 </manifest>
