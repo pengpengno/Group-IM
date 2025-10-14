@@ -25,17 +25,17 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_11)
         }
     }
-
-    listOf(
-        iosX64(),
-        iosArm64(),
-        iosSimulatorArm64()
-    ).forEach { iosTarget ->
-        iosTarget.binaries.framework {
-            baseName = "ComposeApp"
-            isStatic = true
-        }
-    }
+//   IOS TODO IOS 先不管
+//    listOf(
+//        iosX64(),
+//        iosArm64(),
+//        iosSimulatorArm64()
+//    ).forEach { iosTarget ->
+//        iosTarget.binaries.framework {
+//            baseName = "ComposeApp"
+//            isStatic = true
+//        }
+//    }
 
     jvm("desktop")
     
@@ -47,11 +47,18 @@ kotlin {
         val desktopMain by getting
 
         // 挂载 Protobuf 生成的 Java 源码
-
         val camerax_version = "1.2.2"
 
 
         androidMain.dependencies {
+            //             图片文件预览
+            implementation("io.coil-kt.coil3:coil-compose:3.3.0")
+            implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
+            
+            // 视频播放
+            implementation("androidx.media3:media3-exoplayer:1.4.1")
+            implementation("androidx.media3:media3-ui:1.4.1")
+
             implementation ("androidx.camera:camera-core:${camerax_version}")
             implementation ("androidx.camera:camera-camera2:${camerax_version}")
             implementation ("androidx.camera:camera-lifecycle:${camerax_version}")
@@ -74,7 +81,13 @@ kotlin {
 
         }
         commonMain.dependencies {
-            implementation("media.kamel:kamel-image:0.9.5")
+
+            implementation("org.openjfx:javafx-base:20")
+            implementation("org.openjfx:javafx-media:20")
+            implementation("org.openjfx:javafx-controls:20")
+//            implementation("media.kamel:kamel-image:1.0.8")
+//            implementation("media.kamel:kamel-image-default:1.0.7")
+
 
             implementation("com.squareup.wire:wire-runtime:4.8.1")
 
@@ -120,23 +133,23 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
-        iosMain.dependencies {
-            implementation(libs.ktor.client.darwin)
-            implementation(libs.native.driver)
-        }
+//        iosMain.dependencies {
+//            implementation(libs.ktor.client.darwin)
+//            implementation(libs.native.driver)
+//        }
 
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
+            
+            // VLCJ for video playback on desktop
+            implementation("uk.co.caprica:vlcj:4.8.2")
         }
     }
 }
 
 wire {
     kotlin {
-        // ✅ 这表示会生成 Kotlin 数据类到 commonMain 下
-        // 默认生成到 build/generated/source/wire
-        // 你可以自定义 outputPath
         android = false         // 针对 JVM，而不是 Android 目标
         javaInterop = false
     }

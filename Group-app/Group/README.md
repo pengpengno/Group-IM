@@ -40,6 +40,21 @@ Enter pair code
 
 adb connect {IP}:{PORT}
 ```
+
+
+Gradle repository 
+```
+pluginManagement {
+repositories {
+gradlePluginPortal()
+google()
+mavenCentral()
+maven { url = uri("https://maven.pkg.jetbrains.space/public/p/compose/dev/") }
+maven { url = uri("https://maven.aliyun.com/repository/public") }
+maven { url = uri("https://maven.aliyun.com/repository/google") }
+}
+}
+```
 and the apk  would  output on path composeApp/build/outputs/apk/debug/composeApp-debug.apk
 
 https://square.github.io/wire/wire_compiler/#customizing-output

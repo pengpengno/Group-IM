@@ -241,6 +241,70 @@ class ChatMessageViewModel(
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
+
+                fun isImageFile(mimeType: String? = null, filename: String? = null): Boolean {
+                    mimeType?.let {
+                        if (it.startsWith("image/")) return true
+                    }
+                    filename?.let {
+                        val lower = it.lowercase()
+                        return lower.endsWith(".jpg") ||
+                                lower.endsWith(".jpeg") ||
+                                lower.endsWith(".png") ||
+                                lower.endsWith(".gif") ||
+                                lower.endsWith(".bmp") ||
+                                lower.endsWith(".webp") ||
+                                lower.endsWith(".heic")
+                    }
+                    return false
+                }
+
+                fun isAudioFile(mimeType: String? = null, filename: String? = null): Boolean {
+                    mimeType?.let {
+                        if (it.startsWith("audio/")) return true
+                    }
+                    filename?.let {
+                        val lower = it.lowercase()
+                        return lower.endsWith(".mp3") ||
+                                lower.endsWith(".wav") ||
+                                lower.endsWith(".aac") ||
+                                lower.endsWith(".flac") ||
+                                lower.endsWith(".ogg") ||
+                                lower.endsWith(".m4a")
+                    }
+                    return false
+                }
+
+                fun isVideoFile(mimeType: String? = null, filename: String? = null): Boolean {
+                    mimeType?.let {
+                        if (it.startsWith("video/")) return true
+                    }
+                    filename?.let {
+                        val lower = it.lowercase()
+                        return lower.endsWith(".mp4") ||
+                                lower.endsWith(".mov") ||
+                                lower.endsWith(".avi") ||
+                                lower.endsWith(".mkv") ||
+                                lower.endsWith(".flv") ||
+                                lower.endsWith(".webm")
+                    }
+                    return false
+                }
+
+                val isImageMimeType = isImageFile(file.mimeType, file.name)
+                val isAudioMimeType = isAudioFile(file.mimeType, file.name)
+                val isVideoMimeType = isVideoFile(file.mimeType, file.name)
+                // 封装下 返回 messageType
+
+                val messageType = when {
+                    isImageMimeType -> MessageType.IMAGE
+                    isAudioMimeType -> MessageType.VOICE
+                    isVideoMimeType -> MessageType.VIDEO
+                    else -> {
+                        MessageType.FILE
+                    }
+                }
+
                 // 先读取文件字节数据
                 val fileBytes = filePicker.readFileBytes(file)
                 if (fileBytes != null) {
@@ -248,7 +312,7 @@ class ChatMessageViewModel(
                     val response = withContext(Dispatchers.IO) {
                         FileApi.uploadFile(fileBytes, file.name, 0)
                     }
-                    sendMessage(conversationId, response.id, MessageType.FILE)
+                    sendMessage(conversationId, response.id, messageType)
                 } else {
                     // 如果无法读取文件，发送文件名作为消息
                     sendMessage(conversationId, "文件: ${file.name}", MessageType.FILE)

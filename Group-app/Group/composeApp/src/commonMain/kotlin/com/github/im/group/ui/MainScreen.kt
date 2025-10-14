@@ -122,6 +122,7 @@ fun ChatMainScreen(
                             // 切换搜索框显示
                             searchQuery = if (searchQuery.isEmpty()) " " else ""
                         }) {
+
                             Icon(Icons.Default.Search, contentDescription = "搜索", tint = Color.White)
                         }
                     },

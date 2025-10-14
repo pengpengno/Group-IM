@@ -23,10 +23,7 @@ import org.springframework.util.FileSystemUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.nio.file.*;
 import java.time.Instant;
@@ -101,7 +98,7 @@ public class FileStorageService {
         String ext = FileNameUtil.extName(originalName);
         String contentType = file.getContentType();
         if(StringUtils.isEmpty(contentType)){
-            contentType = MediaTypeFactory.getMediaType(originalName).orElse(MediaType.APPLICATION_OCTET_STREAM).getType();
+            contentType = MediaTypeFactory.getMediaType(originalName).orElse(MediaType.APPLICATION_OCTET_STREAM).toString();
         }
 
         long size = file.getSize();
@@ -198,6 +195,14 @@ public class FileStorageService {
         return Files.readAllBytes(filePath);
     }
 
+
+    public File loadFile(FileResource fileResource) throws FileNotFoundException {
+        Path filePath = baseDir.resolve(fileResource.getStoragePath()).normalize();
+        if (!Files.exists(filePath) || !Files.isReadable(filePath)) {
+            throw new FileNotFoundException("文件不存在或不可读: " + filePath);
+        }
+        return filePath.toFile();
+    }
     /**
      * 如果你在 Controller 中需要返回 Resource，可以这样：
      */

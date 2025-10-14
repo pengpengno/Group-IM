@@ -22,6 +22,29 @@ object LoginApi {
 }
 
 /**
+ * user info api
+ *  1. find user by email or account
+ *  2. register
+ *  3. reset-pwd
+ *  4. logout
+ */
+object UserApi{
+
+
+    /**
+     * find user info by uAccountName  or email
+     */
+    suspend fun findUser(queryString:String): PageResult<UserInfo> {
+        return ProxyApi.request<String, PageResult<UserInfo>>(
+            hmethod = HttpMethod.Post,
+            path = "/api/users/query",
+            requestParams = mapOf("query" to queryString)
+        )
+    }
+
+}
+
+/**
  * 会话 API
  */
 object ConversationApi{
@@ -129,7 +152,7 @@ object ChatApi {
 object FriendShipApi {
 
     /**
-     * 查询用户连卸任
+     * 查询用户联系人
      */
     suspend fun getFriends(userId:Long) : List<FriendshipDTO>{
 

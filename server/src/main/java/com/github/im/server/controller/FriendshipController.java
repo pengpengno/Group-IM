@@ -45,10 +45,16 @@ public class FriendshipController {
     }
 
 
-
-
+    /**
+     * 查询所有联系人
+     * @param userId
+     * @return
+     */
     @PostMapping("/list")
-    public  ResponseEntity<List<FriendshipDTO>> getFriends(@RequestParam Long userId) {
+    public  ResponseEntity<List<FriendshipDTO>> getFriends(@RequestParam Long userId   ,
+                                                        @RequestHeader("Authior")  String token
+    )   {
+        //TODO  只能获取 当前用户的 信息数据
 
         return ResponseEntity.ok( friendshipService.getFriends(userId));
     }

@@ -171,7 +171,9 @@ fun ChatInputArea(
     }
 }
 
-
+/**
+ * 录音 时的 遮罩
+ */
 @Composable
 fun RecordingOverlay(
     show: Boolean,

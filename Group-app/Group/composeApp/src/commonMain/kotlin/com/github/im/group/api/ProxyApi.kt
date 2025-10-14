@@ -17,6 +17,7 @@ import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.contentType
+import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import org.koin.core.component.KoinComponent
@@ -29,6 +30,9 @@ object ProxyApi
 
     val client = HttpClient() {
         install(ContentNegotiation) {
+            val token = GlobalCredentialProvider.currentToken
+
+            headersOf("Authorization",  "Bearer $token")
             json(Json {
                 classDiscriminator = "type"  // 指定多态字段名
                 ignoreUnknownKeys = true

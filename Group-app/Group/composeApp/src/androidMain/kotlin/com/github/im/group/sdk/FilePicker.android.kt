@@ -157,6 +157,10 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
             } else {
                 null
             }
+        } catch (e: SecurityException) {
+            // 处理权限异常
+            e.printStackTrace()
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             null

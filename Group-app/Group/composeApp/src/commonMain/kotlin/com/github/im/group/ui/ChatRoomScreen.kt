@@ -36,13 +36,11 @@ import androidx.navigation.compose.rememberNavController
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
-import com.github.im.group.model.proto.MessagesStatus
-import com.github.im.group.sdk.PickedFile
-import com.github.im.group.sdk.getPlatformFilePicker
-import com.github.im.group.ui.SlideDirection
+import com.github.im.group.ui.chat.ImageMessage
 import com.github.im.group.ui.chat.MessageContent
 import com.github.im.group.ui.chat.SendingSpinner
 import com.github.im.group.ui.chat.TextMessage
+import com.github.im.group.ui.chat.VideoBubble
 import com.github.im.group.ui.chat.VoiceMessage
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
@@ -90,7 +88,6 @@ fun ChatRoomScreen(
             listState.animateScrollToItem(state.messages.lastIndex)
         }
     }
-
 
     Scaffold(
         topBar = {
@@ -246,9 +243,13 @@ fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem) {
             ) {
                 when (msg.type) {
                     MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content))
-                    MessageType.VOICE -> VoiceMessage(MessageContent.Voice(msg.content, 1), {/** 播放音频 **/})
+                    MessageType.VOICE -> VoiceMessage(MessageContent.Voice(msg.content, 1), {/** 播放音频
+
+                     **/})
+                    MessageType.IMAGE -> ImageMessage(MessageContent.Image(msg.content))
+                    MessageType.VIDEO -> VideoBubble(MessageContent.Video(msg.content))
                     MessageType.FILE -> FileMessageBubble(msg)
-                    else -> TODO()
+                    else -> TextMessage(MessageContent.Text(msg.content))
                 }
             }
 

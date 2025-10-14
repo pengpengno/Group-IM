@@ -16,6 +16,8 @@ import kotlinx.coroutines.launch
 sealed class RecorderUiState {
     object Idle : RecorderUiState() // 空闲状态
     data class Recording(val slideDirection: SlideDirection = SlideDirection.NONE) : RecorderUiState() // 正在录音
+
+//    object STOP : RecorderUiState() //  停止录音
     data class Playback(
         val filePath: String,
         val duration: Long

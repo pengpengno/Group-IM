@@ -1,8 +1,11 @@
 package com.github.im.group.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.api.LoginApi
+import com.github.im.group.api.PageResult
+import com.github.im.group.api.UserApi
 import com.github.im.group.model.UserInfo
 import com.github.im.group.model.proto.AccountInfo
 import com.github.im.group.repository.UserRepository
@@ -33,6 +36,17 @@ class UserViewModel(
 
     fun getAccountInfo(): AccountInfo? {
         return userRepository.getAccountInfo()
+    }
+
+    /**
+     * 查询用户
+     */
+    suspend fun queryUser(queryString:String): PageResult<UserInfo>{
+//        viewModelScope.launch {
+            return UserApi.findUser(queryString)
+
+//        }
+
     }
 
     /**

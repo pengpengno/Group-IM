@@ -91,15 +91,23 @@ fun AndroidFilePickerPanel(
                         onDismiss()
                     } catch (e: Exception) {
                         e.printStackTrace()
+                        Toast.makeText(context, "选择文件失败: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
             })
+
             IconTextButton(Icons.Default.PhotoCamera, "拍照", {
                 // 检查是否已有相机权限
                 if (cameraPermissionState.status.isGranted) {
                     // 已有权限，直接拍照
                     scope.launch {
-                        takePhotoAndHandleResult(filePicker, onFileSelected, onDismiss)
+                        try {
+                            takePhotoAndHandleResult(filePicker, onFileSelected, onDismiss)
+                        } catch (e: SecurityException) {
+                            Toast.makeText(context, "没有相机权限，请在设置中开启", Toast.LENGTH_LONG).show()
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "拍照失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 } else {
                     // 请求相机权限
@@ -114,6 +122,7 @@ fun AndroidFilePickerPanel(
                         onDismiss()
                     } catch (e: Exception) {
                         e.printStackTrace()
+                        Toast.makeText(context, "选择视频失败: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
             })
@@ -134,6 +143,7 @@ private suspend fun takePhotoAndHandleResult(
         onDismiss()
     } catch (e: Exception) {
         e.printStackTrace()
+        throw e
     }
 }
 

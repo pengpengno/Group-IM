@@ -1,3 +1,4 @@
+
 spring:
   webflux:
     multipart:
@@ -12,7 +13,23 @@ spring:
     static-locations: classpath:/META-INF/resources/,classpath:/resources/,classpath:/static/,classpath:/public/
   datasource:
     hikari:
+#      maximum-pool-size: 10         # 最大连接池数量
+#      minimum-idle: 5               # 最小空闲连接数
+#      idle-timeout: 300000          # 空闲连接存活5分钟（超时回收）
+#      max-lifetime: 300000          # 连接最大存活5分钟（主动回收）
+#      keepalive-time: 300000        # 每5分钟执行一次心跳防断连
+#      validation-timeout: 3000      # 校验超时时间3秒
+#      connection-timeout: 30000     # 获取连接超时30秒
+#      initialization-fail-timeout: 60000  # 启动时等待数据库可用60秒
       data-source-properties:
+        maximum-pool-size: 10         # 最大连接池数量
+        minimum-idle: 5               # 最小空闲连接数
+        idle-timeout: 300000          # 空闲连接存活5分钟（超时回收）
+        max-lifetime: 600000          # 连接最大存活5分钟（主动回收）
+        keepalive-time: 300000        # 每5分钟执行一次心跳防断连
+        validation-timeout: 3000      # 校验超时时间3秒
+        connection-timeout: 30000     # 获取连接超时30秒
+        initialization-fail-timeout: 60000  # 启动时等待数据库可用60秒
         prepareThreshold: 0
         cachePrepStmts: false
     #    url: jdbc:postgresql://${DB_IP:localhost}:${DB_PORT:5432}/group
@@ -23,12 +40,11 @@ spring:
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
 #    postgresql://postgres.jjivmxncgzvdqglxwnvq:[YOUR-PASSWORD]@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres
-
   jpa:
     open-in-view: false
     hibernate:
       ddl-auto: update
-#    show-sql: true
+    show-sql: true  # 展示 SQL
     properties:
       hibernate:
         format_sql: true

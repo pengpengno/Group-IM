@@ -42,13 +42,15 @@ public class UserController {
 
     /**
      * 根据传入的查询字符串查询用户
-     * @param query
+     * @param query  查询条件用户名 获取  Email
      * @return
      */
     @PostMapping("/query")
     public ResponseEntity<PagedModel<UserInfo>> queryUserByNameOrEmail(@RequestParam String query) {
         return ResponseEntity.ok(new PagedModel<>(userService.findUserByQueryStrings(query)));
     }
+
+
 
     // 用户登录
     @PostMapping("/login")
