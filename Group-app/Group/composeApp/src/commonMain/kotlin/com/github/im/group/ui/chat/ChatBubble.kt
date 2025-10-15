@@ -32,11 +32,14 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.getValue
 
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.runtime.*
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.github.im.group.sdk.CrossPlatformImage
 import com.github.im.group.sdk.CrossPlatformVideo
 
@@ -188,6 +191,7 @@ fun VideoBubble(content: MessageContent.Video) {
     ) {
         // 显示视频缩略图，这里暂时用一个占位图标
         Icon(
+            // TODO  视频第一帧 缩略图
             Icons.Default.PlayCircle,
             contentDescription = "播放",
             tint = Color.White,
@@ -199,21 +203,41 @@ fun VideoBubble(content: MessageContent.Video) {
 
     // 点击后全屏预览
     if (showPreview) {
-        Dialog(onDismissRequest = { showPreview = false }) {
-            Box(
-                modifier = Modifier
-                    .size(300.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.Black)
-                    .clickable {
-                        showPreview = false // 点击视频区域关闭对话框
-                    }
-            ) {
-                CrossPlatformVideo(
-                    url = videoUrl,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
+        FullScreenVideoPlayer(
+            videoUrl = videoUrl,
+            onClose = { showPreview = false }
+        )
+    }
+}
+
+@Composable
+fun FullScreenVideoPlayer(videoUrl: String, onClose: () -> Unit) {
+    Dialog(
+        onDismissRequest = onClose,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false // ✅ 关键：禁用默认宽度限制
+        )
+    ) {
+        CrossPlatformVideo(
+            url = videoUrl,
+            modifier = Modifier.fillMaxSize(),
+            size = 200.dp,
+            onClose = onClose
+        )
+        
+        // 关闭按钮
+//        IconButton(
+//            onClick = onClose,
+//            modifier = Modifier
+//                .align(Alignment.TopEnd)
+//                .padding(16.dp)
+//                .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
+//        ) {
+//            Icon(
+//                imageVector = Icons.Default.Close,
+//                contentDescription = "关闭",
+//                tint = Color.White
+//            )
+//        }
     }
 }
