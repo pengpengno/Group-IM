@@ -15,8 +15,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -38,6 +40,7 @@ import com.github.im.group.ui.UserAvatar
 import com.github.im.group.model.UserInfo
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.ui.ChatRoom
+import com.github.im.group.ui.AddFriend
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import io.github.aakira.napier.Napier
@@ -67,14 +70,30 @@ fun ContactsUI (
             .padding(8.dp)
     ) {
         // 联系人搜索框
-        OutlinedTextField(
-            value = contactSearchQuery,
-            onValueChange = { contactSearchQuery = it },
-            label = { Text("搜索联系人") },
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 8.dp)
-        )
+                .padding(bottom = 8.dp),
+        ) {
+            OutlinedTextField(
+                value = contactSearchQuery,
+                onValueChange = { contactSearchQuery = it },
+                label = { Text("搜索联系人") },
+                modifier = Modifier
+                    .weight(1f)
+            )
+            
+            IconButton(
+                onClick = { navHostController.navigate(AddFriend) },
+                modifier = Modifier
+                    .padding(start = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PersonAdd,
+                    contentDescription = "添加好友"
+                )
+            }
+        }
         
         // 按字母排序的联系人列表
         val filteredAndGroupedFriends = friends

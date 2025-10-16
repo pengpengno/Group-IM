@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.icons.Icons
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -44,6 +46,7 @@ import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.ui.chat.ChatUI
 import com.github.im.group.ui.contacts.ContactsUI
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,30 +105,81 @@ fun ChatMainScreen(
     ) { 
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = {
-                        Text(text = "首页", color = Color.White)
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = "菜单", tint = Color.White)
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = {
-                            // 导航到搜索页面
-                            navHostController.navigate(Search)
-                        }) {
-                            Icon(Icons.Default.Search, contentDescription = "搜索", tint = Color.White)
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFF0088CC),
-                        titleContentColor = Color.White,
-                        navigationIconContentColor = Color.White,
-                        actionIconContentColor = Color.White
-                    )
-                )
+                when (selectedItem) {
+                    0 -> {
+                        // 聊天界面的 TopAppBar，显示搜索按钮
+                        TopAppBar(
+                            title = {
+                                Text(text = "聊天", color = Color.White)
+                            },
+                            navigationIcon = {
+                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                    Icon(Icons.Default.Menu, contentDescription = "菜单", tint = Color.White)
+                                }
+                            },
+                            actions = {
+                                IconButton(onClick = {
+                                    // 导航到搜索页面
+                                    navHostController.navigate(Search)
+                                }) {
+                                    Icon(Icons.Default.Search, contentDescription = "搜索", tint = Color.White)
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = Color(0xFF0088CC),
+                                titleContentColor = Color.White,
+                                navigationIconContentColor = Color.White,
+                                actionIconContentColor = Color.White
+                            )
+                        )
+                    }
+                    1 -> {
+                        // 联系人界面的 TopAppBar，显示添加好友按钮
+                        TopAppBar(
+                            title = {
+                                Text(text = "联系人", color = Color.White)
+                            },
+                            navigationIcon = {
+                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                    Icon(Icons.Default.Menu, contentDescription = "菜单", tint = Color.White)
+                                }
+                            },
+                            actions = {
+                                IconButton(onClick = {
+                                    // 导航到添加好友页面
+                                    navHostController.navigate(AddFriend)
+                                }) {
+                                    Icon(Icons.Default.Add, contentDescription = "添加好友", tint = Color.White)
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = Color(0xFF0088CC),
+                                titleContentColor = Color.White,
+                                navigationIconContentColor = Color.White,
+                                actionIconContentColor = Color.White
+                            )
+                        )
+                    }
+                    else -> {
+                        // 默认的 TopAppBar
+                        TopAppBar(
+                            title = {
+                                Text(text = "首页", color = Color.White)
+                            },
+                            navigationIcon = {
+                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                    Icon(Icons.Default.Menu, contentDescription = "菜单", tint = Color.White)
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = Color(0xFF0088CC),
+                                titleContentColor = Color.White,
+                                navigationIconContentColor = Color.White,
+                                actionIconContentColor = Color.White
+                            )
+                        )
+                    }
+                }
             },
             bottomBar = {
                 BottomNavigation(

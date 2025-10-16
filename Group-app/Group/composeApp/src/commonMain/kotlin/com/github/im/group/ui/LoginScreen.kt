@@ -37,11 +37,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import cafe.adriel.voyager.core.screen.Screen
+import com.github.im.group.ui.contacts.AddFriendScreen
 import com.github.im.group.ui.contacts.ContactsUI
 import com.github.im.group.viewmodel.UserViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -89,6 +88,18 @@ fun loginScreen () {
                 )
 
             }
+            composable<Search> {
+                SearchScreen(
+                    navHostController = navController
+                )
+            }
+            
+            composable<AddFriend> {
+                AddFriendScreen(
+                    navHostController = navController
+                )
+            }
+
             composable<ChatRoom>{ backStackEntry ->
                 val chatRoom : ChatRoom = backStackEntry.toRoute()
                 ChatRoomScreen(

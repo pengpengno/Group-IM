@@ -30,5 +30,11 @@ object Profile
 @Serializable
 object Settings
 
+@Serializable
+object Search
+
+@Serializable
+object AddFriend
+
 class Routing {
 }
