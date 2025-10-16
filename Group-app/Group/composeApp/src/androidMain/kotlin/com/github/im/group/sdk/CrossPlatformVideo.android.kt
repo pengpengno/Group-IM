@@ -50,7 +50,8 @@ actual fun CrossPlatformVideo(
 ) {
     val context = LocalContext.current
 
-    // 全局缓存实例
+
+//    TODO exoPlayer  绑定生命周期至 独立的 chatViewModel
     val cache = remember { VideoCache.getInstance(context) }
 
     val cacheDataSourceFactory = remember {
@@ -124,8 +125,10 @@ actual fun CrossPlatformVideo(
 
             modifier = Modifier.fillMaxSize()
         )
-        // 中间播放按钮 ✅ 必须用 Box + align
+        // 中间播放按钮
         if (showControls) {
+
+            // TODO   缓冲中的 loading 样式
             Box(
                 modifier = Modifier
                     .fillMaxSize()

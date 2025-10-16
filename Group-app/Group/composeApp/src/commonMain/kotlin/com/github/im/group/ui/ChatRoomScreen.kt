@@ -36,6 +36,7 @@ import androidx.navigation.compose.rememberNavController
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
+import com.github.im.group.repository.UserState
 import com.github.im.group.ui.chat.ImageMessage
 import com.github.im.group.ui.chat.MessageContent
 import com.github.im.group.ui.chat.SendingSpinner
@@ -80,7 +81,9 @@ fun ChatRoomScreen(
     // 加载完消息后自动滚动到底部
 
     val state by messageViewModel.uiState.collectAsState()
-    val userInfo = userViewModel.getUser()
+
+    val userInfo = userViewModel.getCurrentUser()
+
     val listState = rememberLazyListState()
 
     LaunchedEffect(state.messages.size) {

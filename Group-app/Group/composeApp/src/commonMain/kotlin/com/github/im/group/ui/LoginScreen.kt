@@ -37,6 +37,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import cafe.adriel.voyager.core.screen.Screen
+import com.github.im.group.ui.contacts.ContactsUI
 import com.github.im.group.viewmodel.UserViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -48,7 +49,11 @@ import org.koin.compose.viewmodel.koinViewModel
 class LoginScreen :Screen{
     @Composable
     override fun Content() {
+
+
         loginScreen()
+
+
     }
 }
 
@@ -78,9 +83,14 @@ fun loginScreen () {
                 )
 
             }
+            composable<Contacts> {
+                ContactsUI(
+                    navHostController = navController,
+                )
+
+            }
             composable<ChatRoom>{ backStackEntry ->
                 val chatRoom : ChatRoom = backStackEntry.toRoute()
-
                 ChatRoomScreen(
                     conversationId = chatRoom.conversationId,
                     onBack = {
@@ -96,7 +106,7 @@ fun LoginScreenUI(
     viewModel: UserViewModel = koinViewModel(),
     navController: NavHostController = rememberNavController(),
 ) {
-    var username by  mutableStateOf("wangpeng")
+    var username by remember{ mutableStateOf("wangpeng")}
     var password by remember { mutableStateOf("1") }
     var autoLogin by remember { mutableStateOf(false) }
     var isLoggingIn by remember { mutableStateOf(false) }
@@ -175,18 +185,23 @@ fun LoginScreenUI(
                                 errorMessage = null
                                 scope.launch {
                                     try {
-                                        viewModel.login(username, password)
-                                        withContext(Dispatchers.Main) {
+                                        // 检查登录结果
+                                        val loginSuccess = viewModel.login(username, password)
+                                        if (loginSuccess) {
+                                            // 登录成功，更新状态和导航
                                             isLoggingIn = false
                                             navController.navigate(Home) {
                                                 popUpTo(Login) { inclusive = true }
                                             }
+                                        } else {
+                                            // 登录失败，只更新状态和错误信息，不导航
+                                            isLoggingIn = false
+                                            errorMessage = "登录失败"
                                         }
                                     } catch (e: Exception) {
-                                        withContext(Dispatchers.Main) {
-                                            isLoggingIn = false
-                                            errorMessage = "登录失败: ${e.message}"
-                                        }
+                                        // 处理未预期的异常
+                                        isLoggingIn = false
+                                        errorMessage = "登录失败: ${e.message}"
                                     }
                                 }
                             },
@@ -200,6 +215,7 @@ fun LoginScreenUI(
                             Spacer(Modifier.height(12.dp))
                             Text(errorMessage ?: "", color = Color.Red)
                         }
+
                     }
                 }
 

@@ -70,11 +70,11 @@ object ConversationApi{
     }
 
     /**
-     * 创建会话
+     * 获取或者创建私聊会话
      */
-    suspend fun createConversation(userId:Long ,friendId:Long): List<ConversationRes> {
-        return ProxyApi.request<Unit , List<ConversationRes> >(
-            hmethod = HttpMethod.Get,
+    suspend fun createOrGetConversation(userId:Long ,friendId:Long): ConversationRes {
+        return ProxyApi.request<Unit , ConversationRes>(
+            hmethod = HttpMethod.Post,
             path = "/api/conversations/private-chat",
             requestParams = mapOf("userId" to userId.toString(),"friendId" to friendId.toString())
         )
@@ -157,7 +157,7 @@ object FriendShipApi {
     suspend fun getFriends(userId:Long) : List<FriendshipDTO>{
 
         return ProxyApi.request< Unit,List<FriendshipDTO>>(
-            hmethod = HttpMethod.Get,
+            hmethod = HttpMethod.Post,
             path = "/api/friendships/list",
             requestParams = mapOf("userId" to userId.toString())
         )
@@ -232,9 +232,10 @@ data class FileMeta(
 
 @Serializable
 data class FriendshipDTO(
-    val id: Long? = null,
-    val userInfo: UserInfo? = null,
-    val friendUserInfo: UserInfo? = null
+    val id: Long? = null,  // 关系ID
+    val userInfo: UserInfo? = null, // 当前用户的用户信息，仅返回用户ID和用户名 /TODO 这个可以省略
+    val friendUserInfo: UserInfo? = null, // 好友的用户信息
+    val conversationId: Long? = null  //与好友当前存在的会话
 )
 
 @Serializable

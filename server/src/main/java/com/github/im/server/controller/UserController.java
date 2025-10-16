@@ -36,6 +36,7 @@ public class UserController {
 
     @GetMapping("/{username}")
     public Optional<User> getUserByUsername(@PathVariable String username) {
+        //TODO 权限
         return userService.findUserByUsername(username);
     }
 
@@ -51,7 +52,6 @@ public class UserController {
     }
 
 
-
     // 用户登录
     @PostMapping("/login")
     public ResponseEntity<UserInfo> loginUser(@RequestBody @NotNull(message = "request not be null") LoginRequest loginRequest) {
@@ -59,6 +59,7 @@ public class UserController {
         // 登录失败
         return userInfo.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
     }
+
 
     // 重置用户密码
     @PutMapping("/reset-password/{userId}")

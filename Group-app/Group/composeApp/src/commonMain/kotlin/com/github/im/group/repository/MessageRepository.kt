@@ -8,7 +8,6 @@ import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.UserInfo
 import com.github.im.group.model.proto.ChatMessage
-import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 

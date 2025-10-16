@@ -15,6 +15,7 @@ import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.model.proto.MessageType
 import com.github.im.group.model.proto.MessagesStatus
 import com.github.im.group.repository.ChatMessageRepository
+import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.PickedFile
 import com.github.im.group.sdk.SenderSdk
@@ -45,7 +46,8 @@ data class ChatUiState(
 
 
 class ChatMessageViewModel(
-    val userViewModel: UserViewModel,
+    val userRepository: UserRepository,
+//    val userViewModel: UserViewModel,
     val chatSessionManager: ChatSessionManager,
     val chatMessageRepository: ChatMessageRepository,
     val senderSdk: SenderSdk,
@@ -61,7 +63,6 @@ class ChatMessageViewModel(
 
     private val _loading = MutableStateFlow(false)
 
-//    val loading: StateFlow<Boolean> = _loading
 
 
 
@@ -383,11 +384,13 @@ class ChatMessageViewModel(
         // 发送的 数据需要 再本地先保存
         viewModelScope.launch(Dispatchers.IO) {
             try {
+
+                val accountInfo = userRepository.withLoggedInUser { it.accountInfo }
                 if(message.isNotBlank()){
                     val chatMessage = ChatMessage(
                         content = message,
                         conversationId = conversationId,
-                        fromAccountInfo = userViewModel.getAccountInfo(),
+                        fromAccountInfo = accountInfo,
                         type = type,
                         messagesStatus = MessagesStatus.SENDING,
                         clientTimeStamp = Clock.System.now().toEpochMilliseconds(),

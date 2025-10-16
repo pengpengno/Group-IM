@@ -13,10 +13,6 @@ class TCPMessageViewModel(
 
     private val _messages = MutableStateFlow<BaseMessagePkg>(BaseMessagePkg())
 
-    val uiState: StateFlow<BaseMessagePkg> = _messages.asStateFlow()
-
-    val baseMessageFlow = _messages.asSharedFlow()
-
 
     fun updateMessage(message: BaseMessagePkg) {
         //  先判断 message 的具体类型
@@ -39,12 +35,12 @@ class TCPMessageViewModel(
         }
 
         _messages.value = message
-
-
     }
 
     fun onNewMessage(msg: BaseMessagePkg) {
         sessionManager.routeMessage(msg)
     }
+
+
 
 }

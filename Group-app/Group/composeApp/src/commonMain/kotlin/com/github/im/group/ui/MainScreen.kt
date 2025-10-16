@@ -3,17 +3,11 @@
 package com.github.im.group.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.icons.Icons
@@ -28,7 +22,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -47,11 +40,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.github.im.group.api.ConversationRes
-import com.github.im.group.model.UserInfo
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.UserViewModel
-import kotlinx.coroutines.launch
+import com.github.im.group.ui.chat.ChatUI
+import com.github.im.group.ui.contacts.ContactsUI
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,10 +56,11 @@ fun ChatMainScreen(
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    var searchQuery by remember { mutableStateOf("") }
     val loading by chatViewModel.loading.collectAsState()
-    val conversations by chatViewModel.uiState.collectAsState()
-    val userInfo  = userViewModel.getUser()
+    val friends by userViewModel.friends.collectAsState()
+
+    val userInfo = userViewModel.getCurrentUser()
+
     
     // 底部导航栏选中状态
     var selectedItem by remember { mutableIntStateOf(0) }
@@ -75,12 +68,13 @@ fun ChatMainScreen(
     val bottomNavItems = listOf(
         BottomNavItem("聊天", Icons.AutoMirrored.Filled.Chat),
         BottomNavItem("联系人", Icons.Default.Contacts),
-        BottomNavItem("收藏", Icons.Default.Person)
+        BottomNavItem("我", Icons.Default.Person)
     )
 
     LaunchedEffect(userInfo) {
         if(userInfo?.userId != 0L){
             userInfo?.userId?.let { chatViewModel.getConversations(it) }
+            userViewModel.loadFriends()
         }
     }
 
@@ -95,7 +89,7 @@ fun ChatMainScreen(
                         userInfo = userInfo,
                         onLogout = { println("logout") },
                         onProfileClick = { navHostController.navigate("Profile") },
-                        onContactsClick = { navHostController.navigate("Contacts") },
+                        onContactsClick = { /* 不再跳转页面 */ },
                         onGroupsClick = { navHostController.navigate("Groups") },
                         onMeetingsClick = { navHostController.navigate("Meetings") },
                         onSettingsClick = { navHostController.navigate("Settings") },
@@ -119,10 +113,9 @@ fun ChatMainScreen(
                     },
                     actions = {
                         IconButton(onClick = {
-                            // 切换搜索框显示
-                            searchQuery = if (searchQuery.isEmpty()) " " else ""
+                            // 导航到搜索页面
+                            navHostController.navigate(Search)
                         }) {
-
                             Icon(Icons.Default.Search, contentDescription = "搜索", tint = Color.White)
                         }
                     },
@@ -167,62 +160,29 @@ fun ChatMainScreen(
                 modifier = Modifier
                     .padding(padding)
                     .fillMaxSize()
-                    .background(Color(0xFFF0F0F0))
-            ) {
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .padding(8.dp)
-                ) {
-                    if (searchQuery.isNotBlank()) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            label = { Text("搜索会话") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp)
-                        )
+                    .background(Color(0xFFF0F0F0)
+            )) {
+                // 根据底部导航选择显示不同内容
+                when (selectedItem) {
+                    0 -> {
+                        // 聊天界面
+                        ChatUI(navHostController = navHostController)
                     }
-
-                    conversations.forEach { conversation ->
-                        if (userInfo != null) {
-                            ChatItem(
-                                conversation = conversation,
-                                userInfo = userInfo,
-                                onClick = {
-                                    navHostController.navigate(ChatRoom(conversation.conversationId))
-                                }
-                            )
+                    1 -> {
+                        // 联系人界面
+                        ContactsUI(navHostController = navHostController)
+                    }
+                    2 -> {
+                        // 个人界面（示例）
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = androidx.compose.ui.Alignment.Center
+                        ) {
+                            Text("个人页面")
                         }
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun ChatItem(conversation: ConversationRes, userInfo: UserInfo, onClick: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(12.dp)
-    ) {
-        UserAvatar(username = conversation.getName(userInfo), size = 56)
-        Spacer(Modifier.width(12.dp))
-        Column {
-            Text(
-                conversation.getName(userInfo), 
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = conversation.lastMessage.takeIf { e-> e.isNotEmpty() } ?: "暂无消息",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
-            )
         }
     }
 }

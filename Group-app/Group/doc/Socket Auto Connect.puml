@@ -1,0 +1,45 @@
+@startuml
+actor User
+participant "AndroidSocketClient" as SocketClient
+participant "Socket" as Socket
+participant "Server" as Server
+participant "TCPMessageViewModel" as TCPViewModel
+participant "SenderSdk" as Sender
+
+User -> SocketClient: connect(host, port)
+activate SocketClient
+SocketClient -> Socket: new Socket(host, port)
+activate Socket
+Socket -> Server: establish connection
+activate Server
+SocketClient -> SocketClient: startReceiving()
+activate SocketClient
+SocketClient -> Socket: getInputStream()
+SocketClient -> Socket: getOutputStream()
+
+loop 持续接收消息
+SocketClient -> Socket: read message length
+SocketClient -> Socket: read message data
+Socket --> SocketClient: message data
+SocketClient -> TCPViewModel: onNewMessage(message)
+end
+
+Socket -> Server: connection lost
+Socket --> SocketClient: SocketException
+deactivate Socket
+
+SocketClient -> SocketClient: startAutoReconnect()
+activate SocketClient
+SocketClient -> Socket: new Socket(host, port)
+activate Socket
+Socket -> Server: establish connection
+activate Server
+Socket --> SocketClient: connection success
+SocketClient -> TCPViewModel: onConnectionRestored()
+TCPViewModel -> Sender: 触发connectionRestored流
+Sender -> SocketClient: send(loginPkg)
+SocketClient -> Socket: 发送登录包
+Socket -> Server: 传输登录包
+deactivate Socket
+
+@enduml

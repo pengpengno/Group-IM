@@ -20,12 +20,23 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
     List<Conversation> findByMembers_User_UserId(Long userId);
 
     // 查询某个用户正在进行的群组
-    @Query("SELECT c FROM Conversation c JOIN c.members m WHERE m.user.userId = :userId AND c.status = :status")
-    List<Conversation> findActiveConversationsByUserId(Long userId, ConversationStatus status);
+    @Query("SELECT c FROM Conversation c JOIN c.members m WHERE m.user.userId = :userId AND c.status = ACTIVE")
+//    List<Conversation> findActiveConversationsByUserId(Long userId, ConversationStatus status);
+    List<Conversation> findActiveConversationsByUserId(Long userId);
 
     // 查询两个用户之间的私聊会话
     @Query("SELECT c FROM Conversation c JOIN c.members m1 JOIN c.members m2 " +
            "WHERE m1.user.userId = :userId1 AND m2.user.userId = :userId2 " +
-           "AND c.conversationType = :conversationType AND c.status = :status")
-    Optional<Conversation> findPrivateChatBetweenUsers(Long userId1, Long userId2, ConversationType conversationType, ConversationStatus status);
+//           "AND c.conversationType = :conversationType" +
+           "AND c.conversationType = PRIVATE_CHAT" +
+            " AND c.status = ACTIVE")
+    Optional<Conversation> findPrivateChatBetweenUsers(Long userId1, Long userId2);
+//    Optional<Conversation> findPrivateChatBetweenUsers(Long userId1, Long userId2, ConversationType conversationType, ConversationStatus status);
+
+
+
+
+
+
+
 }

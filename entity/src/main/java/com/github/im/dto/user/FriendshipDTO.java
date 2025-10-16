@@ -17,4 +17,6 @@ public class FriendshipDTO {
 
     private UserInfo friendUserInfo ;
 
+    private Long conversationId;
+
 }

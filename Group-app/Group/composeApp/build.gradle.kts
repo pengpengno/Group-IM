@@ -81,10 +81,8 @@ kotlin {
 
         }
         commonMain.dependencies {
-
-            implementation("org.openjfx:javafx-base:20")
-            implementation("org.openjfx:javafx-media:20")
-            implementation("org.openjfx:javafx-controls:20")
+//            implementation("io.github.oshai:kotlin-logging:5.1.0")
+            implementation("io.github.aakira:napier:2.6.1")
 //            implementation("media.kamel:kamel-image:1.0.8")
 //            implementation("media.kamel:kamel-image-default:1.0.7")
 
@@ -139,6 +137,9 @@ kotlin {
 //        }
 
         desktopMain.dependencies {
+            implementation("org.openjfx:javafx-base:20")
+            implementation("org.openjfx:javafx-media:20")
+            implementation("org.openjfx:javafx-controls:20")
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
             

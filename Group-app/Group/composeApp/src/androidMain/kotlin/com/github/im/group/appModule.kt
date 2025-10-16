@@ -42,7 +42,7 @@ val appModule = module {
     // 为ChatMessageViewModel添加所有必需的依赖项
     viewModel { 
         ChatMessageViewModel(
-            userViewModel = get(),
+            get(),
             chatSessionManager = get(),
             chatMessageRepository = get(),
             senderSdk = get(),
@@ -60,7 +60,7 @@ val appModule = module {
             audioPlayer = get()
         )
     }
-    single { (SenderSdk(get())) }
+    single { (SenderSdk(get(),)) }
 
     viewModelOf(::UserViewModel)  // 注册为 ViewModel，由 Koin 自动管理生命周期
 

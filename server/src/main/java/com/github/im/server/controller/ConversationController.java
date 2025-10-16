@@ -44,13 +44,14 @@ public class ConversationController {
     /**
      * 创建或获取私聊会话
      *
-     * @param userId1 第一个用户ID group creator
-     * @param userId1 第二个用户ID
+     * @param userId
+     * @param friendId
      * @return 私聊会话的DTO
      */
     @PostMapping("/private-chat")
-    public ResponseEntity<ConversationRes> createOrGetPrivateChat(@RequestParam Long userId1, @RequestParam Long friendId) {
-        ConversationRes conversationRes = conversationService.createOrGetPrivateChat(userId1, friendId);
+    public ResponseEntity<ConversationRes> createOrGetPrivateChat(@RequestParam Long userId, @RequestParam Long friendId) {
+        //TODO  只能查询 自己的会话
+        ConversationRes conversationRes = conversationService.createOrGetPrivateChat(userId, friendId);
         return ResponseEntity.ok(conversationRes);
     }
 

@@ -78,7 +78,9 @@ public class ConversationService {
     public ConversationRes createOrGetPrivateChat(Long userId1, Long userId2) {
         // 查询是否已经存在私聊会话
         Optional<Conversation> existingConversation = conversationRepository.findPrivateChatBetweenUsers(userId1, userId2
-                ,ConversationType.PRIVATE_CHAT ,ConversationStatus.ACTIVE);
+//                ,ConversationType.PRIVATE_CHAT ,ConversationStatus.ACTIVE
+        )
+                ;
         if (existingConversation.isPresent()) {
             var conversation = existingConversation.get();
             var members = conversation.getMembers();
@@ -160,7 +162,8 @@ public class ConversationService {
      */
     @Transactional
     public List<ConversationRes> getActiveConversationsByUserId(Long userId) {
-        return conversationRepository.findActiveConversationsByUserId(userId, ConversationStatus.ACTIVE).stream()
+//        return conversationRepository.findActiveConversationsByUserId(userId, ConversationStatus.ACTIVE).stream()
+        return conversationRepository.findActiveConversationsByUserId(userId).stream()
                 .map(conversationsMapper::toDTO)
                 .collect(Collectors.toList());
     }

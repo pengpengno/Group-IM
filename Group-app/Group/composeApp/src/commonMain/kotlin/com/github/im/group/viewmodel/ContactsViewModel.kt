@@ -3,6 +3,7 @@ package com.github.im.group.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.im.group.GlobalCredentialProvider
+import com.github.im.group.api.FriendShipApi
 import com.github.im.group.api.LoginApi
 import com.github.im.group.api.PageResult
 import com.github.im.group.api.UserApi
@@ -10,23 +11,38 @@ import com.github.im.group.model.UserInfo
 import com.github.im.group.model.proto.AccountInfo
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.SenderSdk
+import db.User
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
-/**
- *  联系人 ViewModel
- *  会话 相关 Api  也在此
- */
+
 class ContactsViewModel(
-    private val senderSdk: SenderSdk,
-    val userRepository: UserRepository
+    val userRepository: UserRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<List<UserInfo>>(emptyList())
 
-    val uiState:  StateFlow<List<UserInfo>> = _uiState.asStateFlow()
+    private val _friendUsersState = MutableStateFlow<List<UserInfo>>(emptyList())
 
+    val friendUserInfos:  StateFlow<List<UserInfo>> = _friendUsersState.asStateFlow()
+
+    private val _loading = MutableStateFlow(false)
+
+    val loading: StateFlow<Boolean> = _loading
+
+
+    /**
+     * 查询用户
+     */
+    suspend fun queryUser(queryString:String){
+        viewModelScope.launch {
+        //TODO  本地用户搜索  远程用户搜索 、 本地信息搜索（所有信息都应该在本地存储）
+             UserApi.findUser(queryString)
+
+        }
+
+    }
 
 
     /**
@@ -42,9 +58,20 @@ class ContactsViewModel(
      */
     fun getAllContacts(): List<UserInfo> {
         return emptyList()
-
-//        return userRepository.getAllContacts()
     }
 
+
+    /**
+     * 获取当前用户的联系人信息
+     */
+    fun getFriends(){
+
+        viewModelScope.launch {
+
+            val userInfo = userRepository.withLoggedInUser { it.user }
+
+            FriendShipApi.getFriends(userInfo.userId)
+        }
+    }
 
 }

@@ -210,6 +210,9 @@ fun VideoBubble(content: MessageContent.Video) {
     }
 }
 
+/**
+ * 全屏放大 视频播放
+ */
 @Composable
 fun FullScreenVideoPlayer(videoUrl: String, onClose: () -> Unit) {
     Dialog(

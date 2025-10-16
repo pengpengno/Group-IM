@@ -65,7 +65,7 @@ enum class MessageType {
 
 @Serializable
 enum class UserStatus {
-
+    ACTIVE,
     ONLINE,
     OFFLINE,
     AWAY,

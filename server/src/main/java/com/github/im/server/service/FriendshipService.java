@@ -6,6 +6,7 @@ import com.github.im.server.mapstruct.FriendShipMapper;
 import com.github.im.server.model.Friendship;
 import com.github.im.server.model.User;
 import com.github.im.server.model.enums.Status;
+import com.github.im.server.repository.ConversationRepository;
 import com.github.im.server.repository.FriendshipRepository;
 import com.github.im.server.repository.UserRepository;
 import com.github.im.server.service.impl.SendMessageToClientEndPointImpl;
@@ -27,6 +28,8 @@ public class FriendshipService {
     private final FriendshipRepository friendshipRepository;
 
     private final SendMessageToClientEndPointImpl sendMessageToClientEndPoint;
+
+    private final ConversationRepository conversationRepository;
 
     @Transactional
     public void sendFriendRequest(FriendRequestDto request) {
@@ -82,6 +85,8 @@ public class FriendshipService {
     public List<FriendshipDTO> getFriends(Long userId) {
         User user = userRepository.findById(userId).orElseThrow();
         var byUserAndStatus = friendshipRepository.findByUserAndStatus(user, Status.ACTIVE);
+        // 查询与好友是否存在单聊(只存在两个人的群聊)  存在则返回其 conversationId
+//        conversationRepository.findPrivateChatBetweenUsers(userId , )
         return FriendShipMapper.INSTANCE.friendshipsToFriendshipDTOs(byUserAndStatus);
     }
 

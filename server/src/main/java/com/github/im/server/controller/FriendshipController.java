@@ -52,7 +52,7 @@ public class FriendshipController {
      */
     @PostMapping("/list")
     public  ResponseEntity<List<FriendshipDTO>> getFriends(@RequestParam Long userId   ,
-                                                        @RequestHeader("Authior")  String token
+                                                        @RequestHeader(value = "Authior",required = false)  String token
     )   {
         //TODO  只能获取 当前用户的 信息数据
 

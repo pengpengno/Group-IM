@@ -44,10 +44,4 @@ message NotificationInfo {
   }
 
 
-//  enum NotificationType{
-//
-//
-//    FRIEND_REQUEST = 0 ;
-//
-//  }
 }

@@ -3,16 +3,24 @@ package com.github.im.group.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.im.group.GlobalCredentialProvider
+import com.github.im.group.api.FriendshipDTO
 import com.github.im.group.api.LoginApi
 import com.github.im.group.api.PageResult
 import com.github.im.group.api.UserApi
 import com.github.im.group.model.UserInfo
 import com.github.im.group.model.proto.AccountInfo
+import com.github.im.group.repository.CurrentUserInfoContainer
 import com.github.im.group.repository.UserRepository
+import com.github.im.group.repository.UserState
 import com.github.im.group.sdk.SenderSdk
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 
 class UserViewModel(
@@ -28,25 +36,68 @@ class UserViewModel(
 
     val loading: StateFlow<Boolean> = _loading
 
+    private val _friends = MutableStateFlow<List<FriendshipDTO>>(emptyList())
+    val friends: StateFlow<List<FriendshipDTO>> = _friends.asStateFlow()
 
-    fun getUser(): UserInfo? {
-        return userRepository.getUser()
+    private val _searchResults = MutableStateFlow<List<UserInfo>>(emptyList())
+    val searchResults: StateFlow<List<UserInfo>> = _searchResults.asStateFlow()
+
+
+    fun getCurrentUser() : UserInfo{
+       return userRepository.withLoggedInUser { it.user }
     }
 
 
-    fun getAccountInfo(): AccountInfo? {
-        return userRepository.getAccountInfo()
+    /**
+     * 获取联系人列表
+     */
+    fun loadFriends() {
+        viewModelScope.launch {
+            try {
+                val currentUser = getCurrentUser()
+                if (currentUser.userId != 0L) {
+                    val friendList = com.github.im.group.api.FriendShipApi.getFriends(currentUser.userId)
+                    _friends.value = friendList
+                }
+            } catch (e: Exception) {
+                println("获取联系人失败: $e")
+            }
+        }
     }
 
     /**
      * 查询用户
      */
-    suspend fun queryUser(queryString:String): PageResult<UserInfo>{
-//        viewModelScope.launch {
-            return UserApi.findUser(queryString)
+    fun searchUser(queryString: String) {
+        if (queryString.isBlank()) {
+            _searchResults.value = emptyList()
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                val result = UserApi.findUser(queryString)
+                _searchResults.value = result.content
+            } catch (e: Exception) {
+                println("搜索用户失败: $e")
+                _searchResults.value = emptyList()
+            }
+        }
+    }
 
-//        }
-
+    /**
+     * 添加好友
+     */
+    fun addFriend(userId: Long, friendId: Long) {
+        viewModelScope.launch {
+            try {
+                // TODO: 实现添加好友的API调用
+                // 这里需要根据实际的API来实现
+                println("添加好友: userId=$userId, friendId=$friendId")
+            } catch (e: Exception) {
+                println("添加好友失败: $e")
+            }
+        }
     }
 
     /**
@@ -57,9 +108,13 @@ class UserViewModel(
         return userInfo?.token != null
     }
 
+    /**
+     * 登录的方法
+     *
+     */
     suspend fun login(uname: String ="",
                       pwd:String ="",
-                      refreshToken:String ="") {
+                      refreshToken:String =""): Boolean {
 //        viewModelScope.launch {
             _loading.value = true
             try {
@@ -69,19 +124,22 @@ class UserViewModel(
                 GlobalCredentialProvider.currentToken = response.token
 
                 _uiState.value = response
-                // 内存中保存用户
-                userRepository.saveUser(response)
+                // 进程中保存用户
+                userRepository.saveCurrentUser(response)
                 // 长连接到服务端远程
                 senderSdk.loginConnect(response)
-
+                
+                // 登录成功返回true
+                return true
             } catch (e: Exception) {
-                println("加载失败: $e")
+                e.printStackTrace()
+                Napier.d { "登录错误 ： ${e.message}" }
+                // 登录失败返回false
+                return false
             } finally {
                 _loading.value = false
             }
 
-
-//        }
 
     }
 

@@ -1,5 +1,6 @@
 package com.github.im.group.sdk
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
@@ -38,9 +39,11 @@ actual fun CrossPlatformImage(
                 .crossfade(true)
                 .build(),
             contentDescription = null,
-            modifier = modifier.size(size)
-                .padding(15.dp)
+            modifier = modifier
+//                .size(size)
+                .padding(PaddingValues(3.dp,12.dp))
         )
+
     }
 
     CoilImageComposable()
