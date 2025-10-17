@@ -60,6 +60,12 @@ public class User implements UserDetails {
     private Status userStatus;
 
 
+    /**
+     * 标记用户是否需要在下次登录时修改密码
+     */
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean forcePasswordChange = false;
+
     private LocalDateTime createdAt ;
     private LocalDateTime updatedAt ;
 

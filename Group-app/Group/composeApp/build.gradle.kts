@@ -1,4 +1,3 @@
-
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -79,6 +78,12 @@ kotlin {
             implementation(libs.koin.androidx.compose)
             implementation(libs.androidx.lifecycle.viewmodel.compose)
 
+            // WebRTC support - 使用标准的Google WebRTC库
+            implementation("org.webrtc:google-webrtc:1.0.32006")
+            
+            // OkHttp for WebSocket connection
+            implementation("com.squareup.okhttp3:okhttp:4.12.0")
+            implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
         }
         commonMain.dependencies {
 //            implementation("io.github.oshai:kotlin-logging:5.1.0")
@@ -127,6 +132,9 @@ kotlin {
             implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            
+            // Kotlinx serialization
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -193,6 +201,12 @@ android {
     }
     buildFeatures {
         viewBinding = true
+    }
+    // 添加 packagingOptions 以解决冲突
+    packagingOptions {
+        pickFirst("META-INF/AL2.0")
+        pickFirst("META-INF/LGPL2.1")
+        pickFirst("META-INF/licenses/ASM")
     }
 }
 

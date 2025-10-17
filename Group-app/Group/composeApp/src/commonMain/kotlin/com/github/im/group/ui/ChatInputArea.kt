@@ -1,6 +1,9 @@
 package com.github.im.group.ui
 
 import androidx.compose.animation.core.LinearEasing
+import com.github.im.group.sdk.WithRecordPermission
+import com.github.im.group.sdk.getPlatformFilePicker
+import com.github.im.group.sdk.playAudio
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -67,6 +70,7 @@ import com.github.im.group.sdk.VoiceRecordingResult
 import com.github.im.group.sdk.WithRecordPermission
 import com.github.im.group.sdk.getPlatformFilePicker
 import com.github.im.group.sdk.playAudio
+import com.github.im.group.ui.SlideDirection
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 

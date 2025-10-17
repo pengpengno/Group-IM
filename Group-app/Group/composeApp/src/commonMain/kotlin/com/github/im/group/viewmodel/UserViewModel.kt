@@ -85,6 +85,10 @@ class UserViewModel(
         }
     }
 
+    fun updateUserInfo(userInfo: UserInfo){
+        userRepository.saveCurrentUser(userInfo)
+    }
+
     /**
      * 添加好友
      */

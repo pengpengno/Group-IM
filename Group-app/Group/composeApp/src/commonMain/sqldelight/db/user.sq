@@ -30,7 +30,7 @@ INSERT INTO User (
 
 updateUser:
 UPDATE User
-SET username = ?, email = ?, phoneNumber = ? ,avatarUrl = ?, bio = ? ,userStatus = ?
+SET username = ?, email = ?, phoneNumber = ?
 WHERE userId = ?;
 
 deleteUser:

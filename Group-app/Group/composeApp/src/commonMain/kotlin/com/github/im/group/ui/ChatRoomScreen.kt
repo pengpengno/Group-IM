@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,7 +27,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,11 +46,13 @@ import com.github.im.group.ui.chat.SendingSpinner
 import com.github.im.group.ui.chat.TextMessage
 import com.github.im.group.ui.chat.VideoBubble
 import com.github.im.group.ui.chat.VoiceMessage
+import com.github.im.group.ui.video.VideoCallUI
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
+import com.github.im.group.ui.video.VideoCallViewModel
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -65,9 +70,10 @@ fun ChatRoomScreen(
     val userViewModel: UserViewModel = koinViewModel()
     val voiceViewModel: VoiceViewModel = koinViewModel()
     val messageViewModel: ChatMessageViewModel = koinViewModel()
-
-    val uiState by voiceViewModel.uiState.collectAsState()
-    val amplitude by voiceViewModel.amplitude.collectAsState()
+    
+    // 视频通话状态
+    var showVideoCall by remember { mutableStateOf(false) }
+    var remoteUser by remember { mutableStateOf<com.github.im.group.model.UserInfo?>(null) }
 
 
     LaunchedEffect(conversationId) {
@@ -83,6 +89,9 @@ fun ChatRoomScreen(
     val state by messageViewModel.uiState.collectAsState()
 
     val userInfo = userViewModel.getCurrentUser()
+    
+    // 获取VideoCallViewModel
+    val videoCallViewModel: VideoCallViewModel = koinViewModel()
 
     val listState = rememberLazyListState()
 
@@ -99,6 +108,24 @@ fun ChatRoomScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Color.White)
+                    }
+                },
+                actions = {
+                    // 视频通话按钮
+                    IconButton(onClick = {
+                        print("remoteUser: $remoteUser")
+                        // 设置远程用户（这里应该是从会话中获取对方用户信息）
+                        remoteUser = state.conversation.getOtherUser(userInfo)
+                        print("remoteUser: $remoteUser")
+                        // 启动视频通话
+                        remoteUser?.let { 
+                            // 设置当前用户ID
+                            videoCallViewModel.setCurrentUserId(userInfo.userId.toString())
+                            videoCallViewModel.startVideoCall(it)
+                            showVideoCall = true
+                        }
+                    }) {
+                        Icon(Icons.Default.VideoCall, contentDescription = "视频通话", tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0088CC))
@@ -172,8 +199,10 @@ fun ChatRoomScreen(
         }
 
         // 录音时遮罩
-        if (uiState is RecorderUiState.Recording) {
-            val recordingState = uiState as RecorderUiState.Recording
+        val uiState by voiceViewModel.uiState.collectAsState()
+        val amplitude by voiceViewModel.amplitude.collectAsState()
+        if (uiState is com.github.im.group.viewmodel.RecorderUiState.Recording) {
+            val recordingState = uiState as com.github.im.group.viewmodel.RecorderUiState.Recording
             RecordingOverlay(
                 show = true,
                 amplitude = amplitude,
@@ -183,8 +212,8 @@ fun ChatRoomScreen(
                 onSend = { /* 发送功能 */
                     voiceViewModel.getVoiceData()?.let {
                         // voice-{conversationId}-{dateTime}.m4a
-                        val fileName = "voice-$conversationId-" + Clock.System.now()
-                            .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
+                        val fileName = "voice-$conversationId-" + kotlinx.datetime.Clock.System.now()
+                            .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()) + ".m4a"
                         println("durationMillis is ${it.durationMillis}")
                         messageViewModel.sendVoiceMessage(conversationId, it.bytes,fileName,it.durationMillis)
                     }
@@ -193,8 +222,8 @@ fun ChatRoomScreen(
         }
 
         // 回放浮窗
-        if (uiState is RecorderUiState.Playback) {
-            val playback = uiState as RecorderUiState.Playback
+        if (uiState is com.github.im.group.viewmodel.RecorderUiState.Playback) {
+            val playback = uiState as com.github.im.group.viewmodel.RecorderUiState.Playback
             RecordingPlaybackOverlay(
                 audioPlayer = voiceViewModel.audioPlayer,
                 filePath = playback.filePath,
@@ -202,14 +231,33 @@ fun ChatRoomScreen(
 
                     voiceViewModel.getVoiceData()?.let {
                         // voice-{conversationId}-{dateTime}.m4a
-                        val fileName = "voice-$conversationId-" + Clock.System.now()
-                            .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
+                        val fileName = "voice-$conversationId-" + kotlinx.datetime.Clock.System.now()
+                            .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()) + ".m4a"
                         println("durationMillis is ${it.durationMillis}")
                         messageViewModel.sendVoiceMessage(conversationId, it.bytes,fileName,it.durationMillis)
                     }
                 },
                 duration = voiceViewModel.getVoiceData()?.durationMillis ?: 0,
                 onCancel = { voiceViewModel.cancel() }
+            )
+        }
+        
+        // 视频通话界面
+        if (showVideoCall) {
+            val videoCallState by videoCallViewModel.videoCallState.collectAsState()
+            val localMediaStream by videoCallViewModel.localMediaStream
+            
+            VideoCallUI(
+                navHostController = navHostController,
+                remoteUser = remoteUser,
+                localMediaStream = localMediaStream,
+                onEndCall = { 
+                    videoCallViewModel.endCall()
+                    showVideoCall = false
+                },
+                onToggleCamera = { videoCallViewModel.toggleCamera() },
+                onToggleMicrophone = { videoCallViewModel.toggleMicrophone() },
+                onSwitchCamera = { videoCallViewModel.switchCamera() }
             )
         }
     }

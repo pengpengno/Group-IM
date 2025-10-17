@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoCall
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Divider
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -80,6 +81,7 @@ fun SideDrawer(
         DrawerItem("联系人", Icons.Default.People, onContactsClick, Color.White)
         DrawerItem("群组", Icons.Default.Group, onGroupsClick, Color.White)
         DrawerItem("会议", Icons.Default.VideoCall, onMeetingsClick, Color.White)
+        DrawerItem("个人资料", Icons.Default.Person, onProfileClick, Color.White)
         DrawerItem("设置", Icons.Default.Settings, onSettingsClick, Color.White)
 
         Spacer(modifier = Modifier.weight(1f)) // 底部对齐

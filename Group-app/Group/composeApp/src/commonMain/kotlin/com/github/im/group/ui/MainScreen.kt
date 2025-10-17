@@ -46,6 +46,7 @@ import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.ui.chat.ChatUI
 import com.github.im.group.ui.contacts.ContactsUI
+import com.github.im.group.ui.profile.ProfileUI
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -227,13 +228,8 @@ fun ChatMainScreen(
                         ContactsUI(navHostController = navHostController)
                     }
                     2 -> {
-                        // 个人界面（示例）
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = androidx.compose.ui.Alignment.Center
-                        ) {
-                            Text("个人页面")
-                        }
+                        // 个人界面
+                        ProfileUI(navHostController = navHostController)
                     }
                 }
             }

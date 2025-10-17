@@ -1,31 +1,43 @@
 package com.github.im.server.config;
 
-import lombok.RequiredArgsConstructor;
-import org.apache.tomcat.util.buf.HexUtils;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.socket.config.annotation.EnableWebSocket;
-import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
-import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
+import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
+import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 
 @Configuration
-@EnableWebSocket
-@RequiredArgsConstructor
-public class WebSocketConfig implements WebSocketConfigurer {
-
-
-    private final WebRtcHandler webRtcHandler;
-    private final ChatWebSocketHandler chatWebSocketHandler;
-    private final WebSocketHandshakeInterceptor webSocketHandshakeInterceptor;
-
+@EnableWebSocketMessageBroker
+public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
-    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-//        registry.
-        // 注册 WebSocket 路径，"/signaling" 是 WebSocket 请求的 URI
-        registry.addHandler(new SignalingWebSocketHandler(), "/signaling");
-//        registry.addHandler(webRtcHandler, "/webrtc")
-        registry.addHandler(chatWebSocketHandler, "/webrtc")
-                .addInterceptors(webSocketHandshakeInterceptor)
-                .setAllowedOrigins("*"); // 允许所有的源进行连接（根据需要调整）
+    public void configureMessageBroker(MessageBrokerRegistry config) {
+        // 配置消息代理
+        config.enableSimpleBroker("/topic", "/queue");
+        // 配置应用程序目标前缀
+        config.setApplicationDestinationPrefixes("/app");
+        // 配置用户目标前缀
+        config.setUserDestinationPrefix("/user");
+    }
+
+    @Override
+    public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // 注册STOMP端点
+        registry.addEndpoint("/webrtc")
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
+        
+        // 注册备用端点（不使用SockJS）
+        registry.addEndpoint("/webrtc")
+                .setAllowedOriginPatterns("*");
+    }
+    
+    @Override
+    public void configureWebSocketTransport(WebSocketTransportRegistration registry) {
+        // 增加消息大小限制
+        registry.setMessageSizeLimit(1024 * 1024); // 1MB
+        registry.setSendBufferSizeLimit(1024 * 1024); // 1MB
+        registry.setSendTimeLimit(20 * 10000); // 200 seconds
     }
 }

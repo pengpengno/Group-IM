@@ -77,7 +77,10 @@ public class SecurityConfig  {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/users/register",
+                        .requestMatchers(
+                                "/api/users/register",
+                                "/api/users/import-template",
+                                "/api/users/import",
                                 "/api/users/login",
                                 "/static/**",
                                 "/socket.io/**",
@@ -88,7 +91,8 @@ public class SecurityConfig  {
                                 "/ws"  , // 信令服务器
                                 "/rtc"  , // 信令服务器
                                 "/rtc/*"  , // 信令服务器
-                                "/webrtc/**"   // 信令服务器
+                                "/webrtc/**",   // WebRTC信令服务器
+                                "/websocket/**"   // WebSocket端点
                         )
                         .permitAll()
                         .anyRequest()

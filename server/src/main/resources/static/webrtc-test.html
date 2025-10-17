@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC视频通话测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        
+        .video-container {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .video-box {
+            text-align: center;
+            margin: 10px;
+        }
+        
+        video {
+            width: 400px;
+            height: 300px;
+            background-color: #000;
+            border-radius: 5px;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        button.hangup {
+            background-color: #f44336;
+        }
+        
+        button.call {
+            background-color: #2196F3;
+        }
+        
+        input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 200px;
+        }
+        
+        .status {
+            text-align: center;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #e7f3ff;
+        }
+        
+        .error {
+            background-color: #ffe7e7;
+            color: #d8000c;
+        }
+        
+        .success {
+            background-color: #e7ffe7;
+            color: #008000;
+        }
+        
+        .log {
+            background-color: #000;
+            color: #00ff00;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            border-radius: 5px;
+            font-family: monospace;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebRTC视频通话测试</h1>
+        
+        <div class="status" id="connectionStatus">
+            未连接到服务器
+        </div>
+        
+        <div class="controls">
+            <input type="text" id="remoteUserId" placeholder="输入对方用户ID">
+            <button id="connectBtn">连接服务器</button>
+            <button id="callBtn" class="call" disabled>发起呼叫</button>
+            <button id="answerBtn" class="call" disabled>接听</button>
+            <button id="rejectBtn" class="hangup" disabled>拒绝</button>
+            <button id="hangupBtn" class="hangup" disabled>挂断</button>
+        </div>
+        
+        <div class="video-container">
+            <div class="video-box">
+                <h3>本地视频</h3>
+                <video id="localVideo" autoplay muted></video>
+            </div>
+            <div class="video-box">
+                <h3>远程视频</h3>
+                <video id="remoteVideo" autoplay></video>
+            </div>
+        </div>
+        
+        <div class="log" id="log">
+            日志输出区域...
+        </div>
+    </div>
+
+    <!-- 引入SockJS和STOMP库 -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    
+    <script>
+        // DOM元素
+        const connectBtn = document.getElementById('connectBtn');
+        const callBtn = document.getElementById('callBtn');
+        const answerBtn = document.getElementById('answerBtn');
+        const rejectBtn = document.getElementById('rejectBtn');
+        const hangupBtn = document.getElementById('hangupBtn');
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const remoteUserIdInput = document.getElementById('remoteUserId');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const logElement = document.getElementById('log');
+        
+        // WebRTC变量
+        let localStream;
+        let remoteStream;
+        let peerConnection;
+        let stompClient = null;
+        let currentSessionId = null;
+        let isInitiator = false;
+        
+        // ICE服务器配置
+        const iceServers = [
+            { urls: 'stun:stun.l.google.com:19302' }
+        ];
+        
+        // 日志输出函数
+        function log(message) {
+            const time = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${time}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(message);
+        }
+        
+        // 更新连接状态
+        function updateConnectionStatus(message, isError = false) {
+            connectionStatus.textContent = message;
+            connectionStatus.className = 'status';
+            if (isError) {
+                connectionStatus.classList.add('error');
+            } else {
+                connectionStatus.classList.add('success');
+            }
+        }
+        
+        // 连接到WebSocket服务器
+        function connect() {
+            try {
+                const socket = new SockJS('/webrtc');
+                stompClient = Stomp.over(socket);
+                
+                stompClient.connect({}, function (frame) {
+                    log('连接到服务器: ' + frame);
+                    updateConnectionStatus('已连接到服务器');
+                    
+                    // 订阅WebRTC相关消息
+                    subscribeToMessages();
+                    
+                    // 启用相关按钮
+                    callBtn.disabled = false;
+                }, function (error) {
+                    log('连接错误: ' + error);
+                    updateConnectionStatus('连接失败: ' + error, true);
+                });
+            } catch (error) {
+                log('连接异常: ' + error);
+                updateConnectionStatus('连接异常: ' + error, true);
+            }
+        }
+        
+        // 订阅消息
+        function subscribeToMessages() {
+            if (!stompClient) return;
+            
+            // 订阅呼叫消息
+            stompClient.subscribe('/user/queue/webrtc/call', function (message) {
+                const webrtcMessage = JSON.parse(message.body);
+                log('收到呼叫请求: ' + JSON.stringify(webrtcMessage));
+                handleIncomingCall(webrtcMessage);
+            });
+            
+            // 订阅应答消息
+            stompClient.subscribe('/user/queue/webrtc/answer', function (message) {
+                const webrtcMessage = JSON.parse(message.body);
+                log('收到应答: ' + JSON.stringify(webrtcMessage));
+                handleAnswer(webrtcMessage);
+            });
+            
+            // 订阅ICE候选消息
+            stompClient.subscribe('/user/queue/webrtc/ice', function (message) {
+                const webrtcMessage = JSON.parse(message.body);
+                log('收到ICE候选');
+                handleIceCandidate(webrtcMessage);
+            });
+            
+            // 订阅挂断消息
+            stompClient.subscribe('/user/queue/webrtc/hangup', function (message) {
+                const webrtcMessage = JSON.parse(message.body);
+                log('收到挂断请求');
+                handleHangup(webrtcMessage);
+            });
+            
+            // 订阅拒绝消息
+            stompClient.subscribe('/user/queue/webrtc/reject', function (message) {
+                const webrtcMessage = JSON.parse(message.body);
+                log('收到拒绝请求');
+                handleReject(webrtcMessage);
+            });
+        }
+        
+        // 获取本地媒体流
+        async function getLocalStream() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: true, 
+                    audio: true 
+                });
+                localVideo.srcObject = stream;
+                localStream = stream;
+                log('获取本地媒体流成功');
+                return stream;
+            } catch (error) {
+                log('获取本地媒体流失败: ' + error);
+                updateConnectionStatus('无法访问摄像头或麦克风', true);
+                return null;
+            }
+        }
+        
+        // 创建RTCPeerConnection
+        function createPeerConnection() {
+            try {
+                peerConnection = new RTCPeerConnection({ iceServers });
+                
+                // 添加本地流到peerConnection
+                if (localStream) {
+                    localStream.getTracks().forEach(track => {
+                        peerConnection.addTrack(track, localStream);
+                    });
+                }
+                
+                // 监听ICE候选
+                peerConnection.onicecandidate = function(event) {
+                    if (event.candidate) {
+                        log('发现ICE候选');
+                        sendIceCandidate(event.candidate);
+                    }
+                };
+                
+                // 监听连接状态变化
+                peerConnection.onconnectionstatechange = function() {
+                    log('连接状态变化: ' + peerConnection.connectionState);
+                };
+                
+                // 监听远程流
+                peerConnection.ontrack = function(event) {
+                    log('收到远程媒体流');
+                    remoteVideo.srcObject = event.streams[0];
+                    remoteStream = event.streams[0];
+                };
+                
+                log('创建RTCPeerConnection成功');
+                return peerConnection;
+            } catch (error) {
+                log('创建RTCPeerConnection失败: ' + error);
+                return null;
+            }
+        }
+        
+        // 发起呼叫
+        async function initiateCall() {
+            const remoteUserId = remoteUserIdInput.value;
+            if (!remoteUserId) {
+                alert('请输入对方用户ID');
+                return;
+            }
+            
+            // 获取本地媒体流
+            const stream = await getLocalStream();
+            if (!stream) return;
+            
+            // 创建peerConnection
+            createPeerConnection();
+            
+            // 设置发起者标志
+            isInitiator = true;
+            
+            try {
+                // 创建offer
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                
+                // 发送offer给对方
+                const message = {
+                    type: 'OFFER',
+                    to: remoteUserId,
+                    payload: JSON.stringify(offer)
+                };
+                
+                stompClient.send("/app/webrtc/call", {}, JSON.stringify(message));
+                log('发送呼叫请求到用户: ' + remoteUserId);
+                
+                // 禁用呼叫按钮，启用挂断按钮
+                callBtn.disabled = true;
+                hangupBtn.disabled = false;
+            } catch (error) {
+                log('发起呼叫失败: ' + error);
+            }
+        }
+        
+        // 处理来电
+        async function handleIncomingCall(webrtcMessage) {
+            // 显示接听和拒绝按钮
+            answerBtn.disabled = false;
+            rejectBtn.disabled = false;
+            callBtn.disabled = true;
+            
+            // 保存发起者信息
+            remoteUserIdInput.value = webrtcMessage.from;
+            
+            // 获取本地媒体流
+            await getLocalStream();
+            
+            // 创建peerConnection
+            createPeerConnection();
+            
+            try {
+                // 设置远程描述
+                const offer = JSON.parse(webrtcMessage.payload);
+                await peerConnection.setRemoteDescription(offer);
+                log('设置远程描述成功');
+            } catch (error) {
+                log('处理来电失败: ' + error);
+            }
+        }
+        
+        // 接听来电
+        async function answerCall() {
+            if (!peerConnection) return;
+            
+            try {
+                // 创建answer
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                
+                // 发送answer给对方
+                const message = {
+                    type: 'ANSWER',
+                    to: remoteUserIdInput.value,
+                    payload: JSON.stringify(answer)
+                };
+                
+                stompClient.send("/app/webrtc/answer", {}, JSON.stringify(message));
+                log('发送应答到用户: ' + remoteUserIdInput.value);
+                
+                // 禁用接听和拒绝按钮，启用挂断按钮
+                answerBtn.disabled = true;
+                rejectBtn.disabled = true;
+                hangupBtn.disabled = false;
+            } catch (error) {
+                log('应答失败: ' + error);
+            }
+        }
+        
+        // 拒绝来电
+        function rejectCall() {
+            const message = {
+                type: 'REJECT',
+                to: remoteUserIdInput.value,
+                payload: ''
+            };
+            
+            stompClient.send("/app/webrtc/reject", {}, JSON.stringify(message));
+            log('发送拒绝到用户: ' + remoteUserIdInput.value);
+            
+            // 禁用接听和拒绝按钮，启用呼叫按钮
+            answerBtn.disabled = true;
+            rejectBtn.disabled = true;
+            callBtn.disabled = false;
+        }
+        
+        // 处理应答
+        async function handleAnswer(webrtcMessage) {
+            try {
+                const answer = JSON.parse(webrtcMessage.payload);
+                await peerConnection.setRemoteDescription(answer);
+                log('设置远程应答成功');
+                
+                // 启用挂断按钮
+                hangupBtn.disabled = false;
+            } catch (error) {
+                log('处理应答失败: ' + error);
+            }
+        }
+        
+        // 发送ICE候选
+        function sendIceCandidate(candidate) {
+            const message = {
+                type: 'ICE_CANDIDATE',
+                to: remoteUserIdInput.value,
+                payload: JSON.stringify(candidate)
+            };
+            
+            stompClient.send("/app/webrtc/ice", {}, JSON.stringify(message));
+        }
+        
+        // 处理ICE候选
+        async function handleIceCandidate(webrtcMessage) {
+            try {
+                const candidate = JSON.parse(webrtcMessage.payload);
+                await peerConnection.addIceCandidate(candidate);
+                log('添加ICE候选成功');
+            } catch (error) {
+                log('处理ICE候选失败: ' + error);
+            }
+        }
+        
+        // 挂断通话
+        function hangup() {
+            const message = {
+                type: 'HANGUP',
+                to: remoteUserIdInput.value,
+                payload: ''
+            };
+            
+            stompClient.send("/app/webrtc/hangup", {}, JSON.stringify(message));
+            log('发送挂断到用户: ' + remoteUserIdInput.value);
+            
+            // 清理资源
+            cleanup();
+        }
+        
+        // 处理挂断
+        function handleHangup(webrtcMessage) {
+            log('对方已挂断');
+            cleanup();
+        }
+        
+        // 处理拒绝
+        function handleReject(webrtcMessage) {
+            log('对方已拒绝');
+            cleanup();
+        }
+        
+        // 清理资源
+        function cleanup() {
+            // 关闭peerConnection
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            
+            // 停止本地媒体流
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+                localVideo.srcObject = null;
+            }
+            
+            // 清除远程媒体流
+            if (remoteStream) {
+                remoteStream.getTracks().forEach(track => track.stop());
+                remoteStream = null;
+                remoteVideo.srcObject = null;
+            }
+            
+            // 重置按钮状态
+            callBtn.disabled = false;
+            answerBtn.disabled = true;
+            rejectBtn.disabled = true;
+            hangupBtn.disabled = true;
+            
+            log('通话已结束');
+        }
+        
+        // 事件监听器
+        connectBtn.addEventListener('click', connect);
+        callBtn.addEventListener('click', initiateCall);
+        answerBtn.addEventListener('click', answerCall);
+        rejectBtn.addEventListener('click', rejectCall);
+        hangupBtn.addEventListener('click', hangup);
+        
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            log('页面加载完成，请点击"连接服务器"开始测试');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简化版WebRTC测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        
+        .video-section {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .video-container {
+            text-align: center;
+            margin: 10px;
+        }
+        
+        video {
+            width: 300px;
+            height: 225px;
+            background-color: #333;
+            border-radius: 5px;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        button.hangup {
+            background-color: #f44336;
+        }
+        
+        button.call {
+            background-color: #2196F3;
+        }
+        
+        input[type="text"] {
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 200px;
+            margin: 5px;
+        }
+        
+        .status {
+            text-align: center;
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 5px;
+            background-color: #e7f3ff;
+            font-weight: bold;
+        }
+        
+        .error {
+            background-color: #ffe7e7;
+            color: #d8000c;
+        }
+        
+        .success {
+            background-color: #e7ffe7;
+            color: #008000;
+        }
+        
+        .info {
+            background-color: #fff9e7;
+            color: #806000;
+        }
+        
+        .log-container {
+            margin-top: 20px;
+        }
+        
+        .log-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .log {
+            background-color: #000;
+            color: #00ff00;
+            padding: 10px;
+            height: 150px;
+            overflow-y: auto;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid #2196F3;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>简化版WebRTC视频通话测试</h1>
+        
+        <div class="status" id="connectionStatus">
+            请先连接服务器
+        </div>
+        
+        <div class="controls">
+            <div>
+                <input type="text" id="userId" placeholder="输入您的用户ID (数字)" value="1">
+                <button id="startBtn">启动摄像头</button>
+            </div>
+            <div>
+                <input type="text" id="remoteUserId" placeholder="对方用户ID (数字)" value="2">
+                <button id="callBtn" class="call" disabled>呼叫对方</button>
+                <button id="hangupBtn" class="hangup" disabled>挂断</button>
+            </div>
+        </div>
+        
+        <div class="video-section">
+            <div class="video-container">
+                <h3>本地视频</h3>
+                <video id="localVideo" autoplay muted></video>
+                <p>您自己的视频</p>
+            </div>
+            <div class="video-container">
+                <h3>远程视频</h3>
+                <video id="remoteVideo" autoplay></video>
+                <p>对方的视频</p>
+            </div>
+        </div>
+        
+        <div class="step">
+            <h3>使用说明:</h3>
+            <ol>
+                <li>在两个不同的浏览器窗口或标签页中打开此页面</li>
+                <li>在每个窗口中输入不同的用户ID (例如: 1 和 2)</li>
+                <li>点击"启动摄像头"获取本地视频</li>
+                <li>在一个窗口中输入对方的用户ID，然后点击"呼叫对方"</li>
+                <li>在另一个窗口中等待来电并点击"呼叫对方"按钮接听</li>
+            </ol>
+        </div>
+        
+        <div class="log-container">
+            <div class="log-header">运行日志:</div>
+            <div class="log" id="log">等待操作...</div>
+        </div>
+    </div>
+
+    <!-- 引入SockJS和STOMP库 -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    
+    <script>
+        // DOM元素
+        let startBtn, callBtn, hangupBtn, localVideo, remoteVideo;
+        let userIdInput, remoteUserIdInput, connectionStatus, logElement;
+        
+        // 初始化DOM元素引用
+        function initDOMElements() {
+            startBtn = document.getElementById('startBtn');
+            callBtn = document.getElementById('callBtn');
+            hangupBtn = document.getElementById('hangupBtn');
+            localVideo = document.getElementById('localVideo');
+            remoteVideo = document.getElementById('remoteVideo');
+            userIdInput = document.getElementById('userId');
+            remoteUserIdInput = document.getElementById('remoteUserId');
+            connectionStatus = document.getElementById('connectionStatus');
+            logElement = document.getElementById('log');
+        }
+        
+        // WebRTC变量
+        let localStream;
+        let remoteStream;
+        let peerConnection;
+        let stompClient = null;
+        let isInitiator = false;
+        
+        // ICE服务器配置
+        const iceServers = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ];
+        
+        // 日志输出函数
+        function log(message) {
+            const time = new Date().toLocaleTimeString();
+            const logEntry = `[${time}] ${message}`;
+            logElement.innerHTML += logEntry + '\n';
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(logEntry);
+        }
+        
+        // 更新连接状态
+        function updateStatus(message, type = 'info') {
+            connectionStatus.textContent = message;
+            connectionStatus.className = 'status ' + type;
+        }
+        
+        // 启动本地摄像头
+        async function startCamera() {
+            const userId = userIdInput.value;
+            if (!userId) {
+                alert('请输入您的用户ID');
+                return;
+            }
+            
+            try {
+                // 获取本地媒体流
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: true, 
+                    audio: true 
+                });
+                localVideo.srcObject = localStream;
+                log('成功获取本地媒体流');
+                updateStatus('已获取本地媒体流，可以发起呼叫', 'success');
+                
+                // 启用连接和呼叫按钮
+                startBtn.disabled = true;
+                userIdInput.disabled = true;
+                callBtn.disabled = false;
+                
+                // 连接WebSocket服务器
+                connect();
+            } catch (error) {
+                log('获取本地媒体流失败: ' + error);
+                updateStatus('无法访问摄像头或麦克风: ' + error, 'error');
+            }
+        }
+        
+        // 连接到WebSocket服务器
+        function connect() {
+            try {
+                updateStatus('正在连接服务器...', 'info');
+                
+                // 使用当前用户ID作为连接标识
+                const socket = new SockJS('/webrtc');
+                stompClient = Stomp.over(socket);
+                
+                stompClient.connect({}, function (frame) {
+                    log('成功连接到服务器');
+                    updateStatus('已连接到服务器，可以发起呼叫', 'success');
+                    
+                    // 订阅WebRTC相关消息
+                    subscribeToMessages();
+                }, function (error) {
+                    log('连接服务器失败: ' + error);
+                    updateStatus('连接服务器失败: ' + error, 'error');
+                });
+            } catch (error) {
+                log('连接异常: ' + error);
+                updateStatus('连接异常: ' + error, 'error');
+            }
+        }
+        
+        // 订阅消息
+        function subscribeToMessages() {
+            if (!stompClient) return;
+            
+            // 订阅呼叫消息
+            stompClient.subscribe('/user/queue/webrtc/call', function (message) {
+                const webrtcMessage = JSON.parse(message.body);
+                log('收到呼叫请求，来自用户: ' + webrtcMessage.from);
+                handleIncomingCall(webrtcMessage);
+            });
+            
+            // 订阅应答消息
+            stompClient.subscribe('/user/queue/webrtc/answer', function (message) {
+                const webrtcMessage = JSON.parse(message.body);
+                log('收到应答，来自用户: ' + webrtcMessage.from);
+                handleAnswer(webrtcMessage);
+            });
+            
+            // 订阅ICE候选消息
+            stompClient.subscribe('/user/queue/webrtc/ice', function (message) {
+                const webrtcMessage = JSON.parse(message.body);
+                handleIceCandidate(webrtcMessage);
+            });
+            
+            // 订阅挂断消息
+            stompClient.subscribe('/user/queue/webrtc/hangup', function (message) {
+                log('对方已挂断通话');
+                handleHangup();
+            });
+        }
+        
+        // 创建RTCPeerConnection
+        function createPeerConnection() {
+            try {
+                peerConnection = new RTCPeerConnection({ iceServers });
+                
+                // 添加本地流到peerConnection
+                if (localStream) {
+                    localStream.getTracks().forEach(track => {
+                        peerConnection.addTrack(track, localStream);
+                    });
+                }
+                
+                // 监听ICE候选
+                peerConnection.onicecandidate = function(event) {
+                    if (event.candidate) {
+                        sendIceCandidate(event.candidate);
+                    }
+                };
+                
+                // 监听远程流
+                peerConnection.ontrack = function(event) {
+                    log('收到远程媒体流');
+                    remoteVideo.srcObject = event.streams[0];
+                    remoteStream = event.streams[0];
+                };
+                
+                log('创建PeerConnection成功');
+                return peerConnection;
+            } catch (error) {
+                log('创建PeerConnection失败: ' + error);
+                return null;
+            }
+        }
+        
+        // 发起呼叫
+        async function initiateCall() {
+            const remoteUserId = remoteUserIdInput.value;
+            if (!remoteUserId) {
+                alert('请输入对方用户ID');
+                return;
+            }
+            
+            // 创建peerConnection
+            createPeerConnection();
+            
+            // 设置发起者标志
+            isInitiator = true;
+            
+            try {
+                // 创建offer
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                log('创建并设置本地offer');
+                
+                // 发送offer给对方
+                const message = {
+                    type: 'OFFER',
+                    to: remoteUserId,
+                    payload: JSON.stringify(offer)
+                };
+                
+                stompClient.send("/app/webrtc/call", {}, JSON.stringify(message));
+                log('已发送呼叫请求到用户: ' + remoteUserId);
+                
+                // 更新按钮状态
+                callBtn.disabled = true;
+                hangupBtn.disabled = false;
+                updateStatus('正在呼叫用户 ' + remoteUserId + '...', 'info');
+            } catch (error) {
+                log('发起呼叫失败: ' + error);
+                updateStatus('呼叫失败: ' + error, 'error');
+            }
+        }
+        
+        // 处理来电
+        async function handleIncomingCall(webrtcMessage) {
+            // 自动接听来电
+            log('自动应答来电');
+            
+            // 保存发起者信息
+            remoteUserIdInput.value = webrtcMessage.from;
+            
+            // 创建peerConnection
+            createPeerConnection();
+            
+            try {
+                // 设置远程描述
+                const offer = JSON.parse(webrtcMessage.payload);
+                await peerConnection.setRemoteDescription(offer);
+                log('设置远程offer成功');
+                
+                // 创建answer
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                log('创建并设置本地answer');
+                
+                // 发送answer给对方
+                const message = {
+                    type: 'ANSWER',
+                    to: webrtcMessage.from,
+                    payload: JSON.stringify(answer)
+                };
+                
+                stompClient.send("/app/webrtc/answer", {}, JSON.stringify(message));
+                log('已发送应答到用户: ' + webrtcMessage.from);
+                
+                // 更新按钮状态
+                callBtn.disabled = true;
+                hangupBtn.disabled = false;
+                updateStatus('正在与用户 ' + webrtcMessage.from + ' 通话', 'success');
+            } catch (error) {
+                log('处理来电失败: ' + error);
+                updateStatus('应答失败: ' + error, 'error');
+            }
+        }
+        
+        // 处理应答
+        async function handleAnswer(webrtcMessage) {
+            try {
+                const answer = JSON.parse(webrtcMessage.payload);
+                await peerConnection.setRemoteDescription(answer);
+                log('设置远程answer成功');
+                updateStatus('正在与用户 ' + webrtcMessage.from + ' 通话', 'success');
+            } catch (error) {
+                log('处理应答失败: ' + error);
+                updateStatus('处理应答失败: ' + error, 'error');
+            }
+        }
+        
+        // 发送ICE候选
+        function sendIceCandidate(candidate) {
+            const message = {
+                type: 'ICE_CANDIDATE',
+                to: remoteUserIdInput.value,
+                payload: JSON.stringify(candidate)
+            };
+            
+            stompClient.send("/app/webrtc/ice", {}, JSON.stringify(message));
+        }
+        
+        // 处理ICE候选
+        async function handleIceCandidate(webrtcMessage) {
+            try {
+                const candidate = JSON.parse(webrtcMessage.payload);
+                await peerConnection.addIceCandidate(candidate);
+            } catch (error) {
+                log('处理ICE候选失败: ' + error);
+            }
+        }
+        
+        // 挂断通话
+        function hangup() {
+            // 发送挂断消息
+            const message = {
+                type: 'HANGUP',
+                to: remoteUserIdInput.value,
+                payload: ''
+            };
+            
+            if (stompClient && stompClient.connected) {
+                stompClient.send("/app/webrtc/hangup", {}, JSON.stringify(message));
+            }
+            
+            log('已发送挂断消息');
+            handleHangup();
+        }
+        
+        // 处理挂断
+        function handleHangup() {
+            log('通话已结束');
+            updateStatus('通话已结束', 'info');
+            
+            // 清理资源
+            cleanup();
+        }
+        
+        // 清理资源
+        function cleanup() {
+            // 关闭peerConnection
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            
+            // 停止本地媒体流
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+                localVideo.srcObject = null;
+            }
+            
+            // 清除远程媒体流
+            if (remoteStream) {
+                remoteStream.getTracks().forEach(track => track.stop());
+                remoteStream = null;
+                remoteVideo.srcObject = null;
+            }
+            
+            // 重置按钮状态
+            callBtn.disabled = false;
+            hangupBtn.disabled = true;
+        }
+        
+        // 事件监听器
+        startBtn.addEventListener('click', startCamera);
+        callBtn.addEventListener('click', initiateCall);
+        hangupBtn.addEventListener('click', hangup);
+        
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initDOMElements();
+            log('页面加载完成，请先点击"启动摄像头"');
+        });
+    </script>
+</body>
+</html>

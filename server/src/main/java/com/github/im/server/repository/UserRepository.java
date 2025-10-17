@@ -35,4 +35,7 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     Optional<User> findByPhoneNumber(String phoneNumber);
 
     Optional<User> findByRefreshToken(String refreshToken);
+    
+    @Query("SELECT u FROM User u WHERE u.username IN ?1 OR u.email IN ?2")
+    List<User> findByUsernameInOrEmailIn(List<String> usernames, List<String> emails);
 }

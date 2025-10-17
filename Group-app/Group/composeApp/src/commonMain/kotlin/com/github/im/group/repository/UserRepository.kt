@@ -1,6 +1,7 @@
 package com.github.im.group.repository
 
 import com.github.im.group.db.AppDatabase
+import com.github.im.group.db.entities.UserStatus
 import com.github.im.group.model.UserInfo
 import com.github.im.group.model.proto.AccountInfo
 import com.github.im.group.model.proto.PlatformType
@@ -55,7 +56,7 @@ class UserRepository (
     }
 
     /**
-     * 保存当前用户至 数据库
+     * 保存当前用户至 数据库 ， 存在则更新信息
      * 同时 将当前用户 绑定 APP
      */
     fun saveCurrentUser(user: UserInfo) {
@@ -69,8 +70,9 @@ class UserRepository (
         )
 //        _userState.value = CurrentUserInfoContainer(user, accountInfo)
         _userState.value = UserState.LoggedIn(CurrentUserInfoContainer(user, accountInfo))
-        addUser(user)
+        addOrUpdateUser(user)
     }
+
 
 
 
@@ -78,7 +80,7 @@ class UserRepository (
      * 插入一条用户信息
      * 用户不存在时才会插入， 存在则忽略
      */
-    private  fun addUser(user: UserInfo) {
+    private  fun addOrUpdateUser(user: UserInfo) {
         db.transaction {
             // 先检查用户是否存在
             val existingUser = db.userQueries.selectByUsername(user.username).executeAsOneOrNull()
@@ -86,6 +88,13 @@ class UserRepository (
                 // 用户不存在则插入
                 db.userQueries.insertUser(
                     userId = user.userId,
+                    username = user.username,
+                    email = user.email,
+                    phoneNumber = "",
+                )
+            }else{
+                db.userQueries.updateUser(
+                    userId = existingUser.userId,
                     username = user.username,
                     email = user.email,
                     phoneNumber = "",

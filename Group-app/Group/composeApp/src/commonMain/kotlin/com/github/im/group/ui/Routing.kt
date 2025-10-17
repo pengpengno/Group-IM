@@ -36,5 +36,10 @@ object Search
 @Serializable
 object AddFriend
 
+@Serializable
+data class VideoCall(
+    val userId: Long,
+)
+
 class Routing {
 }

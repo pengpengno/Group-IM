@@ -14,6 +14,7 @@ import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.SenderSdk
 import com.github.im.group.sdk.VoiceRecorderFactory
+import com.github.im.group.ui.video.VideoCallViewModel
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.TCPMessageViewModel
@@ -63,5 +64,11 @@ val appModule = module {
     single { (SenderSdk(get(),)) }
 
     viewModelOf(::UserViewModel)  // 注册为 ViewModel，由 Koin 自动管理生命周期
+    
+    // 注册VideoCallViewModel
+    viewModel { 
+        VideoCallViewModel(
+        )
+    }
 
 }
