@@ -20,7 +20,8 @@ expect fun WebRTCVideoCall(
  */
 @Composable
 expect fun LocalVideoPreview(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    localMediaStream: com.github.im.group.sdk.MediaStream? = null
 )
 
 /**
@@ -28,7 +29,8 @@ expect fun LocalVideoPreview(
  */
 @Composable
 expect fun RemoteVideoView(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    remoteVideoTrack: com.github.im.group.sdk.VideoTrack? = null
 )
 
 /**
@@ -88,7 +90,7 @@ interface WebRTCManager {
     /**
      * 发送ICE候选
      */
-    fun sendIceCandidate(candidate: IceCandidate)
+    fun sendIceCandidate(candidate: IceCandidateData)
     
     /**
      * 释放资源
@@ -110,11 +112,24 @@ data class IceCandidate(
  */
 @Serializable
 data class WebrtcMessage(
-    val type: String,        // 消息类型: OFFER, ANSWER, ICE_CANDIDATE, HANGUP, REJECT
-    val from: String,        // 发送方用户ID
-    val to: String,          // 接收方用户ID
-    val payload: String?,    // 消息内容（SDP描述或ICE候选信息）
-    val timestamp: Long?     // 时间戳
+    val type: String,              // 消息类型: call/request, call/accept, call/end, offer, answer, candidate
+    val fromUser: String? = null,  // 发送方用户ID
+    val toUser: String? = null,    // 接收方用户ID
+    val sdp: String? = null,       // SDP描述信息
+    val sdpType: String? = null,   // SDP类型: offer/answer
+    val candidate: IceCandidateData? = null,  // ICE候选信息
+    val reason: String? = null     // 失败原因
+)
+
+/**
+ * ICE候选数据
+ */
+@Serializable
+data class IceCandidateData(
+    val candidate: String,         // 候选描述
+    val sdpMid: String,            // SDP中段标识
+    val sdpMLineIndex: Int ,     // SDP中媒体行索引
+    val sdp: String
 )
 
 /**

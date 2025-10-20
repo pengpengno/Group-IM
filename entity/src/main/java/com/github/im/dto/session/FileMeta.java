@@ -22,7 +22,7 @@ public class FileMeta implements MessagePayLoad{
 
     private String fileId;   // 服务端生成的文件Id  uuid
 
-    private String clientId; // 客户端生成的文件Id
+    private String clientId; // 客户端上传时生成的文件Id
 
     private String filename;
 

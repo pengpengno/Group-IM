@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC信令服务器演示</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        h1, h2 {
+            color: #333;
+            text-align: center;
+        }
+        
+        .video-section {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .video-container {
+            text-align: center;
+            margin: 10px;
+        }
+        
+        video {
+            width: 320px;
+            height: 240px;
+            background-color: #333;
+            border-radius: 5px;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        button.hangup {
+            background-color: #f44336;
+        }
+        
+        button.call {
+            background-color: #2196F3;
+        }
+        
+        input[type="text"] {
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 200px;
+            margin: 5px;
+        }
+        
+        .status {
+            text-align: center;
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 5px;
+            background-color: #e7f3ff;
+            font-weight: bold;
+        }
+        
+        .error {
+            background-color: #ffe7e7;
+            color: #d8000c;
+        }
+        
+        .success {
+            background-color: #e7ffe7;
+            color: #008000;
+        }
+        
+        .info {
+            background-color: #fff9e7;
+            color: #806000;
+        }
+        
+        .log-container {
+            margin-top: 20px;
+        }
+        
+        .log-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .log {
+            background-color: #000;
+            color: #00ff00;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid #2196F3;
+            background-color: #f9f9f9;
+        }
+        
+        .connection-info {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        
+        .info-box {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px;
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .user-list {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebRTC信令服务器演示</h1>
+        
+        <div class="status" id="connectionStatus">
+            请先连接信令服务器
+        </div>
+        
+        <div class="connection-info">
+            <div class="info-box">
+                <h3>本地信息</h3>
+                <p>用户ID: <span id="localUserId">未设置</span></p>
+                <p>连接状态: <span id="localConnectionStatus">未连接</span></p>
+            </div>
+            <div class="info-box">
+                <h3>远程信息</h3>
+                <p>用户ID: <span id="remoteUserIdSpan">未设置</span></p>
+                <p>连接状态: <span id="remoteConnectionStatus">未连接</span></p>
+            </div>
+        </div>
+        
+        <div class="user-list">
+            <h3>在线用户</h3>
+            <div id="onlineUsers">暂无在线用户</div>
+        </div>
+        
+        <div class="controls">
+            <div>
+                <input type="text" id="userId" placeholder="输入您的用户ID" value="user1">
+                <button id="connectBtn">连接信令服务器</button>
+                <button id="disconnectBtn" disabled>断开连接</button>
+            </div>
+            <div>
+                <input type="text" id="remoteUserId" placeholder="对方用户ID" value="user2">
+                <button id="callBtn" class="call" disabled>发起呼叫</button>
+                <button id="answerBtn" class="call" disabled>接听呼叫</button>
+                <button id="hangupBtn" class="hangup" disabled>挂断</button>
+            </div>
+        </div>
+        
+        <div class="video-section">
+            <div class="video-container">
+                <h3>本地视频</h3>
+                <video id="localVideo" autoplay muted></video>
+                <p>您自己的视频</p>
+            </div>
+            <div class="video-container">
+                <h3>远程视频</h3>
+                <video id="remoteVideo" autoplay></video>
+                <p>对方的视频</p>
+            </div>
+        </div>
+        
+        <div class="step">
+            <h3>使用说明:</h3>
+            <ol>
+                <li>在两个不同的浏览器窗口或标签页中打开此页面</li>
+                <li>在每个窗口中输入不同的用户ID (例如: user1 和 user2)</li>
+                <li>点击"连接信令服务器"建立信令连接</li>
+                <li>在一个窗口中输入对方的用户ID，然后点击"发起呼叫"</li>
+                <li>在另一个窗口中会收到呼叫请求，点击"接听呼叫"按钮接听</li>
+            </ol>
+        </div>
+        
+        <div class="log-container">
+            <div class="log-header">运行日志:</div>
+            <div class="log" id="log">等待操作...</div>
+        </div>
+    </div>
+
+    <!-- 引入SockJS和STOMP库 -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    
+    <script>
+        // DOM元素
+        let connectBtn, disconnectBtn, callBtn, answerBtn, hangupBtn;
+        let localVideo, remoteVideo;
+        let userIdInput, remoteUserIdInput;
+        let connectionStatus, logElement;
+        let localUserIdSpan, remoteUserIdSpan;
+        let localConnectionStatusSpan, remoteConnectionStatusSpan;
+        let onlineUsersElement;
+        
+        // 初始化DOM元素引用
+        function initDOMElements() {
+            connectBtn = document.getElementById('connectBtn');
+            disconnectBtn = document.getElementById('disconnectBtn');
+            callBtn = document.getElementById('callBtn');
+            answerBtn = document.getElementById('answerBtn');
+            hangupBtn = document.getElementById('hangupBtn');
+            localVideo = document.getElementById('localVideo');
+            remoteVideo = document.getElementById('remoteVideo');
+            userIdInput = document.getElementById('userId');
+            remoteUserIdInput = document.getElementById('remoteUserId');
+            connectionStatus = document.getElementById('connectionStatus');
+            logElement = document.getElementById('log');
+            localUserIdSpan = document.getElementById('localUserId');
+            remoteUserIdSpan = document.getElementById('remoteUserIdSpan');
+            localConnectionStatusSpan = document.getElementById('localConnectionStatus');
+            remoteConnectionStatusSpan = document.getElementById('remoteConnectionStatus');
+            onlineUsersElement = document.getElementById('onlineUsers');
+            
+            // 检查所有元素是否正确获取
+            if (!connectBtn || !disconnectBtn || !callBtn || !answerBtn || !hangupBtn ||
+                !localVideo || !remoteVideo || !userIdInput || !remoteUserIdInput ||
+                !connectionStatus || !logElement || !localUserIdSpan || !remoteUserIdSpan ||
+                !localConnectionStatusSpan || !remoteConnectionStatusSpan || !onlineUsersElement) {
+                log('错误：无法获取所有DOM元素，请检查HTML结构');
+            }
+        }
+        
+        // WebRTC变量
+        let localStream;
+        let remoteStream;
+        let peerConnection;
+        let stompClient = null;
+        let isInitiator = false;
+        let pendingOffer = null;
+        
+        // ICE服务器配置
+        const iceServers = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ];
+        
+        // 日志输出函数
+        function log(message) {
+            const time = new Date().toLocaleTimeString();
+            const logEntry = `[${time}] ${message}`;
+            
+            // 如果logElement存在，则更新页面日志
+            if (logElement) {
+                logElement.innerHTML += logEntry + '\n';
+                logElement.scrollTop = logElement.scrollHeight;
+            }
+            
+            // 总是输出到控制台
+            console.log(logEntry);
+        }
+        
+        // 更新连接状态
+        function updateStatus(message, type = 'info') {
+            if (connectionStatus) {
+                connectionStatus.textContent = message;
+                connectionStatus.className = 'status ' + type;
+            }
+        }
+        
+        // 更新本地连接状态
+        function updateLocalConnectionStatus(status) {
+            if (localConnectionStatusSpan) {
+                localConnectionStatusSpan.textContent = status;
+            }
+        }
+        
+        // 更新远程连接状态
+        function updateRemoteConnectionStatus(status) {
+            if (remoteConnectionStatusSpan) {
+                remoteConnectionStatusSpan.textContent = status;
+            }
+        }
+        
+        // 更新在线用户列表
+        function updateOnlineUsers(users) {
+            if (onlineUsersElement) {
+                if (users && users.length > 0) {
+                    onlineUsersElement.innerHTML = users.join(', ');
+                } else {
+                    onlineUsersElement.textContent = '暂无在线用户';
+                }
+            }
+        }
+        
+        // 连接到信令服务器
+        function connect() {
+            const userId = userIdInput.value;
+            if (!userId) {
+                alert('请输入您的用户ID');
+                return;
+            }
+            
+            try {
+                updateStatus('正在连接信令服务器...', 'info');
+                localUserIdSpan.textContent = userId;
+                remoteUserIdSpan.textContent = remoteUserIdInput.value || '未设置';
+                
+                // 使用当前用户ID作为连接标识
+                const socket = new SockJS('/signaling/' + userId);
+                stompClient = Stomp.over(socket);
+                
+                stompClient.connect({login: userId}, function (frame) {
+                    log('成功连接到信令服务器');
+                    updateStatus('已连接到信令服务器', 'success');
+                    updateLocalConnectionStatus('已连接');
+                    
+                    // 启用相关按钮
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    userIdInput.disabled = true;
+                    
+                    // 订阅信令消息
+                    subscribeToSignaling();
+                }, function (error) {
+                    log('连接信令服务器失败: ' + error);
+                    updateStatus('连接信令服务器失败: ' + error, 'error');
+                    updateLocalConnectionStatus('连接失败');
+                });
+            } catch (error) {
+                log('连接异常: ' + error);
+                updateStatus('连接异常: ' + error, 'error');
+                updateLocalConnectionStatus('异常');
+            }
+        }
+        
+        // 断开连接
+        function disconnect() {
+            if (stompClient) {
+                stompClient.disconnect();
+                stompClient = null;
+                log('已断开信令服务器连接');
+                updateStatus('已断开信令服务器连接', 'info');
+                updateLocalConnectionStatus('未连接');
+                
+                // 重置按钮状态
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                userIdInput.disabled = false;
+                callBtn.disabled = true;
+                answerBtn.disabled = true;
+                hangupBtn.disabled = true;
+                
+                // 清理资源
+                cleanup();
+            }
+        }
+        
+        // 订阅信令消息
+        function subscribeToSignaling() {
+            if (!stompClient) return;
+            
+            // 订阅呼叫消息
+            stompClient.subscribe('/user/queue/signaling', function (message) {
+                const webrtcMessage = JSON.parse(message.body);
+                log('收到信令消息，类型: ' + webrtcMessage.type + ', 来自: ' + webrtcMessage.from);
+                
+                switch (webrtcMessage.type) {
+                    case 'OFFER':
+                        handleOffer(webrtcMessage);
+                        break;
+                    case 'ANSWER':
+                        handleAnswer(webrtcMessage);
+                        break;
+                    case 'ICE_CANDIDATE':
+                        handleIceCandidate(webrtcMessage);
+                        break;
+                    default:
+                        log('未知的信令消息类型: ' + webrtcMessage.type);
+                }
+            });
+        }
+        
+        // 创建RTCPeerConnection
+        function createPeerConnection() {
+            try {
+                peerConnection = new RTCPeerConnection({ iceServers });
+                
+                // 添加本地流到peerConnection
+                if (localStream) {
+                    localStream.getTracks().forEach(track => {
+                        peerConnection.addTrack(track, localStream);
+                    });
+                }
+                
+                // 监听ICE候选
+                peerConnection.onicecandidate = function(event) {
+                    if (event.candidate) {
+                        sendIceCandidate(event.candidate);
+                    }
+                };
+                
+                // 监听连接状态变化
+                peerConnection.onconnectionstatechange = function(event) {
+                    log('PeerConnection状态变化: ' + peerConnection.connectionState);
+                    switch (peerConnection.connectionState) {
+                        case "connected":
+                            updateStatus('已建立连接', 'success');
+                            updateRemoteConnectionStatus('已连接');
+                            break;
+                        case "disconnected":
+                            updateStatus('连接已断开', 'info');
+                            updateRemoteConnectionStatus('已断开');
+                            break;
+                        case "failed":
+                            updateStatus('连接失败', 'error');
+                            updateRemoteConnectionStatus('失败');
+                            break;
+                        case "closed":
+                            updateStatus('连接已关闭', 'info');
+                            updateRemoteConnectionStatus('已关闭');
+                            break;
+                    }
+                };
+                
+                // 监听远程流
+                peerConnection.ontrack = function(event) {
+                    log('收到远程媒体流');
+                    remoteVideo.srcObject = event.streams[0];
+                    remoteStream = event.streams[0];
+                    updateRemoteConnectionStatus('已接收流');
+                };
+                
+                log('创建PeerConnection成功');
+                return peerConnection;
+            } catch (error) {
+                log('创建PeerConnection失败: ' + error);
+                return null;
+            }
+        }
+        
+        // 发起呼叫
+        async function initiateCall() {
+            const remoteUserId = remoteUserIdInput.value;
+            if (!remoteUserId) {
+                alert('请输入对方用户ID');
+                return;
+            }
+            
+            remoteUserIdSpan.textContent = remoteUserId;
+            
+            // 获取本地媒体流
+            if (!localStream) {
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: true, 
+                        audio: true 
+                    });
+                    localVideo.srcObject = localStream;
+                    log('成功获取本地媒体流');
+                    updateLocalConnectionStatus('已获取流');
+                } catch (error) {
+                    log('获取本地媒体流失败: ' + error);
+                    updateStatus('无法访问摄像头或麦克风: ' + error, 'error');
+                    return;
+                }
+            }
+            
+            // 创建peerConnection
+            createPeerConnection();
+            
+            // 设置发起者标志
+            isInitiator = true;
+            
+            try {
+                // 创建offer
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                log('创建并设置本地offer');
+                
+                // 发送offer给对方
+                const message = {
+                    type: 'OFFER',
+                    from: userIdInput.value,
+                    to: remoteUserId,
+                    payload: offer.sdp
+                };
+                
+                stompClient.send("/app/signaling", {}, JSON.stringify(message));
+                log('已发送呼叫请求到用户: ' + remoteUserId);
+                
+                // 更新按钮状态
+                callBtn.disabled = true;
+                hangupBtn.disabled = false;
+                updateStatus('正在呼叫用户 ' + remoteUserId + '...', 'info');
+                updateRemoteConnectionStatus('正在呼叫');
+            } catch (error) {
+                log('发起呼叫失败: ' + error);
+                updateStatus('呼叫失败: ' + error, 'error');
+            }
+        }
+        
+        // 处理Offer
+        async function handleOffer(webrtcMessage) {
+            // 保存Offer以待用户决定是否接听
+            pendingOffer = webrtcMessage;
+            
+            // 启用接听按钮
+            answerBtn.disabled = false;
+            callBtn.disabled = true;
+            hangupBtn.disabled = false;
+            
+            log('收到呼叫请求，来自用户: ' + webrtcMessage.from + '，请决定是否接听');
+            updateStatus('收到用户 ' + webrtcMessage.from + ' 的呼叫请求', 'info');
+            remoteUserIdSpan.textContent = webrtcMessage.from;
+            updateRemoteConnectionStatus('收到呼叫');
+        }
+        
+        // 接听呼叫
+        async function answerCall() {
+            if (!pendingOffer) {
+                log('没有待处理的呼叫请求');
+                return;
+            }
+            
+            const remoteUserId = pendingOffer.from;
+            
+            // 获取本地媒体流
+            if (!localStream) {
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: true, 
+                        audio: true 
+                    });
+                    localVideo.srcObject = localStream;
+                    log('成功获取本地媒体流');
+                    updateLocalConnectionStatus('已获取流');
+                } catch (error) {
+                    log('获取本地媒体流失败: ' + error);
+                    updateStatus('无法访问摄像头或麦克风: ' + error, 'error');
+                    return;
+                }
+            }
+            
+            // 创建peerConnection
+            createPeerConnection();
+            
+            try {
+                // 设置远程描述
+                const offer = new RTCSessionDescription({type: 'offer', sdp: pendingOffer.payload});
+                await peerConnection.setRemoteDescription(offer);
+                log('设置远程offer成功');
+                
+                // 创建answer
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                log('创建并设置本地answer');
+                
+                // 发送answer给对方
+                const message = {
+                    type: 'ANSWER',
+                    from: userIdInput.value,
+                    to: remoteUserId,
+                    payload: answer.sdp
+                };
+                
+                stompClient.send("/app/signaling", {}, JSON.stringify(message));
+                log('已发送应答到用户: ' + remoteUserId);
+                
+                // 更新按钮状态
+                answerBtn.disabled = true;
+                callBtn.disabled = true;
+                hangupBtn.disabled = false;
+                updateStatus('正在与用户 ' + remoteUserId + ' 通话', 'success');
+                remoteUserIdSpan.textContent = remoteUserId;
+                updateRemoteConnectionStatus('已连接');
+                
+                // 清除待处理的Offer
+                pendingOffer = null;
+            } catch (error) {
+                log('接听呼叫失败: ' + error);
+                updateStatus('接听失败: ' + error, 'error');
+            }
+        }
+        
+        // 处理Answer
+        async function handleAnswer(webrtcMessage) {
+            try {
+                const answer = new RTCSessionDescription({type: 'answer', sdp: webrtcMessage.payload});
+                await peerConnection.setRemoteDescription(answer);
+                log('设置远程answer成功');
+                updateStatus('正在与用户 ' + webrtcMessage.from + ' 通话', 'success');
+                remoteUserIdSpan.textContent = webrtcMessage.from;
+                updateRemoteConnectionStatus('已连接');
+            } catch (error) {
+                log('处理应答失败: ' + error);
+                updateStatus('处理应答失败: ' + error, 'error');
+            }
+        }
+        
+        // 发送ICE候选
+        function sendIceCandidate(candidate) {
+            // 确定远程用户ID
+            let remoteUserId = '';
+            if (pendingOffer) {
+                remoteUserId = pendingOffer.from;
+            } else {
+                remoteUserId = remoteUserIdInput.value;
+            }
+            
+            // 如果仍然没有远程用户ID，则不发送
+            if (!remoteUserId) {
+                log('无法确定远程用户ID，无法发送ICE候选');
+                return;
+            }
+            
+            const message = {
+                type: 'ICE_CANDIDATE',
+                from: userIdInput.value,
+                to: remoteUserId,
+                payload: candidate.candidate
+            };
+            
+            stompClient.send("/app/signaling", {}, JSON.stringify(message));
+        }
+        
+        // 处理ICE候选
+        async function handleIceCandidate(webrtcMessage) {
+            try {
+                const candidate = new RTCIceCandidate({
+                    candidate: webrtcMessage.payload,
+                    sdpMid: null,
+                    sdpMLineIndex: null
+                });
+                await peerConnection.addIceCandidate(candidate);
+                log('添加ICE候选成功');
+            } catch (error) {
+                log('处理ICE候选失败: ' + error);
+            }
+        }
+        
+        // 挂断通话
+        function hangup() {
+            log('通话已结束');
+            updateStatus('通话已结束', 'info');
+            updateRemoteConnectionStatus('已挂断');
+            
+            // 发送挂断消息给对方
+            if (stompClient && remoteUserIdSpan.textContent && remoteUserIdSpan.textContent !== '未设置') {
+                const message = {
+                    type: 'HANGUP',
+                    from: userIdInput.value,
+                    to: remoteUserIdSpan.textContent
+                };
+                stompClient.send("/app/signaling", {}, JSON.stringify(message));
+            }
+            
+            // 清理资源
+            cleanup();
+            
+            // 重置按钮状态
+            callBtn.disabled = false;
+            answerBtn.disabled = true;
+            hangupBtn.disabled = true;
+        }
+        
+        // 清理资源
+        function cleanup() {
+            // 关闭peerConnection
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            
+            // 停止本地媒体流
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+                localVideo.srcObject = null;
+            }
+            
+            // 清除远程媒体流
+            if (remoteStream) {
+                remoteStream.getTracks().forEach(track => track.stop());
+                remoteStream = null;
+                remoteVideo.srcObject = null;
+            }
+            
+            // 清除待处理的Offer
+            pendingOffer = null;
+        }
+        
+        // 事件监听器
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initDOMElements();
+            
+            // 检查logElement是否存在再调用log函数
+            if (logElement) {
+                log('页面加载完成，请先点击"连接信令服务器"');
+            } else {
+                console.log('页面加载完成，请先点击"连接信令服务器"');
+            }
+            
+            // 绑定事件监听器
+            if (connectBtn) connectBtn.addEventListener('click', connect);
+            if (disconnectBtn) disconnectBtn.addEventListener('click', disconnect);
+            if (callBtn) callBtn.addEventListener('click', initiateCall);
+            if (answerBtn) answerBtn.addEventListener('click', answerCall);
+            if (hangupBtn) hangupBtn.addEventListener('click', hangup);
+        });
+    </script>
+</body>
+</html>

@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,8 @@ import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.ui.chat.ChatUI
 import com.github.im.group.ui.contacts.ContactsUI
 import com.github.im.group.ui.profile.ProfileUI
+import com.github.im.group.ui.video.DraggableVideoWindow
+import com.github.im.group.sdk.MediaStream
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -64,7 +67,10 @@ fun ChatMainScreen(
     val friends by userViewModel.friends.collectAsState()
 
     val userInfo = userViewModel.getCurrentUser()
-
+    
+    // 小窗视频通话状态
+    var isVideoCallMinimized by remember { mutableStateOf(false) }
+    var localMediaStream: MediaStream? by remember { mutableStateOf(null) }
     
     // 底部导航栏选中状态
     var selectedItem by remember { mutableIntStateOf(0) }
@@ -231,6 +237,20 @@ fun ChatMainScreen(
                         // 个人界面
                         ProfileUI(navHostController = navHostController)
                     }
+                }
+                
+                // 小窗视频通话
+                if (isVideoCallMinimized) {
+                    DraggableVideoWindow(
+                        mediaStream = localMediaStream,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(16.dp),
+                        onDismissRequest = { 
+                            isVideoCallMinimized = false
+                            localMediaStream = null
+                        }
+                    )
                 }
             }
         }

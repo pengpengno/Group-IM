@@ -1,5 +1,10 @@
 package com.github.im.group.ui.chat
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,14 +32,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.im.group.model.MessageWrapper
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.getValue
-
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.runtime.*
 import androidx.compose.ui.window.Dialog
@@ -128,10 +133,12 @@ fun FileMessage(content: MessageContent.File) {
 
 @Composable
 fun VoiceMessage(content: MessageContent.Voice, onclick: () -> Unit) {
+    var showDialog by remember { mutableStateOf(false) }
+    
     Row(
         modifier = Modifier
             .padding(horizontal = 12.dp, vertical = 8.dp)
-            .clickable { onclick() }
+            .clickable { showDialog = true }
             .width((60 + content.duration * 5).dp.coerceAtMost(200.dp))
             .height(40.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -144,6 +151,31 @@ fun VoiceMessage(content: MessageContent.Voice, onclick: () -> Unit) {
             modifier = Modifier.size(24.dp)
         )
         Text("${content.duration}\"", color = Color.Gray, fontSize = 12.sp)
+    }
+    
+    // 点击后显示播放器
+    if (showDialog) {
+        Dialog(onDismissRequest = { showDialog = false }) {
+            Box(
+                modifier = Modifier
+                    .background(Color.White)
+                    .padding(16.dp)
+            ) {
+                VoicePlayer(
+                    duration = content.duration,
+                    onPlay = {
+                        // 开始播放音频
+                        onclick()
+                    },
+                    onPause = {
+                        // 暂停播放音频
+                    },
+                    onSeek = { position ->
+                        // 跳转到指定位置
+                    }
+                )
+            }
+        }
     }
 }
 
@@ -218,7 +250,7 @@ fun FullScreenVideoPlayer(videoUrl: String, onClose: () -> Unit) {
     Dialog(
         onDismissRequest = onClose,
         properties = DialogProperties(
-            usePlatformDefaultWidth = false // ✅ 关键：禁用默认宽度限制
+            usePlatformDefaultWidth = false // 禁用默认宽度限制
         )
     ) {
         CrossPlatformVideo(

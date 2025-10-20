@@ -86,20 +86,17 @@ kotlin {
             implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
         }
         commonMain.dependencies {
-//            implementation("io.github.oshai:kotlin-logging:5.1.0")
+            // 日志工程
             implementation("io.github.aakira:napier:2.6.1")
-//            implementation("media.kamel:kamel-image:1.0.8")
-//            implementation("media.kamel:kamel-image-default:1.0.7")
-
 
             implementation("com.squareup.wire:wire-runtime:4.8.1")
 
-            implementation("cafe.adriel.voyager:voyager-navigator:$voyagerVersion")
-            implementation("cafe.adriel.voyager:voyager-screenmodel:$voyagerVersion")
-            implementation("cafe.adriel.voyager:voyager-bottom-sheet-navigator:$voyagerVersion")
-            implementation("cafe.adriel.voyager:voyager-tab-navigator:$voyagerVersion")
-            implementation("cafe.adriel.voyager:voyager-transitions:$voyagerVersion")
-            implementation("cafe.adriel.voyager:voyager-koin:$voyagerVersion")
+//            implementation("cafe.adriel.voyager:voyager-navigator:$voyagerVersion")
+//            implementation("cafe.adriel.voyager:voyager-screenmodel:$voyagerVersion")
+//            implementation("cafe.adriel.voyager:voyager-bottom-sheet-navigator:$voyagerVersion")
+//            implementation("cafe.adriel.voyager:voyager-tab-navigator:$voyagerVersion")
+//            implementation("cafe.adriel.voyager:voyager-transitions:$voyagerVersion")
+//            implementation("cafe.adriel.voyager:voyager-koin:$voyagerVersion")
 
 
             implementation("org.jetbrains.androidx.navigation:navigation-compose:2.9.0-beta01")
@@ -115,7 +112,7 @@ kotlin {
 
             implementation(libs.koin.compose.viewmodel.nav)
             implementation(libs.koin.compose.viewmodel)
-//            implementation("io.insert-koin:koin-core")
+
             implementation(compose.material)
 
             implementation(libs.ktor.client.core)

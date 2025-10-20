@@ -227,6 +227,7 @@ data class FileMeta(
     val hash: String,
 
     val type: String,
+    val duration  :Int ?
 
 ) : MessagePayLoad
 

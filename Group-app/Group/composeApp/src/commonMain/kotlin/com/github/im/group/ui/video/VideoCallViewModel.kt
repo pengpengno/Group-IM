@@ -5,13 +5,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.im.group.model.UserInfo
+import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.MediaStream
 import com.github.im.group.sdk.WebRTCManager
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class VideoCallViewModel : ViewModel() {
+class VideoCallViewModel(
+    val userRepository : UserRepository,
+
+) : ViewModel(
+
+) {
     private val _videoCallState = MutableStateFlow(VideoCallState())
     val videoCallState: StateFlow<VideoCallState> = _videoCallState
 
@@ -28,15 +35,9 @@ class VideoCallViewModel : ViewModel() {
     private val _localMediaStream = mutableStateOf<MediaStream?>(null)
     val localMediaStream: androidx.compose.runtime.State<MediaStream?> = _localMediaStream
 
-    // 当前用户ID
-    private var currentUserId: String = ""
-
     // WebRTC管理器
     private var webRTCManager: WebRTCManager? = null
 
-    fun setCurrentUserId(userId: String) {
-        this.currentUserId = userId
-    }
 
     fun setWebRTCManager(manager: WebRTCManager) {
         this.webRTCManager = manager
@@ -48,15 +49,17 @@ class VideoCallViewModel : ViewModel() {
                 callStatus = CallStatus.CONNECTING,
                 remoteUser = remoteUser
             )
+
+            Napier.d("startVideoCall")
             
             // 初始化WebRTC连接
             try {
                 webRTCManager?.initialize()
                 
-                // 初始化本地媒体流
+                // 先初始化本地媒体流
                 initializeLocalMediaStream()
                 
-                // 建立信令连接
+                // 再建立信令连接
                 connectSignalingServer()
                 
                 // 发送呼叫请求
@@ -85,6 +88,14 @@ class VideoCallViewModel : ViewModel() {
         }
     }
 
+    fun minimizeCall() {
+        viewModelScope.launch {
+            _videoCallState.value = _videoCallState.value.copy(
+                callStatus = CallStatus.MINIMIZED
+            )
+        }
+    }
+
     fun toggleCamera() {
         _isCameraEnabled.value = !_isCameraEnabled.value
         // 控制实际的摄像头开关
@@ -110,10 +121,20 @@ class VideoCallViewModel : ViewModel() {
         // 可以在这里处理返回的媒体流对象
     }
 
+    /**
+     *webrtc 信令服务器连接
+     * TODO 登录后立即连接  退出 登录后也是退出连接
+     */
     private fun connectSignalingServer() {
         // 连接到信令服务器，使用ProxyConfig中的host配置
         val host = ProxyConfig.host
-        webRTCManager?.connectToSignalingServer("ws://$host:8080/webrtc", currentUserId)
+        val port = ProxyConfig.port
+        // 检查是否使用安全连接
+        val protocol = if (host.startsWith("https://")) "wss" else "ws"
+        val cleanHost = host.replace(Regex("^https?://"), "")
+
+        val currentUserId = userRepository.withLoggedInUser { it.user.userId .toString()}
+        webRTCManager?.connectToSignalingServer("$protocol://$cleanHost:$port/webrtc", currentUserId)
     }
 
     private fun sendCallRequest(userId: String) {
@@ -139,6 +160,7 @@ enum class CallStatus {
     IDLE,
     CONNECTING,
     ACTIVE,
+    MINIMIZED,
     ENDED,
     ERROR
 }

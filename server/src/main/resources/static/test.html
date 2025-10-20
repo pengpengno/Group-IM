@@ -1,0 +1,271 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>WebRTC Signaling Test</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; padding: 12px; }
+    video { width: 320px; height: 240px; background: black; }
+    #local, #remote { display:inline-block; vertical-align: top; margin-right: 12px; }
+    #controls { margin-top: 8px; }
+    #log { background:#f3f3f3; padding:8px; height:220px; overflow:auto; white-space:pre-wrap; }
+    input, button { margin-right: 6px; }
+  </style>
+</head>
+<body>
+<h2>WebRTC Signaling Test (Java server)</h2>
+<div>
+  Signaling server host: <input id="serverHost" value="localhost:8080" style="width:160px" />
+  Your userId: <input id="userId" value="alice" />
+  <button id="connectBtn">Connect</button>
+</div>
+
+<div id="controls">
+  Call userId: <input id="callTo" value="bob" />
+  <button id="callBtn" disabled>Call</button>
+  <button id="hangupBtn" disabled>Hangup</button>
+  <button id="screenBtn" disabled>Share Screen</button>
+</div>
+
+<div style="margin-top:12px;">
+  <div id="local">
+    <div><strong>Local</strong></div>
+    <video id="localVideo" autoplay muted playsinline></video>
+  </div>
+  <div id="remote">
+    <div><strong>Remote</strong></div>
+    <video id="remoteVideo" autoplay playsinline></video>
+  </div>
+</div>
+
+<h4>Log</h4>
+<div id="log"></div>
+
+<script>
+  /*
+   Protocol notes (matches Java server):
+   - JSON message fields:
+     { type: "call/request" | "call/accept" | "call/end" | "offer" | "answer" | "candidate",
+       fromUser: "alice", toUser: "bob",
+       sdp: "<SDP string>", sdpType: "offer"|"answer",
+       candidate: { candidate: "...", sdpMid: "...", sdpMLineIndex: 0 }
+     }
+
+   - The Java server parses incoming JSON; therefore we send sdp as STRING (not object).
+  */
+
+  const logEl = (msg) => {
+    const d = document.getElementById('log');
+    d.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+    d.scrollTop = d.scrollHeight;
+  };
+
+  let ws = null;
+  let pc = null;
+  let localStream = null;
+  let userId = null;
+  let targetId = null;
+
+  const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+
+  document.getElementById('connectBtn').onclick = () => {
+    const host = document.getElementById('serverHost').value.trim();
+    userId = document.getElementById('userId').value.trim();
+    if (!host || !userId) return alert('enter server host and userId');
+    connectWS(host, userId);
+  };
+
+  function connectWS(host, id) {
+    const url = `ws://${host}/ws?userId=${encodeURIComponent(id)}`;
+    logEl('Connecting to ' + url);
+    ws = new WebSocket(url);
+
+    ws.onopen = () => {
+      logEl('WS connected as ' + id);
+      document.getElementById('callBtn').disabled = false;
+      document.getElementById('screenBtn').disabled = false;
+    };
+
+    ws.onmessage = async (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch (e) { logEl('Invalid JSON from ws'); return; }
+      logEl('WS recv: ' + JSON.stringify(msg));
+      const type = msg.type;
+
+      if (type === 'call/request') {
+        // Incoming call
+        const from = msg.fromUser;
+        if (confirm(`${from} is calling you. Accept?`)) {
+          // Accept: create pc + local media + notify accept
+          targetId = from;
+          await ensurePeerAndMedia();
+          sendWS({ type: 'call/accept', fromUser: userId, toUser: from });
+        } else {
+          // ignore (could send reject)
+        }
+      } else if (type === 'call/accept') {
+        // Callee accepted -> create offer and send
+        const to = msg.fromUser; // note: when callee sends call/accept, fromUser is callee; original caller should create offer to callee
+        targetId = to;
+        await ensurePeerAndMedia();
+        await createAndSendOffer();
+      } else if (type === 'offer') {
+        // remote offer (sdp string + sdpType)
+        targetId = msg.fromUser;
+        await ensurePeerAndMedia();
+        const desc = { type: msg.sdpType || 'offer', sdp: msg.sdp };
+        await pc.setRemoteDescription(new RTCSessionDescription(desc));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        // send answer (sdp as string + sdpType)
+        sendWS({ type: 'answer', fromUser: userId, toUser: targetId, sdp: answer.sdp, sdpType: answer.type });
+        logEl('Sent answer to ' + targetId);
+      } else if (type === 'answer') {
+        const desc = { type: msg.sdpType || 'answer', sdp: msg.sdp };
+        await pc.setRemoteDescription(new RTCSessionDescription(desc));
+        logEl('Remote answer set');
+      } else if (type === 'candidate') {
+        try {
+          await pc.addIceCandidate(msg.candidate);
+          logEl('Added remote ICE candidate');
+        } catch (e) {
+          console.warn(e);
+        }
+      } else if (type === 'call/end') {
+        logEl('Call ended by peer');
+        hangupLocal();
+      } else if (type === 'call/failed') {
+        alert('Call failed: ' + (msg.reason || 'unknown'));
+      } else {
+        logEl('Unhandled ws message: ' + JSON.stringify(msg));
+      }
+    };
+
+    ws.onclose = () => logEl('WS closed');
+    ws.onerror = (e) => logEl('WS error: ' + e);
+  }
+
+  document.getElementById('callBtn').onclick = () => {
+    const to = document.getElementById('callTo').value.trim();
+    if (!to) return alert('enter target id');
+    targetId = to;
+    // send call request
+    sendWS({ type: 'call/request', fromUser: userId, toUser: to });
+    logEl('Sent call/request to ' + to);
+  };
+
+  document.getElementById('hangupBtn').onclick = () => {
+    if (targetId) {
+      sendWS({ type: 'call/end', fromUser: userId, toUser: targetId });
+    }
+    hangupLocal();
+  };
+
+  document.getElementById('screenBtn').onclick = async () => {
+    if (!pc) return alert('No peer connection');
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      const track = stream.getVideoTracks()[0];
+      const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+      if (sender) {
+        await sender.replaceTrack(track);
+        logEl('Replaced local video with screen track');
+      } else {
+        pc.addTrack(track, stream);
+        logEl('Added screen track as new sender');
+      }
+      track.onended = async () => {
+        logEl('Screen share ended — reverting to camera');
+        // request camera again and replace
+        await replaceWithCamera();
+      };
+    } catch (e) {
+      logEl('Screen share failed: ' + e);
+    }
+  };
+
+  async function ensurePeerAndMedia() {
+    if (!pc) await createPeerConnection();
+    if (!localStream) await getLocalMediaAndAttach();
+  }
+
+  async function createPeerConnection() {
+    pc = new RTCPeerConnection(servers);
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        sendWS({ type: 'candidate', fromUser: userId, toUser: targetId, candidate: e.candidate });
+        logEl('Sent local ICE candidate');
+      }
+    };
+    pc.ontrack = (e) => {
+      logEl('Remote track received');
+      document.getElementById('remoteVideo').srcObject = e.streams[0];
+    };
+    pc.onconnectionstatechange = () => {
+      logEl('PC state: ' + pc.connectionState);
+    };
+    document.getElementById('hangupBtn').disabled = false;
+  }
+
+  async function getLocalMediaAndAttach() {
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      document.getElementById('localVideo').srcObject = localStream;
+      // add tracks to peer
+      localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+      logEl('Local media added');
+    } catch (e) {
+      logEl('getUserMedia failed: ' + e);
+      throw e;
+    }
+  }
+
+  async function createAndSendOffer() {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    sendWS({ type: 'offer', fromUser: userId, toUser: targetId, sdp: offer.sdp, sdpType: offer.type });
+    logEl('Sent offer to ' + targetId);
+  }
+
+  async function replaceWithCamera() {
+    try {
+      const camStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const camTrack = camStream.getVideoTracks()[0];
+      const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+      if (sender) {
+        await sender.replaceTrack(camTrack);
+        logEl('Replaced screen track with camera track');
+      } else {
+        pc.addTrack(camTrack, camStream);
+      }
+      // update local preview
+      localStream = camStream;
+      document.getElementById('localVideo').srcObject = localStream;
+    } catch (e) {
+      logEl('Failed to get camera: ' + e);
+    }
+  }
+
+  function sendWS(obj) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return logEl('WS not connected');
+    // ensure fromUser is present
+    if (!obj.fromUser) obj.fromUser = userId;
+    ws.send(JSON.stringify(obj));
+  }
+
+  function hangupLocal() {
+    if (pc) {
+      pc.getSenders().forEach(s => { if (s.track) try { s.track.stop(); } catch (e) {} });
+      pc.close();
+      pc = null;
+    }
+    if (localStream) {
+      localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+      localStream = null;
+    }
+    document.getElementById('hangupBtn').disabled = true;
+    logEl('Call ended locally');
+  }
+</script>
+</body>
+</html>

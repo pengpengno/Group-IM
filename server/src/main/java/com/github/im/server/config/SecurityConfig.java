@@ -92,7 +92,9 @@ public class SecurityConfig  {
                                 "/rtc"  , // 信令服务器
                                 "/rtc/*"  , // 信令服务器
                                 "/webrtc/**",   // WebRTC信令服务器
-                                "/websocket/**"   // WebSocket端点
+                                "/ws/**",   // WebRTC信令服务器
+                                "/websocket/**",   // WebSocket端点
+                                "/signaling/**"    // 专用信令端点
                         )
                         .permitAll()
                         .anyRequest()

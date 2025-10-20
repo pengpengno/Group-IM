@@ -27,13 +27,6 @@ class UserRepository (
     private val db:AppDatabase
 ){
 
-
-
-//    private var _userState = MutableStateFlow<CurrentUserInfoContainer>(CurrentUserInfoContainer())
-//    val userState = _userState.asStateFlow()
-//
-
-
     private val _userState = MutableStateFlow<UserState>(UserState.LoggedOut)
     val userState = _userState.asStateFlow()
 

@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavHostController
 import com.github.im.group.model.UserInfo
 import com.github.im.group.sdk.LocalVideoPreview
@@ -27,12 +28,17 @@ fun VideoCallUI(
     onEndCall: () -> Unit = {},
     onToggleCamera: () -> Unit = {},
     onToggleMicrophone: () -> Unit = {},
-    onSwitchCamera: () -> Unit = {}
+    onSwitchCamera: () -> Unit = {},
+    onMinimizeCall: () -> Unit = {}
 ) {
     var isCameraEnabled by remember { mutableStateOf(true) }
     var isMicrophoneEnabled by remember { mutableStateOf(true) }
     
-    Dialog(onDismissRequest = { onEndCall() }) {
+    Dialog(onDismissRequest = { onMinimizeCall() },
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false // ✅ 关键：禁用默认宽度限制
+        )
+        ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -54,11 +60,14 @@ fun VideoCallUI(
                     modifier = Modifier
                         .size(120.dp)
                         .align(Alignment.TopEnd)
-                        .padding(16.dp)
+//                        .padding(.dp)
                 ) {
                     // 显示本地视频流
+
+                    // TODO 可以拖拽位置
                     LocalVideoPreview(
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        localMediaStream = localMediaStream
                     )
                 }
                 
@@ -141,15 +150,15 @@ fun VideoCallUI(
                     )
                 }
                 
-                // 其他功能按钮占位
+                // 最小化按钮
                 FloatingActionButton(
-                    onClick = { /* TODO */ },
+                    onClick = { onMinimizeCall() },
                     containerColor = Color(0xFF666666),
                     modifier = Modifier.size(56.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "更多",
+                        imageVector = Icons.Default.CloseFullscreen,
+                        contentDescription = "最小化",
                         tint = Color.White
                     )
                 }

@@ -110,12 +110,7 @@ class ChatMessageViewModel(
     }
 
 
-    /**
-     * 分页加载数据
-     */
-    fun loadMessages(conversationId: Long , page: Int = 1 , size: Int = 50){
 
-    }
     /**
      * 加载消息
      * @param conversationId 会话id

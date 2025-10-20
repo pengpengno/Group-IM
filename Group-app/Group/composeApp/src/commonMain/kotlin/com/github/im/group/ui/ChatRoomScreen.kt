@@ -53,6 +53,7 @@ import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
 import com.github.im.group.ui.video.VideoCallViewModel
+import io.github.aakira.napier.Napier
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -113,14 +114,13 @@ fun ChatRoomScreen(
                 actions = {
                     // 视频通话按钮
                     IconButton(onClick = {
-                        print("remoteUser: $remoteUser")
                         // 设置远程用户（这里应该是从会话中获取对方用户信息）
                         remoteUser = state.conversation.getOtherUser(userInfo)
-                        print("remoteUser: $remoteUser")
+                        Napier.d("remoteUser: $remoteUser")
+                        Napier.d("currentUser: $userInfo")
                         // 启动视频通话
                         remoteUser?.let { 
                             // 设置当前用户ID
-                            videoCallViewModel.setCurrentUserId(userInfo.userId.toString())
                             videoCallViewModel.startVideoCall(it)
                             showVideoCall = true
                         }
@@ -192,7 +192,14 @@ fun ChatRoomScreen(
                 if (userInfo != null) {
                     MessageBubble(
                         isOwnMessage = msg.userInfo.userId == userInfo.userId,
-                        msg = msg
+                        msg = msg,
+                        onVoiceMessageClick = { voiceContent ->
+                            // 处理语音消息点击事件，播放音频
+                            // 这里需要根据实际的音频文件路径来播放
+                            val audioUrl = "http://${ProxyConfig.host}:${ProxyConfig.port}/api/files/download/${voiceContent.audioUrl}"
+                            // TODO: 实现实际的音频播放逻辑
+                            println("播放音频: $audioUrl")
+                        }
                     )
                 }
             }
@@ -244,9 +251,9 @@ fun ChatRoomScreen(
         
         // 视频通话界面
         if (showVideoCall) {
-            val videoCallState by videoCallViewModel.videoCallState.collectAsState()
+//            val videoCallState by videoCallViewModel.videoCallState.collectAsState()
             val localMediaStream by videoCallViewModel.localMediaStream
-            
+
             VideoCallUI(
                 navHostController = navHostController,
                 remoteUser = remoteUser,
@@ -267,7 +274,7 @@ fun ChatRoomScreen(
  * 聊天气泡
  */
 @Composable
-fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem) {
+fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem, onVoiceMessageClick: (MessageContent.Voice) -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -294,9 +301,20 @@ fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem) {
             ) {
                 when (msg.type) {
                     MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content))
-                    MessageType.VOICE -> VoiceMessage(MessageContent.Voice(msg.content, 1), {/** 播放音频
 
-                     **/})
+                    MessageType.VOICE -> {
+                        // TODO TCP 推送的数据缺失了 FileMeta 信息 考虑下是否需要 TCP 将其都传入过来,保持 一致性
+                        /***
+                         *
+                         * 目前通过  {@see com.github.im.group.viewmodel.ChatMessageViewModel
+                         * .getFileMessageMeta(com.github.im.group.model.MessageItem) 获取文件元数据 }
+                         * 来处理
+                         */
+                        val  duration = msg.fileMeta?.duration ?: 1
+                        VoiceMessage(MessageContent.Voice(msg.content, duration)) {
+                            onVoiceMessageClick(MessageContent.Voice(msg.content, duration))
+                        }
+                    }
                     MessageType.IMAGE -> ImageMessage(MessageContent.Image(msg.content))
                     MessageType.VIDEO -> VideoBubble(MessageContent.Video(msg.content))
                     MessageType.FILE -> FileMessageBubble(msg)

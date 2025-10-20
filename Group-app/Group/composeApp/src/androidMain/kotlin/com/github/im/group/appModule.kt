@@ -10,6 +10,7 @@ import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.AndroidAudioPlayer
 import com.github.im.group.sdk.AndroidFilePicker
+import com.github.im.group.sdk.AndroidWebRTCManager
 import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.SenderSdk
@@ -67,8 +68,10 @@ val appModule = module {
     
     // 注册VideoCallViewModel
     viewModel { 
-        VideoCallViewModel(
-        )
+        val vm = VideoCallViewModel(get())
+        // 注入WebRTC管理器
+        vm.setWebRTCManager(AndroidWebRTCManager(androidContext()))
+        vm
     }
 
 }
