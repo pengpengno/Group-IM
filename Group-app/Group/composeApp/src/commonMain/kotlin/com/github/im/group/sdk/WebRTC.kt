@@ -5,32 +5,36 @@ import androidx.compose.ui.Modifier
 import kotlinx.serialization.Serializable
 
 /**
- * WebRTC跨平台接口定义
+ * WebRTC跨平台视频通话组件
  */
-@Composable
-expect fun WebRTCVideoCall(
-    modifier: Modifier = Modifier,
-    onCallStarted: () -> Unit = {},
-    onCallEnded: () -> Unit = {},
-    onError: (String) -> Unit = {}
-)
 
-/**
- * 本地视频流预览
- */
-@Composable
-expect fun LocalVideoPreview(
-    modifier: Modifier = Modifier,
-    localMediaStream: com.github.im.group.sdk.MediaStream? = null
-)
+// 抽象类定义
+abstract class VideoTrack {
+    abstract val id: String
+    abstract val isEnabled: Boolean
+    abstract fun setEnabled(enabled: Boolean)
+}
 
-/**
- * 远程视频流显示
- */
+abstract class AudioTrack {
+    abstract val id: String
+    abstract val isEnabled: Boolean
+    abstract fun setEnabled(enabled: Boolean)
+}
+
+abstract class MediaStream {
+    abstract val id: String
+    abstract val videoTracks: List<VideoTrack>
+    abstract val audioTracks: List<AudioTrack>
+}
+
+
+
+// Note: WebRTC is not supported on desktop platform, so this is only for platforms that support WebRTC
 @Composable
-expect fun RemoteVideoView(
-    modifier: Modifier = Modifier,
-    remoteVideoTrack: com.github.im.group.sdk.VideoTrack? = null
+expect fun VideoScreenView(
+    modifier: Modifier? = null,
+    videoTrack: VideoTrack? = null,
+    audioTrack: AudioTrack? = null
 )
 
 /**
@@ -39,16 +43,18 @@ expect fun RemoteVideoView(
 interface WebRTCManager {
     /**
      * 初始化WebRTC
+     * 链接到远程服务器
      */
-    fun initialize()
+    suspend fun initialize()
     
     /**
      * 创建本地媒体流（音频+视频）
      */
-    fun createLocalMediaStream(): MediaStream?
+    suspend fun createLocalMediaStream(): MediaStream?
     
     /**
      * 连接到信令服务器
+     * 这里使用WebSocket
      */
     fun connectToSignalingServer(serverUrl: String, userId: String)
     
@@ -75,7 +81,7 @@ interface WebRTCManager {
     /**
      * 切换摄像头
      */
-    fun switchCamera()
+    suspend fun switchCamera()
     
     /**
      * 开关摄像头
@@ -90,22 +96,13 @@ interface WebRTCManager {
     /**
      * 发送ICE候选
      */
-    fun sendIceCandidate(candidate: IceCandidateData)
+    fun sendIceCandidate(candidate: IceCandidate)
     
     /**
      * 释放资源
      */
     fun release()
 }
-
-/**
- * ICE候选信息
- */
-data class IceCandidate(
-    val sdpMid: String,
-    val sdpMLineIndex: Int,
-    val sdp: String
-)
 
 /**
  * WebRTC消息对象
@@ -128,33 +125,14 @@ data class WebrtcMessage(
 data class IceCandidateData(
     val candidate: String,         // 候选描述
     val sdpMid: String,            // SDP中段标识
-    val sdpMLineIndex: Int ,     // SDP中媒体行索引
-    val sdp: String
+    val sdpMLineIndex: Int,        // SDP中媒体行索引
+    val usernameFragment: String? = null, // usernameFragment字段
+    val sdp: String? = null
 )
 
-/**
- * 媒体流接口
- */
-interface MediaStream {
-    val id: String
-    val audioTracks: List<AudioTrack>
-    val videoTracks: List<VideoTrack>
-}
-
-/**
- * 音频轨道接口
- */
-interface AudioTrack {
-    val id: String
-    val enabled: Boolean
-    fun setEnabled(enabled: Boolean)
-}
-
-/**
- * 视频轨道接口
- */
-interface VideoTrack {
-    val id: String
-    val enabled: Boolean
-    fun setEnabled(enabled: Boolean)
-}
+@Serializable
+data class IceCandidate(
+    val sdpMid: String,
+    val sdpMLineIndex: Int,
+    val candidate: String
+)

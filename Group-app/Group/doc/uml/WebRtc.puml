@@ -1,0 +1,80 @@
+@startuml
+
+participant 用户界面 as U
+participant WebRTCManager as M
+participant WebSocket as W
+participant PeerConnection as P
+participant 远程用户 as R
+
+Note over U,R: 初始化阶段
+U->>M: initialize()
+M->>M: 初始化PeerConnectionFactory
+
+U->>M: createLocalMediaStream()
+M->>M: 创建本地音视频轨道
+
+Note over U,R: 连接信令服务器
+U->>M: connectToSignalingServer(userId)
+M->>W: 建立WebSocket连接
+W-->>M: 连接成功
+
+Note over U,R: 发起呼叫
+U->>M: initiateCall(remoteUserId)
+M->>M: 创建PeerConnection(仅当不存在时)
+M->>W: 发送call/request消息
+
+R->>W: 接收call/request消息
+W->>R: 显示来电界面
+
+Note over U,R: 接受呼叫
+R->>M: acceptCall()
+M->>M: 创建PeerConnection(仅当不存在时)
+M->>W: 发送call/accept消息
+
+W->>M: 接收call/accept消息
+M->>M: createAndSendOffer()
+M->>P: createOffer()
+P-->>M: Offer创建成功
+M->>P: setLocalDescription(offer)
+P-->>M: 本地描述设置成功
+M->>W: 发送offer消息
+
+Note over U,R: SDP协商
+W->>R: 接收offer消息
+R->>P: setRemoteDescription(offer)
+P-->>R: 远程描述设置成功
+R->>P: createAnswer()
+P-->>R: Answer创建成功
+R->>P: setLocalDescription(answer)
+P-->>R: 本地描述设置成功
+R->>W: 发送answer消息
+
+W->>M: 接收answer消息
+M->>P: setRemoteDescription(answer)
+P-->>M: 远程描述设置成功
+
+Note over U,R: ICE候选交换
+M->>P: onIceCandidate()
+P-->>M: 生成ICE候选
+M->>W: 发送candidate消息
+W->>R: 转发candidate消息
+R->>P: addIceCandidate()
+
+R->>P: onIceCandidate()
+P-->>R: 生成ICE候选
+R->>W: 发送candidate消息
+W->>M: 转发candidate消息
+M->>P: addIceCandidate()
+
+Note over U,R: 媒体流传输
+P->>P: 建立连接
+U->>U: 显示远程视频
+R->>R: 显示远程视频
+
+Note over U,R: 结束通话
+U->>M: endCall()
+M->>W: 发送call/end消息
+M->>M: cleanup()
+M->>P: close()
+M->>W: close()
+@enduml

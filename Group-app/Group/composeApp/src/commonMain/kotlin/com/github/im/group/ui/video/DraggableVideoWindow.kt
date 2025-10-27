@@ -17,8 +17,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import com.github.im.group.sdk.LocalVideoPreview
-import com.github.im.group.sdk.MediaStream
+import com.shepeliev.webrtckmp.MediaStream
 import kotlin.math.roundToInt
 
 /**
@@ -52,11 +51,11 @@ fun DraggableVideoWindow(
         color = Color.Black,
         shadowElevation = 8.dp
     ) {
-        Box(modifier = Modifier.size(windowSize)) {
-            LocalVideoPreview(
-                modifier = Modifier.matchParentSize(),
-                localMediaStream = mediaStream
-            )
-        }
+//        Box(modifier = Modifier.size(windowSize)) {
+//            LocalVideoPreview(
+//                modifier = Modifier.matchParentSize(),
+//                localMediaStream = mediaStream
+//            )
+//        }
     }
 }

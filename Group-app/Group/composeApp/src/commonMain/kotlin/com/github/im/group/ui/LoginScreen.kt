@@ -37,20 +37,24 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import cafe.adriel.voyager.core.screen.Screen
+import com.github.im.group.GlobalCredentialProvider
+import com.github.im.group.listener.LoginStateManager
 import com.github.im.group.ui.contacts.AddFriendScreen
 import com.github.im.group.ui.contacts.ContactsUI
 import com.github.im.group.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 
-class LoginScreen :Screen{
+
+class MainScreen:Screen{
     @Composable
     override fun Content() {
 
 
-        loginScreen()
+        LoginScreen()
 
 
     }
@@ -61,57 +65,55 @@ class LoginScreen :Screen{
  */
 @Composable
 @Preview
-fun loginScreen () {
+fun LoginScreen() {
     val navController: NavHostController = rememberNavController()
-
     androidx.navigation.compose.NavHost(
-            navController = navController,
-            startDestination = Login
-        ) {
-            composable<Login> {
-                LoginScreenUI(navController = navController)
-            }
-            composable<Home> {
-                ChatMainScreen(
-                    navHostController = navController
-                )
-            }
-            composable<ProxySetting> {
-                ProxyScreen(
-                    navHostController = navController,
-                )
-
-            }
-            composable<Contacts> {
-                ContactsUI(
-                    navHostController = navController,
-                )
-
-            }
-            composable<Search> {
-                SearchScreen(
-                    navHostController = navController
-                )
-            }
-            
-            composable<AddFriend> {
-                AddFriendScreen(
-                    navHostController = navController
-                )
-            }
-
-            composable<ChatRoom>{ backStackEntry ->
-                val chatRoom : ChatRoom = backStackEntry.toRoute()
-                ChatRoomScreen(
-                    conversationId = chatRoom.conversationId,
-                    onBack = {
-                        navController.popBackStack()
-                    },
-                    navHostController = navController
-                )
-            }
+        navController = navController,
+        startDestination = Login
+    ) {
+        composable<Login> {
+            LoginScreenUI(navController = navController)
         }
+        composable<Home> {
+            ChatMainScreen(
+                navHostController = navController
+            )
+        }
+        composable<ProxySetting> {
+            ProxyScreen(
+                navHostController = navController,
+            )
+        }
+        composable<Contacts> {
+            ContactsUI(
+                navHostController = navController,
+            )
+        }
+        composable<Search> {
+            SearchScreen(
+                navHostController = navController
+            )
+        }
+        
+        composable<AddFriend> {
+            AddFriendScreen(
+                navHostController = navController
+            )
+        }
+
+        composable<ChatRoom>{ backStackEntry ->
+            val chatRoom : ChatRoom = backStackEntry.toRoute()
+            ChatRoomScreen(
+                conversationId = chatRoom.conversationId,
+                onBack = {
+                    navController.popBackStack()
+                },
+                navHostController = navController
+            )
+        }
+    }
 }
+
 @Composable
 fun LoginScreenUI(
     viewModel: UserViewModel = koinViewModel(),
@@ -119,12 +121,13 @@ fun LoginScreenUI(
 ) {
     var username by remember{ mutableStateOf("wangpeng")}
     var password by remember { mutableStateOf("1") }
-    var autoLogin by remember { mutableStateOf(false) }
+    var autoLogin by remember { mutableStateOf(GlobalCredentialProvider.storage.autoLoginState()) }
     var isLoggingIn by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val userInfo by viewModel.uiState.collectAsState()
-
+    val loginStateManager = koinInject<LoginStateManager>()
+    
     MaterialTheme {
         Box(
             modifier = Modifier

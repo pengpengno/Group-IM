@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -75,7 +76,11 @@ fun SideDrawer(
             }
         }
 
-        Divider(modifier = Modifier.padding(vertical = 8.dp), color = Color(0xFF202C33))
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 8.dp),
+            thickness = DividerDefaults.Thickness,
+            color = Color(0xFF202C33)
+        )
 
         // 菜单项区域
         DrawerItem("联系人", Icons.Default.People, onContactsClick, Color.White)

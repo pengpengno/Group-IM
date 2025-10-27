@@ -251,20 +251,24 @@ fun ChatRoomScreen(
         
         // 视频通话界面
         if (showVideoCall) {
-//            val videoCallState by videoCallViewModel.videoCallState.collectAsState()
-            val localMediaStream by videoCallViewModel.localMediaStream
+//            val localMediaStream by videoCallViewModel.localMediaStream
 
             VideoCallUI(
                 navHostController = navHostController,
                 remoteUser = remoteUser,
-                localMediaStream = localMediaStream,
-                onEndCall = { 
+                localMediaStream = null,
+                onEndCall = {
                     videoCallViewModel.endCall()
                     showVideoCall = false
                 },
+//                remoteVideoTrack = videoCallViewModel?.videoTracks?.firstOrNull(),
                 onToggleCamera = { videoCallViewModel.toggleCamera() },
                 onToggleMicrophone = { videoCallViewModel.toggleMicrophone() },
-                onSwitchCamera = { videoCallViewModel.switchCamera() }
+                onSwitchCamera = { videoCallViewModel.switchCamera() },
+                onMinimizeCall = {
+                    videoCallViewModel.minimizeCall()
+                    showVideoCall = false
+                },
             )
         }
     }
@@ -341,7 +345,7 @@ fun FileMessageBubble(msg: MessageItem) {
     } else {
         "${fileSize}B"
     }
-    
+
     com.github.im.group.ui.chat.FileMessage(
         MessageContent.File(
             fileName = msg.content,

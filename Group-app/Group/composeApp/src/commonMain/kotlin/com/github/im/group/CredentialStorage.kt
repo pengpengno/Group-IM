@@ -11,6 +11,19 @@ interface CredentialStorage {
 
     suspend fun getUserInfo(): UserInfo?
 
+    /*×
+     设置自动登录状态
+     */
+    suspend fun autoLogin(status:Boolean): Boolean
+
+    /**
+     * 获取 自动登录状态
+     */
+    fun autoLoginState(): Boolean
+
+    /**
+     * 清理登录信息
+     */
     suspend fun clearUserInfo()
 
 }

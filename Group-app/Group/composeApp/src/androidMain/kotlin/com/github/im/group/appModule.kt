@@ -5,6 +5,10 @@ import com.github.im.group.api.LoginApi
 import com.github.im.group.config.SocketClient
 import com.github.im.group.connect.AndroidSocketClient
 import com.github.im.group.db.AndroidDatabaseDriverFactory
+import com.github.im.group.listener.ConnectionLoginListener
+import com.github.im.group.listener.LoginStateManager
+import com.github.im.group.listener.LoginStateListener
+import com.github.im.group.listener.UserDataSyncListener
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.UserRepository
@@ -15,6 +19,7 @@ import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.SenderSdk
 import com.github.im.group.sdk.VoiceRecorderFactory
+import com.github.im.group.sdk.WebRTCManager
 import com.github.im.group.ui.video.VideoCallViewModel
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
@@ -36,6 +41,7 @@ val appModule = module {
 
     single<FilePicker> { AndroidFilePicker(androidContext()) }
     single<AudioPlayer> { AndroidAudioPlayer(androidContext()) }
+    single<WebRTCManager> { AndroidWebRTCManager(androidContext()) }
 
     single { UserRepository(get()) }
     single { ChatMessageRepository(get()) }
@@ -62,7 +68,21 @@ val appModule = module {
             audioPlayer = get()
         )
     }
-    single { (SenderSdk(get(),)) }
+
+    single { SenderSdk(get(),get()) }
+    // 登录状态管理器和相关监听器
+//    // 可以继续添加其他LoginStateListener实现
+    factory<LoginStateListener> { UserDataSyncListener(get()) }
+    factory<LoginStateListener> { ConnectionLoginListener(get()) }
+//    // 在LoginStateManager中自动注入所有LoginStateListener实现
+    single {
+       val login =  LoginStateManager(get())
+        getAll<LoginStateListener>().forEach { listener ->
+            login.addListener(listener)
+        }
+        login
+    }
+
 
     viewModelOf(::UserViewModel)  // 注册为 ViewModel，由 Koin 自动管理生命周期
     
@@ -70,8 +90,9 @@ val appModule = module {
     viewModel { 
         val vm = VideoCallViewModel(get())
         // 注入WebRTC管理器
-        vm.setWebRTCManager(AndroidWebRTCManager(androidContext()))
+        vm.setWebRTCManager(get())
         vm
     }
+    
 
 }

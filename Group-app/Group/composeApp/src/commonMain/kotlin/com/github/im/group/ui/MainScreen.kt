@@ -49,7 +49,7 @@ import com.github.im.group.ui.chat.ChatUI
 import com.github.im.group.ui.contacts.ContactsUI
 import com.github.im.group.ui.profile.ProfileUI
 import com.github.im.group.ui.video.DraggableVideoWindow
-import com.github.im.group.sdk.MediaStream
+import com.shepeliev.webrtckmp.MediaStream
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -94,18 +94,16 @@ fun ChatMainScreen(
                 modifier = Modifier
                     .fillMaxHeight()
             ) {
-                if (userInfo != null) {
-                    SideDrawer(
-                        userInfo = userInfo,
-                        onLogout = { println("logout") },
-                        onProfileClick = { navHostController.navigate("Profile") },
-                        onContactsClick = { /* 不再跳转页面 */ },
-                        onGroupsClick = { navHostController.navigate("Groups") },
-                        onMeetingsClick = { navHostController.navigate("Meetings") },
-                        onSettingsClick = { navHostController.navigate("Settings") },
-                        appVersion = "v1.2.3"
-                    )
-                }
+                SideDrawer(
+                    userInfo = userInfo,
+                    onLogout = { println("logout") },
+                    onProfileClick = { selectedItem = 2},
+                    onContactsClick = { navHostController.navigate(Contacts) },
+                    onGroupsClick = { navHostController.navigate("Groups") },
+                    onMeetingsClick = { navHostController.navigate("Meetings") },
+                    onSettingsClick = { navHostController.navigate("Settings") },
+                    appVersion = "v1.2.3"
+                )
             }
         },
         drawerState = drawerState

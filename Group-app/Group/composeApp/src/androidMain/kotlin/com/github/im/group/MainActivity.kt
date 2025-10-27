@@ -10,10 +10,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.github.im.group.sdk.VoiceRecorderFactory
 import com.github.im.group.sdk.initAndroidContext
+import com.shepeliev.webrtckmp.WebRtc
 import kotlinx.coroutines.CoroutineExceptionHandler
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
+import org.webrtc.Logging
 
 
 /**
@@ -42,11 +44,10 @@ class MainActivity : ComponentActivity() {
         startKoin {
             androidLogger()
             androidContext(this@MainActivity)
-            modules(appModule, appModule)
+            modules(appModule)
         }
         setContent {
             App()
         }
     }
 }
-

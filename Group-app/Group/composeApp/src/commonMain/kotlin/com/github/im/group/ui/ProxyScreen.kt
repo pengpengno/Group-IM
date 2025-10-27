@@ -23,8 +23,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import cafe.adriel.voyager.navigator.LocalNavigator
-import cafe.adriel.voyager.navigator.currentOrThrow
 import com.github.im.group.ui.Login
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
@@ -35,7 +33,6 @@ fun ProxyScreen(
     ) {
     var expanded by remember { mutableStateOf(false) }
     val focusRequester = FocusRequester()
-    val navigator = LocalNavigator.currentOrThrow
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(

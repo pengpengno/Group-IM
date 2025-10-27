@@ -222,6 +222,9 @@
 
   async function createAndSendOffer() {
     const offer = await pc.createOffer();
+    offer.sdp = offer.sdp.replace(/m=video.*/g, (line) =>
+      line.replace('H264', 'VP8')
+    );
     await pc.setLocalDescription(offer);
     sendWS({ type: 'offer', fromUser: userId, toUser: targetId, sdp: offer.sdp, sdpType: offer.type });
     logEl('Sent offer to ' + targetId);

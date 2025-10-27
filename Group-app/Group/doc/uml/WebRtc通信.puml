@@ -1,0 +1,56 @@
+@startuml
+
+participant 用户A as A
+participant 用户B as B
+participant 信令服务器  as SignalingServer
+
+    Note over A,B: 1. 连接到信令服务器
+    A->>SA: WebSocket连接 (用户A上线)
+    SA-->>A: 连接确认
+    B->>SA: WebSocket连接 (用户B上线)
+    SA-->>B: 连接确认
+
+    Note over A,B: 2. 发起呼叫
+    A->>SA: {"type": "call/request", "fromUser": "userA", "toUser": "userB"}
+    SA->>B: 转发呼叫请求
+    B->>B: 显示来电界面
+
+    Note over A,B: 3. 接受呼叫
+    B->>SA: {"type": "call/accept", "fromUser": "userB", "toUser": "userA"}
+    SA->>A: 转发呼叫接受
+
+    Note over A,B: 4. 创建并发送Offer
+    A->>A: 创建RTCPeerConnection
+    A->>A: 创建Offer (SDP)
+    A->>SA: {"type": "offer", "fromUser": "userA", "toUser": "userB", "sdp": "{SDP内容}", "sdpType": "offer"}
+    SA->>B: 转发Offer
+
+    Note over A,B: 5. 处理Offer并发送Answer
+    B->>B: 设置远程描述(offer)
+    B->>B: 创建Answer (SDP)
+    B->>SA: {"type": "answer", "fromUser": "userB", "toUser": "userA", "sdp": "{SDP内容}", "sdpType": "answer"}
+    SA->>A: 转发Answer
+    A->>A: 设置远程描述(answer)
+
+    Note over A,B: 6. ICE候选交换
+    A->>A: 收集ICE候选
+    A->>SA: {"type": "candidate", "fromUser": "userA", "toUser": "userB", "candidate": {"candidate": "candidate:1 1 UDP 2130706431 10.0.1.1 8998 typ host", "sdpMid": "0", "sdpMLineIndex": 0}}
+    SA->>B: 转发ICE候选
+    B->>B: 添加ICE候选
+
+    B->>B: 收集ICE候选
+    B->>SA: {"type": "candidate", "fromUser": "userB", "toUser": "userA", "candidate": {"candidate": "candidate:1 1 UDP 2130706431 10.0.2.1 9001 typ host", "sdpMid": "0", "sdpMLineIndex": 0}}
+    SA->>A: 转发ICE候选
+    A->>A: 添加ICE候选
+
+    Note over A,B: 7. 建立连接并传输媒体流
+    A->>B: 建立点对点连接
+    A->>B: 传输音视频流
+    B->>A: 传输音视频流
+
+    Note over A,B: 8. 结束通话
+    A->>SA: {"type": "call/end", "fromUser": "userA", "toUser": "userB"}
+    SA->>B: 转发结束通话消息
+    A->>A: 关闭连接
+    B->>B: 关闭连接
+@enduml

@@ -7,7 +7,6 @@ import androidx.lifecycle.viewModelScope
 import com.github.im.group.model.UserInfo
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.MediaStream
-import com.github.im.group.sdk.WebRTCManager
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +14,6 @@ import kotlinx.coroutines.launch
 
 class VideoCallViewModel(
     val userRepository : UserRepository,
-
 ) : ViewModel(
 
 ) {
@@ -36,15 +34,21 @@ class VideoCallViewModel(
     val localMediaStream: androidx.compose.runtime.State<MediaStream?> = _localMediaStream
 
     // WebRTC管理器
-    private var webRTCManager: WebRTCManager? = null
+    private var webRTCManager: com.github.im.group.sdk.WebRTCManager? = null
 
 
-    fun setWebRTCManager(manager: WebRTCManager) {
+    fun setWebRTCManager(manager: com.github.im.group.sdk.WebRTCManager) {
         this.webRTCManager = manager
     }
 
     fun startVideoCall(remoteUser: UserInfo) {
+
+        /**发起视频通话
+         * 1. 向信令服务器 发起呼叫请求
+         *
+         */
         viewModelScope.launch {
+
             _videoCallState.value = _videoCallState.value.copy(
                 callStatus = CallStatus.CONNECTING,
                 remoteUser = remoteUser
@@ -86,6 +90,7 @@ class VideoCallViewModel(
             // 清理WebRTC连接
             cleanupWebRTCConnection()
         }
+        // 状态恢复
     }
 
     fun minimizeCall() {
@@ -109,16 +114,21 @@ class VideoCallViewModel(
     }
 
     fun switchCamera() {
-        _isFrontCamera.value = !_isFrontCamera.value
-        // 切换前后摄像头
-        webRTCManager?.switchCamera()
+        viewModelScope.launch {
+            _isFrontCamera.value = !_isFrontCamera.value
+            // 切换前后摄像头
+            webRTCManager?.switchCamera()
+        }
+
     }
 
-    private fun initializeLocalMediaStream() {
+    private suspend fun initializeLocalMediaStream() {
+
         // 初始化本地媒体流
+//        _localMediaStream.value = MediaDevices.getUserMedia(true,true)
+
         val mediaStream = webRTCManager?.createLocalMediaStream()
         _localMediaStream.value = mediaStream
-        // 可以在这里处理返回的媒体流对象
     }
 
     /**
@@ -147,6 +157,7 @@ class VideoCallViewModel(
         webRTCManager?.endCall()
         webRTCManager?.release()
         _localMediaStream.value = null
+        webRTCManager = null
     }
 }
 

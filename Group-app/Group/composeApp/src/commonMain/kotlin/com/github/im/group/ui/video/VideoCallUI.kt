@@ -1,9 +1,7 @@
 package com.github.im.group.ui.video
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -17,14 +15,14 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavHostController
 import com.github.im.group.model.UserInfo
-import com.github.im.group.sdk.LocalVideoPreview
-import com.github.im.group.sdk.RemoteVideoView
+import com.github.im.group.sdk.MediaStream
 
 @Composable
 fun VideoCallUI(
     navHostController: NavHostController,
     remoteUser: UserInfo?, // 添加远程用户信息参数
-    localMediaStream: com.github.im.group.sdk.MediaStream?, // 本地媒体流
+    localMediaStream: MediaStream?, // 本地媒体流
+//    remoteVideoTrack: VideoTrack?, // 远程视频轨道
     onEndCall: () -> Unit = {},
     onToggleCamera: () -> Unit = {},
     onToggleMicrophone: () -> Unit = {},
@@ -51,10 +49,11 @@ fun VideoCallUI(
                     .background(Color(0xFF2D2D2D))
             ) {
                 // 显示远程视频流
-                RemoteVideoView(
-                    modifier = Modifier.fillMaxSize()
-                )
-                
+//                RemoteVideoView(
+//                    modifier = Modifier.fillMaxSize(),
+//                    remoteVideoTrack = remoteVideoTrack
+//                )
+//
                 // 本地视频小窗口
                 Box(
                     modifier = Modifier
@@ -65,10 +64,10 @@ fun VideoCallUI(
                     // 显示本地视频流
 
                     // TODO 可以拖拽位置
-                    LocalVideoPreview(
-                        modifier = Modifier.fillMaxSize(),
-                        localMediaStream = localMediaStream
-                    )
+//                    LocalVideoPreview(
+//                        modifier = Modifier.fillMaxSize(),
+//                        localMediaStream = localMediaStream
+//                    )
                 }
                 
                 // 用户名显示

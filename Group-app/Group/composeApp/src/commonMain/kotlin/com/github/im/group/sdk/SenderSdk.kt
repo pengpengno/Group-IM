@@ -7,7 +7,7 @@ import com.github.im.group.model.proto.AccountInfo
 import com.github.im.group.model.proto.BaseMessagePkg
 import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.model.proto.PlatformType
-import com.github.im.group.viewmodel.TCPMessageViewModel
+import com.github.im.group.repository.UserRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -23,38 +23,23 @@ import kotlinx.coroutines.sync.withLock
 
 class SenderSdk(
     private val tcpClient: SocketClient,
+    private val userRepository: UserRepository
 ) {
 
     private val scope = CoroutineScope(Dispatchers.IO)
     private val _connected = MutableStateFlow(false)
     private val _host =ProxyConfig.host
     private val _port = ProxyConfig.tcp_port
-    private val _loginPkg = MutableStateFlow<BaseMessagePkg?>(null)
     private var reconnectJob: Job? = null
     private val reconnectMutex = Mutex()
-
 
     /***
      * 用于 向远程长连接服务器建立连接
      */
-    fun loginConnect(userInfo: UserInfo) {
-
-        val accountInfo = AccountInfo(
-            account = userInfo.username,
-            accountName = userInfo.username,
-            userId = userInfo.userId,
-            eMail = userInfo.email,
-            platformType = PlatformType.ANDROID,
-        )
-
-        _loginPkg.value = BaseMessagePkg(
-            accountInfo = accountInfo
-        )
-
+    fun loginConnect() {
         CoroutineScope(Dispatchers.Main).launch {
             registerToRemote()
         }
-
     }
 
     /**
@@ -79,21 +64,24 @@ class SenderSdk(
                 
                 // 启动新的重连任务
                 reconnectJob = launch {
+                    var retryCount = 0L
                     while (isActive) {
                         try {
                             if (!tcpClient.isActive()) {
                                 println("检测到断线，尝试重连...")
                                 tcpClient.connect(_host, _port)
                                 println("重连成功，重新启动接收协程")
-                                _connected.value = true
-                            } else {
-                                _connected.value = true
+                                // 重新注册到远程服务器（重新发送登录信息）
+                                registerToRemoteSilently()
+                                retryCount = 0 // 重置重试计数
                             }
+                            _connected.value = true
                         } catch (e: Exception) {
                             println("自动重连异常: ${e.message}")
                             _connected.value = false
+                            retryCount++
                             // 指数退避策略，最大延迟60秒
-                            val delayTime = kotlin.math.min(60000L, 2000L * (reconnectJob?.hashCode()?.rem(10) ?: 1))
+                            val delayTime = kotlin.math.min(60000L, 2000L * retryCount)
                             delay(delayTime)
                         }
 
@@ -137,17 +125,17 @@ class SenderSdk(
      */
     private suspend fun registerToRemote() {
         try {
+            // 获取当前登录用户信息
+            val currentUser = userRepository.requireLoggedInUser()
+            
             // 首先 建立TCP 连接通道
             if (!tcpClient.isActive()){
                 tcpClient.connect(_host,_port)
             }
 
-            _loginPkg.value?.let { pkg ->
-                pkg.accountInfo?.let { accountInfo ->
-                    val message = BaseMessagePkg.ADAPTER.encode(pkg)
-                    tcpClient.send(message)
-                }
-            }
+            val pkg = BaseMessagePkg(accountInfo = currentUser.accountInfo)
+            val message = BaseMessagePkg.ADAPTER.encode(pkg)
+            tcpClient.send(message)
             
             _connected.value = true
             // 启动自动重连机制
@@ -157,6 +145,25 @@ class SenderSdk(
             _connected.value = false
             // 启动自动重连机制以尝试恢复连接
             startAutoReconnect()
+        }
+    }
+    
+    /**
+     * 静默注册到远程服务器（用于重连）
+     */
+    private suspend fun registerToRemoteSilently() {
+        try {
+            // 获取当前登录用户信息
+            val currentUser = userRepository.requireLoggedInUser()
+            
+            val pkg = BaseMessagePkg(accountInfo = currentUser.accountInfo)
+            val message = BaseMessagePkg.ADAPTER.encode(pkg)
+            tcpClient.send(message)
+            
+            _connected.value = true
+        } catch (e: Exception) {
+            println("重连时发送登录信息失败: ${e.message}")
+            _connected.value = false
         }
     }
 }

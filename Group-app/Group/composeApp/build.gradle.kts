@@ -2,7 +2,7 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 val voyagerVersion = "1.1.0-beta02"
-
+val webRtcKmpVersion = "0.125.11"
 plugins {
     id("com.squareup.wire") version "4.8.1"
 
@@ -24,6 +24,29 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_11)
         }
     }
+//   todo ios 下webrtc 的 处理
+
+//    cocoapods {
+//        version = "1.0.0"
+//        summary = "Shared module"
+//        homepage = "not published"
+//        ios.deploymentTarget = "13.0"
+//
+//        pod("WebRTC-SDK") {
+//            version = "125.6422.05"
+//            moduleName = "WebRTC"
+//        }
+//
+//        podfile = project.file("../iosApp/Podfile")
+//
+//        framework {
+//            baseName = "shared"
+//            isStatic = true
+//        }
+//
+//        xcodeConfigurationToNativeBuildType["CUSTOM_DEBUG"] = NativeBuildType.DEBUG
+//        xcodeConfigurationToNativeBuildType["CUSTOM_RELEASE"] = NativeBuildType.RELEASE
+//    }
 //   IOS TODO IOS 先不管
 //    listOf(
 //        iosX64(),
@@ -78,25 +101,25 @@ kotlin {
             implementation(libs.koin.androidx.compose)
             implementation(libs.androidx.lifecycle.viewmodel.compose)
 
-            // WebRTC support - 使用标准的Google WebRTC库
-            implementation("org.webrtc:google-webrtc:1.0.32006")
-            
             // OkHttp for WebSocket connection
             implementation("com.squareup.okhttp3:okhttp:4.12.0")
             implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+            
+            // WebRTC support - Only for Android
+            implementation("com.shepeliev:webrtc-kmp:${webRtcKmpVersion}")
         }
         commonMain.dependencies {
+
+            implementation("cafe.adriel.voyager:voyager-navigator:${voyagerVersion}")
+            implementation("cafe.adriel.voyager:voyager-screenmodel:${voyagerVersion}")
+            implementation("cafe.adriel.voyager:voyager-bottom-sheet-navigator:${voyagerVersion}")
+            implementation("cafe.adriel.voyager:voyager-tab-navigator:${voyagerVersion}")
+            implementation("cafe.adriel.voyager:voyager-transitions:${voyagerVersion}")
+            implementation("cafe.adriel.voyager:voyager-koin:${voyagerVersion}")
             // 日志工程
             implementation("io.github.aakira:napier:2.6.1")
 
             implementation("com.squareup.wire:wire-runtime:4.8.1")
-
-//            implementation("cafe.adriel.voyager:voyager-navigator:$voyagerVersion")
-//            implementation("cafe.adriel.voyager:voyager-screenmodel:$voyagerVersion")
-//            implementation("cafe.adriel.voyager:voyager-bottom-sheet-navigator:$voyagerVersion")
-//            implementation("cafe.adriel.voyager:voyager-tab-navigator:$voyagerVersion")
-//            implementation("cafe.adriel.voyager:voyager-transitions:$voyagerVersion")
-//            implementation("cafe.adriel.voyager:voyager-koin:$voyagerVersion")
 
 
             implementation("org.jetbrains.androidx.navigation:navigation-compose:2.9.0-beta01")
@@ -147,9 +170,10 @@ kotlin {
             implementation("org.openjfx:javafx-controls:20")
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
-            
+
             // VLCJ for video playback on desktop
             implementation("uk.co.caprica:vlcj:4.8.2")
+            // Note: No WebRTC dependency for desktop as webrtc-kmp doesn't support it
         }
     }
 }

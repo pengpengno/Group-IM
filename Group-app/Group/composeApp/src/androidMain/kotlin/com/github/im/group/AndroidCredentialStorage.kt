@@ -4,13 +4,13 @@ import android.content.Context
 import com.github.im.group.model.UserInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.core.content.edit
 
 class AndroidCredentialStorage(private val context: Context) : CredentialStorage {
 
     private val prefs = context.getSharedPreferences("credentials", Context.MODE_PRIVATE)
 
     override suspend fun saveUserInfo(userInfo: UserInfo) {
-        // 这里模拟写入SharedPreferences的异步操作
         withContext(Dispatchers.IO) {  // 切换到IO线程
             prefs.edit().apply {
                 putLong("userId", userInfo.userId)
@@ -35,8 +35,26 @@ class AndroidCredentialStorage(private val context: Context) : CredentialStorage
         )
     }
 
+    override suspend fun autoLogin(status: Boolean): Boolean {
+        withContext(Dispatchers.IO) {  // 切换到IO线程
+            prefs.edit().apply {
+                putBoolean("autoLogin", status)
+
+                apply()
+            }
+        }
+        return status
+    }
+
+    override  fun autoLoginState(): Boolean {
+        return  prefs.getBoolean("autoLogin", false)
+//        return withContext(Dispatchers.IO) {  // 切换到IO线程
+//
+//        }
+    }
+
     override suspend fun clearUserInfo() {
-        prefs.edit().clear().apply()
+        prefs.edit { clear() }
     }
 
 }
