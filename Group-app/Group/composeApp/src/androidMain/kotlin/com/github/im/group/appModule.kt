@@ -9,6 +9,7 @@ import com.github.im.group.listener.ConnectionLoginListener
 import com.github.im.group.listener.LoginStateManager
 import com.github.im.group.listener.LoginStateListener
 import com.github.im.group.listener.UserDataSyncListener
+import com.github.im.group.listener.WebRTCLoginListener
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.UserRepository
@@ -74,6 +75,7 @@ val appModule = module {
 //    // 可以继续添加其他LoginStateListener实现
     factory<LoginStateListener> { UserDataSyncListener(get()) }
     factory<LoginStateListener> { ConnectionLoginListener(get()) }
+    factory<LoginStateListener> { WebRTCLoginListener(get()) }
 //    // 在LoginStateManager中自动注入所有LoginStateListener实现
     single {
        val login =  LoginStateManager(get())

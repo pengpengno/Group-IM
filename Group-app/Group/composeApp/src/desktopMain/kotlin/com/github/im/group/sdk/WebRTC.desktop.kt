@@ -87,7 +87,7 @@ actual fun RemoteVideoView(
 // This is a placeholder implementation
 @Composable
 actual fun VideoScreenView(
-    modifier: Modifier?,
+    modifier: Modifier,
     videoTrack: VideoTrack?,
     audioTrack: AudioTrack?
 ) {

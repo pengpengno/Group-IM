@@ -3,6 +3,7 @@ package com.github.im.group.connect
 import com.github.im.group.config.SocketClient
 import com.github.im.group.model.proto.BaseMessagePkg
 import com.github.im.group.viewmodel.TCPMessageViewModel
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -159,14 +160,13 @@ class AndroidSocketClient(
                         }
                     } catch (e: SocketException) {
                         // 连接断开，触发重连
-//                        println("连接断开，触发重连: ${e.message}")
-//                        startAutoReconnect()
+                        Napier.d("连接断开，触发重连: ${e.message}")
+                        startAutoReconnect()
                         break
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
-                println("接收出错: ${e}")
+                Napier.d("接收出错: ${e.stackTrace}")
 //                startAutoReconnect()
             }
         }
@@ -198,7 +198,8 @@ class AndroidSocketClient(
     }
 
     override fun isActive(): Boolean {
-        return socket?.isConnected == true && socket?.isClosed?.let { !it == true } == true
+
+        return socket != null && socket?.isConnected == true && socket?.isClosed == true
     }
 
     override fun close() {

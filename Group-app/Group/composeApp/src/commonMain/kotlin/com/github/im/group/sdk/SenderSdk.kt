@@ -8,6 +8,7 @@ import com.github.im.group.model.proto.BaseMessagePkg
 import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.model.proto.PlatformType
 import com.github.im.group.repository.UserRepository
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -58,6 +59,7 @@ class SenderSdk(
      */
     private fun startAutoReconnect() {
         scope.launch {
+            Napier.d("自动重连任务启动")
             reconnectMutex.withLock {
                 // 如果已有重连任务在运行，则取消它
                 reconnectJob?.cancel()
@@ -66,18 +68,21 @@ class SenderSdk(
                 reconnectJob = launch {
                     var retryCount = 0L
                     while (isActive) {
+                        Napier.d("正在检查连接状态...")
                         try {
-                            if (!tcpClient.isActive()) {
-                                println("检测到断线，尝试重连...")
+                            val isConnected = tcpClient.isActive()
+                            Napier.d("连接状态: $isConnected")
+                            if (!isConnected) {
+                                Napier.d("检测到断线，尝试重连...")
                                 tcpClient.connect(_host, _port)
-                                println("重连成功，重新启动接收协程")
+                                Napier.d("重连成功，重新启动接收协程")
                                 // 重新注册到远程服务器（重新发送登录信息）
                                 registerToRemoteSilently()
                                 retryCount = 0 // 重置重试计数
                             }
                             _connected.value = true
                         } catch (e: Exception) {
-                            println("自动重连异常: ${e.message}")
+                            Napier.d("自动重连异常: ${e.message}")
                             _connected.value = false
                             retryCount++
                             // 指数退避策略，最大延迟60秒

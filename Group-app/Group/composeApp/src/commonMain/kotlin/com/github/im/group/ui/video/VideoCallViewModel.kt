@@ -30,8 +30,12 @@ class VideoCallViewModel(
     val isFrontCamera: androidx.compose.runtime.State<Boolean> = _isFrontCamera
 
     // 本地媒体流
-    private val _localMediaStream = mutableStateOf<MediaStream?>(null)
-    val localMediaStream: androidx.compose.runtime.State<MediaStream?> = _localMediaStream
+    private val _localMediaStream = MutableStateFlow<MediaStream?>(null)
+    val localMediaStream: StateFlow<MediaStream?> = _localMediaStream
+
+    // 远程媒体流
+    private val _remoteMediaStream = MutableStateFlow<MediaStream?>(null)
+    val remoteMediaStream: StateFlow<MediaStream?> = _remoteMediaStream
 
     // WebRTC管理器
     private var webRTCManager: com.github.im.group.sdk.WebRTCManager? = null
@@ -64,8 +68,7 @@ class VideoCallViewModel(
                 initializeLocalMediaStream()
                 
                 // 再建立信令连接
-                connectSignalingServer()
-                
+//                connectSignalingServer()
                 // 发送呼叫请求
                 sendCallRequest(remoteUser.userId.toString())
                 
@@ -122,6 +125,9 @@ class VideoCallViewModel(
 
     }
 
+    /**
+     * 初始化本地媒体流
+     */
     private suspend fun initializeLocalMediaStream() {
 
         // 初始化本地媒体流
@@ -157,6 +163,7 @@ class VideoCallViewModel(
         webRTCManager?.endCall()
         webRTCManager?.release()
         _localMediaStream.value = null
+        _remoteMediaStream.value = null
         webRTCManager = null
     }
 }

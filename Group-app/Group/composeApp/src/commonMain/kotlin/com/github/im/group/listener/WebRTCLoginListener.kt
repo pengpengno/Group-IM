@@ -2,6 +2,9 @@ package com.github.im.group.listener
 
 import com.github.im.group.model.UserInfo
 import com.github.im.group.sdk.WebRTCManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * WebRTC登录状态监听器
@@ -19,9 +22,12 @@ class WebRTCLoginListener(
     override fun onLogin(userInfo: UserInfo) {
         // 用户登录时执行的操作
         println("WebRTCLoginListener: 用户 ${userInfo.username} 已登录")
-        
-        // 1. 初始化WebRTC
-        // webRTCManager.initialize()
+        CoroutineScope(Dispatchers.IO).launch {
+            // 1. 初始化WebRTC
+            webRTCManager.initialize()
+            webRTCManager.connectToSignalingServer("", userInfo.userId.toString())
+        }
+
         
         // 2. 连接到信令服务器
         // webRTCManager.connectToSignalingServer(serverUrl, userInfo.userId.toString())

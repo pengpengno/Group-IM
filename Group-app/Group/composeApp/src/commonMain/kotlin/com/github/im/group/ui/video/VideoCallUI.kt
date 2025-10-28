@@ -16,13 +16,18 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavHostController
 import com.github.im.group.model.UserInfo
 import com.github.im.group.sdk.MediaStream
+import com.github.im.group.sdk.VideoScreenView
+import org.koin.compose.KoinContext
+import org.koin.compose.viewmodel.koinViewModel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 
 @Composable
 fun VideoCallUI(
     navHostController: NavHostController,
     remoteUser: UserInfo?, // 添加远程用户信息参数
     localMediaStream: MediaStream?, // 本地媒体流
-//    remoteVideoTrack: VideoTrack?, // 远程视频轨道
     onEndCall: () -> Unit = {},
     onToggleCamera: () -> Unit = {},
     onToggleMicrophone: () -> Unit = {},
@@ -31,7 +36,10 @@ fun VideoCallUI(
 ) {
     var isCameraEnabled by remember { mutableStateOf(true) }
     var isMicrophoneEnabled by remember { mutableStateOf(true) }
-    
+    val videoCallViewModel = koinViewModel<VideoCallViewModel>()
+    val localStream by videoCallViewModel.localMediaStream.collectAsState()
+    val remoteStream by videoCallViewModel.remoteMediaStream.collectAsState()
+
     Dialog(onDismissRequest = { onMinimizeCall() },
         properties = DialogProperties(
             usePlatformDefaultWidth = false // ✅ 关键：禁用默认宽度限制
@@ -49,25 +57,29 @@ fun VideoCallUI(
                     .background(Color(0xFF2D2D2D))
             ) {
                 // 显示远程视频流
-//                RemoteVideoView(
-//                    modifier = Modifier.fillMaxSize(),
-//                    remoteVideoTrack = remoteVideoTrack
-//                )
-//
+                if (remoteStream != null && remoteStream?.videoTracks?.isNotEmpty() == true) {
+                    VideoScreenView(
+                        modifier = Modifier.fillMaxSize(),
+                        videoTrack = remoteStream!!.videoTracks.firstOrNull(),
+                        audioTrack = remoteStream?.audioTracks?.firstOrNull()
+                    )
+                }
+
                 // 本地视频小窗口
                 Box(
                     modifier = Modifier
                         .size(120.dp)
                         .align(Alignment.TopEnd)
-//                        .padding(.dp)
+                        .padding(16.dp)
                 ) {
                     // 显示本地视频流
-
-                    // TODO 可以拖拽位置
-//                    LocalVideoPreview(
-//                        modifier = Modifier.fillMaxSize(),
-//                        localMediaStream = localMediaStream
-//                    )
+                    if (localStream != null && localStream?.videoTracks?.isNotEmpty() == true) {
+                        VideoScreenView(
+                            modifier = Modifier.fillMaxSize(),
+                            videoTrack = localStream!!.videoTracks.firstOrNull(),
+                            audioTrack = localStream?.audioTracks?.firstOrNull()
+                        )
+                    }
                 }
                 
                 // 用户名显示

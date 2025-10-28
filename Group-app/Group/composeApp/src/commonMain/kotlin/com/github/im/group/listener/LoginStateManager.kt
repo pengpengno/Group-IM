@@ -64,17 +64,17 @@ class UIStateUpdateListener(private val userRepository: UserRepository) : LoginS
         // UI状态由UserRepository管理
     }
 }
-
-/**
- * UI状态枚举
- */
-sealed class LoginUIState {
-    object Idle : LoginUIState()
-    object Loading : LoginUIState()
-    data class Success(val userInfo: UserInfo) : LoginUIState()
-    object LoggedOut : LoginUIState()
-    data class Error(val message: String) : LoginUIState()
-}
+//
+///**
+// * UI状态枚举
+// */
+//sealed class LoginUIState {
+//    object Idle : LoginUIState()
+//    object Loading : LoginUIState()
+//    data class Success(val userInfo: UserInfo) : LoginUIState()
+//    object LoggedOut : LoginUIState()
+//    data class Error(val message: String) : LoginUIState()
+//}
 
 /**
  * 登录状态管理器

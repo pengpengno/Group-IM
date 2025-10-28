@@ -189,19 +189,17 @@ fun ChatRoomScreen(
         ) {
             items(state.messages) { msg ->
                 val content = msg.content
-                if (userInfo != null) {
-                    MessageBubble(
-                        isOwnMessage = msg.userInfo.userId == userInfo.userId,
-                        msg = msg,
-                        onVoiceMessageClick = { voiceContent ->
-                            // 处理语音消息点击事件，播放音频
-                            // 这里需要根据实际的音频文件路径来播放
-                            val audioUrl = "http://${ProxyConfig.host}:${ProxyConfig.port}/api/files/download/${voiceContent.audioUrl}"
-                            // TODO: 实现实际的音频播放逻辑
-                            println("播放音频: $audioUrl")
-                        }
-                    )
-                }
+                MessageBubble(
+                    isOwnMessage = msg.userInfo.userId == userInfo.userId,
+                    msg = msg,
+                    onVoiceMessageClick = { voiceContent ->
+                        // 处理语音消息点击事件，播放音频
+                        // 这里需要根据实际的音频文件路径来播放
+                        val audioUrl = "http://${ProxyConfig.host}:${ProxyConfig.port}/api/files/download/${voiceContent.audioUrl}"
+                        // TODO: 实现实际的音频播放逻辑
+                        Napier.d("播放音频: $audioUrl")
+                    }
+                )
             }
         }
 
@@ -251,8 +249,6 @@ fun ChatRoomScreen(
         
         // 视频通话界面
         if (showVideoCall) {
-//            val localMediaStream by videoCallViewModel.localMediaStream
-
             VideoCallUI(
                 navHostController = navHostController,
                 remoteUser = remoteUser,

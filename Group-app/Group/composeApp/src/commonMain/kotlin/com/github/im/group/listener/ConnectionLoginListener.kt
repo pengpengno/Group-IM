@@ -2,6 +2,7 @@ package com.github.im.group.listener
 
 import com.github.im.group.model.UserInfo
 import com.github.im.group.sdk.SenderSdk
+import io.github.aakira.napier.Napier
 
 /**
  * 连接管理登录状态监听器
@@ -11,7 +12,7 @@ class ConnectionLoginListener(private val senderSdk: SenderSdk) : LoginStateList
     
     override fun onLogin(userInfo: UserInfo) {
         // 用户登录时执行的操作
-        println("ConnectionLoginListener: 用户 ${userInfo.username} 已登录")
+        Napier.d("ConnectionLoginListener: 用户 ${userInfo.username} 已登录")
         
         senderSdk.loginConnect()
     }

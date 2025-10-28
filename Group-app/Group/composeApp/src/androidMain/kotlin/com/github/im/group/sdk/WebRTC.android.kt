@@ -14,17 +14,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.github.im.group.GlobalCredentialProvider
+import com.github.im.group.sdk.addSinkCatching
 import com.shepeliev.webrtckmp.AudioTrack
 import com.shepeliev.webrtckmp.IceCandidate
 import com.shepeliev.webrtckmp.MediaDevices
 import com.shepeliev.webrtckmp.MediaStream
+import com.shepeliev.webrtckmp.MediaStreamTrackKind
 import com.shepeliev.webrtckmp.OfferAnswerOptions
 import com.shepeliev.webrtckmp.PeerConnection
 import com.shepeliev.webrtckmp.RtcConfiguration
 import com.shepeliev.webrtckmp.SessionDescription
 import com.shepeliev.webrtckmp.SessionDescriptionType
 import com.shepeliev.webrtckmp.VideoTrack
+import com.shepeliev.webrtckmp.WebRtc
 import com.shepeliev.webrtckmp.audioTracks
 import com.shepeliev.webrtckmp.onIceCandidate
 import com.shepeliev.webrtckmp.onTrack
@@ -37,6 +45,9 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import okhttp3.*
 import okhttp3.logging.HttpLoggingInterceptor
+import org.webrtc.RendererCommon
+import org.webrtc.SurfaceViewRenderer
+import org.webrtc.VideoSink
 import java.util.concurrent.TimeUnit
 
 // Android平台的WebRTC Track和Stream实现
@@ -84,6 +95,8 @@ class AndroidMediaStream(private val webrtcMediaStream: MediaStream) : com.githu
  */
 class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     private var localMediaStream: AndroidMediaStream? = null
+
+    private var remoteMediaStream: AndroidMediaStream? = null
     private var webSocket: WebSocket? = null
     private var userId: String = ""
     private var remoteUserId: String = ""
@@ -108,11 +121,12 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     
     override suspend fun createLocalMediaStream(): AndroidMediaStream? {
         val stream = MediaDevices.getUserMedia(audio = true, video = true)
-        localMediaStream = stream?.let { AndroidMediaStream(it) }
+        localMediaStream = AndroidMediaStream(stream)
         return localMediaStream
     }
     
     override fun connectToSignalingServer(serverUrl: String, userId: String) {
+
         this.userId = userId
         val host = ProxyConfig.host
         val port = ProxyConfig.port
@@ -122,7 +136,7 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
             .url("$protocol://$cleanHost:$port/ws?userId=$userId")
             .build()
         Napier.d("WebRTC 创建WebSocket连接: $request")
-            
+            // TODO 鉴权
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 Log.d("WebRTC", "WebSocket连接已建立")
@@ -309,6 +323,33 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
             }?.launchIn(this)
 
             peerConnection?.onTrack ?.onEach{ event ->
+                event.track?.let { track ->
+                    when (track.kind) {
+                        MediaStreamTrackKind.Audio -> {
+                            val remoteAudioTrack = AndroidAudioTrack(track as AudioTrack)
+                            // 创建远程媒体流（如果不存在）
+                            if (remoteMediaStream == null) {
+                                // 创建一个新的远程媒体流
+//                                val remoteStream = com.shepeliev.webrtckmp.MediaStream("remote_stream")
+//                                remoteMediaStream = AndroidMediaStream(remoteStream)
+                            }
+                            // 将音频轨道添加到远程媒体流中
+                            // 注意：这里可能需要根据实际API调整
+                        }
+                        MediaStreamTrackKind.Video -> {
+//                            val remoteVideoTrack = AndroidVideoTrack(track)
+                            // 创建远程媒体流（如果不存在）
+                            if (remoteMediaStream == null) {
+                                // 创建一个新的远程媒体流
+//                                val remoteStream = com.shepeliev.webrtckmp.MediaStream("remote_stream")
+//                                remoteMediaStream = AndroidMediaStream(remoteStream)
+                            }
+                            // 将视频轨道添加到远程媒体流中
+                            // 注意：这里可能需要根据实际API调整
+                        }
+                    }
+                    Log.d("WebRTC", "收到远程轨道: ${track.kind}")
+                }
                 handleTrackEvent(event)
             }?.launchIn(this)
         }
@@ -329,6 +370,17 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     private fun handleTrackEvent(event: com.shepeliev.webrtckmp.TrackEvent) {
         // 处理远程轨道事件
         Log.d("WebRTC", "收到远程轨道: ${event.track?.kind}")
+        if (event.track != null){
+            when (event.track?.kind) {
+                MediaStreamTrackKind.Audio -> {
+                    // 处理音频轨道
+                }
+                MediaStreamTrackKind.Video -> {
+                    // 处理视频轨道
+                }
+                null -> TODO()
+            }
+        }
     }
     
     override fun initiateCall(remoteUserId: String) {
@@ -428,6 +480,7 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
         
         try {
             localMediaStream = null
+            remoteMediaStream = null
         } catch (e: Exception) {
             Log.w("WebRTC", "释放本地媒体流时出错", e)
         }
@@ -439,31 +492,84 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
         }
         webSocket = null
     }
+    
+    // 获取远程媒体流的方法
+    fun getRemoteMediaStream(): AndroidMediaStream? {
+        return remoteMediaStream
+    }
 }
 
 @Composable
 actual fun VideoScreenView(
-    modifier: Modifier?,
+    modifier: Modifier,
     videoTrack: com.github.im.group.sdk.VideoTrack?,
     audioTrack: com.github.im.group.sdk.AudioTrack?
 ) {
-    if (videoTrack is AndroidVideoTrack) {
-        AndroidView(
-            factory = { context ->
-                SurfaceView(context).apply {
-                    layoutParams = android.view.ViewGroup.LayoutParams(
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                    )
+    var renderer by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
+
+    val lifecycleEventObserver =
+        remember(renderer, videoTrack) {
+            LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> {
+                        renderer?.also {
+                            it.init(WebRtc.rootEglBase.eglBaseContext, null)
+                            if (videoTrack is AndroidVideoTrack ){
+                                videoTrack.webrtcVideoTrack.addSinkCatching(it)
+                            }
+                        }
+                    }
+
+                    Lifecycle.Event.ON_PAUSE -> {
+                        renderer?.also {
+                            if (videoTrack is AndroidVideoTrack ){
+                                videoTrack.webrtcVideoTrack.removeSinkCatching(it)
+                            }
+                        }
+                        renderer?.release()
+                    }
+
+                    else -> {
+                        // ignore other events
+                    }
                 }
-            },
-            modifier = modifier ?: Modifier.fillMaxSize(),
-            update = { surfaceView ->
-//                videoTrack.webrtcVideoTrack.addSink(surfaceView.holder)
             }
-        )
-    } else {
-        // 如果没有视频轨道，显示一个空的占位符
-        androidx.compose.foundation.layout.Box(modifier = modifier ?: Modifier.fillMaxSize())
+        }
+
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle, lifecycleEventObserver) {
+        lifecycle.addObserver(lifecycleEventObserver)
+
+        onDispose {
+            renderer?.let {
+                if (videoTrack is AndroidVideoTrack ){
+                    videoTrack.webrtcVideoTrack.removeSinkCatching(it)
+                }
+            }
+            renderer?.release()
+            lifecycle.removeObserver(lifecycleEventObserver)
+        }
     }
+
+    AndroidView(
+        modifier = modifier,
+        factory = { context ->
+            SurfaceViewRenderer(context).apply {
+                setScalingType(
+                    RendererCommon.ScalingType.SCALE_ASPECT_BALANCED,
+                    RendererCommon.ScalingType.SCALE_ASPECT_FIT,
+                )
+                renderer = this
+            }
+        },
+    )
+}
+private fun VideoTrack.addSinkCatching(sink: VideoSink) {
+    // runCatching as track may be disposed while activity was in pause
+    runCatching { addSink(sink) }
+}
+
+private fun VideoTrack.removeSinkCatching(sink: VideoSink) {
+    // runCatching as track may be disposed while activity was in pause
+    runCatching { removeSink(sink) }
 }

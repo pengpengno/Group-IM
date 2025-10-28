@@ -32,9 +32,9 @@ abstract class MediaStream {
 // Note: WebRTC is not supported on desktop platform, so this is only for platforms that support WebRTC
 @Composable
 expect fun VideoScreenView(
-    modifier: Modifier? = null,
-    videoTrack: VideoTrack? = null,
-    audioTrack: AudioTrack? = null
+    modifier: Modifier,
+    videoTrack: VideoTrack?,
+    audioTrack: AudioTrack?
 )
 
 /**
@@ -55,6 +55,9 @@ interface WebRTCManager {
     /**
      * 连接到信令服务器
      * 这里使用WebSocket
+     *
+     * @param serverUrl 信令服务器地址  会默认使用 ProxyConfig.Host 中的
+     * @param userId 用户ID  {@link Global}
      */
     fun connectToSignalingServer(serverUrl: String, userId: String)
     
