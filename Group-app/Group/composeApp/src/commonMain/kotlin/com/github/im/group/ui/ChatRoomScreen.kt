@@ -257,7 +257,6 @@ fun ChatRoomScreen(
                     videoCallViewModel.endCall()
                     showVideoCall = false
                 },
-//                remoteVideoTrack = videoCallViewModel?.videoTracks?.firstOrNull(),
                 onToggleCamera = { videoCallViewModel.toggleCamera() },
                 onToggleMicrophone = { videoCallViewModel.toggleMicrophone() },
                 onSwitchCamera = { videoCallViewModel.switchCamera() },

@@ -33,18 +33,6 @@ class AndroidSocketClient(
     private val connectionMutex = Mutex()
     private var isReconnecting = false
 
-    /**
-     * 连接一次 成功返回true
-     */
-    private suspend fun connectOnce(host: String, port: Int): Boolean {
-        return try {
-            connect(host, port)
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
-
     override suspend fun connect(host: String, port: Int) {
         connectionMutex.withLock {
             this.host = host
@@ -87,12 +75,6 @@ class AndroidSocketClient(
 
     override suspend fun send(data: ByteArray) {
         withContext(Dispatchers.IO) {
-            // 首先判断当前是否 已经 连接了， 没连接就  重连
-            if (!isActive()) {
-                val isConnected = connectOnce(host, port)
-                println("连接成功: $isConnected")
-            }
-
             val lengthPrefix = encodeVarint32(data.size)
             output?.write(lengthPrefix)
             output?.write(data)
@@ -111,13 +93,10 @@ class AndroidSocketClient(
                 try {
                     if (!isActive() && !isReconnecting) {
                         isReconnecting = true
-                        println("检测到断线，尝试重连...")
                         connect(host, port)
-                        println("重连成功")
                         isReconnecting = false
                     }
                 } catch (e: Exception) {
-                    println("自动重连异常: ${e.message}")
                     isReconnecting = false
                     // 指数退避策略，最大延迟60秒
                     val delayTime = kotlin.math.min(60000L, 2000L * (reconnectJob?.hashCode()?.rem(10) ?: 1))
@@ -138,6 +117,7 @@ class AndroidSocketClient(
 
     /**
      * 接收消息
+     * 无法读取 / 读取 数据出错会抛出异常, 并且自动出发重连
      */
     private fun startReceiving() {
         receiveJob?.cancel()
@@ -150,8 +130,8 @@ class AndroidSocketClient(
                         val data = ByteArray(length)
                         var read = 0
                         while (read < length) {
-                            val r = input?.read(data, read, length - read) ?: throw Exception("Socket closed")
-                            if (r == -1) throw Exception("Socket closed")
+                            val r = input?.read(data, read, length - read) ?: throw SocketException("Socket closed")
+                            if (r == -1) throw SocketException("Socket closed")
                             read += r
                         }
                         val message = BaseMessagePkg.ADAPTER.decode(data)
@@ -167,7 +147,6 @@ class AndroidSocketClient(
                 }
             } catch (e: Exception) {
                 Napier.d("接收出错: ${e.stackTrace}")
-//                startAutoReconnect()
             }
         }
     }
@@ -199,7 +178,9 @@ class AndroidSocketClient(
 
     override fun isActive(): Boolean {
 
-        return socket != null && socket?.isConnected == true && socket?.isClosed == true
+
+        return socket != null && (socket?.channel?.isConnected
+            ?: socket?.isConnected) == true && socket?.isClosed == false
     }
 
     override fun close() {

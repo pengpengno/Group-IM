@@ -6,7 +6,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.im.group.model.UserInfo
 import com.github.im.group.repository.UserRepository
+import com.github.im.group.sdk.AudioTrack
 import com.github.im.group.sdk.MediaStream
+import com.github.im.group.sdk.VideoTrack
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,12 +39,39 @@ class VideoCallViewModel(
     private val _remoteMediaStream = MutableStateFlow<MediaStream?>(null)
     val remoteMediaStream: StateFlow<MediaStream?> = _remoteMediaStream
 
+    // 远程视频流
+    private val _remoteVideo = MutableStateFlow<VideoTrack?>(null)
+    val remoteVideo: StateFlow<VideoTrack?> = _remoteVideo
+
+
+
+    // 远程音频流
+    private val _remoteAudio = MutableStateFlow<AudioTrack?>(null)
+    val remoteAudio: StateFlow<AudioTrack?> = _remoteAudio
+
+
     // WebRTC管理器
     private var webRTCManager: com.github.im.group.sdk.WebRTCManager? = null
 
 
     fun setWebRTCManager(manager: com.github.im.group.sdk.WebRTCManager) {
         this.webRTCManager = manager
+
+        // 绑定监听 remote track 更新
+        viewModelScope.launch {
+            manager.remoteVideoTrack.collect { videoTrack ->
+                _remoteVideo.value = videoTrack
+                Napier.d("收到远程视频轨道更新: ${videoTrack != null}")
+            }
+        }
+
+        viewModelScope.launch {
+            manager.remoteAudioTrack.collect { audioTrack ->
+                _remoteAudio.value = audioTrack
+                Napier.d("收到远程音频轨道更新: ${audioTrack != null}")
+            }
+        }
+
     }
 
     fun startVideoCall(remoteUser: UserInfo) {
@@ -63,15 +92,15 @@ class VideoCallViewModel(
             // 初始化WebRTC连接
             try {
                 webRTCManager?.initialize()
-                
                 // 先初始化本地媒体流
                 initializeLocalMediaStream()
-                
-                // 再建立信令连接
-//                connectSignalingServer()
+
                 // 发送呼叫请求
                 sendCallRequest(remoteUser.userId.toString())
-                
+
+                _remoteVideo.value = webRTCManager?.remoteVideoTrack?.value
+                _remoteAudio.value = webRTCManager?.remoteAudioTrack?.value
+
                 _videoCallState.value = _videoCallState.value.copy(
                     callStatus = CallStatus.ACTIVE
                 )
@@ -130,28 +159,11 @@ class VideoCallViewModel(
      */
     private suspend fun initializeLocalMediaStream() {
 
-        // 初始化本地媒体流
-//        _localMediaStream.value = MediaDevices.getUserMedia(true,true)
 
         val mediaStream = webRTCManager?.createLocalMediaStream()
         _localMediaStream.value = mediaStream
     }
 
-    /**
-     *webrtc 信令服务器连接
-     * TODO 登录后立即连接  退出 登录后也是退出连接
-     */
-    private fun connectSignalingServer() {
-        // 连接到信令服务器，使用ProxyConfig中的host配置
-        val host = ProxyConfig.host
-        val port = ProxyConfig.port
-        // 检查是否使用安全连接
-        val protocol = if (host.startsWith("https://")) "wss" else "ws"
-        val cleanHost = host.replace(Regex("^https?://"), "")
-
-        val currentUserId = userRepository.withLoggedInUser { it.user.userId .toString()}
-        webRTCManager?.connectToSignalingServer("$protocol://$cleanHost:$port/webrtc", currentUserId)
-    }
 
     private fun sendCallRequest(userId: String) {
         // 通过信令服务器发送呼叫请求
@@ -161,10 +173,7 @@ class VideoCallViewModel(
     private fun cleanupWebRTCConnection() {
         // 清理WebRTC连接
         webRTCManager?.endCall()
-        webRTCManager?.release()
-        _localMediaStream.value = null
-        _remoteMediaStream.value = null
-        webRTCManager = null
+//        webRTCManager?.release()
     }
 }
 

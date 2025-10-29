@@ -16,12 +16,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavHostController
 import com.github.im.group.model.UserInfo
 import com.github.im.group.sdk.MediaStream
+import com.github.im.group.sdk.RemoteMediaStream
 import com.github.im.group.sdk.VideoScreenView
-import org.koin.compose.KoinContext
 import org.koin.compose.viewmodel.koinViewModel
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.launch
 
 @Composable
 fun VideoCallUI(
@@ -38,7 +35,8 @@ fun VideoCallUI(
     var isMicrophoneEnabled by remember { mutableStateOf(true) }
     val videoCallViewModel = koinViewModel<VideoCallViewModel>()
     val localStream by videoCallViewModel.localMediaStream.collectAsState()
-    val remoteStream by videoCallViewModel.remoteMediaStream.collectAsState()
+    val remoteVideo by videoCallViewModel.remoteVideo.collectAsState()
+    val remoteAudio by videoCallViewModel.remoteAudio.collectAsState()
 
     Dialog(onDismissRequest = { onMinimizeCall() },
         properties = DialogProperties(
@@ -57,13 +55,13 @@ fun VideoCallUI(
                     .background(Color(0xFF2D2D2D))
             ) {
                 // 显示远程视频流
-                if (remoteStream != null && remoteStream?.videoTracks?.isNotEmpty() == true) {
+//                if (remoteStream != null && remoteStream?.videoTracks?.isNotEmpty() == true) {
+//                remoteMedia?.let {
                     VideoScreenView(
                         modifier = Modifier.fillMaxSize(),
-                        videoTrack = remoteStream!!.videoTracks.firstOrNull(),
-                        audioTrack = remoteStream?.audioTracks?.firstOrNull()
+                        videoTrack = remoteVideo,
+                        audioTrack = remoteAudio
                     )
-                }
 
                 // 本地视频小窗口
                 Box(

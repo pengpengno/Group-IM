@@ -27,6 +27,8 @@ import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.TCPMessageViewModel
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
+import io.github.aakira.napier.LogLevel
+import io.github.aakira.napier.Napier
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
@@ -73,16 +75,27 @@ val appModule = module {
     single { SenderSdk(get(),get()) }
     // 登录状态管理器和相关监听器
 //    // 可以继续添加其他LoginStateListener实现
-    factory<LoginStateListener> { UserDataSyncListener(get()) }
-    factory<LoginStateListener> { ConnectionLoginListener(get()) }
-    factory<LoginStateListener> { WebRTCLoginListener(get()) }
-//    // 在LoginStateManager中自动注入所有LoginStateListener实现
+//    single<LoginStateListener> { UserDataSyncListener(get()) }
+//    single<LoginStateListener> { ConnectionLoginListener(get()) }
+//    single<LoginStateListener> { WebRTCLoginListener(get()) }
+
+    single<List<LoginStateListener>> {
+        listOf(
+            UserDataSyncListener(get()),
+            ConnectionLoginListener(get()),
+            WebRTCLoginListener(get())
+        )
+    }
     single {
-       val login =  LoginStateManager(get())
-        getAll<LoginStateListener>().forEach { listener ->
-            login.addListener(listener)
-        }
-        login
+
+       val manager =  LoginStateManager(get())
+//        getAll<LoginStateListener>().forEach { listener ->
+//            Napier.log(LogLevel.INFO, message="Adding login state listener: ${listener::class.simpleName}")
+//            manager.addListener(listener)
+//        }
+
+        get<List<LoginStateListener>>().forEach { manager.addListener(it) }
+        manager
     }
 
 

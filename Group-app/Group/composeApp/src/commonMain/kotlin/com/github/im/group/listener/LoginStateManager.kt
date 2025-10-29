@@ -3,6 +3,7 @@ package com.github.im.group.listener
 import com.github.im.group.model.UserInfo
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.repository.UserState
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -90,6 +91,7 @@ class LoginStateManager(
      * 添加登录状态监听器
      */
     fun addListener(listener: LoginStateListener) {
+        Napier.d  ("添加登录状态监听器: $listener")
         listeners.add(listener)
     }
     

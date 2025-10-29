@@ -2,6 +2,8 @@ package com.github.im.group.sdk
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.github.im.group.ui.video.VideoCallState
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.Serializable
 
 /**
@@ -27,6 +29,15 @@ abstract class MediaStream {
     abstract val audioTracks: List<AudioTrack>
 }
 
+class RemoteMediaStream(
+    val videoTrack: VideoTrack,
+    val audioTrack: AudioTrack
+): MediaStream() {
+    override val id: String = videoTrack.id
+    override val videoTracks: List<VideoTrack> = listOf(videoTrack)
+    override val audioTracks: List<AudioTrack> = listOf(audioTrack)
+}
+
 
 
 // Note: WebRTC is not supported on desktop platform, so this is only for platforms that support WebRTC
@@ -41,6 +52,13 @@ expect fun VideoScreenView(
  * WebRTC功能接口
  */
 interface WebRTCManager {
+
+
+//    val remoteMediaStream: StateFlow<RemoteMediaStream?>
+    val remoteAudioTrack: StateFlow<AudioTrack?>
+    val remoteVideoTrack: StateFlow<VideoTrack?>
+    val videoCallState: StateFlow<VideoCallState>
+
     /**
      * 初始化WebRTC
      * 链接到远程服务器

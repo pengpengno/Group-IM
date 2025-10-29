@@ -115,18 +115,21 @@ class SenderSdk(
      */
     private suspend fun send(data: ByteArray){
         if (!tcpClient.isActive()){
-            registerToRemote()
+            _connected.value = false
+            registerToRemoteSilently()
         }
         // 确保连接已建立后再发送数据
         while (!tcpClient.isActive()) {
+            _connected.value = false
             delay(100) // 等待100毫秒再检查
         }
+        _connected.value = true
         tcpClient.send(data)
     }
 
     /**
-     * 注册到远程服务器
-     * 开始连接
+     * 注册身份并开始链接到远程服务器
+     *
      */
     private suspend fun registerToRemote() {
         try {
@@ -141,15 +144,14 @@ class SenderSdk(
             val pkg = BaseMessagePkg(accountInfo = currentUser.accountInfo)
             val message = BaseMessagePkg.ADAPTER.encode(pkg)
             tcpClient.send(message)
-            
             _connected.value = true
-            // 启动自动重连机制
             startAutoReconnect()
+
         } catch (e: Exception) {
-            println("连接到远程服务器失败: ${e.message}")
+            Napier.d("连接到远程服务器失败: ${e.message}")
             _connected.value = false
-            // 启动自动重连机制以尝试恢复连接
             startAutoReconnect()
+
         }
     }
     
@@ -158,6 +160,8 @@ class SenderSdk(
      */
     private suspend fun registerToRemoteSilently() {
         try {
+            Napier.d  ("重连时发送登录信息")
+
             // 获取当前登录用户信息
             val currentUser = userRepository.requireLoggedInUser()
             
@@ -167,7 +171,7 @@ class SenderSdk(
             
             _connected.value = true
         } catch (e: Exception) {
-            println("重连时发送登录信息失败: ${e.message}")
+            Napier.d  ("重连时发送登录信息失败: ${e.message}")
             _connected.value = false
         }
     }

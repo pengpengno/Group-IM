@@ -130,8 +130,8 @@ class UserViewModel(
                 _uiState.value = response
                 // 进程中保存用户
                 userRepository.saveCurrentUser(response)
-//                // 长连接到服务端远程
-//                senderSdk.loginConnect(response)
+////                // 长连接到服务端远程
+//                senderSdk.loginConnect()
 
                 // 通知登录状态管理器用户已登录
                 loginStateManager.setLoggedIn(response)
