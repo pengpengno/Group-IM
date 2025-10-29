@@ -89,6 +89,21 @@ public final class BaseMessage {
      */
     com.github.im.common.connect.model.proto.Chat.AckMessageOrBuilder getAckOrBuilder();
 
+    /**
+     * <code>.com.github.im.common.connect.model.proto.Heartbeat heartbeat = 5;</code>
+     * @return Whether the heartbeat field is set.
+     */
+    boolean hasHeartbeat();
+    /**
+     * <code>.com.github.im.common.connect.model.proto.Heartbeat heartbeat = 5;</code>
+     * @return The heartbeat.
+     */
+    com.github.im.common.connect.model.proto.BaseMessage.Heartbeat getHeartbeat();
+    /**
+     * <code>.com.github.im.common.connect.model.proto.Heartbeat heartbeat = 5;</code>
+     */
+    com.github.im.common.connect.model.proto.BaseMessage.HeartbeatOrBuilder getHeartbeatOrBuilder();
+
     com.github.im.common.connect.model.proto.BaseMessage.BaseMessagePkg.PayloadCase getPayloadCase();
   }
   /**
@@ -138,6 +153,7 @@ public final class BaseMessage {
       MESSAGE(2),
       NOTIFICATION(3),
       ACK(4),
+      HEARTBEAT(5),
       PAYLOAD_NOT_SET(0);
       private final int value;
       private PayloadCase(int value) {
@@ -159,6 +175,7 @@ public final class BaseMessage {
           case 2: return MESSAGE;
           case 3: return NOTIFICATION;
           case 4: return ACK;
+          case 5: return HEARTBEAT;
           case 0: return PAYLOAD_NOT_SET;
           default: return null;
         }
@@ -298,6 +315,37 @@ public final class BaseMessage {
       return com.github.im.common.connect.model.proto.Chat.AckMessage.getDefaultInstance();
     }
 
+    public static final int HEARTBEAT_FIELD_NUMBER = 5;
+    /**
+     * <code>.com.github.im.common.connect.model.proto.Heartbeat heartbeat = 5;</code>
+     * @return Whether the heartbeat field is set.
+     */
+    @java.lang.Override
+    public boolean hasHeartbeat() {
+      return payloadCase_ == 5;
+    }
+    /**
+     * <code>.com.github.im.common.connect.model.proto.Heartbeat heartbeat = 5;</code>
+     * @return The heartbeat.
+     */
+    @java.lang.Override
+    public com.github.im.common.connect.model.proto.BaseMessage.Heartbeat getHeartbeat() {
+      if (payloadCase_ == 5) {
+         return (com.github.im.common.connect.model.proto.BaseMessage.Heartbeat) payload_;
+      }
+      return com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.getDefaultInstance();
+    }
+    /**
+     * <code>.com.github.im.common.connect.model.proto.Heartbeat heartbeat = 5;</code>
+     */
+    @java.lang.Override
+    public com.github.im.common.connect.model.proto.BaseMessage.HeartbeatOrBuilder getHeartbeatOrBuilder() {
+      if (payloadCase_ == 5) {
+         return (com.github.im.common.connect.model.proto.BaseMessage.Heartbeat) payload_;
+      }
+      return com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.getDefaultInstance();
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -324,6 +372,9 @@ public final class BaseMessage {
       if (payloadCase_ == 4) {
         output.writeMessage(4, (com.github.im.common.connect.model.proto.Chat.AckMessage) payload_);
       }
+      if (payloadCase_ == 5) {
+        output.writeMessage(5, (com.github.im.common.connect.model.proto.BaseMessage.Heartbeat) payload_);
+      }
       getUnknownFields().writeTo(output);
     }
 
@@ -348,6 +399,10 @@ public final class BaseMessage {
       if (payloadCase_ == 4) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(4, (com.github.im.common.connect.model.proto.Chat.AckMessage) payload_);
+      }
+      if (payloadCase_ == 5) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(5, (com.github.im.common.connect.model.proto.BaseMessage.Heartbeat) payload_);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
@@ -382,6 +437,10 @@ public final class BaseMessage {
           if (!getAck()
               .equals(other.getAck())) return false;
           break;
+        case 5:
+          if (!getHeartbeat()
+              .equals(other.getHeartbeat())) return false;
+          break;
         case 0:
         default:
       }
@@ -412,6 +471,10 @@ public final class BaseMessage {
         case 4:
           hash = (37 * hash) + ACK_FIELD_NUMBER;
           hash = (53 * hash) + getAck().hashCode();
+          break;
+        case 5:
+          hash = (37 * hash) + HEARTBEAT_FIELD_NUMBER;
+          hash = (53 * hash) + getHeartbeat().hashCode();
           break;
         case 0:
         default:
@@ -559,6 +622,9 @@ public final class BaseMessage {
         if (ackBuilder_ != null) {
           ackBuilder_.clear();
         }
+        if (heartbeatBuilder_ != null) {
+          heartbeatBuilder_.clear();
+        }
         payloadCase_ = 0;
         payload_ = null;
         return this;
@@ -616,6 +682,10 @@ public final class BaseMessage {
             ackBuilder_ != null) {
           result.payload_ = ackBuilder_.build();
         }
+        if (payloadCase_ == 5 &&
+            heartbeatBuilder_ != null) {
+          result.payload_ = heartbeatBuilder_.build();
+        }
       }
 
       @java.lang.Override
@@ -645,6 +715,10 @@ public final class BaseMessage {
           }
           case ACK: {
             mergeAck(other.getAck());
+            break;
+          }
+          case HEARTBEAT: {
+            mergeHeartbeat(other.getHeartbeat());
             break;
           }
           case PAYLOAD_NOT_SET: {
@@ -705,6 +779,13 @@ public final class BaseMessage {
                 payloadCase_ = 4;
                 break;
               } // case 34
+              case 42: {
+                input.readMessage(
+                    getHeartbeatFieldBuilder().getBuilder(),
+                    extensionRegistry);
+                payloadCase_ = 5;
+                break;
+              } // case 42
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -1305,6 +1386,148 @@ public final class BaseMessage {
         return ackBuilder_;
       }
 
+      private com.google.protobuf.SingleFieldBuilder<
+          com.github.im.common.connect.model.proto.BaseMessage.Heartbeat, com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.Builder, com.github.im.common.connect.model.proto.BaseMessage.HeartbeatOrBuilder> heartbeatBuilder_;
+      /**
+       * <code>.com.github.im.common.connect.model.proto.Heartbeat heartbeat = 5;</code>
+       * @return Whether the heartbeat field is set.
+       */
+      @java.lang.Override
+      public boolean hasHeartbeat() {
+        return payloadCase_ == 5;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.Heartbeat heartbeat = 5;</code>
+       * @return The heartbeat.
+       */
+      @java.lang.Override
+      public com.github.im.common.connect.model.proto.BaseMessage.Heartbeat getHeartbeat() {
+        if (heartbeatBuilder_ == null) {
+          if (payloadCase_ == 5) {
+            return (com.github.im.common.connect.model.proto.BaseMessage.Heartbeat) payload_;
+          }
+          return com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.getDefaultInstance();
+        } else {
+          if (payloadCase_ == 5) {
+            return heartbeatBuilder_.getMessage();
+          }
+          return com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.Heartbeat heartbeat = 5;</code>
+       */
+      public Builder setHeartbeat(com.github.im.common.connect.model.proto.BaseMessage.Heartbeat value) {
+        if (heartbeatBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          payload_ = value;
+          onChanged();
+        } else {
+          heartbeatBuilder_.setMessage(value);
+        }
+        payloadCase_ = 5;
+        return this;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.Heartbeat heartbeat = 5;</code>
+       */
+      public Builder setHeartbeat(
+          com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.Builder builderForValue) {
+        if (heartbeatBuilder_ == null) {
+          payload_ = builderForValue.build();
+          onChanged();
+        } else {
+          heartbeatBuilder_.setMessage(builderForValue.build());
+        }
+        payloadCase_ = 5;
+        return this;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.Heartbeat heartbeat = 5;</code>
+       */
+      public Builder mergeHeartbeat(com.github.im.common.connect.model.proto.BaseMessage.Heartbeat value) {
+        if (heartbeatBuilder_ == null) {
+          if (payloadCase_ == 5 &&
+              payload_ != com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.getDefaultInstance()) {
+            payload_ = com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.newBuilder((com.github.im.common.connect.model.proto.BaseMessage.Heartbeat) payload_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            payload_ = value;
+          }
+          onChanged();
+        } else {
+          if (payloadCase_ == 5) {
+            heartbeatBuilder_.mergeFrom(value);
+          } else {
+            heartbeatBuilder_.setMessage(value);
+          }
+        }
+        payloadCase_ = 5;
+        return this;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.Heartbeat heartbeat = 5;</code>
+       */
+      public Builder clearHeartbeat() {
+        if (heartbeatBuilder_ == null) {
+          if (payloadCase_ == 5) {
+            payloadCase_ = 0;
+            payload_ = null;
+            onChanged();
+          }
+        } else {
+          if (payloadCase_ == 5) {
+            payloadCase_ = 0;
+            payload_ = null;
+          }
+          heartbeatBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.Heartbeat heartbeat = 5;</code>
+       */
+      public com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.Builder getHeartbeatBuilder() {
+        return getHeartbeatFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.Heartbeat heartbeat = 5;</code>
+       */
+      @java.lang.Override
+      public com.github.im.common.connect.model.proto.BaseMessage.HeartbeatOrBuilder getHeartbeatOrBuilder() {
+        if ((payloadCase_ == 5) && (heartbeatBuilder_ != null)) {
+          return heartbeatBuilder_.getMessageOrBuilder();
+        } else {
+          if (payloadCase_ == 5) {
+            return (com.github.im.common.connect.model.proto.BaseMessage.Heartbeat) payload_;
+          }
+          return com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.com.github.im.common.connect.model.proto.Heartbeat heartbeat = 5;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilder<
+          com.github.im.common.connect.model.proto.BaseMessage.Heartbeat, com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.Builder, com.github.im.common.connect.model.proto.BaseMessage.HeartbeatOrBuilder> 
+          getHeartbeatFieldBuilder() {
+        if (heartbeatBuilder_ == null) {
+          if (!(payloadCase_ == 5)) {
+            payload_ = com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.getDefaultInstance();
+          }
+          heartbeatBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              com.github.im.common.connect.model.proto.BaseMessage.Heartbeat, com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.Builder, com.github.im.common.connect.model.proto.BaseMessage.HeartbeatOrBuilder>(
+                  (com.github.im.common.connect.model.proto.BaseMessage.Heartbeat) payload_,
+                  getParentForChildren(),
+                  isClean());
+          payload_ = null;
+        }
+        payloadCase_ = 5;
+        onChanged();
+        return heartbeatBuilder_;
+      }
+
       // @@protoc_insertion_point(builder_scope:com.github.im.common.connect.model.proto.BaseMessagePkg)
     }
 
@@ -1356,11 +1579,471 @@ public final class BaseMessage {
 
   }
 
+  public interface HeartbeatOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:com.github.im.common.connect.model.proto.Heartbeat)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <pre>
+     * true 为 ping，false 为 pong
+     * </pre>
+     *
+     * <code>bool ping = 1;</code>
+     * @return The ping.
+     */
+    boolean getPing();
+  }
+  /**
+   * Protobuf type {@code com.github.im.common.connect.model.proto.Heartbeat}
+   */
+  public static final class Heartbeat extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:com.github.im.common.connect.model.proto.Heartbeat)
+      HeartbeatOrBuilder {
+  private static final long serialVersionUID = 0L;
+    static {
+      com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+        com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+        /* major= */ 4,
+        /* minor= */ 28,
+        /* patch= */ 2,
+        /* suffix= */ "",
+        Heartbeat.class.getName());
+    }
+    // Use Heartbeat.newBuilder() to construct.
+    private Heartbeat(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+    }
+    private Heartbeat() {
+    }
+
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return com.github.im.common.connect.model.proto.BaseMessage.internal_static_com_github_im_common_connect_model_proto_Heartbeat_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return com.github.im.common.connect.model.proto.BaseMessage.internal_static_com_github_im_common_connect_model_proto_Heartbeat_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.class, com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.Builder.class);
+    }
+
+    public static final int PING_FIELD_NUMBER = 1;
+    private boolean ping_ = false;
+    /**
+     * <pre>
+     * true 为 ping，false 为 pong
+     * </pre>
+     *
+     * <code>bool ping = 1;</code>
+     * @return The ping.
+     */
+    @java.lang.Override
+    public boolean getPing() {
+      return ping_;
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (ping_ != false) {
+        output.writeBool(1, ping_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (ping_ != false) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(1, ping_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof com.github.im.common.connect.model.proto.BaseMessage.Heartbeat)) {
+        return super.equals(obj);
+      }
+      com.github.im.common.connect.model.proto.BaseMessage.Heartbeat other = (com.github.im.common.connect.model.proto.BaseMessage.Heartbeat) obj;
+
+      if (getPing()
+          != other.getPing()) return false;
+      if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      hash = (37 * hash) + PING_FIELD_NUMBER;
+      hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
+          getPing());
+      hash = (29 * hash) + getUnknownFields().hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static com.github.im.common.connect.model.proto.BaseMessage.Heartbeat parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static com.github.im.common.connect.model.proto.BaseMessage.Heartbeat parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static com.github.im.common.connect.model.proto.BaseMessage.Heartbeat parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static com.github.im.common.connect.model.proto.BaseMessage.Heartbeat parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static com.github.im.common.connect.model.proto.BaseMessage.Heartbeat parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static com.github.im.common.connect.model.proto.BaseMessage.Heartbeat parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static com.github.im.common.connect.model.proto.BaseMessage.Heartbeat parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static com.github.im.common.connect.model.proto.BaseMessage.Heartbeat parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    public static com.github.im.common.connect.model.proto.BaseMessage.Heartbeat parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+
+    public static com.github.im.common.connect.model.proto.BaseMessage.Heartbeat parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static com.github.im.common.connect.model.proto.BaseMessage.Heartbeat parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static com.github.im.common.connect.model.proto.BaseMessage.Heartbeat parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(com.github.im.common.connect.model.proto.BaseMessage.Heartbeat prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code com.github.im.common.connect.model.proto.Heartbeat}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:com.github.im.common.connect.model.proto.Heartbeat)
+        com.github.im.common.connect.model.proto.BaseMessage.HeartbeatOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return com.github.im.common.connect.model.proto.BaseMessage.internal_static_com_github_im_common_connect_model_proto_Heartbeat_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return com.github.im.common.connect.model.proto.BaseMessage.internal_static_com_github_im_common_connect_model_proto_Heartbeat_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.class, com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.Builder.class);
+      }
+
+      // Construct using com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.newBuilder()
+      private Builder() {
+
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        bitField0_ = 0;
+        ping_ = false;
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return com.github.im.common.connect.model.proto.BaseMessage.internal_static_com_github_im_common_connect_model_proto_Heartbeat_descriptor;
+      }
+
+      @java.lang.Override
+      public com.github.im.common.connect.model.proto.BaseMessage.Heartbeat getDefaultInstanceForType() {
+        return com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public com.github.im.common.connect.model.proto.BaseMessage.Heartbeat build() {
+        com.github.im.common.connect.model.proto.BaseMessage.Heartbeat result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public com.github.im.common.connect.model.proto.BaseMessage.Heartbeat buildPartial() {
+        com.github.im.common.connect.model.proto.BaseMessage.Heartbeat result = new com.github.im.common.connect.model.proto.BaseMessage.Heartbeat(this);
+        if (bitField0_ != 0) { buildPartial0(result); }
+        onBuilt();
+        return result;
+      }
+
+      private void buildPartial0(com.github.im.common.connect.model.proto.BaseMessage.Heartbeat result) {
+        int from_bitField0_ = bitField0_;
+        if (((from_bitField0_ & 0x00000001) != 0)) {
+          result.ping_ = ping_;
+        }
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof com.github.im.common.connect.model.proto.BaseMessage.Heartbeat) {
+          return mergeFrom((com.github.im.common.connect.model.proto.BaseMessage.Heartbeat)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(com.github.im.common.connect.model.proto.BaseMessage.Heartbeat other) {
+        if (other == com.github.im.common.connect.model.proto.BaseMessage.Heartbeat.getDefaultInstance()) return this;
+        if (other.getPing() != false) {
+          setPing(other.getPing());
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        if (extensionRegistry == null) {
+          throw new java.lang.NullPointerException();
+        }
+        try {
+          boolean done = false;
+          while (!done) {
+            int tag = input.readTag();
+            switch (tag) {
+              case 0:
+                done = true;
+                break;
+              case 8: {
+                ping_ = input.readBool();
+                bitField0_ |= 0x00000001;
+                break;
+              } // case 8
+              default: {
+                if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                  done = true; // was an endgroup tag
+                }
+                break;
+              } // default:
+            } // switch (tag)
+          } // while (!done)
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.unwrapIOException();
+        } finally {
+          onChanged();
+        } // finally
+        return this;
+      }
+      private int bitField0_;
+
+      private boolean ping_ ;
+      /**
+       * <pre>
+       * true 为 ping，false 为 pong
+       * </pre>
+       *
+       * <code>bool ping = 1;</code>
+       * @return The ping.
+       */
+      @java.lang.Override
+      public boolean getPing() {
+        return ping_;
+      }
+      /**
+       * <pre>
+       * true 为 ping，false 为 pong
+       * </pre>
+       *
+       * <code>bool ping = 1;</code>
+       * @param value The ping to set.
+       * @return This builder for chaining.
+       */
+      public Builder setPing(boolean value) {
+
+        ping_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * true 为 ping，false 为 pong
+       * </pre>
+       *
+       * <code>bool ping = 1;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearPing() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        ping_ = false;
+        onChanged();
+        return this;
+      }
+
+      // @@protoc_insertion_point(builder_scope:com.github.im.common.connect.model.proto.Heartbeat)
+    }
+
+    // @@protoc_insertion_point(class_scope:com.github.im.common.connect.model.proto.Heartbeat)
+    private static final com.github.im.common.connect.model.proto.BaseMessage.Heartbeat DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new com.github.im.common.connect.model.proto.BaseMessage.Heartbeat();
+    }
+
+    public static com.github.im.common.connect.model.proto.BaseMessage.Heartbeat getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<Heartbeat>
+        PARSER = new com.google.protobuf.AbstractParser<Heartbeat>() {
+      @java.lang.Override
+      public Heartbeat parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        Builder builder = newBuilder();
+        try {
+          builder.mergeFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.setUnfinishedMessage(builder.buildPartial());
+        } catch (com.google.protobuf.UninitializedMessageException e) {
+          throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+        } catch (java.io.IOException e) {
+          throw new com.google.protobuf.InvalidProtocolBufferException(e)
+              .setUnfinishedMessage(builder.buildPartial());
+        }
+        return builder.buildPartial();
+      }
+    };
+
+    public static com.google.protobuf.Parser<Heartbeat> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<Heartbeat> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.github.im.common.connect.model.proto.BaseMessage.Heartbeat getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_com_github_im_common_connect_model_proto_BaseMessagePkg_descriptor;
   private static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_com_github_im_common_connect_model_proto_BaseMessagePkg_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_com_github_im_common_connect_model_proto_Heartbeat_descriptor;
+  private static final 
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_com_github_im_common_connect_model_proto_Heartbeat_fieldAccessorTable;
 
   public static com.google.protobuf.Descriptors.FileDescriptor
       getDescriptor() {
@@ -1372,7 +2055,7 @@ public final class BaseMessage {
     java.lang.String[] descriptorData = {
       "\n\021BaseMessage.proto\022(com.github.im.commo" +
       "n.connect.model.proto\032\rAccount.proto\032\rMe" +
-      "ssage.proto\032\022Notification.proto\"\314\002\n\016Base" +
+      "ssage.proto\032\022Notification.proto\"\226\003\n\016Base" +
       "MessagePkg\022L\n\013accountInfo\030\001 \001(\01325.com.gi" +
       "thub.im.common.connect.model.proto.Accou" +
       "ntInfoH\000\022H\n\007message\030\002 \001(\01325.com.github.i" +
@@ -1380,9 +2063,12 @@ public final class BaseMessage {
       "H\000\022R\n\014notification\030\003 \001(\0132:.com.github.im" +
       ".common.connect.model.proto.Notification" +
       "InfoH\000\022C\n\003ack\030\004 \001(\01324.com.github.im.comm" +
-      "on.connect.model.proto.AckMessageH\000B\t\n\007p" +
-      "ayloadB7\n(com.github.im.common.connect.m" +
-      "odel.protoB\013BaseMessageb\006proto3"
+      "on.connect.model.proto.AckMessageH\000\022H\n\th" +
+      "eartbeat\030\005 \001(\01323.com.github.im.common.co" +
+      "nnect.model.proto.HeartbeatH\000B\t\n\007payload" +
+      "\"\031\n\tHeartbeat\022\014\n\004ping\030\001 \001(\010B7\n(com.githu" +
+      "b.im.common.connect.model.protoB\013BaseMes" +
+      "sageb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -1396,7 +2082,13 @@ public final class BaseMessage {
     internal_static_com_github_im_common_connect_model_proto_BaseMessagePkg_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_com_github_im_common_connect_model_proto_BaseMessagePkg_descriptor,
-        new java.lang.String[] { "AccountInfo", "Message", "Notification", "Ack", "Payload", });
+        new java.lang.String[] { "AccountInfo", "Message", "Notification", "Ack", "Heartbeat", "Payload", });
+    internal_static_com_github_im_common_connect_model_proto_Heartbeat_descriptor =
+      getDescriptor().getMessageTypes().get(1);
+    internal_static_com_github_im_common_connect_model_proto_Heartbeat_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_com_github_im_common_connect_model_proto_Heartbeat_descriptor,
+        new java.lang.String[] { "Ping", });
     descriptor.resolveAllFeaturesImmutable();
     com.github.im.common.connect.model.proto.Account.getDescriptor();
     com.github.im.common.connect.model.proto.Chat.getDescriptor();

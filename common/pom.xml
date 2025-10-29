@@ -11,11 +11,20 @@
     <artifactId>common</artifactId>
     <packaging>jar</packaging>
 
-
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <java.version>21</java.version>
+        <project.build.sourceEncod0ing>UTF-8</project.build.sourceEncod0ing>
+        <protobuf.version>4.28.2</protobuf.version>
+        <guice.version>7.0.0</guice.version>
+        <caffeine.version>3.1.3</caffeine.version>
+        <reactor.mq.version>1.5.6</reactor.mq.version>
+    </properties>
     <scm>
-        <url>https://github.com/pengpengno/meeting.git</url>
-        <developerConnection>scm:git:https://github.com/pengpengno/meeting.git</developerConnection>
-        <connection>scm:git:https://github.com/pengpengno/meeting.git</connection>
+        <url>https://github.com/pengpengno/Group.git</url>
+        <developerConnection>scm:git:https://github.com/pengpengno/Group.git</developerConnection>
+        <connection>scm:git:https://github.com/pengpengno/Group.git</connection>
     </scm>
 
     <!--  开发者信息   -->
@@ -37,14 +46,6 @@
 
     <url>http://maven.apache.org</url>
 
-    <properties>
-        <project.build.sourceEncod0ing>UTF-8</project.build.sourceEncod0ing>
-        <protobuf.version>4.28.2</protobuf.version>
-        <guice.version>7.0.0</guice.version>
-        <caffeine.version>3.1.3</caffeine.version>
-        <reactor.mq.version>1.5.6</reactor.mq.version>
-
-    </properties>
 
     <dependencies>
         <dependency>
@@ -163,6 +164,36 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven.plugin.version}</version>
+                <configuration>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok-mapstruct-binding</artifactId>
+                            <version>0.2.0</version>
+                        </path>
+                    </annotationProcessorPaths>
+                    <compilerArgs>
+                        <arg>-parameters</arg>
+                    </compilerArgs>
+                </configuration>
             </plugin>
 
         </plugins>

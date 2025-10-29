@@ -14,30 +14,36 @@ class TCPMessageViewModel(
     private val _messages = MutableStateFlow<BaseMessagePkg>(BaseMessagePkg())
 
 
-    fun updateMessage(message: BaseMessagePkg) {
-        //  先判断 message 的具体类型
-        when {
-            message.accountInfo != null -> {
-                println("Received account info: ${message.accountInfo}")
-                _messages.value = message
-            }
-            message.message != null -> {
-                println("Received chat message: ${message.message}")
-                _messages.value = message
-            }
-            message.notification != null -> {
-                println("Received notification: ${message.notification}")
-                _messages.value = message
-            }
-            else -> {
-                println("Unknown message received or payload is empty")
-            }
-        }
-
-        _messages.value = message
-    }
+//    fun updateMessage(message: BaseMessagePkg) {
+//        //  先判断 message 的具体类型
+//        when {
+//            message.accountInfo != null -> {
+//                println("Received account info: ${message.accountInfo}")
+//                _messages.value = message
+//            }
+//            message.message != null -> {
+//                println("Received chat message: ${message.message}")
+//                _messages.value = message
+//            }
+//            message.notification != null -> {
+//                println("Received notification: ${message.notification}")
+//                _messages.value = message
+//            }
+//            message.ack != null -> {
+//                println("Received ack: ${message.ack}")
+//                _messages.value = message
+//            }
+//            else -> {
+//                println("Unknown message received or payload is empty")
+//            }
+//        }
+//
+//        _messages.value = message
+//    }
 
     fun onNewMessage(msg: BaseMessagePkg) {
+
+
         sessionManager.routeMessage(msg)
     }
 

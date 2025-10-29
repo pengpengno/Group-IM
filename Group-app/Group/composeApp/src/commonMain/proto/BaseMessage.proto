@@ -23,6 +23,12 @@ message BaseMessagePkg {
 
     AckMessage ack = 4;
 
+    Heartbeat heartbeat = 5;
+
   }
 
+}
+
+message Heartbeat {
+  bool ping = 1; // true 为 ping，false 为 pong
 }

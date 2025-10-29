@@ -64,9 +64,12 @@ class ChatSessionManager  (
             if (vm != null) {
                 vm.updateMessage(it.clientMsgId)
             } else {
+
             }
             // 更新对应信息的 ui 状态
         }
+
+
         pkg.message ?.let {
 
             val targetId = it.conversationId

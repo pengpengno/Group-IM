@@ -2,6 +2,7 @@ package com.github.im.group.connect
 
 import com.github.im.group.config.SocketClient
 import com.github.im.group.model.proto.BaseMessagePkg
+import com.github.im.group.model.proto.Heartbeat
 import com.github.im.group.viewmodel.TCPMessageViewModel
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +27,7 @@ class AndroidSocketClient(
     private var input: InputStream? = null
     private var output: OutputStream? = null
     private var receiveJob: Job? = null
+    private var heartbeatJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.IO)
     private var reconnectJob: Job? = null
     private var host: String = ""
@@ -52,6 +54,7 @@ class AndroidSocketClient(
             }
 
             startReceiving()
+            startHeartbeat()
         }
     }
 
@@ -79,6 +82,55 @@ class AndroidSocketClient(
             output?.write(lengthPrefix)
             output?.write(data)
             output?.flush()
+        }
+    }
+
+    /**
+     * 启动心跳包发送任务
+     */
+    private fun startHeartbeat() {
+        heartbeatJob?.cancel()
+        heartbeatJob = scope.launch {
+            while (isActive) {
+                try {
+                    // 每25秒发送一次心跳包
+                    delay(25000)
+                    if (isActive()) {
+                        // 创建心跳消息 (ping = true)
+                        val heartbeat = Heartbeat(ping = true)
+                        val message = BaseMessagePkg(
+                            heartbeat = heartbeat
+                        )
+                        val data = message.encode()
+                        send(data)
+                        Napier.d("已发送心跳包")
+                    }
+                } catch (e: Exception) {
+                    Napier.e("发送心跳包失败: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * 处理接收到的心跳消息
+     */
+    private suspend fun handleHeartbeat(heartbeat: Heartbeat) {
+        when {
+            // 如果是服务端发来的ping请求，则回复pong
+            heartbeat.ping -> {
+                Napier.d("收到服务端心跳PING，回复PONG")
+                val pong = Heartbeat(ping = false)
+                val message = BaseMessagePkg(
+                    heartbeat = pong
+                )
+                val data = message.encode()
+                send(data)
+            }
+            // 如果是pong响应，记录日志
+            else -> {
+                Napier.d("收到心跳PONG响应")
+            }
         }
     }
 
@@ -135,8 +187,14 @@ class AndroidSocketClient(
                             read += r
                         }
                         val message = BaseMessagePkg.ADAPTER.decode(data)
-                        withContext(Dispatchers.Main) {
-                            viewModel.onNewMessage(message)
+                        // 处理心跳消息
+                        if (message.heartbeat != null) {
+                            handleHeartbeat(message.heartbeat)
+                        } else {
+                            // 处理其他消息
+                            withContext(Dispatchers.Main) {
+                                viewModel.onNewMessage(message)
+                            }
                         }
                     } catch (e: SocketException) {
                         // 连接断开，触发重连
@@ -177,8 +235,6 @@ class AndroidSocketClient(
     }
 
     override fun isActive(): Boolean {
-
-
         return socket != null && (socket?.channel?.isConnected
             ?: socket?.isConnected) == true && socket?.isClosed == false
     }
@@ -186,7 +242,9 @@ class AndroidSocketClient(
     override fun close() {
         stopAutoReconnect()
         receiveJob?.cancel()
+        heartbeatJob?.cancel()
         receiveJob = null
+        heartbeatJob = null
 
         try {
             input?.close()

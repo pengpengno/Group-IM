@@ -1,5 +1,6 @@
 package com.github.im.common.connect.connection.server.tcp;
 
+import com.github.im.common.connect.handler.HeartbeatHandler;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.spi.ReactiveHandlerSPI;
 import com.github.im.common.connect.connection.server.ReactiveServer;
@@ -16,7 +17,10 @@ import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import io.netty.handler.codec.rtsp.RtspEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -92,6 +96,8 @@ public class ReactorTcpServer implements ReactiveServer {
                             .addHandlerLast(protobufDecoder)
                             .addHandlerLast(protobufVarint32LengthFieldPrepender)
                             .addHandlerLast(protobufEncoder)
+                            .addHandlerLast(new IdleStateHandler(30, 0, 0, TimeUnit.SECONDS))
+                            .addHandlerLast(new HeartbeatHandler())
 
                             ;
                 })
@@ -129,4 +135,58 @@ public class ReactorTcpServer implements ReactiveServer {
         }
         return disposableServer.isDisposed();
     }
+
+//    /**
+//     * 心跳处理 Handler
+//     */
+//    @Slf4j
+//    static class HeartbeatHandler extends ChannelInboundHandlerAdapter {
+//
+//        @Override
+//        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+//            if (evt instanceof IdleStateEvent) {
+//                IdleStateEvent event = (IdleStateEvent) evt;
+//                if (event.state() == IdleStateEvent.READER_IDLE_STATE_EVENT.getState()) {
+//                    // 如果读取超时，则发送心跳请求
+//                    BaseMessage.BaseMessagePkg heartbeat = BaseMessage.BaseMessagePkg.newBuilder()
+//                            .setHeartbeat(BaseMessage.Heartbeat.newBuilder().setPing(true).build())
+//                            .build();
+//                    ctx.writeAndFlush(heartbeat);
+//                    log.debug("Sent HEARTBEAT to client");
+//                }
+//            } else {
+//                super.userEventTriggered(ctx, evt);
+//            }
+//        }
+//
+//        @Override
+//        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+//            if (msg instanceof BaseMessage.BaseMessagePkg) {
+//                BaseMessage.BaseMessagePkg pkg = (BaseMessage.BaseMessagePkg) msg;
+//                if (pkg.hasHeartbeat()) {
+//                    BaseMessage.Heartbeat heartbeat = pkg.getHeartbeat();
+//                    // 如果收到客户端的ping请求，则回复pong
+//                    if (heartbeat.getPing()) {
+//                        BaseMessage.BaseMessagePkg pong = BaseMessage.BaseMessagePkg.newBuilder()
+//                                .setHeartbeat(BaseMessage.Heartbeat.newBuilder().setPing(false).build())
+//                                .build();
+//                        ctx.writeAndFlush(pong);
+//                        log.debug("Received PING, sent PONG to client");
+//                    } else {
+//                        // 收到pong响应，记录日志
+//                        log.debug("Received PONG from client");
+//                    }
+//                    return; // 心跳消息处理完毕，不再传递给下一个处理器
+//                }
+//            }
+//            // 非心跳消息，传递给下一个处理器
+//            super.channelRead(ctx, msg);
+//        }
+//
+//        @Override
+//        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+//            log.error("Exception in HeartbeatHandler", cause);
+//            ctx.close();
+//        }
+//    }
 }
