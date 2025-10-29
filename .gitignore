@@ -13,7 +13,8 @@ target/
 *.iws
 *.iml
 *.ipr
-
+.idea/vcs.xml
+.idea/contentModel.xml
 logs/**
 data/**
 
