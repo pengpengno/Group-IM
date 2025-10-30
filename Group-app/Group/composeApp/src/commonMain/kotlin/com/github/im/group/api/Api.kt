@@ -4,6 +4,14 @@ import ProxyApi
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.UserInfo
+import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.headers
+import io.ktor.client.request.prepareGet
+import io.ktor.client.statement.bodyAsBytes
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.SerialName
@@ -106,6 +114,38 @@ object FileApi {
      */
     suspend fun uploadFile(file: ByteArray,fileName:String,duration:Long): FileUploadResponse {
         return ProxyApi.uploadFile(file, fileName,duration)
+    }
+
+    /**
+     * 下载文件
+     * @param fileId 文件ID
+     */
+    suspend fun downloadFile(fileId: String): ByteArray {
+        val baseUrl = if (ProxyConfig.enableProxy) {
+            "http://${ProxyConfig.host}:${ProxyConfig.port}"
+        } else {
+            "http://${ProxyConfig.host}:${ProxyConfig.port}"
+        }
+
+        val response = ProxyApi.client.prepareGet("$baseUrl/api/files/download/$fileId") {
+            headers {
+                val token = GlobalCredentialProvider.currentToken
+                if (token.isNotEmpty()) {
+                    header("Proxy-Authorization", "Basic $token")
+                    header("Authorization", "Bearer $token")
+                }
+            }
+        }.execute()
+        
+        return when (response.status.value) {
+            in 200..299 -> {
+                response.bodyAsBytes()
+            }
+            else -> {
+                val errorText = response.bodyAsText()
+                throw RuntimeException("下载文件失败：${response.status}，内容: $errorText")
+            }
+        }
     }
 
     /**

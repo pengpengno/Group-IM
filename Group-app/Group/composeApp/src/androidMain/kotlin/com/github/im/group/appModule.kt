@@ -57,7 +57,8 @@ val appModule = module {
             chatSessionManager = get(),
             chatMessageRepository = get(),
             senderSdk = get(),
-            filePicker = get()  // 注入FilePicker依赖
+            filePicker = get() ,
+            audioPlayer = get(),
         )
     }
     

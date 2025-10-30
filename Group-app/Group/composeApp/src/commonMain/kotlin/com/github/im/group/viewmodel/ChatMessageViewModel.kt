@@ -15,10 +15,12 @@ import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.model.proto.MessageType
 import com.github.im.group.model.proto.MessagesStatus
 import com.github.im.group.repository.ChatMessageRepository
+import com.github.im.group.repository.FileStorageManager
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.PickedFile
 import com.github.im.group.sdk.SenderSdk
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import okio.Path
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
@@ -44,6 +47,41 @@ data class ChatUiState(
     val loading: Boolean = false
 )
 
+/**
+ * 文件下载状态
+ */
+data class FileDownloadState(
+    val fileId: String,
+    val isDownloading: Boolean = false,
+    val isSuccess: Boolean = false,
+    val fileContent: ByteArray? = null,
+    val error: String? = null
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is FileDownloadState) return false
+
+        if (fileId != other.fileId) return false
+        if (isDownloading != other.isDownloading) return false
+        if (isSuccess != other.isSuccess) return false
+        if (fileContent != null) {
+            if (other.fileContent == null) return false
+            if (!fileContent.contentEquals(other.fileContent)) return false
+        } else if (other.fileContent != null) return false
+        if (error != other.error) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = fileId.hashCode()
+        result = 31 * result + isDownloading.hashCode()
+        result = 31 * result + isSuccess.hashCode()
+        result = 31 * result + (fileContent?.contentHashCode() ?: 0)
+        result = 31 * result + (error?.hashCode() ?: 0)
+        return result
+    }
+}
 
 class ChatMessageViewModel(
     val userRepository: UserRepository,
@@ -52,14 +90,18 @@ class ChatMessageViewModel(
     val chatMessageRepository: ChatMessageRepository,
     val senderSdk: SenderSdk,
     val filePicker: FilePicker,  // 通过构造函数注入FilePicker
+    val fileStorageManager: FileStorageManager // 文件存储管理器
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
 
     private val messageIndex = mutableMapOf<String, Int>() // clientMsgId -> messages list index
 
-
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+    
+    // 多文件下载状态管理
+    private val _fileDownloadStates = MutableStateFlow<Map<String, FileDownloadState>>(emptyMap())
+    val fileDownloadStates: StateFlow<Map<String, FileDownloadState>> = _fileDownloadStates.asStateFlow()
 
     private val _loading = MutableStateFlow(false)
 
@@ -308,7 +350,7 @@ class ChatMessageViewModel(
                     val response = withContext(Dispatchers.IO) {
                         FileApi.uploadFile(fileBytes, file.name, 0)
                     }
-                    sendMessage(conversationId, response.id, messageType)
+                    sendMessage(conversationId, response.id, messageType, response.fileMeta)
                 } else {
                     // 如果无法读取文件，发送文件名作为消息
                     sendMessage(conversationId, "文件: ${file.name}", MessageType.FILE)
@@ -348,6 +390,77 @@ class ChatMessageViewModel(
         }
         return null
     }
+    
+    /**
+     * 下载文件消息内容（实现本地优先策略）
+     * @param fileId 文件ID
+     */
+    fun downloadFileMessage(fileId: String) {
+        Napier.d("开始下载文件: $fileId")
+        viewModelScope.launch {
+            try {
+                // 检查是否已经在下载该文件
+                val currentState = _fileDownloadStates.value[fileId]
+                if (currentState?.isDownloading == true) {
+                    Napier.d("文件已在下载中: $fileId")
+                    return@launch
+                }
+                
+                // 更新下载状态为正在下载
+                _fileDownloadStates.update { currentStates ->
+                    currentStates + (fileId to FileDownloadState(
+                        fileId = fileId,
+                        isDownloading = true
+                    ))
+                }
+                
+                // 从文件存储管理器获取文件内容（实现本地优先策略）
+                val fileContent = fileStorageManager.getFileContent(fileId)
+                
+                // 更新下载状态为成功
+                _fileDownloadStates.update { currentStates ->
+                    currentStates + (fileId to FileDownloadState(
+                        fileId = fileId,
+                        isDownloading = false,
+                        isSuccess = true,
+                        fileContent = fileContent
+                    ))
+                }
+                
+                Napier.d("文件下载成功: $fileId")
+            } catch (e: Exception) {
+                Napier.e("文件下载失败", e)
+                // 更新下载状态为失败
+                _fileDownloadStates.update { currentStates ->
+                    currentStates + (fileId to FileDownloadState(
+                        fileId = fileId,
+                        isDownloading = false,
+                        isSuccess = false,
+                        error = e.message
+                    ))
+                }
+            }
+        }
+    }
+    
+    /**
+     * 清除指定文件的下载状态
+     * @param fileId 文件ID
+     */
+    fun clearFileDownloadState(fileId: String) {
+        _fileDownloadStates.update { currentStates ->
+            currentStates - fileId
+        }
+    }
+    
+    /**
+     * 获取本地文件路径
+     * @param fileId 文件ID
+     * @return 本地文件路径
+     */
+    fun getLocalFilePath(fileId: String): Path? {
+        return fileStorageManager.getLocalFilePath(fileId)
+    }
 
     /**
      * 发送文件消息
@@ -361,7 +474,9 @@ class ChatMessageViewModel(
         viewModelScope.launch {
             try {
                 val response = FileApi.uploadFile(data, fileName, duration)
-                sendMessage(conversationId, response.id, type)
+                // 保存文件信息到本地数据库
+                // 这里只是框架代码，实际实现将在后续添加
+                sendMessage(conversationId, response.id, type, response.fileMeta)
             } catch (e: Exception) {
                 // 处理上传失败的情况
                 e.printStackTrace()
@@ -375,7 +490,7 @@ class ChatMessageViewModel(
      * @param message 消息
      */
     @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
-    fun sendMessage(conversationId:Long, message:String, type: MessageType = MessageType.TEXT){
+    fun sendMessage(conversationId:Long, message:String, type: MessageType = MessageType.TEXT, fileMeta: FileMeta? = null){
         // 发送的 数据需要 再本地先保存
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -389,7 +504,7 @@ class ChatMessageViewModel(
                         type = type,
                         messagesStatus = MessagesStatus.SENDING,
                         clientTimeStamp = Clock.System.now().toEpochMilliseconds(),
-                        clientMsgId =  Uuid.random().toString(),
+                        clientMsgId =  Uuid.random().toString()
                     )
                     addMessage(chatMessage)
                 }

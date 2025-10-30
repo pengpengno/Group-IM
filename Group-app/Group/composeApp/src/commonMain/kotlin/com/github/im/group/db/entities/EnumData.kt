@@ -72,5 +72,3 @@ enum class UserStatus {
     BUSY,
     INVISIBLE
 }
-
-

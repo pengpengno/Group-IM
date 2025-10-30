@@ -34,6 +34,8 @@ class AndroidSocketClient(
     private var port: Int = 0
     private val connectionMutex = Mutex()
     private var isReconnecting = false
+    private var lastHeartbeatTime: Long = 0
+    private val HEARTBEAT_TIMEOUT = 30000L // 30秒超时
 
     override suspend fun connect(host: String, port: Int) {
         connectionMutex.withLock {
@@ -130,6 +132,8 @@ class AndroidSocketClient(
             // 如果是pong响应，记录日志
             else -> {
                 Napier.d("收到心跳PONG响应")
+                // 更新最近心跳时间
+                lastHeartbeatTime = System.currentTimeMillis()
             }
         }
     }
@@ -235,8 +239,15 @@ class AndroidSocketClient(
     }
 
     override fun isActive(): Boolean {
-        return socket != null && (socket?.channel?.isConnected
+        val socketActive = socket != null && (socket?.channel?.isConnected
             ?: socket?.isConnected) == true && socket?.isClosed == false
+        
+        // 如果socket不活跃，直接返回false
+        if (!socketActive) return false
+        
+        // 检查心跳是否超时（30秒内没有收到心跳响应）
+        val currentTime = System.currentTimeMillis()
+        return (currentTime - lastHeartbeatTime) < HEARTBEAT_TIMEOUT
     }
 
     override fun close() {

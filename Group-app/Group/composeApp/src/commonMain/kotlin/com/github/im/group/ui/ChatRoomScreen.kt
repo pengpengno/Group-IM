@@ -41,6 +41,25 @@ import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
 import com.github.im.group.repository.UserState
 import com.github.im.group.ui.chat.ImageMessage
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import com.github.im.group.model.UserInfo
+import com.github.im.group.repository.UserRepository
 import com.github.im.group.ui.chat.MessageContent
 import com.github.im.group.ui.chat.SendingSpinner
 import com.github.im.group.ui.chat.TextMessage
@@ -88,6 +107,7 @@ fun ChatRoomScreen(
     // 加载完消息后自动滚动到底部
 
     val state by messageViewModel.uiState.collectAsState()
+    val fileDownloadStates by messageViewModel.fileDownloadStates.collectAsState()
 
     val userInfo = userViewModel.getCurrentUser()
     
@@ -198,6 +218,12 @@ fun ChatRoomScreen(
                         val audioUrl = "http://${ProxyConfig.host}:${ProxyConfig.port}/api/files/download/${voiceContent.audioUrl}"
                         // TODO: 实现实际的音频播放逻辑
                         Napier.d("播放音频: $audioUrl")
+                    },
+                    onFileMessageClick = { fileMsg ->
+                        // 处理文件消息点击事件
+                        // 触发文件下载（实现本地优先策略）
+                        Napier.d("点击文件消息: ${fileMsg.content}")
+                        messageViewModel.downloadFileMessage(fileMsg.content)
                     }
                 )
             }
@@ -247,6 +273,43 @@ fun ChatRoomScreen(
             )
         }
         
+        // 文件下载状态指示器（支持多个文件同时下载）
+        fileDownloadStates.forEach { (fileId, downloadState) ->
+            if (downloadState.isDownloading) {
+                Dialog(onDismissRequest = { }) {
+                    Box(
+                        modifier = Modifier
+                            .background(Color.White, shape = RoundedCornerShape(8.dp))
+                            .padding(16.dp)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator()
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("文件下载中... ($fileId)")
+                        }
+                    }
+                }
+            }
+            
+            // 文件下载完成后的处理
+            if (!downloadState.isDownloading && downloadState.isSuccess) {
+                Napier.d("文件下载完成，大小: ${downloadState.fileContent?.size ?: 0} 字节")
+                // 这里可以添加文件保存或打开的逻辑
+                // 下载完成后清除状态
+                // messageViewModel.clearFileDownloadState(fileId)
+            }
+            
+            // 文件下载失败的处理
+            if (!downloadState.isDownloading && !downloadState.isSuccess) {
+                Napier.e("文件下载失败: ${downloadState.error}")
+                // 这里可以添加错误提示的逻辑
+                // 下载失败后清除状态
+                // messageViewModel.clearFileDownloadState(fileId)
+            }
+        }
+        
         // 视频通话界面
         if (showVideoCall) {
             VideoCallUI(
@@ -273,7 +336,7 @@ fun ChatRoomScreen(
  * 聊天气泡
  */
 @Composable
-fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem, onVoiceMessageClick: (MessageContent.Voice) -> Unit = {}) {
+fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem, onVoiceMessageClick: (MessageContent.Voice) -> Unit = {}, onFileMessageClick: (MessageItem) -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -316,7 +379,7 @@ fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem, onVoiceMessageClick: 
                     }
                     MessageType.IMAGE -> ImageMessage(MessageContent.Image(msg.content))
                     MessageType.VIDEO -> VideoBubble(MessageContent.Video(msg.content))
-                    MessageType.FILE -> FileMessageBubble(msg)
+                    MessageType.FILE -> FileMessageBubble(msg, onFileMessageClick)
                     else -> TextMessage(MessageContent.Text(msg.content))
                 }
             }
@@ -328,8 +391,11 @@ fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem, onVoiceMessageClick: 
  * 文件类型气泡
  */
 @Composable
-fun FileMessageBubble(msg: MessageItem) {
+fun FileMessageBubble(msg: MessageItem, onClick: (MessageItem) -> Unit) {
     val messageViewModel: ChatMessageViewModel = koinViewModel()
+    
+    var showDialog by remember { mutableStateOf(false) }
+    var isDownloading by remember { mutableStateOf(false) }
 
     // 显示文件消息
     val fileSize = messageViewModel.getFileMessageMeta(msg)?.size ?: 0
@@ -341,11 +407,176 @@ fun FileMessageBubble(msg: MessageItem) {
         "${fileSize}B"
     }
 
-    com.github.im.group.ui.chat.FileMessage(
-        MessageContent.File(
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .clickable { onClick(msg) }
+            .width(200.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 文件图标
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color(0xFFE3F2FD), shape = RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FileDownload,
+                    contentDescription = "文件",
+                    tint = Color(0xFF1976D2),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(8.dp))
+            
+            // 文件信息
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = msg.content,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
+                )
+                Text(
+                    text = displaySize,
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        // 操作按钮
+        Button(
+            onClick = { showDialog = true },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF1976D2),
+                contentColor = Color.White
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("查看文件")
+        }
+    }
+    
+    // 点击后显示文件操作对话框
+    if (showDialog) {
+        FileActionDialog(
             fileName = msg.content,
             fileSize = displaySize,
-            fileUrl = "" // 这里需要文件URL
+            onDismiss = { showDialog = false },
+            onView = {
+                showDialog = false
+                // 实际查看文件的逻辑
+                // 可以打开浏览器下载或者在应用内查看
+                onClick(msg)
+            },
+            onDownload = {
+                isDownloading = true
+                // 实际下载文件的逻辑
+                // 这里应该调用文件下载服务
+                isDownloading = false
+            }
         )
-    )
+    }
+    
+    // 下载进度指示器
+    if (isDownloading) {
+        Dialog(onDismissRequest = { /* 不允许取消 */ }) {
+            Box(
+                modifier = Modifier
+                    .background(Color.White, shape = RoundedCornerShape(8.dp))
+                    .padding(16.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("文件下载中...")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 文件操作对话框
+ */
+@Composable
+fun FileActionDialog(
+    fileName: String,
+    fileSize: String,
+    onDismiss: () -> Unit,
+    onView: () -> Unit,
+    onDownload: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = fileName,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                Text(
+                    text = fileSize,
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Button(
+                    onClick = onView,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF1976D2),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("在线查看")
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Button(
+                    onClick = onDownload,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF4CAF50),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("下载文件")
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.LightGray,
+                        contentColor = Color.Black
+                    )
+                ) {
+                    Text("取消")
+                }
+            }
+        }
+    }
 }
