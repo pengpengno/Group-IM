@@ -5,6 +5,7 @@ import com.github.im.group.db.AppDatabase
 import com.github.im.group.db.entities.FileStatus
 import db.FileResource
 import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -90,5 +91,35 @@ class FilesRepository(
                 clientId_ = fileId
             )
         }
+    }
+    
+    /**
+     * 更新文件状态
+     */
+    fun updateFileStatus(fileId: String, status: FileStatus) {
+        val file = getFile(fileId)
+        if (file != null) {
+            db.filesQueries.updateFileByClientId(
+                originalName = file.originalName,
+                contentType = file.contentType,
+                size = file.size,
+                storagePath = file.storagePath,
+                hash = file.hash,
+                uploadTime = file.uploadTime,
+                clientId = file.clientId,
+                status = status,
+                clientId_ = fileId
+            )
+        }
+    }
+    
+    /**
+     * 获取过期文件（在指定时间之前未访问的文件）
+     */
+    fun getExpiredFiles(thresholdTime: LocalDateTime): List<FileResource> {
+
+        //TODO 待实现
+        return emptyList()
+//        return db.filesQueries.selectFilesBeforeAccessTime(thresholdTime).executeAsList()
     }
 }

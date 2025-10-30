@@ -7,7 +7,6 @@ import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.FileMeta
-import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
@@ -15,9 +14,9 @@ import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.model.proto.MessageType
 import com.github.im.group.model.proto.MessagesStatus
 import com.github.im.group.repository.ChatMessageRepository
-import com.github.im.group.repository.FileStorageManager
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.FilePicker
+import com.github.im.group.sdk.FileStorageManager
 import com.github.im.group.sdk.PickedFile
 import com.github.im.group.sdk.SenderSdk
 import io.github.aakira.napier.Napier
@@ -85,7 +84,6 @@ data class FileDownloadState(
 
 class ChatMessageViewModel(
     val userRepository: UserRepository,
-//    val userViewModel: UserViewModel,
     val chatSessionManager: ChatSessionManager,
     val chatMessageRepository: ChatMessageRepository,
     val senderSdk: SenderSdk,
@@ -271,7 +269,7 @@ class ChatMessageViewModel(
     fun sendFileMessage(conversationId: Long, file: PickedFile) {
         // TODO 发送 存在延迟
         //  优化项
-        /**
+          /**
          * 1. 发送带有 clientId 的消息体
          * 2. 服务端接受 返回 ACK 消息
          * 。。。 没想好
@@ -380,8 +378,7 @@ class ChatMessageViewModel(
             // 如果没有，通过API获取
             runBlocking {
                 try {
-                    getFileMessageMeta(messageItem.content)
-
+                    return@runBlocking getFileMessageMeta(messageItem.content)
                 } catch (e: Exception) {
                     e.printStackTrace()
                     null
@@ -389,6 +386,31 @@ class ChatMessageViewModel(
             }
         }
         return null
+    }
+    
+    /**
+     * 检查文件是否存在（本地优先）
+     * @param fileId 文件ID
+     * @return 文件是否存在
+     */
+    fun isFileExists(fileId: String): Boolean {
+        return fileStorageManager.isFileExists(fileId)
+    }
+    
+    /**
+     * 删除指定文件（本地和数据库记录）
+     * @param fileId 文件ID
+     * @return 删除是否成功
+     */
+    fun deleteFile(fileId: String): Boolean {
+        return fileStorageManager.deleteFile(fileId)
+    }
+    
+    /**
+     * 清理过期文件
+     */
+    fun cleanupExpiredFiles() {
+        fileStorageManager.cleanupExpiredFiles()
     }
     
     /**
@@ -510,7 +532,7 @@ class ChatMessageViewModel(
                 }
 
             } catch (e: Exception) {
-                println("发送失败: $e")
+                Napier.d("发送失败: $e")
             }
         }
 

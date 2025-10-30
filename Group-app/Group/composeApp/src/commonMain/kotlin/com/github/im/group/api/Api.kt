@@ -1,6 +1,7 @@
 package com.github.im.group.api
 
 import ProxyApi
+import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.UserInfo

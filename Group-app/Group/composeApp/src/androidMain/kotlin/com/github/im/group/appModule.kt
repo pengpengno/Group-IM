@@ -12,12 +12,14 @@ import com.github.im.group.listener.UserDataSyncListener
 import com.github.im.group.listener.WebRTCLoginListener
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.repository.ChatMessageRepository
+import com.github.im.group.repository.FilesRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.AndroidAudioPlayer
 import com.github.im.group.sdk.AndroidFilePicker
 import com.github.im.group.sdk.AndroidWebRTCManager
 import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.FilePicker
+import com.github.im.group.sdk.FileStorageManager
 import com.github.im.group.sdk.SenderSdk
 import com.github.im.group.sdk.VoiceRecorderFactory
 import com.github.im.group.sdk.WebRTCManager
@@ -29,6 +31,9 @@ import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
 import io.github.aakira.napier.LogLevel
 import io.github.aakira.napier.Napier
+import okio.FileSystem
+import okio.Path
+import okio.Path.Companion.toPath
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
@@ -48,6 +53,14 @@ val appModule = module {
 
     single { UserRepository(get()) }
     single { ChatMessageRepository(get()) }
+    single { FilesRepository(get()) }
+    single { 
+        FileStorageManager(
+            filesRepository = get(),
+            fileSystem = FileSystem.SYSTEM,
+            baseDirectory = androidContext().filesDir.absolutePath.toPath()
+        ) 
+    }
     viewModelOf (::ChatViewModel)
     
     // 为ChatMessageViewModel添加所有必需的依赖项
@@ -58,7 +71,7 @@ val appModule = module {
             chatMessageRepository = get(),
             senderSdk = get(),
             filePicker = get() ,
-            audioPlayer = get(),
+            fileStorageManager = get()
         )
     }
     

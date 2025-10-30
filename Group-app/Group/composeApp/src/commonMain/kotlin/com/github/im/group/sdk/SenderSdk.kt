@@ -90,8 +90,8 @@ class SenderSdk(
                             delay(delayTime)
                         }
 
-                        // 每2秒检查一次连接状态
-                        delay(2000)
+                        // 每5秒检查一次连接状态
+                        delay(5000)
                     }
                 }
             }
@@ -116,7 +116,7 @@ class SenderSdk(
     private suspend fun send(data: ByteArray){
         if (!tcpClient.isActive()){
             _connected.value = false
-            registerToRemoteSilently()
+            // 不再在这里调用registerToRemoteSilently，避免与心跳包机制冲突
         }
         // 确保连接已建立后再发送数据
         while (!tcpClient.isActive()) {

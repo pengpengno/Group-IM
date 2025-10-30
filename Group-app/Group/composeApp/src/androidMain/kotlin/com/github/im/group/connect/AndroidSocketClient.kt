@@ -35,7 +35,8 @@ class AndroidSocketClient(
     private val connectionMutex = Mutex()
     private var isReconnecting = false
     private var lastHeartbeatTime: Long = 0
-    private val HEARTBEAT_TIMEOUT = 30000L // 30秒超时
+    private val HEARTBEAT_INTERVAL = 25000L // 25秒发送一次心跳
+    private val HEARTBEAT_TIMEOUT = 35000L // 35秒超时
 
     override suspend fun connect(host: String, port: Int) {
         connectionMutex.withLock {
@@ -55,6 +56,9 @@ class AndroidSocketClient(
                 socket?.getOutputStream()
             }
 
+            // 初始化心跳时间为当前时间，避免初始状态判断问题
+            lastHeartbeatTime = System.currentTimeMillis()
+            
             startReceiving()
             startHeartbeat()
         }
@@ -96,7 +100,7 @@ class AndroidSocketClient(
             while (isActive) {
                 try {
                     // 每25秒发送一次心跳包
-                    delay(25000)
+                    delay(HEARTBEAT_INTERVAL)
                     if (isActive()) {
                         // 创建心跳消息 (ping = true)
                         val heartbeat = Heartbeat(ping = true)
@@ -106,9 +110,16 @@ class AndroidSocketClient(
                         val data = message.encode()
                         send(data)
                         Napier.d("已发送心跳包")
+                        // 更新最近心跳发送时间
+                        lastHeartbeatTime = System.currentTimeMillis()
                     }
                 } catch (e: Exception) {
                     Napier.e("发送心跳包失败: ${e.message}")
+                    // 心跳发送失败，可能连接已断开，触发重连
+                    if (isActive) {
+                        Napier.d("心跳发送失败，触发重连")
+                        startAutoReconnect()
+                    }
                 }
             }
         }
@@ -142,23 +153,33 @@ class AndroidSocketClient(
      * 启动自动重连机制
      */
     private fun startAutoReconnect() {
-        if (reconnectJob?.isActive == true) return
+        // 如果已经在重连中，直接返回
+        if (isReconnecting) return
+        
+        // 如果已有重连任务在运行，则取消它
+        reconnectJob?.cancel()
 
         reconnectJob = scope.launch {
-            while (isActive) {
-                try {
-                    if (!isActive() && !isReconnecting) {
-                        isReconnecting = true
+            isReconnecting = true
+            try {
+                var retryCount = 0L
+                while (isActive) {
+                    try {
+                        Napier.d("尝试重连... (第${retryCount + 1}次)")
                         connect(host, port)
+                        Napier.d("重连成功")
                         isReconnecting = false
+                        break // 重连成功，退出循环
+                    } catch (e: Exception) {
+                        Napier.e("重连失败: ${e.message}")
+                        retryCount++
+                        // 指数退避策略，最大延迟60秒
+                        val delayTime = kotlin.math.min(60000L, 2000L * retryCount)
+                        delay(delayTime)
                     }
-                } catch (e: Exception) {
-                    isReconnecting = false
-                    // 指数退避策略，最大延迟60秒
-                    val delayTime = kotlin.math.min(60000L, 2000L * (reconnectJob?.hashCode()?.rem(10) ?: 1))
-                    delay(delayTime)
                 }
-                delay(2000)
+            } finally {
+                isReconnecting = false
             }
         }
     }
@@ -169,6 +190,7 @@ class AndroidSocketClient(
     private fun stopAutoReconnect() {
         reconnectJob?.cancel()
         reconnectJob = null
+        isReconnecting = false
     }
 
     /**
@@ -245,9 +267,16 @@ class AndroidSocketClient(
         // 如果socket不活跃，直接返回false
         if (!socketActive) return false
         
-        // 检查心跳是否超时（30秒内没有收到心跳响应）
+        // 检查心跳是否超时（35秒内没有收到心跳响应）
         val currentTime = System.currentTimeMillis()
-        return (currentTime - lastHeartbeatTime) < HEARTBEAT_TIMEOUT
+        val timeSinceLastHeartbeat = currentTime - lastHeartbeatTime
+        val isHeartbeatTimeout = timeSinceLastHeartbeat > HEARTBEAT_TIMEOUT
+        
+        if (isHeartbeatTimeout) {
+            Napier.d("心跳超时: ${timeSinceLastHeartbeat}ms")
+        }
+        
+        return !isHeartbeatTimeout
     }
 
     override fun close() {
@@ -262,7 +291,7 @@ class AndroidSocketClient(
             output?.close()
             socket?.close()
         } catch (e: Exception) {
-            println("关闭连接时出错: ${e.message}")
+            Napier.e("关闭连接时出错: ${e.message}")
         }
 
         input = null

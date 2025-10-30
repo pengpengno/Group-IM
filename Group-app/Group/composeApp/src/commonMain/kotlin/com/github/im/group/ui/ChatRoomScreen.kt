@@ -580,3 +580,19 @@ fun FileActionDialog(
         }
     }
 }
+
+/**
+ * 定期清理过期文件
+ */
+fun scheduleFileCleanup() {
+    // 可以通过协程定期执行文件清理任务
+    // 示例：每隔一天清理一次过期文件
+    /*
+    viewModelScope.launch {
+        while (true) {
+            delay(24 * 60 * 60 * 1000) // 24小时
+            messageViewModel.cleanupExpiredFiles()
+        }
+    }
+    */
+}

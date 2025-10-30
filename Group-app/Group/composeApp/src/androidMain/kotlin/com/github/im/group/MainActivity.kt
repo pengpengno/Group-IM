@@ -44,7 +44,8 @@ class MainActivity : ComponentActivity() {
         startKoin {
             androidLogger()
             androidContext(this@MainActivity)
-            modules(appModule)
+            modules(commonModule,appModule, )
+
         }
         setContent {
             App()
