@@ -32,24 +32,48 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+import kotlin.math.abs
 
 /**
  * 语音消息播放器，支持播放/暂停和拖动进度
  */
 @Composable
 fun VoicePlayer(
-    duration: Int, // 语音消息时长（秒）
+    duration: Long, // 语音消息时长（秒）
+    audioBytes: ByteArray? = null, // 音频数据字节
     onPlay: () -> Unit, // 播放事件
     onPause: () -> Unit, // 暂停事件
-    onSeek: (position: Float) -> Unit // 拖动进度事件
+    onSeek: (Float) -> Unit // 拖动进度事件
 ) {
     var isPlaying by remember { mutableStateOf(false) }
     var currentPosition by remember { mutableStateOf(0f) } // 当前播放位置（秒）
     
-    // 波形数据 - 模拟数据，实际应该从音频文件分析得到
-    val waveformData = remember { 
-        List(50) { (Math.random() * 20 + 5).toFloat() } 
+    // 波形数据 - 基于实际音频数据生成
+    val waveformData = remember(audioBytes) { 
+        if (audioBytes != null) {
+            generateWaveformFromAudioData(audioBytes)
+        } else {
+            // 如果没有音频数据，使用默认的模拟数据
+            generateWaveformFromAudioData(duration)
+        }
+    }
+
+    // 当播放状态为true时，定期更新当前位置
+    if (isPlaying) {
+        androidx.compose.runtime.LaunchedEffect(isPlaying) {
+            while (isPlaying && currentPosition < duration) {
+                delay(1000) // 每秒更新一次位置
+                if (isPlaying) {
+                    currentPosition = (currentPosition + 1).coerceAtMost(duration.toFloat())
+                }
+            }
+            // 播放完成后自动停止
+            if (currentPosition >= duration) {
+                isPlaying = false
+            }
+        }
     }
 
     Column(
@@ -149,4 +173,60 @@ fun VoicePlayer(
             )
         }
     }
+}
+
+/**
+ * 根据音频数据生成波形数据
+ */
+fun generateWaveformFromAudioData(audioBytes: ByteArray): List<Float> {
+    val barCount = 50
+    val waveform = mutableListOf<Float>()
+    
+    // 将音频数据分组计算平均振幅
+    val groupSize = audioBytes.size / barCount
+    if (groupSize == 0) {
+        // 如果音频数据太小，使用默认值
+        return generateWaveformFromAudioData(1L)
+    }
+    
+    for (i in 0 until barCount) {
+        val startIndex = i * groupSize
+        val endIndex = minOf((i + 1) * groupSize, audioBytes.size)
+        
+        if (startIndex < endIndex) {
+            // 计算这一组的平均振幅
+            var sum = 0L
+            for (j in startIndex until endIndex) {
+                sum += abs(audioBytes[j].toInt())
+            }
+            val average = sum.toFloat() / (endIndex - startIndex)
+            // 将振幅映射到合适的高度范围 (5-30)
+            val height = (average / 255f * 25f + 5f).coerceIn(5f, 30f)
+            waveform.add(height)
+        } else {
+            waveform.add(5f) // 默认最小高度
+        }
+    }
+    
+    return waveform
+}
+
+/**
+ * 根据音频时长生成模拟波形数据
+ * 在实际应用中，这应该从真实的音频数据中提取
+ */
+fun generateWaveformFromAudioData(duration: Long): List<Float> {
+    val barCount = 50
+    val waveform = mutableListOf<Float>()
+    
+    // 生成基于正弦波的模拟波形数据
+    for (i in 0 until barCount) {
+        // 使用正弦函数生成波形，添加一些随机性使其更自然
+        val sineValue = kotlin.math.sin(2 * kotlin.math.PI * i / barCount * 3)
+        val randomFactor = (Math.random() * 0.5 + 0.5).toFloat()
+        val height = (abs(sineValue) * 20 + 5) * randomFactor
+        waveform.add(height.toFloat())
+    }
+    
+    return waveform
 }

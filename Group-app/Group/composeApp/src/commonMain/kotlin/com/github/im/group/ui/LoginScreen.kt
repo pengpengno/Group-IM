@@ -39,6 +39,7 @@ import androidx.navigation.toRoute
 import cafe.adriel.voyager.core.screen.Screen
 import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.listener.LoginStateManager
+import com.github.im.group.ui.chat.ChatRoomScreen
 import com.github.im.group.ui.contacts.AddFriendScreen
 import com.github.im.group.ui.contacts.ContactsUI
 import com.github.im.group.viewmodel.UserViewModel

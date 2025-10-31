@@ -1,21 +1,19 @@
 package com.github.im.group.viewmodel
 
+import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.VoiceRecorder
 import com.github.im.group.sdk.VoiceRecordingResult
-import com.github.im.group.ui.SlideDirection
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-
 sealed class RecorderUiState {
     object Idle : RecorderUiState() // 空闲状态
-    data class Recording(val slideDirection: SlideDirection = SlideDirection.NONE) : RecorderUiState() // 正在录音
+    data class Recording(val slideDirection: SlideDirection = SlideDirection.End) : RecorderUiState() // 正在录音
 
 //    object STOP : RecorderUiState() //  停止录音
     data class Playback(
@@ -42,12 +40,12 @@ class VoiceViewModel(
     private var lastFilePath: String? = null
     private var lastDuration: Long = 0
 
-    fun startRecording(conversationId: Long) {
+    fun startRecording() {
         viewModelScope.launch(Dispatchers.IO) {
-            voiceRecorder.startRecording(conversationId)
+            voiceRecorder.startRecording()
             _uiState.value = RecorderUiState.Recording()
 
-            delay(200) // 给 MediaRecorder 启动缓冲时间
+            delay(200)
             while (_uiState.value is RecorderUiState.Recording) {
                 try {
                     _amplitude.value = voiceRecorder.getAmplitude()
@@ -58,6 +56,10 @@ class VoiceViewModel(
                 delay(100)
             }
         }
+    }
+
+    fun getVoicePath():String?{
+        return lastFilePath
     }
 
     fun updateSlideDirection(direction: SlideDirection) {
@@ -91,9 +93,8 @@ class VoiceViewModel(
      * 取消录音
      */
     fun cancel() {
+        val result = voiceRecorder.stopRecording()
         _uiState.value = RecorderUiState.Idle
     }
 
-
 }
-

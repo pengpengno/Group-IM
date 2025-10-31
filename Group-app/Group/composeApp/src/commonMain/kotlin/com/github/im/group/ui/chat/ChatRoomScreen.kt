@@ -1,4 +1,4 @@
-package com.github.im.group.ui
+package com.github.im.group.ui.chat
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -39,8 +39,6 @@ import androidx.navigation.compose.rememberNavController
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
-import com.github.im.group.repository.UserState
-import com.github.im.group.ui.chat.ImageMessage
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,19 +50,10 @@ import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.IconButton
-import androidx.compose.runtime.*
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.github.im.group.model.UserInfo
-import com.github.im.group.repository.UserRepository
-import com.github.im.group.ui.chat.MessageContent
-import com.github.im.group.ui.chat.SendingSpinner
-import com.github.im.group.ui.chat.TextMessage
-import com.github.im.group.ui.chat.VideoBubble
-import com.github.im.group.ui.chat.VoiceMessage
 import com.github.im.group.ui.video.VideoCallUI
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
@@ -77,7 +66,6 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,8 +81,11 @@ fun ChatRoomScreen(
     
     // 视频通话状态
     var showVideoCall by remember { mutableStateOf(false) }
-    var remoteUser by remember { mutableStateOf<com.github.im.group.model.UserInfo?>(null) }
+    var remoteUser by remember { mutableStateOf<UserInfo?>(null) }
 
+    // 录音时遮罩
+    val uiState by voiceViewModel.uiState.collectAsState()
+    val amplitude by voiceViewModel.amplitude.collectAsState()
 
     LaunchedEffect(conversationId) {
         chatViewModel.getConversations(conversationId)
@@ -151,51 +142,22 @@ fun ChatRoomScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0088CC))
             )
         },
-        bottomBar = {
-            ChatInputArea(
-                onSendText = { text ->
-                    messageViewModel.sendMessage(conversationId, text)
-                },
-                onStartRecording = {
-                    voiceViewModel.startRecording(conversationId)
-                },
-                onStopRecording = { canceled, slideDirection ->
-                    // 根据滑动方向处理不同的操作
-                    when (slideDirection) {
-                        SlideDirection.LEFT, SlideDirection.UP -> {
-                            // 取消录音
-                            voiceViewModel.cancel()
-                        }
-                        SlideDirection.RIGHT -> {
-                            // 预览录音
-                            voiceViewModel.stopRecording()
+        // 录音时候不展示 底部
+            bottomBar = {
+                ChatInputArea(
+                    onSendText = { text ->
+                        messageViewModel.sendMessage(conversationId, text)
+                    },
 
-                        }
-                        else -> {
-                            // 默认 直接发送
-                            voiceViewModel.stopRecording()
-                            voiceViewModel.getVoiceData()?.let {
-                                // voice-{conversationId}-{dateTime}.m4a
-                                val fileName = "voice-$conversationId-" + Clock.System.now()
-                                    .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
-                                println("durationMillis is ${it.durationMillis}")
-                                messageViewModel.sendVoiceMessage(conversationId, it.bytes,fileName,it.durationMillis)
-                            }
+                    onFileSelected = { files ->
+                        // 处理选择的文件
+                        files.forEach { file ->
+                            messageViewModel.sendFileMessage(conversationId, file)
                         }
                     }
-                },
-                onEmojiSelected = { emoji ->
-                    // emoji 已经拼接在 ChatInputArea 内
-                },
-                onFileSelected = { files ->
-                    // 处理选择的文件
-                    files.forEach { file ->
-                        messageViewModel.sendFileMessage(conversationId, file)
-                    }
-                }
-            )
+                )
+            }
 
-        }
 
     ) { padding ->
         LazyColumn(
@@ -208,17 +170,9 @@ fun ChatRoomScreen(
             contentPadding = PaddingValues(bottom = 40.dp) // 为输入框腾出空间
         ) {
             items(state.messages) { msg ->
-                val content = msg.content
                 MessageBubble(
                     isOwnMessage = msg.userInfo.userId == userInfo.userId,
                     msg = msg,
-                    onVoiceMessageClick = { voiceContent ->
-                        // 处理语音消息点击事件，播放音频
-                        // 这里需要根据实际的音频文件路径来播放
-                        val audioUrl = "http://${ProxyConfig.host}:${ProxyConfig.port}/api/files/download/${voiceContent.audioUrl}"
-                        // TODO: 实现实际的音频播放逻辑
-                        Napier.d("播放音频: $audioUrl")
-                    },
                     onFileMessageClick = { fileMsg ->
                         // 处理文件消息点击事件
                         // 触发文件下载（实现本地优先策略）
@@ -229,47 +183,35 @@ fun ChatRoomScreen(
             }
         }
 
-        // 录音时遮罩
-        val uiState by voiceViewModel.uiState.collectAsState()
-        val amplitude by voiceViewModel.amplitude.collectAsState()
-        if (uiState is com.github.im.group.viewmodel.RecorderUiState.Recording) {
-            val recordingState = uiState as com.github.im.group.viewmodel.RecorderUiState.Recording
-            RecordingOverlay(
-                show = true,
-                amplitude = amplitude,
-                slideDirection = recordingState.slideDirection,
-                onCancel = { voiceViewModel.cancel() },
-                onPreview = { /* 预览功能 */ },
-                onSend = { /* 发送功能 */
-                    voiceViewModel.getVoiceData()?.let {
-                        // voice-{conversationId}-{dateTime}.m4a
-                        val fileName = "voice-$conversationId-" + kotlinx.datetime.Clock.System.now()
-                            .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()) + ".m4a"
-                        println("durationMillis is ${it.durationMillis}")
-                        messageViewModel.sendVoiceMessage(conversationId, it.bytes,fileName,it.durationMillis)
-                    }
-                }
+        // 录音控制浮窗
+        val vm by voiceViewModel.amplitude.collectAsState()
+        if (uiState is RecorderUiState.Recording) {
+            VoiceControlOverlayWithRipple(
+                amplitude = vm ,
+                onFinish =  {
+                    voiceViewModel.stopRecording()
+                },
             )
         }
 
         // 回放浮窗
-        if (uiState is com.github.im.group.viewmodel.RecorderUiState.Playback) {
-            val playback = uiState as com.github.im.group.viewmodel.RecorderUiState.Playback
-            RecordingPlaybackOverlay(
-                audioPlayer = voiceViewModel.audioPlayer,
-                filePath = playback.filePath,
-                onSend = {
+        if (uiState is RecorderUiState.Playback) {
 
+            VoiceReplay(
+                onSend = {
                     voiceViewModel.getVoiceData()?.let {
-                        // voice-{conversationId}-{dateTime}.m4a
-                        val fileName = "voice-$conversationId-" + kotlinx.datetime.Clock.System.now()
-                            .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()) + ".m4a"
-                        println("durationMillis is ${it.durationMillis}")
-                        messageViewModel.sendVoiceMessage(conversationId, it.bytes,fileName,it.durationMillis)
+                        val fileName = "voice-$conversationId-" + Clock.System.now()
+                            .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
+                        messageViewModel.sendVoiceMessage(
+                            conversationId,
+                            it.bytes,
+                            fileName,
+                            it.durationMillis
+                        )
+                        voiceViewModel.cancel() // 发送后重置状态
                     }
-                },
-                duration = voiceViewModel.getVoiceData()?.durationMillis ?: 0,
-                onCancel = { voiceViewModel.cancel() }
+
+                }
             )
         }
         
@@ -336,11 +278,13 @@ fun ChatRoomScreen(
  * 聊天气泡
  */
 @Composable
-fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem, onVoiceMessageClick: (MessageContent.Voice) -> Unit = {}, onFileMessageClick: (MessageItem) -> Unit = {}) {
+fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem,
+                  onVoiceMessageClick: (MessageContent.Voice) -> Unit = {}, onFileMessageClick: (MessageItem) -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .padding(horizontal = 12.dp,
+                vertical = 4.dp),
         horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start
     ) {
         Row(
@@ -348,6 +292,8 @@ fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem, onVoiceMessageClick: 
         ) {
 
             if (isOwnMessage && msg.status == MessageStatus.SENDING) {
+
+                // 发送中状态
                 SendingSpinner(
                     modifier = Modifier
                         .padding(end = 8.dp)

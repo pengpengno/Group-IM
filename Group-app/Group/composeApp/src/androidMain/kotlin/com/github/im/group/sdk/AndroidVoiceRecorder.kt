@@ -25,8 +25,8 @@ class AndroidVoiceRecorder(private val context: Context) : VoiceRecorder {
 
 
     @RequiresApi(Build.VERSION_CODES.S)
-     override fun startRecording(conversationId: Long) {
-        outputFile = File.createTempFile("voice_${conversationId}_", ".m4a", context.cacheDir)
+     override fun startRecording() {
+        outputFile = File.createTempFile("voice_${System.currentTimeMillis()}_", ".m4a", context.cacheDir)
 
         recorder = MediaRecorder(context).apply {
             setAudioSource(MediaRecorder.AudioSource.MIC)

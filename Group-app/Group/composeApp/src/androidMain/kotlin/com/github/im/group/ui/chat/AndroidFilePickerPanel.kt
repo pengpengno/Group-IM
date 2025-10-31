@@ -114,18 +114,18 @@ fun AndroidFilePickerPanel(
                     cameraPermissionState.launchPermissionRequest()
                 }
             })
-            IconTextButton(Icons.Default.Mic, "视频", {
-                scope.launch {
-                    try {
-                        val videos = filePicker.pickVideo()
-                        onFileSelected(videos)
-                        onDismiss()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        Toast.makeText(context, "选择视频失败: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            })
+//            IconTextButton(Icons.Default.Mic, "视频通话", {
+//                scope.launch {
+//                    try {
+//                        val videos = filePicker.pickVideo()
+//                        onFileSelected(videos)
+//                        onDismiss()
+//                    } catch (e: Exception) {
+//                        e.printStackTrace()
+//                        Toast.makeText(context, "选择视频失败: ${e.message}", Toast.LENGTH_SHORT).show()
+//                    }
+//                }
+//            })
         }
     }
 }

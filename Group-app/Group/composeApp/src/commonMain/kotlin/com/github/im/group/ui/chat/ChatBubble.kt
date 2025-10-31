@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -30,23 +29,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.github.im.group.model.MessageWrapper
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.runtime.*
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.github.im.group.sdk.CrossPlatformImage
 import com.github.im.group.sdk.CrossPlatformVideo
+import io.github.aakira.napier.Napier
 
 sealed class MessageContent {
     data class Text(val text: String) : MessageContent()
@@ -65,7 +62,7 @@ fun ImageMessage(content: MessageContent.Image) {
     var showPreview by remember { mutableStateOf(false) }
 
     val imageUrl = "http://${ProxyConfig.host}:${ProxyConfig.port}/api/files/download/${content.imageId}"
-    println(imageUrl)
+    Napier.d(imageUrl)
     CrossPlatformImage(
         url = imageUrl,
         modifier = Modifier
@@ -162,7 +159,7 @@ fun VoiceMessage(content: MessageContent.Voice, onclick: () -> Unit) {
                     .padding(16.dp)
             ) {
                 VoicePlayer(
-                    duration = content.duration,
+                    duration = content.duration.toLong(),
                     onPlay = {
                         // 开始播放音频
                         onclick()

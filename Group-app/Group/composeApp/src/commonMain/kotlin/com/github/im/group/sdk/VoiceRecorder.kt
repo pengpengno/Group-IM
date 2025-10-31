@@ -4,7 +4,7 @@ interface VoiceRecorder {
     /**
      * 开始录音
      */
-    fun startRecording(conversationId: Long)
+    fun startRecording()
 
     /**
      * 停止录音
