@@ -36,7 +36,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import cafe.adriel.voyager.core.screen.Screen
 import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.listener.LoginStateManager
 import com.github.im.group.ui.chat.ChatRoomScreen
@@ -50,16 +49,16 @@ import org.koin.compose.viewmodel.koinViewModel
 
 
 
-class MainScreen:Screen{
-    @Composable
-    override fun Content() {
-
-
-        LoginScreen()
-
-
-    }
-}
+//class MainScreen:Screen{
+//    @Composable
+//    override fun Content() {
+//
+//
+//        LoginScreen()
+//
+//
+//    }
+//}
 
 /**
  * 登录界面
