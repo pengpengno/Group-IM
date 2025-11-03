@@ -1,5 +1,6 @@
 package com.github.im.group.ui.chat
 
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -50,6 +51,7 @@ import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -113,6 +115,35 @@ fun ChatRoomScreen(
         }
     }
 
+    DisposableEffect(Unit) {
+        onDispose {
+
+            if (uiState is RecorderUiState.Recording){
+                Napier.d("close VoiceMessage")
+                voiceViewModel.stopRecording(AnimatedContentTransitionScope.SlideDirection.Left)
+            }
+        }
+    }
+
+
+    /**
+     * 发送语音消息
+     */
+    fun sendVoiceMessage() {
+        voiceViewModel.getVoiceData()?.let {
+            val fileName = "voice-$conversationId-" + Clock.System.now()
+                .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
+            messageViewModel.sendVoiceMessage(
+                conversationId,
+                it.bytes,
+                fileName,
+                it.durationMillis
+            )
+            voiceViewModel.cancel() // 发送后重置状态
+        }
+    }
+
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -148,7 +179,36 @@ fun ChatRoomScreen(
                     onSendText = { text ->
                         messageViewModel.sendMessage(conversationId, text)
                     },
+                    onRelease = { direction ->
+                        Napier.d(" direction  : $direction")
+                        when (direction) {
+                            AnimatedContentTransitionScope.SlideDirection.Start -> {
+                                voiceViewModel.stopRecording( direction)
+                                Napier.d(" start  : $direction")
 
+                                sendVoiceMessage()
+                            }
+                            AnimatedContentTransitionScope.SlideDirection.Left -> {
+                                Napier.d(" left  : $direction")
+
+                                // 取消录音
+                                voiceViewModel.cancel()
+                            }
+
+                            AnimatedContentTransitionScope.SlideDirection.Right -> {
+                                // 取消录音
+                                voiceViewModel.stopRecording(direction)
+                            }else -> {
+                            Napier.d(" else  : $direction")
+
+                                // 录音
+                                // 取消录音
+                                voiceViewModel.cancel()
+                            }
+
+                        }
+
+                    },
                     onFileSelected = { files ->
                         // 处理选择的文件
                         files.forEach { file ->
@@ -189,27 +249,30 @@ fun ChatRoomScreen(
             VoiceControlOverlayWithRipple(
                 amplitude = vm ,
                 onFinish =  {
-                    voiceViewModel.stopRecording()
+//                    voiceViewModel.stopRecording()
                 },
             )
         }
+
 
         // 回放浮窗
         if (uiState is RecorderUiState.Playback) {
 
             VoiceReplay(
                 onSend = {
-                    voiceViewModel.getVoiceData()?.let {
-                        val fileName = "voice-$conversationId-" + Clock.System.now()
-                            .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
-                        messageViewModel.sendVoiceMessage(
-                            conversationId,
-                            it.bytes,
-                            fileName,
-                            it.durationMillis
-                        )
-                        voiceViewModel.cancel() // 发送后重置状态
-                    }
+
+                    sendVoiceMessage()
+//                    voiceViewModel.getVoiceData()?.let {
+//                        val fileName = "voice-$conversationId-" + Clock.System.now()
+//                            .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
+//                        messageViewModel.sendVoiceMessage(
+//                            conversationId,
+//                            it.bytes,
+//                            fileName,
+//                            it.durationMillis
+//                        )
+//                        voiceViewModel.cancel() // 发送后重置状态
+//                    }
 
                 }
             )

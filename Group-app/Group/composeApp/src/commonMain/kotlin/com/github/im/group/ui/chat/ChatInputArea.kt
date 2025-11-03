@@ -62,44 +62,34 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.PickedFile
-import com.github.im.group.sdk.VoiceRecordingResult
 import com.github.im.group.ui.FunctionPanel
 import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.material.Divider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.window.Dialog
 import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.VoiceViewModel
 import io.github.aakira.napier.Napier
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
-import kotlin.math.atan2
-import kotlin.math.hypot
+import kotlin.contracts.contract
 
 @Composable
 fun ChatInputArea(
-    modifier: Modifier = Modifier,
     onSendText: (String) -> Unit,
+    onRelease: (SlideDirection) -> Unit = {},
     onFileSelected: (List<PickedFile>) -> Unit
 ) {
     var messageText by remember { mutableStateOf("") }
@@ -112,8 +102,7 @@ fun ChatInputArea(
 
     val voiceRecordingState by voiceViewModel.uiState.collectAsState()
 
-    Napier.d("voiceRecordingState: $voiceRecordingState")
-    Column(modifier = modifier.background(Color.White)) {
+    Column(modifier = Modifier.background(Color.White)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
@@ -138,9 +127,7 @@ fun ChatInputArea(
                         onPress = {
                             voiceViewModel.startRecording()
                         },
-                        onRelease = {
-                            voiceViewModel.stopRecording()
-                        }
+                        onRelease = onRelease
                     )
 
                 } else {
@@ -299,7 +286,7 @@ fun VoiceControlOverlayWithRipple(
     onFinish: (SlideDirection) -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
-    var currentDirection by remember { mutableStateOf(SlideDirection.End) }
+    var currentDirection by remember { mutableStateOf(SlideDirection.Start) }
 
     // 波纹动画
     val infiniteTransition = rememberInfiniteTransition(label = "")
@@ -316,53 +303,13 @@ fun VoiceControlOverlayWithRipple(
     val adjustedAmplitude = (amplitude / 4000f).coerceIn(0f, 1f)
     val totalRipple = rippleRadius + adjustedAmplitude * 60
 
-    val dragModifier = Modifier.pointerInput(Unit) {
-        detectDragGestures(
-            onDragEnd = {
-                onFinish(currentDirection)
-                currentDirection = SlideDirection.End
-            },
-            onDragCancel = {
-                currentDirection = SlideDirection.End
-            },
-            onDrag = { change, _ ->
-                change.consume()
-                val position = change.position
-                val screenWidth = change.positionChange().x
 
-                // 根据手势位置判断当前区域
-                when {
-                    position.x < screenWidth / 3 -> {
-                        // 左侧区域 - 取消
-                        if (currentDirection != SlideDirection.Start) {
-                            currentDirection = SlideDirection.Start
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        }
-                    }
-                    position.x > 2 * screenWidth / 3 -> {
-                        // 右侧区域 - 预览
-                        if (currentDirection != SlideDirection.End) {
-                            currentDirection = SlideDirection.End
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        }
-                    }
-                    else -> {
-                        // 中间区域 - 发送
-                        if (currentDirection != SlideDirection.End) {
-                            currentDirection = SlideDirection.End
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        }
-                    }
-                }
-            }
-        )
-    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.6f))
-            .then(dragModifier)
+//            .then(dragModifier)
     ) {
         // 🎤 中心录音波纹显示
         Box(
@@ -382,7 +329,7 @@ fun VoiceControlOverlayWithRipple(
                         .background(
                             color = when (currentDirection) {
                                 SlideDirection.Start -> Color.Red.copy(alpha = 0.25f)
-                                SlideDirection.End -> Color.Green.copy(alpha = 0.25f)
+                                SlideDirection.Right -> Color.Green.copy(alpha = 0.25f)
                                 else -> Color(0xFF4CAF50).copy(alpha = 0.2f)
                             },
                             shape = CircleShape
@@ -394,8 +341,8 @@ fun VoiceControlOverlayWithRipple(
                     imageVector = Icons.Default.Mic,
                     contentDescription = null,
                     tint = when (currentDirection) {
-                        SlideDirection.Start -> Color.Red
-                        SlideDirection.End -> Color.Green
+                        SlideDirection.Left -> Color.Red
+                        SlideDirection.Right -> Color.Green
                         else -> Color(0xFF4CAF50)
                     },
                     modifier = Modifier.size(42.dp)
@@ -413,108 +360,163 @@ fun VoiceControlOverlayWithRipple(
 @Composable
 fun VoiceRecordButton(
     onPress: () -> Unit,
-    onRelease: () -> Unit = {}
+    onRelease: (SlideDirection) -> Unit
 ) {
     var needPermission by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
 
     val voiceViewModel : VoiceViewModel = koinViewModel()
     val voiceRecordingState by voiceViewModel.uiState.collectAsState()
+
 
     if (needPermission) {
         WithRecordPermission(
             onGranted = {
                 onPress()
+                needPermission = false
             },
             onDenied = {
                 Napier.d("未授权")
                 needPermission = false
             }
         )
-        needPermission = false
     }
 
     Surface(
         tonalElevation = 1.dp,
         modifier = Modifier
-            .background(Color(0xFFEEEEEE))
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
-                        // 按下时立即开始录音
-                        if (voiceRecordingState is RecorderUiState.Idle) {
-                            needPermission = true
+            .background(Color.White)
+            .pointerInput( Unit){
+                while(true){
+
+                    var lastHapticDirection: SlideDirection? = null
+                    var slideDirection = SlideDirection.Start
+                    var isStillPressed = true
+                    Napier.d("isStillPressed: $isStillPressed")
+
+                    awaitPointerEventScope {
+
+                        while (isStillPressed) {
+                            Napier.d("isStillPressed: $isStillPressed")
+                            val event = awaitPointerEvent()
+                            Napier.d("event: $event")
+                            val change = event.changes.firstOrNull() ?: continue
+//                        val change = event.changes.firstOrNull { it.id == down.id } ?: continue
+                            val position = change.position
+
+                            // 判断滑动方向
+                            val currentDirection = when {
+                                position.x < size.width / 4 -> SlideDirection.Left
+                                position.x > size.width * 3 / 4 -> SlideDirection.Right
+                                else -> SlideDirection.Start
+                            }
+
+                            if (currentDirection != lastHapticDirection &&
+                                (currentDirection == SlideDirection.Left || currentDirection == SlideDirection.Right) &&
+                                voiceRecordingState is RecorderUiState.Recording
+                            ) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                lastHapticDirection = currentDirection
+                            }
+
+                            slideDirection = currentDirection
+
+                            // 手指抬起或取消 → 结束循环
+                            if (!change.pressed || change.changedToUp()) {
+                                isStillPressed = false
+                            }
                         }
 
+                        onRelease(slideDirection)
+
+                    }
+                }
+
+            }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = {
+
+                    },
+                    onLongPress = {offset ->
+                        needPermission = true
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onPress()
-                        tryAwaitRelease()
-                        onRelease()
+                        // 注意：这里拿到的 offset 是触发长按那一刻的位置
+                        Napier.d("LongPress triggered at $offset")
+
                     }
                 )
             }
+
     ) {
         // 三个功能区域：取消 | 松开发送 | 回放 (4/1 : 2/1 : 4/1 的比例)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(30.dp))
+                .height(60.dp)
+//                .clip(RoundedCornerShape(30.dp))
                 .background(Color.White),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
 
-//            if (voiceRecordingState is RecorderUiState.Recording){
-//                // 左侧取消区域 (1/4)
-//                Text(
-//                    text = "取消",
-//                    color = Color.Black,
-//                    fontSize = 14.sp,
-//                    fontWeight = FontWeight.Medium,
-//                    modifier = Modifier
-//                        .weight(1f)
-//                        .padding(horizontal = 16.dp, vertical = 12.dp)
-//                        .background(Color.Red)
-//                )
-//                // 分割线
-//                Divider(
-//                    color = Color.LightGray,
-//                    modifier = Modifier
-//                        .width(1.dp)
-//                        .fillMaxHeight()
-//                )
-//            }
+            if (voiceRecordingState is RecorderUiState.Recording){
+                // 左侧取消区域 (1/4)
+                Text(
+                    text = "取消",
+                    color = Color.Red,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+
+                )
+                // 分割线
+                Divider(
+                    color = Color.LightGray,
+                    modifier = Modifier
+                        .width(1.dp)
+                        .fillMaxHeight()
+                )
+            }
 
             Text(
-                text = if (voiceRecordingState is RecorderUiState.Recording) "松开发送" else "按住说话",
+                text = if (voiceRecordingState is RecorderUiState.Recording) "松开发送..." else "按住说话",
                 textAlign = TextAlign.Center,
-                color = if (voiceRecordingState is RecorderUiState.Recording) Color.Red else Color.Black,
+                color = if (voiceRecordingState is RecorderUiState.Recording) Color.Black else Color.Black,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                modifier =  if (voiceRecordingState is RecorderUiState.Recording) Modifier.fillMaxWidth()
-                            else Modifier.weight(2f)
+                modifier =  if (voiceRecordingState is RecorderUiState.Recording) Modifier.weight(2f)
+                            else  Modifier.fillMaxWidth()
 
             )
 
-//            if (voiceRecordingState is RecorderUiState.Recording) {
-//// 分割线
-//                Divider(
-//                    color = Color.LightGray,
-//                    modifier = Modifier
-//                        .width(1.dp)
-//                        .fillMaxHeight()
-//                )
-//                // 右侧回放区域 (1/4)
-//                Text(
-//                    text = "回放",
-//                    color = Color.Black,
-//                    fontSize = 14.sp,
-//                    fontWeight = FontWeight.Medium,
-//                    modifier = Modifier
-//                        .weight(1f)
-////                        .padding(horizontal = 16.dp, vertical = 12.dp)
-//                )
-//            }
+            if (voiceRecordingState is RecorderUiState.Recording) {
+                // 分割线
+                Divider(
+                    color = Color.LightGray,
+                    modifier = Modifier
+                        .width(1.dp)
+                        .fillMaxHeight()
+                )
+                // 右侧回放区域 (1/4)
+                Text(
+                    text = "回放",
+                    color = Color.Green,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                )
+            }
         }
     }
 }
+
+
 
 @Composable
 fun EmojiPanel(onEmojiSelected: (String) -> Unit) {
