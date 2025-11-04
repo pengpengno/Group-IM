@@ -79,7 +79,7 @@ actual fun CrossPlatformVideo(
 
     // 播放状态与进度
     var isPlaying by remember { mutableStateOf(exoPlayer.isPlaying) }
-    var position by remember { mutableStateOf(0L) }
+    var position by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableStateOf(0L) }
     var showControls by remember { mutableStateOf(false) } // 控制栏显示状态
 

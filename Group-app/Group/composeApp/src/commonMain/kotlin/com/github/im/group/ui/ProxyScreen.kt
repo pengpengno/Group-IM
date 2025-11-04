@@ -31,7 +31,7 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 fun ProxyScreen(
     navHostController: NavHostController,
     ) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(true) }
     val focusRequester = FocusRequester()
 
     Column(modifier = Modifier.fillMaxWidth()) {

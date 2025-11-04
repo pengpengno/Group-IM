@@ -42,8 +42,8 @@ fun ChatUI(
     val searchResults by userViewModel.searchResults.collectAsState()
 
     LaunchedEffect(userInfo) {
-        if (userInfo?.userId != 0L) {
-            userInfo?.userId?.let { chatViewModel.getConversations(it) }
+        if (userInfo.userId != 0L) {
+            userInfo.userId.let { chatViewModel.getConversations(it) }
         }
     }
 

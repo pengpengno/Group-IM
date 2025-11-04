@@ -84,7 +84,7 @@ fun SideDrawer(
 
         // 菜单项区域
         DrawerItem("联系人", Icons.Default.People, onContactsClick, Color.White)
-        DrawerItem("群组", Icons.Default.Group, onGroupsClick, Color.White)
+//        DrawerItem("群组", Icons.Default.Group, onGroupsClick, Color.White)
         DrawerItem("会议", Icons.Default.VideoCall, onMeetingsClick, Color.White)
         DrawerItem("个人资料", Icons.Default.Person, onProfileClick, Color.White)
         DrawerItem("设置", Icons.Default.Settings, onSettingsClick, Color.White)

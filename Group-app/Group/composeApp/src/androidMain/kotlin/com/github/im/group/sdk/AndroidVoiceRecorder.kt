@@ -3,6 +3,7 @@ import android.content.Context
 import android.media.MediaRecorder
 import android.os.Build
 import androidx.annotation.RequiresApi
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -62,8 +63,6 @@ class AndroidVoiceRecorder(private val context: Context) : VoiceRecorder {
 
         return voiceRecordingResult;
 
-
-
     }
 
     override fun stopRecording(): VoiceRecordingResult? {
@@ -72,10 +71,11 @@ class AndroidVoiceRecorder(private val context: Context) : VoiceRecorder {
             recorder.stop()
             recorder.release()
             val bytes = outputFile?.readBytes() ?: return null
-             duration = System.currentTimeMillis() - startTime
-            voiceRecordingResult =  VoiceRecordingResult(bytes, duration)
+            duration = System.currentTimeMillis() - startTime
+            voiceRecordingResult =  VoiceRecordingResult(bytes, duration, outputFile!!.name)
             voiceRecordingResult
         } catch (e: Exception) {
+            Napier.d("停止录音失败 ${e.message}")
             null
         } finally {
             this.recorder = null

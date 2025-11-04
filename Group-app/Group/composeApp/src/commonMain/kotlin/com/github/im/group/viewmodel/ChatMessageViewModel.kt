@@ -189,8 +189,8 @@ class ChatMessageViewModel(
      * 接收新的消息
      */
     private fun addMessage(chatMessage: ChatMessage){
-        senderSdk.sendMessage(chatMessage)
 
+        senderSdk.sendMessage(chatMessage)
         chatMessageRepository.insertMessage(chatMessage)
         val message = MessageWrapper(chatMessage)
         _uiState.update {
@@ -374,7 +374,6 @@ class ChatMessageViewModel(
             messageItem.fileMeta?.let {
                 return it
             }
-
             // 如果没有，通过API获取
             runBlocking {
                 try {

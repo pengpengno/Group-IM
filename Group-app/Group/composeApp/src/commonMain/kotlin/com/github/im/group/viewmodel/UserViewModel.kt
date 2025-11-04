@@ -5,12 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.api.FriendshipDTO
 import com.github.im.group.api.LoginApi
-import com.github.im.group.api.PageResult
 import com.github.im.group.api.UserApi
-import com.github.im.group.listener.LoginStateManager
+import com.github.im.group.manager.LoginStateManager
 import com.github.im.group.model.UserInfo
-import com.github.im.group.model.proto.AccountInfo
-import com.github.im.group.repository.CurrentUserInfoContainer
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.SenderSdk
 import io.github.aakira.napier.Napier
@@ -86,6 +83,7 @@ class UserViewModel(
 
     fun updateUserInfo(userInfo: UserInfo){
         userRepository.saveCurrentUser(userInfo)
+        // TODO  API 更新 服务端信息
     }
 
     /**

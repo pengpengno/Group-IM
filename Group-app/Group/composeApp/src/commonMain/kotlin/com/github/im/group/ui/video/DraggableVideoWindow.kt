@@ -1,9 +1,7 @@
 package com.github.im.group.ui.video
 
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -17,7 +15,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import com.shepeliev.webrtckmp.MediaStream
+import com.github.im.group.sdk.MediaStream
 import kotlin.math.roundToInt
 
 /**
@@ -51,11 +49,5 @@ fun DraggableVideoWindow(
         color = Color.Black,
         shadowElevation = 8.dp
     ) {
-//        Box(modifier = Modifier.size(windowSize)) {
-//            LocalVideoPreview(
-//                modifier = Modifier.matchParentSize(),
-//                localMediaStream = mediaStream
-//            )
-//        }
     }
 }

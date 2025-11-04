@@ -1,9 +1,7 @@
 package com.github.im.group
 
 import androidx.compose.runtime.Composable
-//import cafe.adriel.voyager.navigator.Navigator
 import com.github.im.group.ui.LoginScreen
-//import com.github.im.group.ui.MainScreen
 import io.github.aakira.napier.DebugAntilog
 import io.github.aakira.napier.Napier
 
@@ -11,5 +9,4 @@ import io.github.aakira.napier.Napier
 fun App() {
     Napier.base(DebugAntilog())
     LoginScreen()
-//    Navigator(MainScreen())
 }

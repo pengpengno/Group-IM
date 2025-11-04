@@ -4,7 +4,6 @@ package com.github.im.group.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -43,14 +42,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.github.im.group.manager.LoginStateManager
+import com.github.im.group.sdk.MediaStream
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.ui.chat.ChatUI
 import com.github.im.group.ui.contacts.ContactsUI
 import com.github.im.group.ui.profile.ProfileUI
 import com.github.im.group.ui.video.DraggableVideoWindow
-import com.shepeliev.webrtckmp.MediaStream
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,6 +61,7 @@ fun ChatMainScreen(
 )  {
     val chatViewModel: ChatViewModel = koinViewModel()
     val userViewModel: UserViewModel = koinViewModel()
+    val loginStateManager: LoginStateManager = koinInject()
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -96,12 +98,15 @@ fun ChatMainScreen(
             ) {
                 SideDrawer(
                     userInfo = userInfo,
-                    onLogout = { println("logout") },
+                    onLogout = {
+                                    loginStateManager.setLoggedOut()
+                                    navHostController.navigate(Login)
+                               },
                     onProfileClick = { selectedItem = 2},
                     onContactsClick = { navHostController.navigate(Contacts) },
-                    onGroupsClick = { navHostController.navigate("Groups") },
-                    onMeetingsClick = { navHostController.navigate("Meetings") },
-                    onSettingsClick = { navHostController.navigate("Settings") },
+//                    onGroupsClick = { navHostController.navigate("Groups") },
+                    onMeetingsClick = { navHostController.navigate(Meetings) },
+                    onSettingsClick = { navHostController.navigate(Settings) },
                     appVersion = "v1.2.3"
                 )
             }

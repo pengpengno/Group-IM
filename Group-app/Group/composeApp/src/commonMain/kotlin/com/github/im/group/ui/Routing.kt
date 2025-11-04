@@ -25,6 +25,9 @@ data class ChatRoom(
 object Contacts
 
 @Serializable
+object Meetings
+
+@Serializable
 object Profile
 
 @Serializable

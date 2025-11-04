@@ -7,6 +7,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -14,9 +15,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.github.im.group.manager.LoginStateManager
 import com.github.im.group.model.UserInfo
+import com.github.im.group.ui.Login
 import com.github.im.group.ui.UserAvatar
 import com.github.im.group.viewmodel.UserViewModel
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -25,6 +29,7 @@ fun ProfileUI(
     navHostController: NavHostController
 ) {
     val userViewModel: UserViewModel = koinViewModel()
+    val loginStateManager: LoginStateManager = koinInject()
     val currentUser = userViewModel.getCurrentUser()
     
     var nickname by remember { mutableStateOf(currentUser?.username ?: "") }
@@ -144,7 +149,8 @@ fun ProfileUI(
                 )
                 
                 Button(
-                    onClick = { 
+                    onClick = {
+                        // TODO  更新用户信息接口
                         // 保存用户信息
                         currentUser?.let {
                             userViewModel.updateUserInfo(
@@ -176,25 +182,24 @@ fun ProfileUI(
                     title = "账户与安全",
                     onClick = { navHostController.navigate("Settings") }
                 )
-                
-                Divider()
-                
+                HorizontalDivider()
+
                 SettingItem(
                     icon = Icons.Default.Notifications,
                     title = "通知设置",
                     onClick = { navHostController.navigate("Settings") }
                 )
-                
-                Divider()
-                
+                HorizontalDivider()
+
+
                 SettingItem(
                     icon = Icons.Default.PrivacyTip,
                     title = "隐私设置",
                     onClick = { navHostController.navigate("Settings") }
                 )
                 
-                Divider()
-                
+                HorizontalDivider()
+
                 SettingItem(
                     icon = Icons.Default.Info,
                     title = "关于应用",
@@ -205,7 +210,10 @@ fun ProfileUI(
         
         // 退出登录按钮
         Button(
-            onClick = { /* TODO: 退出登录 */ },
+            onClick = {
+                loginStateManager.setLoggedOut()
+                navHostController.navigate(Login)
+            },
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.Red,
                 contentColor = Color.White

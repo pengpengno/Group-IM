@@ -6,9 +6,9 @@ import com.github.im.group.config.SocketClient
 import com.github.im.group.connect.AndroidSocketClient
 import com.github.im.group.db.AndroidDatabaseDriverFactory
 import com.github.im.group.listener.ConnectionLoginListener
-import com.github.im.group.listener.LoginStateManager
-import com.github.im.group.listener.LoginStateListener
-import com.github.im.group.listener.UserDataSyncListener
+import com.github.im.group.manager.LoginStateManager
+import com.github.im.group.manager.LoginStateListener
+import com.github.im.group.manager.UserDataSyncListener
 import com.github.im.group.listener.WebRTCLoginListener
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.repository.ChatMessageRepository
@@ -29,10 +29,7 @@ import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.TCPMessageViewModel
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
-import io.github.aakira.napier.LogLevel
-import io.github.aakira.napier.Napier
 import okio.FileSystem
-import okio.Path
 import okio.Path.Companion.toPath
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel

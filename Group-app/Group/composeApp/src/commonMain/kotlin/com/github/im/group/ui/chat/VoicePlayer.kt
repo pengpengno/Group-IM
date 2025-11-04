@@ -64,9 +64,9 @@ fun VoicePlayer(
     if (isPlaying) {
         androidx.compose.runtime.LaunchedEffect(isPlaying) {
             while (isPlaying && currentPosition < duration) {
-                delay(1000) // 每秒更新一次位置
+                delay(100) // 每100毫秒更新一次位置，使进度条更流畅
                 if (isPlaying) {
-                    currentPosition = (currentPosition + 1).coerceAtMost(duration.toFloat())
+                    currentPosition = (currentPosition + 0.1f).coerceAtMost(duration.toFloat())
                 }
             }
             // 播放完成后自动停止

@@ -1,5 +1,6 @@
 package com.github.im.group.listener
 
+import com.github.im.group.manager.LoginStateListener
 import com.github.im.group.model.UserInfo
 import com.github.im.group.sdk.SenderSdk
 import io.github.aakira.napier.Napier

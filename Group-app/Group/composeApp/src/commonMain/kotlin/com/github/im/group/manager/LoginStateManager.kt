@@ -1,4 +1,4 @@
-package com.github.im.group.listener
+package com.github.im.group.manager
 
 import com.github.im.group.model.UserInfo
 import com.github.im.group.repository.UserRepository
@@ -144,7 +144,7 @@ class LoginStateManager(
     /**
      * 通知用户已登出
      */
-    fun notifyLogout() {
+    private fun notifyLogout() {
         listeners.forEach { it.onLogout() }
     }
     

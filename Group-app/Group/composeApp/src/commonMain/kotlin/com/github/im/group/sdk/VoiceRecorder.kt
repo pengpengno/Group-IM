@@ -35,8 +35,29 @@ interface VoiceRecorder {
  */
 data class VoiceRecordingResult(
     val bytes: ByteArray,
-    val durationMillis: Long
-)
+    val durationMillis: Long ,
+    val name: String
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as VoiceRecordingResult
+
+        if (durationMillis != other.durationMillis) return false
+        if (!bytes.contentEquals(other.bytes)) return false
+        if (name != other.name) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = durationMillis.hashCode()
+        result = 31 * result + bytes.contentHashCode()
+        result = 31 * result + name.hashCode()
+        return result
+    }
+}
 
 expect object VoiceRecorderFactory {
     fun create(): VoiceRecorder

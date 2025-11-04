@@ -64,9 +64,7 @@ object ProxyApi
                 append("clientId", Uuid.random().toString())
                 append("duration", duration)
                 append("file", file, Headers.build {
-                    append(HttpHeaders.ContentDisposition, "filename=$fileName")
-                    // 不需要添加 服务端会自行判断
-//                    append(HttpHeaders.ContentType, ContentType.Audio.MPEG.toString())
+                append(HttpHeaders.ContentDisposition, "filename*=UTF-8''${java.net.URLEncoder.encode(fileName, "UTF-8")}")
                 })
             },
 

@@ -131,12 +131,10 @@ fun ChatRoomScreen(
      */
     fun sendVoiceMessage() {
         voiceViewModel.getVoiceData()?.let {
-            val fileName = "voice-$conversationId-" + Clock.System.now()
-                .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
             messageViewModel.sendVoiceMessage(
                 conversationId,
                 it.bytes,
-                fileName,
+                it.name,
                 it.durationMillis
             )
             voiceViewModel.cancel() // 发送后重置状态
@@ -173,7 +171,7 @@ fun ChatRoomScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0088CC))
             )
         },
-        // 录音时候不展示 底部
+            // 录音时候不展示 底部
             bottomBar = {
                 ChatInputArea(
                     onSendText = { text ->
@@ -185,7 +183,7 @@ fun ChatRoomScreen(
                             AnimatedContentTransitionScope.SlideDirection.Start -> {
                                 voiceViewModel.stopRecording( direction)
                                 Napier.d(" start  : $direction")
-
+                                // 直接发送消息
                                 sendVoiceMessage()
                             }
                             AnimatedContentTransitionScope.SlideDirection.Left -> {
@@ -200,8 +198,6 @@ fun ChatRoomScreen(
                                 voiceViewModel.stopRecording(direction)
                             }else -> {
                             Napier.d(" else  : $direction")
-
-                                // 录音
                                 // 取消录音
                                 voiceViewModel.cancel()
                             }
@@ -260,20 +256,7 @@ fun ChatRoomScreen(
 
             VoiceReplay(
                 onSend = {
-
                     sendVoiceMessage()
-//                    voiceViewModel.getVoiceData()?.let {
-//                        val fileName = "voice-$conversationId-" + Clock.System.now()
-//                            .toLocalDateTime(TimeZone.currentSystemDefault()) + ".m4a"
-//                        messageViewModel.sendVoiceMessage(
-//                            conversationId,
-//                            it.bytes,
-//                            fileName,
-//                            it.durationMillis
-//                        )
-//                        voiceViewModel.cancel() // 发送后重置状态
-//                    }
-
                 }
             )
         }
@@ -343,6 +326,9 @@ fun ChatRoomScreen(
 @Composable
 fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem,
                   onVoiceMessageClick: (MessageContent.Voice) -> Unit = {}, onFileMessageClick: (MessageItem) -> Unit = {}) {
+
+
+    val messageViewModel: ChatMessageViewModel = koinViewModel()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -381,7 +367,9 @@ fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem,
                          * .getFileMessageMeta(com.github.im.group.model.MessageItem) 获取文件元数据 }
                          * 来处理
                          */
-                        val  duration = msg.fileMeta?.duration ?: 1
+
+
+                        val duration = messageViewModel.getFileMessageMeta(msg)?.duration ?: 1
                         VoiceMessage(MessageContent.Voice(msg.content, duration)) {
                             onVoiceMessageClick(MessageContent.Voice(msg.content, duration))
                         }
