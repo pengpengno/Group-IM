@@ -20,7 +20,6 @@ data class ChatRoom(
     val conversationId: Long,
 )
 
-
 @Serializable
 object Contacts
 

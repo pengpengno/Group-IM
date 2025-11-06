@@ -1,11 +1,12 @@
 package com.github.im.group.viewmodel
 
+import UnauthorizedException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.config.SocketClient
+import com.github.im.group.manager.LoginStateManager
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.FilePicker
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ class ChatViewModel (
     val tcpClient: SocketClient,
     val userRepository: UserRepository,
     val filePicker: FilePicker,
+    val loginStateManager: LoginStateManager
 ): ViewModel() {
 
 
@@ -43,6 +45,10 @@ class ChatViewModel (
             try {
                 val response = ConversationApi.getActiveConversationsByUserId(uId)
                 _conversations.value = response
+            } catch (e: UnauthorizedException) {
+                // Token失效，通知登出
+                Napier.e("Token失效，需要重新登录", e)
+                loginStateManager.setLoggedOut()
             } catch (e: Exception) {
                 Napier.e("加载会话列表失败", e)
             } finally {
@@ -63,7 +69,14 @@ class ChatViewModel (
         Napier.d("开始获取私聊会话: 用户ID=$friendId")
 
         // 直接调用 API 并返回结果
-        val conversation = ConversationApi.createOrGetConversation(userInfo.userId, friendId)
+        val conversation = try {
+            ConversationApi.createOrGetConversation(userInfo.userId, friendId)
+        } catch (e: UnauthorizedException) {
+            // Token失效，通知登出
+            Napier.e("Token失效，需要重新登录", e)
+            loginStateManager.setLoggedOut()
+            throw e
+        }
         
         Napier.d("成功获取私聊会话: 会话ID=${conversation.conversationId}")
         

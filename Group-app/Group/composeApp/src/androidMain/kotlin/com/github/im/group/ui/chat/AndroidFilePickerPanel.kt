@@ -24,13 +24,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import com.github.im.group.sdk.AndroidFilePicker
 import com.github.im.group.sdk.FilePicker
@@ -52,7 +58,7 @@ fun AndroidFilePickerPanel(
     val filePickerLauncher = rememberFilePickerLauncher()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    
+    var displayMediaPicker by remember { mutableStateOf(false) }
     // 使用 Accompanist 权限库请求相机权限
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
     
@@ -70,6 +76,24 @@ fun AndroidFilePickerPanel(
         filePicker.setTakePictureLauncher(takePictureLauncher)
     }
     
+//    if (displayMediaPicker) {
+//        Dialog(
+//            onDismissRequest = { displayMediaPicker = false },
+//            properties = DialogProperties(usePlatformDefaultWidth = false)
+//        ) {
+//            MediaPickerScreen(
+//                onDismiss = {
+//                    displayMediaPicker = false
+//                },
+//                onMediaSelected = { files ->
+//                    onFileSelected(files)
+//                    displayMediaPicker = false
+//                },
+//                mediaType = "all"
+//            )
+//        }
+//    }
+    
     Surface(
         color = Color.White,
         tonalElevation = 8.dp,
@@ -79,54 +103,47 @@ fun AndroidFilePickerPanel(
             .wrapContentHeight()
             .padding(8.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            IconTextButton(Icons.AutoMirrored.Filled.InsertDriveFile, "文件", {
-                scope.launch {
-                    try {
-                        val files = filePicker.pickFile()
-                        onFileSelected(files)
-                        onDismiss()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        Toast.makeText(context, "选择文件失败: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            })
+    if (displayMediaPicker) {
 
-            IconTextButton(Icons.Default.PhotoCamera, "拍照", {
-                // 检查是否已有相机权限
-                if (cameraPermissionState.status.isGranted) {
-                    // 已有权限，直接拍照
-                    scope.launch {
-                        try {
-                            takePhotoAndHandleResult(filePicker, onFileSelected, onDismiss)
-                        } catch (e: SecurityException) {
-                            Toast.makeText(context, "没有相机权限，请在设置中开启", Toast.LENGTH_LONG).show()
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "拍照失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            UnifiedMediaPicker (
+                onDismiss = {
+                    displayMediaPicker = false
+                },
+                onMediaSelected = { files ->
+                    onFileSelected(files)
+                    displayMediaPicker = false
+                },
+            )
+        }else{
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                IconTextButton(Icons.AutoMirrored.Filled.InsertDriveFile, "文件", {
+                    displayMediaPicker = true
+                })
+
+                IconTextButton(Icons.Default.PhotoCamera, "拍照", {
+                    // 检查是否已有相机权限
+                    if (cameraPermissionState.status.isGranted) {
+                        // 已有权限，直接拍照
+                        scope.launch {
+                            try {
+                                takePhotoAndHandleResult(filePicker, onFileSelected, onDismiss)
+                            } catch (e: SecurityException) {
+                                Toast.makeText(context, "没有相机权限，请在设置中开启", Toast.LENGTH_LONG).show()
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "拍照失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
                         }
+                    } else {
+                        // 请求相机权限
+                        cameraPermissionState.launchPermissionRequest()
                     }
-                } else {
-                    // 请求相机权限
-                    cameraPermissionState.launchPermissionRequest()
-                }
-            })
-//            IconTextButton(Icons.Default.Mic, "视频通话", {
-//                scope.launch {
-//                    try {
-//                        val videos = filePicker.pickVideo()
-//                        onFileSelected(videos)
-//                        onDismiss()
-//                    } catch (e: Exception) {
-//                        e.printStackTrace()
-//                        Toast.makeText(context, "选择视频失败: ${e.message}", Toast.LENGTH_SHORT).show()
-//                    }
-//                }
-//            })
+                })
+            }
         }
+
     }
 }
 

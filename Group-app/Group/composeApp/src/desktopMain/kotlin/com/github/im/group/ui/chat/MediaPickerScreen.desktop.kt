@@ -6,7 +6,6 @@ import com.github.im.group.sdk.PickedFile
 @Composable
 actual fun MediaPickerScreen(
     onDismiss: () -> Unit,
-    onMediaSelected: (List<PickedFile>) -> Unit,
-    mediaType: String
+    onMediaSelected: (List<PickedFile>) -> Unit
 ) {
 }

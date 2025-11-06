@@ -317,7 +317,7 @@ compose.desktop {
 //            val sqlFile = File(outputDir, "${classes.simpleName}.sq")
 //            sqlFile.writeText(generateSql(classes))
 //
-//            println("Generated SQLDelight file: ${sqlFile.absolutePath}")
+//            Napier.d("Generated SQLDelight file: ${sqlFile.absolutePath}")
 //        }
 //    }
 //}

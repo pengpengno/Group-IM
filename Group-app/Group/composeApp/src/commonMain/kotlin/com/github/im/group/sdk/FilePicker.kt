@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -52,7 +53,7 @@ fun FilePickerScreen(filePicker: FilePicker) {
         Button(onClick = {
             CoroutineScope(Dispatchers.Main).launch {
                 val files = filePicker.pickFile()
-                println("Files: $files")
+                Napier.d("Files: $files")
             }
         }) {
             Text("Pick File")
@@ -61,7 +62,7 @@ fun FilePickerScreen(filePicker: FilePicker) {
         Button(onClick = {
             CoroutineScope(Dispatchers.Main).launch {
                 val image = filePicker.takePhoto()
-                println("Photo: $image")
+                Napier.d("Photo: $image")
             }
         }) {
             Text("Take Photo")

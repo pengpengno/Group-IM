@@ -16,6 +16,7 @@ import java.net.URL;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.Optional;
 
 @Component
 @Slf4j
@@ -58,6 +59,7 @@ public class JwtUtil {
         Instant now = Instant.now();
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
+                .id(user.getUserId().toString())
                 .issuer(user.getUserId().toString())
                 .issuedAt(now)
                 .expiresAt(now.plus(REFRESH_TOKEN_EXPIRY, ChronoUnit.SECONDS)) // 设置为30天过期
@@ -70,14 +72,24 @@ public class JwtUtil {
 
     /**
      * 验证 RefreshToken 是否有效
+     * 有效则返回 userId
+     * 无效 则返回 Optional.empty()
      */
-    public boolean validateRefreshToken(String refreshToken) {
+    public Optional<Long> validateRefreshToken(String refreshToken) {
         try {
             var jwt = jwtDecoder.decode(refreshToken);
             Instant expiration = jwt.getExpiresAt();
-            return expiration != null && expiration.isAfter(Instant.now());
+            boolean notExpired = expiration != null && expiration.isAfter(Instant.now());
+            if (notExpired) {
+                return Optional.of(Long.parseLong(jwt.getId()));
+            }else {
+                //  TODO  提示凭据 过期
+                return Optional.empty();
+            }
         } catch (JwtException e) {
-            return false;
+            log.error("Invalid refresh token: {}", e.getMessage());
+            return Optional.empty();
+
         }
     }
 

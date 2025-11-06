@@ -1,6 +1,7 @@
 package com.github.im.server.config;
 
 import com.github.im.server.service.AuthenticationService;
+import com.github.im.server.service.impl.security.LdapUserDetailsMapper;
 import com.github.im.server.service.impl.security.RefreshAuthenticationProvider;
 import com.github.im.server.service.impl.security.UserDetailsServiceImpl;
 import com.nimbusds.jose.jwk.JWK;
@@ -11,10 +12,13 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -46,6 +50,9 @@ public class SecurityConfig  {
     @Value("${jwt.private.key}")
     RSAPrivateKey priv;
 
+    @Autowired
+    private Environment env;
+
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -57,20 +64,22 @@ public class SecurityConfig  {
     @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http,
                                                        @Autowired UserDetailsServiceImpl userService,
-                                                       @Autowired RefreshAuthenticationProvider refreshAuthenticationProvider
+                                                       @Autowired RefreshAuthenticationProvider refreshAuthenticationProvider,
+                                                       @Autowired(required = false) LdapUserDetailsMapper ldapUserDetailsMapper
                                                        ) throws Exception {
         AuthenticationManagerBuilder auth = http.getSharedObject(AuthenticationManagerBuilder.class);
         auth.authenticationProvider(refreshAuthenticationProvider);
 
-        auth.userDetailsService(userService)
-                .passwordEncoder(passwordEncoder());
+        // 添加DAO认证提供者
+        DaoAuthenticationProvider daoAuthProvider = new DaoAuthenticationProvider();
+        daoAuthProvider.setUserDetailsService(userService);
+        daoAuthProvider.setPasswordEncoder(passwordEncoder());
+        auth.authenticationProvider(daoAuthProvider);
+        
         var authenticationManager = auth.build();
-
-//        userService.setAuthenticationManager(authenticationManager);
-//        userService.setAuthenticationManager(authenticationManager);
         return authenticationManager;
     }
-
+    
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,AuthenticationService authenticationService) throws Exception {
@@ -129,5 +138,3 @@ public class SecurityConfig  {
 
 
 }
-
-

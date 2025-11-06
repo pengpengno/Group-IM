@@ -5,6 +5,7 @@ import com.github.im.group.db.entities.UserStatus
 import com.github.im.group.model.UserInfo
 import com.github.im.group.model.proto.AccountInfo
 import com.github.im.group.model.proto.PlatformType
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -14,6 +15,8 @@ import kotlinx.coroutines.flow.asStateFlow
 // 初期使用 lateinit 声明 用户信息的必定初始化即可
 sealed class UserState {
     object LoggedOut : UserState()  // 尚未登录模式
+
+    object Logging : UserState()   // 登录中
     data class LoggedIn(val info: CurrentUserInfoContainer) : UserState()
 }
 
@@ -41,9 +44,12 @@ class UserRepository (
         return when (val state = userState.value){
             is UserState.LoggedIn -> state.info
             is UserState.LoggedOut ->{
-                print("用户未登录")
-//                null
+                Napier.d("用户未登录")
                 throw IllegalStateException("用户未登录")
+            }
+            is UserState.Logging -> {
+                Napier.d("用户登录中")
+                throw IllegalStateException("用户登录中")
             }
         }
     }

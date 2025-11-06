@@ -7,5 +7,4 @@ import com.github.im.group.sdk.PickedFile
 expect fun MediaPickerScreen(
     onDismiss: () -> Unit,
     onMediaSelected: (List<PickedFile>) -> Unit,
-    mediaType: String = "image" // "image" or "video"
 )

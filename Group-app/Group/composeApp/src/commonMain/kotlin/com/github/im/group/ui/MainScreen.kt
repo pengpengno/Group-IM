@@ -50,6 +50,8 @@ import com.github.im.group.ui.chat.ChatUI
 import com.github.im.group.ui.contacts.ContactsUI
 import com.github.im.group.ui.profile.ProfileUI
 import com.github.im.group.ui.video.DraggableVideoWindow
+import com.github.im.group.viewmodel.LoginState
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -67,9 +69,10 @@ fun ChatMainScreen(
     val scope = rememberCoroutineScope()
     val loading by chatViewModel.loading.collectAsState()
     val friends by userViewModel.friends.collectAsState()
+    val loginState by userViewModel.loginState.collectAsState()
 
+    // 使用 collectAsState 来监听用户状态变化
     val userInfo = userViewModel.getCurrentUser()
-    
     // 小窗视频通话状态
     var isVideoCallMinimized by remember { mutableStateOf(false) }
     var localMediaStream: MediaStream? by remember { mutableStateOf(null) }
@@ -82,6 +85,12 @@ fun ChatMainScreen(
         BottomNavItem("联系人", Icons.Default.Contacts),
         BottomNavItem("我", Icons.Default.Person)
     )
+    Napier.d("loginState: $loginState")
+    if(loginState is LoginState.LoggedFailed){
+
+        // 登录失败则跳转到登录页面
+        navHostController.navigate(Login)
+    }
 
     LaunchedEffect(userInfo) {
         if(userInfo?.userId != 0L){
@@ -89,7 +98,19 @@ fun ChatMainScreen(
             userViewModel.loadFriends()
         }
     }
+    var firstTopBarText by remember { mutableStateOf("聊天") }
 
+    when(loginState){
+        is LoginState.LoggedIn -> {
+            firstTopBarText = "聊天"
+        }
+        is LoginState.Logging -> {
+            firstTopBarText = "登录中..."
+        }
+        else -> {
+            firstTopBarText = "登录"
+        }
+    }
     ModalNavigationDrawer(
         drawerContent = {
             Box(
@@ -120,7 +141,7 @@ fun ChatMainScreen(
                         // 聊天界面的 TopAppBar，显示搜索按钮
                         TopAppBar(
                             title = {
-                                Text(text = "聊天", color = Color.White)
+                                Text(text = firstTopBarText, color = Color.White)
                             },
                             navigationIcon = {
                                 IconButton(onClick = { scope.launch { drawerState.open() } }) {

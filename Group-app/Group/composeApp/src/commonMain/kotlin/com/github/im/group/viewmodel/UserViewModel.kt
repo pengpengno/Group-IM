@@ -3,6 +3,7 @@ package com.github.im.group.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.im.group.GlobalCredentialProvider
+import com.github.im.group.api.FriendShipApi
 import com.github.im.group.api.FriendshipDTO
 import com.github.im.group.api.LoginApi
 import com.github.im.group.api.UserApi
@@ -17,20 +18,33 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
+/***
+ * 用于表明接口的调用状态
+ */
+
+sealed class LoginState {
+    object LoggedIn : LoginState()  // 已成功登录
+    object LoggedFailed : LoginState()  // 登录失败
+    object Logging : LoginState()  // 登录中
+}
 
 class UserViewModel(
-    private val senderSdk: SenderSdk,
     val userRepository: UserRepository,
     private val loginStateManager: LoginStateManager
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<UserInfo>(UserInfo())
+    private val _uiState = MutableStateFlow(UserInfo())
 
     val uiState:  StateFlow<UserInfo> = _uiState.asStateFlow()
 
-    private val _loading = MutableStateFlow(false)
+    /**
+     * 登录状态
+     * 用于主页监听  默认情况下使用 true
+     *
+     */
+    private val _LoginState = MutableStateFlow<LoginState>(LoginState.LoggedIn)
 
-    val loading: StateFlow<Boolean> = _loading
+    val loginState: StateFlow<LoginState> = _LoginState.asStateFlow()
 
     private val _friends = MutableStateFlow<List<FriendshipDTO>>(emptyList())
     val friends: StateFlow<List<FriendshipDTO>> = _friends.asStateFlow()
@@ -56,7 +70,7 @@ class UserViewModel(
                     _friends.value = friendList
                 }
             } catch (e: Exception) {
-                println("获取联系人失败: $e")
+                Napier.d("获取联系人失败: $e")
             }
         }
     }
@@ -75,7 +89,7 @@ class UserViewModel(
                 val result = UserApi.findUser(queryString)
                 _searchResults.value = result.content
             } catch (e: Exception) {
-                println("搜索用户失败: $e")
+                Napier.d("搜索用户失败: $e")
                 _searchResults.value = emptyList()
             }
         }
@@ -94,19 +108,27 @@ class UserViewModel(
             try {
                 // TODO: 实现添加好友的API调用
                 // 这里需要根据实际的API来实现
-                println("添加好友: userId=$userId, friendId=$friendId")
+                FriendShipApi.addFriend(userId, friendId)
+                Napier.d("添加好友: userId=$userId, friendId=$friendId")
             } catch (e: Exception) {
-                println("添加好友失败: $e")
+                Napier.d("添加好友失败: $e")
             }
         }
     }
 
     /**
-     * 是否允许自动登录
+     * 自动登录
+     * 如果本地存储了 用户信息 则尝试自动登录
      */
-    suspend fun autoLogin(): Boolean {
-        val userInfo = GlobalCredentialProvider.storage.getUserInfo()
-        return userInfo?.refreshToken != null
+    fun autoLogin(){
+        viewModelScope.launch {
+            val userInfo = GlobalCredentialProvider.storage.getUserInfo()
+            if (userInfo != null) {
+                // 尝试自动登录
+               login( refreshToken = userInfo.refreshToken)
+            }
+        }
+
     }
 
     /**
@@ -116,9 +138,9 @@ class UserViewModel(
     suspend fun login(uname: String ="",
                       pwd:String ="",
                       refreshToken:String =""): Boolean {
-//        viewModelScope.launch {
-            _loading.value = true
-            loginStateManager.setLoggingIn()
+
+         _LoginState.value = LoginState.Logging
+
             try {
                 val response = LoginApi.login(uname, pwd,refreshToken)
 
@@ -126,23 +148,19 @@ class UserViewModel(
                 GlobalCredentialProvider.currentToken = response.token
 
                 _uiState.value = response
-                // 进程中保存用户
-                userRepository.saveCurrentUser(response)
-////                // 长连接到服务端远程
-//                senderSdk.loginConnect()
 
                 // 通知登录状态管理器用户已登录
                 loginStateManager.setLoggedIn(response)
-                
+                _LoginState.value  = LoginState.LoggedIn
                 // 登录成功返回true
                 return true
             } catch (e: Exception) {
-                e.printStackTrace()
                 Napier.d { "登录错误 ： ${e.message}" }
-                // 登录失败返回false
+                _LoginState.value  = LoginState.LoggedFailed
+                Napier.d("loginState ${_LoginState.value}")
                 return false
             } finally {
-                _loading.value = false
+//                _loading.value = false
             }
 
 
@@ -155,20 +173,12 @@ class UserViewModel(
         loginStateManager.setLoggingOut()
         try {
 
-            // 停止自动重连
-            senderSdk.stopAutoReconnect()
-            
             // 清除用户信息
             runBlocking {
                 GlobalCredentialProvider.storage.clearUserInfo()
                 GlobalCredentialProvider.currentToken = ""
             }
 
-            
-            // 清除 UserRepository 中的用户状态
-            // 这里我们不直接修改 UserRepository 的状态，因为它是密封类
-            // 而是通过通知监听器来处理
-            
             // 通知登录状态管理器用户已登出
             loginStateManager.setLoggedOut()
         } catch (e: Exception) {

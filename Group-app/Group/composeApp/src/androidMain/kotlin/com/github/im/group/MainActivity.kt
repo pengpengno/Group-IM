@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
             modules(commonModule,appModule, )
 
         }
+        
         setContent {
             App()
         }

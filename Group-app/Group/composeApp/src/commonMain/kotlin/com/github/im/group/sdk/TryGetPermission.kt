@@ -6,7 +6,9 @@ import androidx.compose.runtime.Composable
  * 用于音频记录的权限处理
  */
 @Composable
-expect fun WithRecordPermission(
+expect fun TryGetPermission(
+    permission: String,
     onGranted: () -> Unit,
+    onRequest:() -> Unit,
     onDenied: () -> Unit
 )

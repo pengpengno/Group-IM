@@ -203,6 +203,17 @@ object FriendShipApi {
             requestParams = mapOf("userId" to userId.toString())
         )
     }
+
+    /**
+     * 添加联系人
+     */
+    suspend fun addFriend(userId:Long,friendId:Long) : FriendshipDTO{
+        return ProxyApi.request< Unit,FriendshipDTO>(
+            hmethod = HttpMethod.Post,
+            path = "/api/friendships/add",
+            requestParams = mapOf("userId" to userId.toString(),"friendId" to friendId.toString())
+        )
+    }
 }
 
 

@@ -5,6 +5,7 @@ import com.github.im.group.model.UserInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.core.content.edit
+import io.github.aakira.napier.Napier
 
 class AndroidCredentialStorage(private val context: Context) : CredentialStorage {
 
@@ -12,6 +13,7 @@ class AndroidCredentialStorage(private val context: Context) : CredentialStorage
 
     override suspend fun saveUserInfo(userInfo: UserInfo) {
         withContext(Dispatchers.IO) {  // 切换到IO线程
+            Napier.d("Saving user info: $userInfo")
             prefs.edit().apply {
                 putLong("userId", userInfo.userId)
                 putString("username", userInfo.username)
@@ -22,12 +24,14 @@ class AndroidCredentialStorage(private val context: Context) : CredentialStorage
         }
     }
 
-    override suspend fun getUserInfo(): UserInfo? {
-        val userId = prefs.getLong("userId", -1)
-        if (userId == -1L) return null
 
+
+    override suspend fun getUserInfo(): UserInfo? {
+        if (!prefs.contains("userId")) {
+            return null
+        }
         return UserInfo(
-            userId = userId,
+            userId = prefs.getLong("userId", 0L),
             username = prefs.getString("username", "") ?: "",
             email = prefs.getString("email", "") ?: "",
             token = prefs.getString("token", "") ?:"",
@@ -35,23 +39,6 @@ class AndroidCredentialStorage(private val context: Context) : CredentialStorage
         )
     }
 
-    override suspend fun autoLogin(status: Boolean): Boolean {
-        withContext(Dispatchers.IO) {  // 切换到IO线程
-            prefs.edit().apply {
-                putBoolean("autoLogin", status)
-
-                apply()
-            }
-        }
-        return status
-    }
-
-    override  fun autoLoginState(): Boolean {
-        return  prefs.getBoolean("autoLogin", false)
-//        return withContext(Dispatchers.IO) {  // 切换到IO线程
-//
-//        }
-    }
 
     override suspend fun clearUserInfo() {
         prefs.edit { clear() }

@@ -50,6 +50,8 @@ class VoiceViewModel(
     private var lastDuration: Long = 0
 
     fun startRecording() {
+
+
         viewModelScope.launch(Dispatchers.IO) {
             voiceRecorder.startRecording()
             _uiState.value = RecorderUiState.Recording

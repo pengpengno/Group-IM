@@ -39,7 +39,7 @@ import org.koin.dsl.module
 
 val appModule = module {
 
-    single<LoginApi> { LoginApi }
+
 
     single { AndroidDatabaseDriverFactory(get<Context>()) }  // 注册工厂
     single { get<AndroidDatabaseDriverFactory>().createDatabase() }  // 注册 AppDatabase 单例
@@ -47,10 +47,12 @@ val appModule = module {
     single<FilePicker> { AndroidFilePicker(androidContext()) }
     single<AudioPlayer> { AndroidAudioPlayer(androidContext()) }
     single<WebRTCManager> { AndroidWebRTCManager(androidContext()) }
-
     single { UserRepository(get()) }
     single { ChatMessageRepository(get()) }
     single { FilesRepository(get()) }
+    single { FilesRepository(get()) }
+
+
     single { 
         FileStorageManager(
             filesRepository = get(),
@@ -58,7 +60,16 @@ val appModule = module {
             baseDirectory = androidContext().filesDir.absolutePath.toPath()
         ) 
     }
-    viewModelOf (::ChatViewModel)
+    
+    // 为ChatViewModel添加所有必需的依赖项
+    viewModel { 
+        ChatViewModel(
+            tcpClient = get(),
+            userRepository = get(),
+            filePicker = get(),
+            loginStateManager = get()
+        )
+    }
     
     // 为ChatMessageViewModel添加所有必需的依赖项
     viewModel { 
@@ -100,17 +111,13 @@ val appModule = module {
     single {
 
        val manager =  LoginStateManager(get())
-//        getAll<LoginStateListener>().forEach { listener ->
-//            Napier.log(LogLevel.INFO, message="Adding login state listener: ${listener::class.simpleName}")
-//            manager.addListener(listener)
-//        }
 
         get<List<LoginStateListener>>().forEach { manager.addListener(it) }
         manager
     }
 
 
-    viewModelOf(::UserViewModel)  // 注册为 ViewModel，由 Koin 自动管理生命周期
+    single  {UserViewModel(get(),get())}// 注册为 ViewModel，由 Koin 自动管理生命周期
     
     // 注册VideoCallViewModel
     viewModel { 

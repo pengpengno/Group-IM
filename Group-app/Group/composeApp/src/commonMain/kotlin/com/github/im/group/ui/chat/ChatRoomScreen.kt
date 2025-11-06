@@ -103,6 +103,8 @@ fun ChatRoomScreen(
     val fileDownloadStates by messageViewModel.fileDownloadStates.collectAsState()
 
     val userInfo = userViewModel.getCurrentUser()
+
+
     
     // 获取VideoCallViewModel
     val videoCallViewModel: VideoCallViewModel = koinViewModel()
@@ -226,6 +228,8 @@ fun ChatRoomScreen(
             contentPadding = PaddingValues(bottom = 40.dp) // 为输入框腾出空间
         ) {
             items(state.messages) { msg ->
+                // 头像
+
                 MessageBubble(
                     isOwnMessage = msg.userInfo.userId == userInfo.userId,
                     msg = msg,
@@ -325,8 +329,8 @@ fun ChatRoomScreen(
  */
 @Composable
 fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem,
-                  onVoiceMessageClick: (MessageContent.Voice) -> Unit = {}, onFileMessageClick: (MessageItem) -> Unit = {}) {
-
+                  onVoiceMessageClick: (MessageContent.Voice) -> Unit = {},
+                  onFileMessageClick: (MessageItem) -> Unit = {}) {
 
     val messageViewModel: ChatMessageViewModel = koinViewModel()
     Row(

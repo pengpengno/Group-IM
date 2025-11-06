@@ -168,14 +168,14 @@ class ChatMessageViewModel(
                     MessageWrapper(messageDto = it)
                 }.sortedBy { it.seqId }
 
-                println("receive $wrappedMessages")
+                Napier.d("receive $wrappedMessages")
 
                 _uiState.update {
                     it.copy(messages = wrappedMessages)
                 }
 
             } catch (e: Exception) {
-                println("加载失败: $e")
+                Napier.d("加载失败: $e")
             } finally {
                 _uiState.update {
                     it.copy(loading = false)
@@ -237,7 +237,7 @@ class ChatMessageViewModel(
                 }
 
             } catch (e: Exception) {
-                println("加载失败: $e")
+                Napier.d("加载失败: $e")
             } finally {
                 _uiState.update {
                     it.copy(loading = false)

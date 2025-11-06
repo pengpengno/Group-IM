@@ -12,6 +12,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Component;
 
 import java.security.Security;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -24,11 +25,12 @@ public class RefreshAuthenticationProvider implements AuthenticationProvider {
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
         String refreshToken = (String) authentication.getCredentials();
 
-        if (!jwtUtil.validateRefreshToken(refreshToken) ) {
+        Optional<Long> idOpt = jwtUtil.validateRefreshToken(refreshToken);
+        if (idOpt.isEmpty()) {
             throw new BadCredentialsException("无效或过期的 refresh token");
         }
         // 这里你可以从数据库查询 refreshToken 是否有效
-        User user = userRepository.findByRefreshToken(refreshToken)
+        User user = userRepository.findById(idOpt.get())
                 .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
 
 //        return new RefreshAuthenticationToken(user, user.getAuthorities());

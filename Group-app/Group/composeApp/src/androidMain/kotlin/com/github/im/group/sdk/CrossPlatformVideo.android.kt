@@ -29,10 +29,12 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.ui.PlayerView
 import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.config.VideoCache
@@ -54,18 +56,34 @@ actual fun CrossPlatformVideo(
 //    TODO exoPlayer  绑定生命周期至 独立的 chatViewModel
     val cache = remember { VideoCache.getInstance(context) }
 
-    val cacheDataSourceFactory = remember {
+//    val dataSourceFactory = remember {
         val httpFactory = DefaultHttpDataSource.Factory()
-            .setDefaultRequestProperties(mapOf("Authorization" to "Bearer ${GlobalCredentialProvider.currentToken}"))
-        CacheDataSource.Factory()
-            .setCache(cache)
-            .setUpstreamDataSourceFactory(httpFactory)
-            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-    }
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(15000)
+            .setReadTimeoutMs(15000)
+            .setDefaultRequestProperties(
+                mapOf(
+                    "Authorization" to "Bearer ${GlobalCredentialProvider.currentToken}",
+                    "User-Agent" to "MyAppPlayer/1.0"
+                )
+            )
+
+// 用 DefaultDataSource 包裹，让本地URI也能复用同一工厂
+        val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
+
+//        val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+//            .createMediaSource(MediaItem.fromUri(url.toUri()))
+
+//        CacheDataSource.Factory()
+//            .setCache(cache)
+//            .setUpstreamDataSourceFactory(dataSourceFactory)
+//            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+//    }
 
     val exoPlayer = remember(url) {
         ExoPlayer.Builder(context)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(cacheDataSourceFactory))
+//            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .setMediaSourceFactory(ProgressiveMediaSource.Factory(dataSourceFactory))
             .build().apply {
                 setMediaItem(MediaItem.fromUri(url.toUri()))
                 prepare()

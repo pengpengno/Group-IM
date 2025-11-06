@@ -1,6 +1,7 @@
-
 import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.api.FileUploadResponse
+import com.github.im.group.manager.LoginStateManager
+import io.github.aakira.napier.Napier
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -21,6 +22,7 @@ import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -40,6 +42,7 @@ object ProxyApi
             })
         }
     }
+
 
     /**
      * 文件上传
@@ -85,18 +88,22 @@ object ProxyApi
                 return responseBody
             }
 
+            401 -> {
+                val errorText = response.bodyAsText()
+                throw UnauthorizedException("认证失败，请重新登录：${response.status}，内容: $errorText")
+            }
             in 400..499 -> {
                 val errorText = response.bodyAsText()
 //                logger("ProxyApi", "ProxyApi error: $errorText")
-                throw RuntimeException("客户端请求错误：${response.status}，内容: $errorText")
+                throw ClientRequestException("客户端请求错误：${response.status}，内容: $errorText")
             }
             in 500..599 -> {
                 val errorText = response.bodyAsText()
-                throw RuntimeException("服务器错误：${response.status}，内容: $errorText")
+                throw ServerException("服务器错误：${response.status}，内容: $errorText")
             }
             else -> {
                 val errorText = response.bodyAsText()
-                throw RuntimeException("未知响应状态：${response.status}，内容: $errorText")
+                throw UnknownResponseException("未知响应状态：${response.status}，内容: $errorText")
             }
         }
     }
@@ -152,22 +159,32 @@ object ProxyApi
             in 200..299 -> {
                 response.body()
             }
+            401 -> {
+                val errorText = response.bodyAsText()
+                throw UnauthorizedException("认证失败，请重新登录：${response.status}，内容: $errorText")
+            }
             in 400..499 -> {
                 val errorText = response.bodyAsText()
-                println("ProxyApi error: $response, paramter= {$body} " )
+                Napier.d("ProxyApi error: $response, paramter= {$body} " )
 
 //                Logger .d("ProxyApi", "ProxyApi error: $errorText")
-                throw RuntimeException("客户端请求错误：${response.status}，内容: $errorText")
+                throw ClientRequestException("客户端请求错误：${response.status}，内容: $errorText")
             }
             in 500..599 -> {
                 val errorText = response.bodyAsText()
-                throw RuntimeException("服务器错误：${response.status}，内容: $errorText")
+                throw ServerException("服务器错误：${response.status}，内容: $errorText")
             }
             else -> {
                 val errorText = response.bodyAsText()
-                throw RuntimeException("未知响应状态：${response.status}，内容: $errorText")
+                throw UnknownResponseException("未知响应状态：${response.status}，内容: $errorText")
             }
         }
     }
 
 }
+
+// 自定义异常类
+class UnauthorizedException(message: String) : Exception(message)
+class ClientRequestException(message: String) : Exception(message)
+class ServerException(message: String) : Exception(message)
+class UnknownResponseException(message: String) : Exception(message)

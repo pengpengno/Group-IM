@@ -1,19 +1,15 @@
 package com.github.im.group.ui.chat
 
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.LinearEasing
-import com.github.im.group.sdk.WithRecordPermission
+import com.github.im.group.sdk.TryGetPermission
 import com.github.im.group.sdk.getPlatformFilePicker
-import com.github.im.group.sdk.playAudio
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,34 +30,24 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.InsertEmoticon
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.ImeAction
@@ -71,7 +57,6 @@ import androidx.compose.ui.unit.sp
 import com.github.im.group.sdk.PickedFile
 import com.github.im.group.ui.FunctionPanel
 import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.material.Divider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draw.shadow
@@ -84,7 +69,6 @@ import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.VoiceViewModel
 import io.github.aakira.napier.Napier
 import org.koin.compose.viewmodel.koinViewModel
-import kotlin.contracts.contract
 
 @Composable
 fun ChatInputArea(
@@ -163,46 +147,29 @@ fun ChatInputArea(
                     }
                 }
             }
+
+
+            // 只有在非录音状态下才显示表情面板和更多面板
+            if (voiceRecordingState !is RecorderUiState.Recording) {
+                if (showEmojiPanel) {
+                    // 表情
+                    EmojiPanel(onEmojiSelected = {
+                        messageText += it
+                        showEmojiPanel = false
+                    })
+                }
+
+                if (showMorePanel) {
+                    // 展示  文件 拍照
+                    FunctionPanel(
+                        filePicker = filePicker,
+                        onDismiss = { showMorePanel = false },
+                        onFileSelected = onFileSelected
+                    )
+                }
+            }
         }
 
-        // 只有在非录音状态下才显示表情面板和更多面板
-        if (voiceRecordingState !is RecorderUiState.Recording) {
-            if (showEmojiPanel) {
-                // 表情
-                EmojiPanel(onEmojiSelected = {
-                    messageText += it
-                    showEmojiPanel = false
-                })
-            }
-
-            if (showMorePanel) {
-                // 展示  文件 拍照
-                FunctionPanel(
-                    filePicker = filePicker,
-                    onDismiss = { showMorePanel = false },
-                    onFileSelected = onFileSelected
-                )
-            }
-       }
-}
-
-
-
-@Composable
-private fun VoiceActionButton(label: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            modifier = Modifier
-                .size(60.dp)
-                .clip(CircleShape)
-                .background(color),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("◎", fontSize = 20.sp, color = Color.White)
-        }
-        Spacer(Modifier.height(4.dp))
-        Text(label, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
-    }
 }
 
 
@@ -328,7 +295,7 @@ fun VoiceControlOverlayWithRipple(
                         .size(totalRipple.dp)
                         .background(
                             color = when (currentDirection) {
-                                SlideDirection.Start -> Color.Red.copy(alpha = 0.25f)
+                                SlideDirection.Left -> Color.Red.copy(alpha = 0.25f)
                                 SlideDirection.Right -> Color.Green.copy(alpha = 0.25f)
                                 else -> Color(0xFF4CAF50).copy(alpha = 0.2f)
                             },
@@ -362,24 +329,29 @@ fun VoiceRecordButton(
     onPress: () -> Unit,
     onRelease: (SlideDirection) -> Unit
 ) {
-    var needPermission by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
 
     val voiceViewModel : VoiceViewModel = koinViewModel()
     val voiceRecordingState by voiceViewModel.uiState.collectAsState()
 
-
-    if (needPermission) {
-        WithRecordPermission(
+    val permission by remember { mutableStateOf("android.permission.RECORD_AUDIO") }
+    var permissionRequested by remember { mutableStateOf(false) }
+    var hasPermission by remember { mutableStateOf(false) }
+    
+    // 只有当用户尝试使用功能时才请求权限
+    if (permissionRequested) {
+        TryGetPermission(
+            permission = permission,
             onGranted = {
-                onPress()
-                needPermission = false
+                hasPermission = true
+                onPress() // 获取权限后立即开始录音
             },
-            onDenied = {
-                Napier.d("未授权")
-                needPermission = false
+            onRequest = {
+                Napier.d("onRequest")
             }
-        )
+        ) {
+            hasPermission = false
+        }
     }
 
     Surface(
@@ -439,9 +411,16 @@ fun VoiceRecordButton(
 
                     },
                     onLongPress = {offset ->
-                        needPermission = true
+                        // 首次请求权限
+                        if (!permissionRequested) {
+                            permissionRequested = true
+                        }
+                        
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onPress()
+                        // 获取到权限后执行按压
+                        if (hasPermission){
+                            onPress()
+                        }
                         // 注意：这里拿到的 offset 是触发长按那一刻的位置
                         Napier.d("LongPress triggered at $offset")
 
@@ -515,7 +494,6 @@ fun VoiceRecordButton(
         }
     }
 }
-
 
 
 @Composable

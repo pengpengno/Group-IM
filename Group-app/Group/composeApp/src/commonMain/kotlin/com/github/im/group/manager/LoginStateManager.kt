@@ -83,7 +83,7 @@ class UIStateUpdateListener(private val userRepository: UserRepository) : LoginS
  * 所有状态由UserRepository统一管理
  */
 class LoginStateManager(
-    private val userRepository: UserRepository
+    val userRepository: UserRepository
 ) {
     private val listeners = mutableSetOf<LoginStateListener>()
     

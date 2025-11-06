@@ -18,26 +18,34 @@ import java.util.UUID;
  *    TODO
  *      优先 实现中图， 分辨率 需要定义下规范
 // */
-//@Entity
-//@Table(name = "media_file_resource")
-//@Data
-//    TODO  媒体资源缩略图文件的实现
 
+// TODO  媒体消息的组合
+@Entity
+@Table(name = "media_file_resource")
+@Data
 public class MediaFileResource {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-
-
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "file_id", referencedColumnName = "id", nullable = false, unique = true)
     private FileResource  file;
 
+
+    @ManyToOne
+    @JoinColumn(name = "message_id")
+    private Message message;
+
+
     private String thumbnail;
 
-
+    /**
+     * 时长 ： 秒  没有则为0
+     */
+    @Column(columnDefinition = "float default 0" , nullable = false )
+    private Float duration = 0.0f;
 
 
 }

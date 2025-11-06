@@ -18,7 +18,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        // 注册原生 WebSocket 端点 /ws
+
         registry.addHandler(signalWebSocketHandler, "/ws")
                 .setAllowedOriginPatterns("*");
     }

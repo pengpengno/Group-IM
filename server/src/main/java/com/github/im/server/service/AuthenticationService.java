@@ -7,8 +7,10 @@ import com.github.im.server.model.User;
 import com.github.im.server.repository.UserRepository;
 import com.github.im.server.service.impl.security.RefreshAuthenticationToken;
 import com.github.im.server.utils.JwtUtil;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import lombok.val;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -46,6 +48,7 @@ public class AuthenticationService  {
      * @param loginRequest
      * @return
      */
+    @Transactional
     public Optional<UserInfo> loginUser(LoginRequest loginRequest) {
         Authentication authenticationToken = new UsernamePasswordAuthenticationToken(
                 loginRequest.getLoginAccount(),
@@ -59,16 +62,10 @@ public class AuthenticationService  {
 
         User user = (User) authResult.getPrincipal();
         // 生成Token
-        var token = jwtUtil.createToken(user);
-
-        var refreshToken = Optional.ofNullable(user.getRefreshToken())
-                .orElseGet(()-> {
-                    var jwtUtilRefreshToken = jwtUtil.createRefreshToken(user);
-                    user.setRefreshToken(jwtUtilRefreshToken);
-                    userRepository.save(user);
-                    return jwtUtilRefreshToken;
-                });
-
+        val token = jwtUtil.createToken(user);
+        val refreshToken = jwtUtil.createRefreshToken(user);
+        user.setRefreshToken(refreshToken);
+        userRepository.save(user);
 
         var userInfo = UserMapper.INSTANCE.userToUserInfo(user);
 

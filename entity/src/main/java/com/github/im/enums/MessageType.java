@@ -7,6 +7,8 @@ public enum MessageType {
     VIDEO(3),
     IMAGE(4),
 
+    MEDIA(5)
+
     ;
 
     private final int code;

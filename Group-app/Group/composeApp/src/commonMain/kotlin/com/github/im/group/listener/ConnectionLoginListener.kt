@@ -20,7 +20,7 @@ class ConnectionLoginListener(private val senderSdk: SenderSdk) : LoginStateList
     
     override fun onLogout() {
         // 用户登出时执行的操作
-        println("ConnectionLoginListener: 用户已登出")
+        Napier.d("ConnectionLoginListener: 用户已登出")
         
         // 1. 断开TCP连接
         // senderSdk.disconnect()

@@ -19,7 +19,7 @@
 //        get() = handle["items"] ?: error("Items not found")
 //
 //    override fun onCleared() {
-//        println("ViewModel: clear list")
+//        Napier.d("ViewModel: clear list")
 //    }
 //    private val _loginResult = MutableStateFlow<LoginResult?>(null)
 //    val loginResult: StateFlow<LoginResult?> get() = _loginResult

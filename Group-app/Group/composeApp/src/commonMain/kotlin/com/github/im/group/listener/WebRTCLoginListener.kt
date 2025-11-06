@@ -3,6 +3,7 @@ package com.github.im.group.listener
 import com.github.im.group.manager.LoginStateListener
 import com.github.im.group.model.UserInfo
 import com.github.im.group.sdk.WebRTCManager
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -22,7 +23,7 @@ class WebRTCLoginListener(
 
     override fun onLogin(userInfo: UserInfo) {
         // 用户登录时执行的操作
-        println("WebRTCLoginListener: 用户 ${userInfo.username} 已登录")
+        Napier.d("WebRTCLoginListener: 用户 ${userInfo.username} 已登录")
         CoroutineScope(Dispatchers.IO).launch {
             // 1. 初始化WebRTC
             webRTCManager.initialize()
@@ -39,7 +40,7 @@ class WebRTCLoginListener(
     
     override fun onLogout() {
         // 用户登出时执行的操作
-        println("WebRTCLoginListener: 用户已登出")
+        Napier.d("WebRTCLoginListener: 用户已登出")
         
         // 1. 断开与信令服务器的连接
         // webRTCManager.disconnectFromSignalingServer()

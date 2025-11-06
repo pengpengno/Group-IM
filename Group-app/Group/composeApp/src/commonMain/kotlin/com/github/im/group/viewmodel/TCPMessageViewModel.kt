@@ -18,23 +18,23 @@ class TCPMessageViewModel(
 //        //  先判断 message 的具体类型
 //        when {
 //            message.accountInfo != null -> {
-//                println("Received account info: ${message.accountInfo}")
+//                Napier.d("Received account info: ${message.accountInfo}")
 //                _messages.value = message
 //            }
 //            message.message != null -> {
-//                println("Received chat message: ${message.message}")
+//                Napier.d("Received chat message: ${message.message}")
 //                _messages.value = message
 //            }
 //            message.notification != null -> {
-//                println("Received notification: ${message.notification}")
+//                Napier.d("Received notification: ${message.notification}")
 //                _messages.value = message
 //            }
 //            message.ack != null -> {
-//                println("Received ack: ${message.ack}")
+//                Napier.d("Received ack: ${message.ack}")
 //                _messages.value = message
 //            }
 //            else -> {
-//                println("Unknown message received or payload is empty")
+//                Napier.d("Unknown message received or payload is empty")
 //            }
 //        }
 //

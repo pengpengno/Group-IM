@@ -121,6 +121,12 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
         return uris.map { uriToPickedFile(it) }
     }
 
+
+    suspend fun  pickMedia() : List<PickedFile> {
+        val uris = filePickerLauncher?.pick("image/*, video/*") ?: emptyList()
+        return uris.map { uriToPickedFile(it) }
+     }
+
     override suspend fun pickFile(): List<PickedFile> {
         val uris = filePickerLauncher?.pick("*/*") ?: emptyList()
         return uris.map { uriToPickedFile(it) }

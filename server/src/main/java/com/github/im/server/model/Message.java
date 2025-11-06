@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 // 消息实体类
 @Entity
@@ -57,10 +59,10 @@ public class Message {
     @Enumerated(EnumType.STRING)
     private MessageStatus status;  // 消息状态
 
-//    /**
-//     * 额外的元数据信息
-//     */
-//    private FileExtraMeta extraMeta; // 额外的元数据信息
+
+    @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<MediaFileResource> mediaList = new ArrayList<>();
+
 
     private LocalDateTime clientTimestamp;  // 客户端发送时间
 

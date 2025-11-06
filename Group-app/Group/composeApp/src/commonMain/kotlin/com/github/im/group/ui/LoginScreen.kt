@@ -21,6 +21,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,8 +37,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.manager.LoginStateManager
+import com.github.im.group.repository.UserRepository
+import com.github.im.group.repository.UserState
 import com.github.im.group.ui.chat.ChatRoomScreen
 import com.github.im.group.ui.contacts.AddFriendScreen
 import com.github.im.group.ui.contacts.ContactsUI
@@ -49,16 +51,6 @@ import org.koin.compose.viewmodel.koinViewModel
 
 
 
-//class MainScreen:Screen{
-//    @Composable
-//    override fun Content() {
-//
-//
-//        LoginScreen()
-//
-//
-//    }
-//}
 
 /**
  * 登录界面
@@ -67,9 +59,33 @@ import org.koin.compose.viewmodel.koinViewModel
 @Preview
 fun LoginScreen() {
     val navController: NavHostController = rememberNavController()
+    val userViewModel: UserViewModel = koinViewModel()
+    val userRepository: UserRepository = koinInject()
+    var startPage by remember { mutableStateOf<Any>(Login) }
+    
+    val userState by userRepository.userState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        userViewModel.autoLogin()
+    }
+
+    LaunchedEffect(userState){
+        when(userState){
+            is UserState.LoggedIn -> {
+                startPage = Home
+            }
+            is UserState.LoggedOut -> {
+                startPage = Login
+            }
+            else -> {}
+        }
+    }
+    
+    // 检查是否可以自动登录
+
     androidx.navigation.compose.NavHost(
         navController = navController,
-        startDestination = Login
+        startDestination = startPage
     ) {
         composable<Login> {
             LoginScreenUI(navController = navController)
@@ -112,6 +128,8 @@ fun LoginScreen() {
             )
         }
     }
+
+
 }
 
 @Composable
@@ -121,7 +139,6 @@ fun LoginScreenUI(
 ) {
     var username by remember{ mutableStateOf("wangpeng")}
     var password by remember { mutableStateOf("1") }
-    var autoLogin by remember { mutableStateOf(GlobalCredentialProvider.storage.autoLoginState()) }
     var isLoggingIn by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -181,15 +198,6 @@ fun LoginScreenUI(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        Spacer(Modifier.height(16.dp))
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(
-                                checked = autoLogin,
-                                onCheckedChange = { autoLogin = it }
-                            )
-                            Text("自动登录")
-                        }
 
                         Spacer(Modifier.height(16.dp))
 
