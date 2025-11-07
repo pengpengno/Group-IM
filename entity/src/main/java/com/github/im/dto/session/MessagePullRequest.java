@@ -3,6 +3,7 @@ package com.github.im.dto.session;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+
 @Data
 public class MessagePullRequest {
     private Long conversationId;
@@ -12,7 +13,11 @@ public class MessagePullRequest {
     private LocalDateTime endTime;
     private int page = 0;
     private int size = 50;
-    private String sort; // 可选排序字段（例如 id, createTime 等）
+    private String sort;
+    
+    /**
+     * 从指定的 sequenceId 开始拉取消息
+     */
+    private Long fromSequenceId;
 
-    // Getter & Setter
 }

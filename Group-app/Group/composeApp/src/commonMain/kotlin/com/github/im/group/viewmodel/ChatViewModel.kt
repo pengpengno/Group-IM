@@ -7,25 +7,23 @@ import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.config.SocketClient
 import com.github.im.group.manager.LoginStateManager
+import com.github.im.group.model.UserInfo
+import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.FilePicker
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import io.github.aakira.napier.Napier
 
-
-
-/**
- * 聊天界面的 ViewModel
- */
 class ChatViewModel (
     val tcpClient: SocketClient,
     val userRepository: UserRepository,
     val filePicker: FilePicker,
-    val loginStateManager: LoginStateManager
+    val loginStateManager: LoginStateManager,
+    val messageRepository: ChatMessageRepository
 ): ViewModel() {
 
 
@@ -44,7 +42,15 @@ class ChatViewModel (
             _loading.value = true
             try {
                 val response = ConversationApi.getActiveConversationsByUserId(uId)
-                _conversations.value = response
+                
+                // 为每个会话获取最新消息
+                val conversationsWithLatestMessages = response.map { conversation ->
+                    val latestMessage = messageRepository.getLatestMessage(conversation.conversationId)
+                    val lastMessageText = latestMessage?.content ?: ""
+                    conversation.copy(lastMessage = lastMessageText)
+                }
+                
+                _conversations.value = conversationsWithLatestMessages
             } catch (e: UnauthorizedException) {
                 // Token失效，通知登出
                 Napier.e("Token失效，需要重新登录", e)

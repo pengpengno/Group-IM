@@ -192,7 +192,7 @@ public class UserService {
      */
     public Page<UserInfo> findUserByQueryStrings(String queryString,Authentication authentication) {
         User user = (User) authentication.getPrincipal();
-
+        log.info("查询用户：{}",queryString);
 
         return userRepository.findAll((root, query, cb)-> {
             List<Predicate> predicates = new ArrayList<>();

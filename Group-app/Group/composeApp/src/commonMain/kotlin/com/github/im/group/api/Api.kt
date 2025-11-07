@@ -47,6 +47,7 @@ object UserApi{
         return ProxyApi.request<String, PageResult<UserInfo>>(
             hmethod = HttpMethod.Post,
             path = "/api/users/query",
+
             requestParams = mapOf("query" to queryString)
         )
     }
@@ -85,7 +86,8 @@ object ConversationApi{
         return ProxyApi.request<Unit , ConversationRes>(
             hmethod = HttpMethod.Post,
             path = "/api/conversations/private-chat",
-            requestParams = mapOf("userId" to userId.toString(),"friendId" to friendId.toString())
+            requestParams = mapOf("userId" to userId.toString(),"" +
+                    "friendId" to friendId.toString())
         )
     }
 
@@ -164,10 +166,13 @@ object FileApi {
  * Chat Api
  */
 object ChatApi {
+
+
     /**
      * 获取会话消息
      */
-    suspend fun getMessages(conversationId: Long): PageResult<MessageDTO> {
+    suspend fun getMessages(conversationId: Long, fromSequenceId: Long = 0): PageResult<MessageDTO> {
+
 
         val requestBody = MessagePullRequest(
             conversationId = conversationId,
@@ -176,7 +181,8 @@ object ChatApi {
             endTime = null,
             page = 0,
             size = 50,
-            sort = null
+            sort = null,
+            fromSequenceId = fromSequenceId
         )
         return ProxyApi.request<MessagePullRequest, PageResult<MessageDTO>>(
             hmethod = HttpMethod.Post,
@@ -226,6 +232,7 @@ data class MessagePullRequest(
     val page: Int = 0,
     val size: Int = 50,
     val sort: String? = null,
+    val fromSequenceId: Long? = null,  // 添加从指定sequenceId开始拉取的参数
 )
 
 

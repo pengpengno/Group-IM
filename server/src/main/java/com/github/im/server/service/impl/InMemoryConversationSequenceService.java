@@ -39,6 +39,20 @@ public class InMemoryConversationSequenceService implements ConversationSequence
         }
     }
 
+
+    @Override
+    public long getMaxSequence(Long conversationId) {
+        // 1. 尝试从缓存中获取 sequence
+        var sequence = conversationSequences.get(conversationId);
+        if (sequence != null) {
+            return sequence.get();
+        }
+        // 2. 如果缓存中没有，则从数据库中获取
+        Long maxSequenceByConversationId = messageRepository.findMaxSequenceByConversationId(conversationId);
+        conversationSequences.put(conversationId, new AtomicLong(maxSequenceByConversationId));
+        return maxSequenceByConversationId;
+    }
+
     @Override
     public long nextSequence(Long conversationId) {
         return conversationSequences

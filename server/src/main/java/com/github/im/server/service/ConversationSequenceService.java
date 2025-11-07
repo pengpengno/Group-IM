@@ -12,6 +12,13 @@ public interface ConversationSequenceService {
      */
     long nextSequence(Long conversationId);
 
+    /**
+     * 获取当前会话下最大的 sequence
+     * @param conversationId 会话ID
+     * @return 当前会话下最大的 sequence
+     */
+    long getMaxSequence(Long conversationId);
+
 
 
 

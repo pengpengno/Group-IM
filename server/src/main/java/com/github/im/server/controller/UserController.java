@@ -9,6 +9,7 @@ import com.github.im.server.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/users")
 @Valid
@@ -68,6 +70,7 @@ public class UserController {
     @PostMapping("/query")
     public ResponseEntity<PagedModel<UserInfo>> queryUserByNameOrEmail(@RequestParam String query ,
                                                                        @RequestHeader("Authorization") String auth) {
+        log.debug("query: " + query);
         return ResponseEntity.ok(new PagedModel<>(userService.findUserByQueryStrings(query, SecurityContextHolder.getContext().getAuthentication())));
     }
 

@@ -52,7 +52,7 @@ public class MessageService {
 
     // 拉取历史消息
     @Transactional(readOnly = true)
-    public Page<MessageDTO<MessagePayLoad>> pullHistoryMessages(Long sessionId,  LocalDateTime startTime, LocalDateTime endTime, Pageable pageable) {
+    public Page<MessageDTO<MessagePayLoad>> pullHistoryMessages(Long sessionId,  LocalDateTime startTime, LocalDateTime endTime, Long fromSequenceId, Pageable pageable) {
           return messageRepository.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("conversation").get("conversationId"), sessionId));
@@ -61,6 +61,9 @@ public class MessageService {
             }
             if (endTime != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("timestamp"), endTime));
+            }
+            if (fromSequenceId != null  && fromSequenceId !=0L) {
+                predicates.add(cb.greaterThan(root.get("sequenceId"), fromSequenceId));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         }, pageable)

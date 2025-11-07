@@ -29,24 +29,29 @@ class FileStorageManager(
     suspend fun getFileContent(fileId: String): ByteArray {
         Napier.d("获取文件内容: $fileId")
         
-        // 1. 检查本地是否存在该文件
-        val localFilePath = getLocalFilePath(fileId)
-        if (localFilePath != null && fileSystem.exists(localFilePath)) {
-            Napier.d("从本地获取文件: $fileId")
-            // 本地存在，直接返回本地文件内容
-            return fileSystem.read(localFilePath) {
-                readByteArray()
+        try {
+            // 1. 检查本地是否存在该文件
+            val localFilePath = getLocalFilePath(fileId)
+            if (localFilePath != null && fileSystem.exists(localFilePath)) {
+                Napier.d("从本地获取文件: $fileId")
+                // 本地存在，直接返回本地文件内容
+                return fileSystem.read(localFilePath) {
+                    readByteArray()
+                }
             }
+            
+            // 2. 本地不存在，从服务器下载
+            Napier.d("从服务器下载文件: $fileId")
+            val fileContent = FileApi.downloadFile(fileId)
+            
+            // 3. 保存到本地
+            saveFileLocally(fileId, fileContent)
+            
+            return fileContent
+        } catch (e: Exception) {
+            Napier.e("获取文件内容失败: $fileId", e)
+            throw e
         }
-        
-        // 2. 本地不存在，从服务器下载
-        Napier.d("从服务器下载文件: $fileId")
-        val fileContent = FileApi.downloadFile(fileId)
-        
-        // 3. 保存到本地
-        saveFileLocally(fileId, fileContent)
-        
-        return fileContent
     }
     
     /**
@@ -55,14 +60,19 @@ class FileStorageManager(
      * @return 本地文件路径，如果不存在则返回null
      */
     fun getLocalFilePath(fileId: String): Path? {
-        val fileRecord = filesRepository.getFile(fileId)
-        if (fileRecord != null) {
-            val fullPath = baseDirectory / fileRecord.storagePath
-            if (fileSystem.exists(fullPath)) {
-                return fullPath
+        try {
+            val fileRecord = filesRepository.getFile(fileId)
+            if (fileRecord != null) {
+                val fullPath = baseDirectory / fileRecord.storagePath
+                if (fileSystem.exists(fullPath)) {
+                    return fullPath
+                }
             }
+            return null
+        } catch (e: Exception) {
+            Napier.e("获取本地文件路径失败: $fileId", e)
+            return null
         }
-        return null
     }
     
     /**
@@ -138,14 +148,19 @@ class FileStorageManager(
      * @return 文件是否存在
      */
     fun isFileExists(fileId: String): Boolean {
-        // 检查本地是否存在
-        val localFilePath = getLocalFilePath(fileId)
-        if (localFilePath != null && fileSystem.exists(localFilePath)) {
-            return true
+        try {
+            // 检查本地是否存在
+            val localFilePath = getLocalFilePath(fileId)
+            if (localFilePath != null && fileSystem.exists(localFilePath)) {
+                return true
+            }
+            
+            // 检查数据库中是否存在记录
+            return filesRepository.getFile(fileId) != null
+        } catch (e: Exception) {
+            Napier.e("检查文件是否存在时发生错误: $fileId", e)
+            return false
         }
-        
-        // 检查数据库中是否存在记录
-        return filesRepository.getFile(fileId) != null
     }
     
     /**

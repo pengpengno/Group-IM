@@ -47,17 +47,6 @@ public class FileUploadController {
 
         return ResponseEntity.ok(fileInfo);
     }
-//    /**
-//     * 单文件直接上传接口（小文件适用）
-//     */
-//    @PostMapping("/upload/voice")
-//    public ResponseEntity<FileUploadResponse> voiceUpload(@RequestParam("file") MultipartFile file,
-//                                                     @RequestParam("uploaderId") UUID uploaderId,
-//                                                      @RequestParam() Long duration   // 音频时长
-//    ) throws IOException {
-//        var fileInfo = fileStorageService.storeFile(file, uploaderId,duration);
-//        return ResponseEntity.ok(fileInfo);
-//    }
 
     /**
      * 上传文件分片（支持断点续传）
@@ -100,55 +89,6 @@ public class FileUploadController {
 
 
         // TODO  根据 当前用户判断是否有权限下载文件
-//        FileResource fileResource = fileStorageService.getFile(fileId);
-//
-//        // 读取文件字节
-//        byte[] fileData = fileStorageService.loadFileAsBytes(fileResource);
-//
-//
-//        long fileLength = fileResource.getSize();
-//
-//        var originalName = fileResource.getOriginalName();
-//        String encodedFilename = URLEncoder.encode(originalName, StandardCharsets.UTF_8).replaceAll("\\+", "%20");
-//
-//        // 如果客户端没有 Range 请求，返回完整文件
-//        if (rangeHeader == null) {
-//            var resource = new ByteArrayResource(fileData);
-//            return ResponseEntity.ok()
-//                    .header("Content-Disposition", "attachment; filename=\"" + encodedFilename + "\"")
-//                    .header("Content-Type", fileResource.getContentType())
-//                    .contentLength(fileLength)
-//                    .body(resource);
-//        }
-//
-//
-//
-//
-//
-//        // 处理 Range 请求
-//        String[] ranges = rangeHeader.replace("bytes=", "").split("-");
-//        long start = Long.parseLong(ranges[0]);
-//        long end = ranges.length > 1 && !ranges[1].isEmpty() ? Long.parseLong(ranges[1]) : fileLength - 1;
-//        long contentLength = end - start + 1;
-//
-//        var file = fileStorageService.loadFile(fileResource);
-//
-//        RandomAccessFile raf = new RandomAccessFile(file, "r");
-//        raf.seek(start);
-//        byte[] buffer = new byte[(int) contentLength];
-//        raf.readFully(buffer);
-//        raf.close();
-//
-//        InputStreamResource resource = new InputStreamResource(new ByteArrayInputStream(buffer));
-//
-//        return ResponseEntity
-//                .status(HttpStatus.PARTIAL_CONTENT)
-//                .header("Content-Disposition", "inline; filename=\"" + fileResource.getOriginalName() + "\"")
-//                .header("Content-Type", fileResource.getContentType())
-//                .header("Accept-Ranges", "bytes")
-//                .header("Content-Range", "bytes " + start + "-" + end + "/" + fileLength)
-//                .contentLength(contentLength)
-//                .body(resource);
         FileResource fileResource = fileStorageService.getFile(fileId);
         var file = fileStorageService.loadFile(fileResource);
         var resource = new UrlResource(file.toURI());

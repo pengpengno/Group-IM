@@ -74,7 +74,10 @@ fun AddFriendScreen(
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { navHostController.popBackStack() }) {
+            IconButton(onClick = { 
+                // 返回时明确指定返回到联系人界面
+                navHostController.popBackStack()
+            }) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "返回"
@@ -85,10 +88,11 @@ fun AddFriendScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { query ->
+                    Napier.i ("Search query: $query")
                     searchQuery = query
-                    if (query.isNotEmpty()) {
+                    if (searchQuery.isNotEmpty()) {
                         isSearching = true
-                        userViewModel.searchUser(query)
+                        userViewModel.searchUser(searchQuery)
                     } else {
                         isSearching = false
                     }

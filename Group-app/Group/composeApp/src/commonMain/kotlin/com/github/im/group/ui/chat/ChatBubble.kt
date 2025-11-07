@@ -22,6 +22,10 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,7 +33,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
@@ -61,26 +64,84 @@ sealed class MessageContent {
 fun ImageMessage(content: MessageContent.Image) {
     var showPreview by remember { mutableStateOf(false) }
 
-    val imageUrl = "http://${ProxyConfig.host}:${ProxyConfig.port}/api/files/download/${content.imageId}"
-    Napier.d(imageUrl)
     CrossPlatformImage(
-        url = imageUrl,
+        url = content.imageId,
         modifier = Modifier
-            .size(120.dp)
+            .size(200.dp)
             .clip(RoundedCornerShape(8.dp))
             .clickable { showPreview = true },
-        size = 120.dp
+        size = 200.dp
     )
 
-    // 点击后全屏预览
     if (showPreview) {
         Dialog(onDismissRequest = { showPreview = false }) {
             CrossPlatformImage(
-                url = imageUrl,
+                url = content.imageId,
                 modifier = Modifier
                     .size(300.dp)
                     .clip(RoundedCornerShape(8.dp)),
                 size = 300.dp
+            )
+        }
+    }
+}
+
+/**
+ * 语音消息
+ */
+@Composable
+fun VoiceMessage(content: MessageContent.Voice) {
+    Row(
+        modifier = Modifier
+            .padding(12.dp)
+            .clickable { /* TODO: 播放语音 */ },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Mic,
+            contentDescription = "语音",
+            tint = Color.Black,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text("${content.duration}\"", color = Color.Black)
+    }
+}
+
+/**
+ * 视频消息
+ */
+@Composable
+fun VideoMessage(content: MessageContent.Video) {
+    var showPreview by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .size(200.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { showPreview = true }
+            .background(Color.Gray)
+    ) {
+        Icon(
+            imageVector = Icons.Default.PlayCircle,
+            contentDescription = "播放视频",
+            tint = Color.White,
+            modifier = Modifier
+                .size(48.dp)
+                .align(Alignment.Center)
+        )
+    }
+
+    if (showPreview) {
+        Dialog(
+            onDismissRequest = { showPreview = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            CrossPlatformVideo(
+                url = content.videoId,
+                modifier = Modifier.fillMaxSize(),
+                size = 300.dp,
+                onClose = { showPreview = false }
             )
         }
     }
@@ -106,12 +167,13 @@ fun FileMessage(content: MessageContent.File) {
     Row(
         modifier = Modifier
             .padding(12.dp)
-//            .width(max = 250.dp)
-            .clickable { /* TODO:
-             文件在本地数据库中不存在   -》 下载
-              文件在本地数据库中存在 且 路径正确 -》 打开
-              文件在本地数据库中存在 且 路径错误 -》 提示不存在 ，重新下载
-             下载 or 打开文件 */ },
+            .clickable { 
+                // TODO:
+                // 文件在本地数据库中不存在   -》 下载
+                // 文件在本地数据库中存在 且 路径正确 -》 打开
+                // 文件在本地数据库中存在 且 路径错误 -》 提示不存在 ，重新下载
+                Napier.d("点击文件消息: ${content.fileName}")
+            },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(

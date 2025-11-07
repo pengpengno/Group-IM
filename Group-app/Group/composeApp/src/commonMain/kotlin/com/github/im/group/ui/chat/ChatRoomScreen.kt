@@ -47,6 +47,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -64,12 +65,13 @@ import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
 import com.github.im.group.ui.video.VideoCallViewModel
 import io.github.aakira.napier.Napier
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun ChatRoomScreen(
     conversationId: Long,
@@ -110,10 +112,24 @@ fun ChatRoomScreen(
     val videoCallViewModel: VideoCallViewModel = koinViewModel()
 
     val listState = rememberLazyListState()
+    
+    // 下拉刷新状态
+    var isRefreshing by remember { mutableStateOf(false) }
+    val pullRefreshState = rememberPullRefreshState(isRefreshing, onRefresh = {
+        isRefreshing = true
+        messageViewModel.refreshMessages(conversationId)
+    })
 
     LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) {
             listState.animateScrollToItem(state.messages.lastIndex)
+        }
+    }
+
+    // 监听刷新完成状态
+    LaunchedEffect(state.loading) {
+        if (!state.loading && isRefreshing) {
+            isRefreshing = false
         }
     }
 
@@ -142,8 +158,7 @@ fun ChatRoomScreen(
             voiceViewModel.cancel() // 发送后重置状态
         }
     }
-
-
+    
     Scaffold(
         topBar = {
             TopAppBar(
@@ -173,74 +188,106 @@ fun ChatRoomScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0088CC))
             )
         },
-            // 录音时候不展示 底部
-            bottomBar = {
-                ChatInputArea(
-                    onSendText = { text ->
-                        messageViewModel.sendMessage(conversationId, text)
-                    },
-                    onRelease = { direction ->
-                        Napier.d(" direction  : $direction")
-                        when (direction) {
-                            AnimatedContentTransitionScope.SlideDirection.Start -> {
-                                voiceViewModel.stopRecording( direction)
-                                Napier.d(" start  : $direction")
-                                // 直接发送消息
-                                sendVoiceMessage()
-                            }
-                            AnimatedContentTransitionScope.SlideDirection.Left -> {
-                                Napier.d(" left  : $direction")
+        // 录音时候不展示 底部
+        bottomBar = {
+            ChatInputArea(
+                onSendText = { text ->
+                    messageViewModel.sendMessage(conversationId, text)
+                },
+                onRelease = { direction ->
+                    Napier.d(" direction  : $direction")
+                    when (direction) {
+                        AnimatedContentTransitionScope.SlideDirection.Start -> {
+                            voiceViewModel.stopRecording( direction)
+                            Napier.d(" start  : $direction")
+                            // 直接发送消息
+                            sendVoiceMessage()
+                        }
+                        AnimatedContentTransitionScope.SlideDirection.Left -> {
+                            Napier.d(" left  : $direction")
 
-                                // 取消录音
-                                voiceViewModel.cancel()
-                            }
-
-                            AnimatedContentTransitionScope.SlideDirection.Right -> {
-                                // 取消录音
-                                voiceViewModel.stopRecording(direction)
-                            }else -> {
-                            Napier.d(" else  : $direction")
-                                // 取消录音
-                                voiceViewModel.cancel()
-                            }
-
+                            // 取消录音
+                            voiceViewModel.cancel()
                         }
 
-                    },
-                    onFileSelected = { files ->
-                        // 处理选择的文件
-                        files.forEach { file ->
-                            messageViewModel.sendFileMessage(conversationId, file)
+                        AnimatedContentTransitionScope.SlideDirection.Right -> {
+                            // 取消录音
+                            voiceViewModel.stopRecording(direction)
+                        }else -> {
+                        Napier.d(" else  : $direction")
+                            // 取消录音
+                            voiceViewModel.cancel()
                         }
+
                     }
-                )
-            }
 
-
+                },
+                onFileSelected = { files ->
+                    // 处理选择的文件
+                    files.forEach { file ->
+                        messageViewModel.sendFileMessage(conversationId, file)
+                    }
+                }
+            )
+        }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .background(Color.White),
-            state = listState,
-            reverseLayout = false, // false: 新消息在底部
-            contentPadding = PaddingValues(bottom = 40.dp) // 为输入框腾出空间
-        ) {
-            items(state.messages) { msg ->
-                // 头像
+        Box(modifier = Modifier
+            .padding(padding)
+            .fillMaxSize()
+            .pullRefresh(pullRefreshState)) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                state = listState,
+                reverseLayout = false, // false: 新消息在底部
+                contentPadding = PaddingValues(bottom = 40.dp) // 为输入框腾出空间
+            ) {
+                items(state.messages) { msg ->
+                    // 头像
 
-                MessageBubble(
-                    isOwnMessage = msg.userInfo.userId == userInfo.userId,
-                    msg = msg,
-                    onFileMessageClick = { fileMsg ->
-                        // 处理文件消息点击事件
-                        // 触发文件下载（实现本地优先策略）
-                        Napier.d("点击文件消息: ${fileMsg.content}")
-                        messageViewModel.downloadFileMessage(fileMsg.content)
-                    }
-                )
+                    MessageBubble(
+                        isOwnMessage = msg.userInfo.userId == userInfo.userId,
+                        msg = msg,
+                        onFileMessageClick = { fileMsg ->
+                            // 处理文件消息点击事件
+                            // 触发文件下载（实现本地优先策略）
+                            Napier.d("点击文件消息: ${fileMsg.content}")
+                            messageViewModel.downloadFileMessage(fileMsg.content)
+                        }
+                    )
+                }
             }
+            
+            // 加载指示器
+            if (state.loading && !isRefreshing) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(50.dp),
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "消息加载中...",
+                            color = Color.White,
+                            fontSize = 16.sp
+                        )
+                    }
+                }
+            }
+            
+            // 下拉刷新指示器
+            PullRefreshIndicator(
+                refreshing = isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
 
         // 录音控制浮窗

@@ -40,7 +40,6 @@ class UserViewModel(
     /**
      * 登录状态
      * 用于主页监听  默认情况下使用 true
-     *
      */
     private val _LoginState = MutableStateFlow<LoginState>(LoginState.LoggedIn)
 
@@ -66,7 +65,7 @@ class UserViewModel(
             try {
                 val currentUser = getCurrentUser()
                 if (currentUser.userId != 0L) {
-                    val friendList = com.github.im.group.api.FriendShipApi.getFriends(currentUser.userId)
+                    val friendList = FriendShipApi.getFriends(currentUser.userId)
                     _friends.value = friendList
                 }
             } catch (e: Exception) {
@@ -80,13 +79,29 @@ class UserViewModel(
      */
     fun searchUser(queryString: String) {
         if (queryString.isBlank()) {
+            Napier.d("查询用户为空")
             _searchResults.value = emptyList()
             return
         }
-        
+
+        if (queryString.length < 2) {
+            Napier.d("查询用户长度小于2")
+            _searchResults.value = emptyList()
+            return
+        }
+
+        if (queryString.startsWith("@")) {
+            Napier.d("查询用户为@开头")
+            _searchResults.value = emptyList()
+            return
+        }
+
+        Napier.d("查询用户为${queryString}")
+
         viewModelScope.launch {
             try {
                 val result = UserApi.findUser(queryString)
+                Napier.d("搜索用户成功: ${result.content}")
                 _searchResults.value = result.content
             } catch (e: Exception) {
                 Napier.d("搜索用户失败: $e")

@@ -44,6 +44,7 @@ public class MessageController {
                 request.getConversationId(),
                 request.getStartTime(),
                 request.getEndTime(),
+                request.getFromSequenceId(),
                 pageable
         );
 

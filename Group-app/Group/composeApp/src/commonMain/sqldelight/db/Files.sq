@@ -24,6 +24,11 @@ selectFileByClientId:
 SELECT * FROM FileResource
 WHERE clientId = ?;
 
+-- 根据最后访问时间查询文件
+selectFilesBeforeAccessTime:
+SELECT * FROM FileResource
+WHERE uploadTime < ?;
+
 insertFile:
 INSERT INTO FileResource (
   originalName,
@@ -62,4 +67,3 @@ SET
   clientId = ?,
   status = ?
 WHERE clientId = ?;
-

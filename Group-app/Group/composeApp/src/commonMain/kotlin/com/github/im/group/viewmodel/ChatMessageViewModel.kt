@@ -14,6 +14,7 @@ import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.model.proto.MessageType
 import com.github.im.group.model.proto.MessagesStatus
 import com.github.im.group.repository.ChatMessageRepository
+import com.github.im.group.repository.MessageSyncRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.FileStorageManager
@@ -86,6 +87,7 @@ class ChatMessageViewModel(
     val userRepository: UserRepository,
     val chatSessionManager: ChatSessionManager,
     val chatMessageRepository: ChatMessageRepository,
+    val messageSyncRepository: MessageSyncRepository,
     val senderSdk: SenderSdk,
     val filePicker: FilePicker,  // 通过构造函数注入FilePicker
     val fileStorageManager: FileStorageManager // 文件存储管理器
@@ -156,26 +158,36 @@ class ChatMessageViewModel(
      * @param conversationId 会话id
      * 默认加载最新的 50 条消息
      */
-    fun loadMessages(conversationId: Long )  {
+    fun loadMessages(conversationId: Long) {
         viewModelScope.launch {
             _uiState.update {
                 it.copy(loading = true)
             }
             try {
-                val response = ChatApi.getMessages(conversationId)
-
-                val wrappedMessages = response.content.map {
-                    MessageWrapper(messageDto = it)
-                }.sortedBy { it.seqId }
-
-                Napier.d("receive $wrappedMessages")
-
+                // 首先从本地数据库加载已有消息
+                val localMessages = chatMessageRepository.getMessagesByConversation(conversationId)
+                Napier.d("从本地加载到 ${localMessages.size} 条消息")
+                
+                // 更新UI显示本地消息
                 _uiState.update {
-                    it.copy(messages = wrappedMessages)
+                    it.copy(messages = localMessages)
                 }
 
+                // 然后从服务器同步新消息（增量同步）
+                val newMessageCount = messageSyncRepository.syncMessages(conversationId)
+                Napier.d("同步到 $newMessageCount 条新消息")
+                
+                // 如果有新消息，重新从本地加载所有消息
+                if (newMessageCount > 0) {
+                    val updatedMessages = chatMessageRepository.getMessagesByConversation(conversationId)
+                    Napier.d("更新后共有 ${updatedMessages.size} 条消息")
+                    
+                    _uiState.update {
+                        it.copy(messages = updatedMessages)
+                    }
+                }
             } catch (e: Exception) {
-                Napier.d("加载失败: $e")
+                Napier.e("加载消息失败", e)
             } finally {
                 _uiState.update {
                     it.copy(loading = false)
@@ -183,6 +195,39 @@ class ChatMessageViewModel(
             }
         }
 
+    }
+
+    /**
+     * 手动刷新消息（下拉刷新时调用）
+     * @param conversationId 会话ID
+     */
+    fun refreshMessages(conversationId: Long) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(loading = true)
+            }
+            try {
+                // 只执行同步操作，不重新加载本地数据
+                val newMessageCount = messageSyncRepository.syncMessages(conversationId)
+                Napier.d("刷新同步到 $newMessageCount 条新消息")
+                
+                // 如果有新消息，重新从本地加载所有消息
+                if (newMessageCount > 0) {
+                    val updatedMessages = chatMessageRepository.getMessagesByConversation(conversationId)
+                    Napier.d("刷新后共有 ${updatedMessages.size} 条消息")
+                    
+                    _uiState.update {
+                        it.copy(messages = updatedMessages)
+                    }
+                }
+            } catch (e: Exception) {
+                Napier.e("刷新消息失败", e)
+            } finally {
+                _uiState.update {
+                    it.copy(loading = false)
+                }
+            }
+        }
     }
 
     /**
@@ -237,7 +282,7 @@ class ChatMessageViewModel(
                 }
 
             } catch (e: Exception) {
-                Napier.d("加载失败: $e")
+                Napier.e("获取会话信息失败", e)
             } finally {
                 _uiState.update {
                     it.copy(loading = false)
@@ -355,7 +400,7 @@ class ChatMessageViewModel(
                 }
             } catch (e: Exception) {
                 // 处理上传失败的情况
-                e.printStackTrace()
+                Napier.e("发送文件消息失败", e)
                 // 即使上传失败，也发送文件名作为消息
                 sendMessage(conversationId, "文件: ${file.name}", MessageType.FILE)
             }
@@ -379,7 +424,7 @@ class ChatMessageViewModel(
                 try {
                     return@runBlocking getFileMessageMeta(messageItem.content)
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Napier.e("获取文件元信息失败", e)
                     null
                 }
             }
@@ -500,7 +545,7 @@ class ChatMessageViewModel(
                 sendMessage(conversationId, response.id, type, response.fileMeta)
             } catch (e: Exception) {
                 // 处理上传失败的情况
-                e.printStackTrace()
+                Napier.e("发送文件消息失败", e)
             }
         }
     }
@@ -531,7 +576,7 @@ class ChatMessageViewModel(
                 }
 
             } catch (e: Exception) {
-                Napier.d("发送失败: $e")
+                Napier.e("发送消息失败", e)
             }
         }
 

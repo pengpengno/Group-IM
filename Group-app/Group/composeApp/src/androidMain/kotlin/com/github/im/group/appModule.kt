@@ -13,6 +13,7 @@ import com.github.im.group.listener.WebRTCLoginListener
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.FilesRepository
+import com.github.im.group.repository.MessageSyncRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.AndroidAudioPlayer
 import com.github.im.group.sdk.AndroidFilePicker
@@ -50,6 +51,7 @@ val appModule = module {
     single { UserRepository(get()) }
     single { ChatMessageRepository(get()) }
     single { FilesRepository(get()) }
+    single { MessageSyncRepository(get(), get(), get()) }
     single { FilesRepository(get()) }
 
 
@@ -67,7 +69,9 @@ val appModule = module {
             tcpClient = get(),
             userRepository = get(),
             filePicker = get(),
-            loginStateManager = get()
+            loginStateManager = get(),
+            messageRepository = get(),
+
         )
     }
     
@@ -77,6 +81,7 @@ val appModule = module {
             get(),
             chatSessionManager = get(),
             chatMessageRepository = get(),
+            messageSyncRepository = get(),
             senderSdk = get(),
             filePicker = get() ,
             fileStorageManager = get()

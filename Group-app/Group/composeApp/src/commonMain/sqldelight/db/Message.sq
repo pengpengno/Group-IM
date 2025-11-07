@@ -25,8 +25,8 @@ SELECT * FROM message;
 -- 插入消息
 insertMessage:
 INSERT INTO message ( conversation_id, from_account_id, content, client_msg_id,
- type, status, client_timestamp)
-VALUES ( ?, ?, ?, ?, ?, ?, ?);
+ type, status, client_timestamp, sequence_id)
+VALUES ( ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- 根据 msgId 删除
 deleteMessage:
@@ -47,11 +47,17 @@ DELETE FROM message WHERE conversation_id = ?;
 selectMessageByConversationId:
 SELECT * FROM message WHERE conversation_id = ? ORDER BY server_timestamp DESC LIMIT ? OFFSET ?;
 
+-- 根据 conversationId 查询所有消息
+selectMessagesByConversation:
+SELECT * FROM message WHERE conversation_id = ? ORDER BY server_timestamp ASC;
 
 -- 根据conversationId 获取对应最大序列号
-selectMaxSequenceIdByConversationId:
+selectMaxSequenceIdByConversation:
 SELECT MAX(sequence_id) FROM message WHERE conversation_id = ?;
 
+-- 根据conversationId 获取最新的一条消息
+selectLatestMessageByConversation:
+SELECT * FROM message WHERE conversation_id = ? ORDER BY server_timestamp DESC LIMIT 1;
 
 updateMessageByClientMsgId:
 UPDATE message SET status = ? , server_timestamp = ? , sequence_id = ? ,msg_id = ? WHERE client_msg_id = ?;

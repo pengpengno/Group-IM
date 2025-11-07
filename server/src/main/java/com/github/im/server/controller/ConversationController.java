@@ -31,6 +31,16 @@ public class ConversationController {
 
 
     /**
+     * 获取会话 最大 index
+     */
+    @PostMapping("/max-index")
+    public ResponseEntity<Long> getMaxIndex(
+            @RequestParam Long conversationId
+    ) {
+        return ResponseEntity.ok(conversationService.maxIndex(conversationId));
+    }
+
+    /**
      * 查询指定群聊
      * @param conversationId 群组Id
      * @return 群组

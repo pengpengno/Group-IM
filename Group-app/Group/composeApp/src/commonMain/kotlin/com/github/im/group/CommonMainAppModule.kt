@@ -2,7 +2,6 @@ package com.github.im.group
 
 import com.github.im.group.api.LoginApi
 import com.github.im.group.db.DatabaseDriverFactory
-import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.FilesRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.FileStorageManager

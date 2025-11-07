@@ -29,6 +29,8 @@ public class ConversationService {
     private final GroupMemberMapper groupMemberMapper;
     private final GroupMemberService groupMemberService;
 
+    private final ConversationSequenceService conversationSequenceService;
+
     /**
      * 创建新群组
      * @param groupName 群组名称
@@ -61,6 +63,11 @@ public class ConversationService {
         }
 
         return conversationsMapper.toDTO(group);
+    }
+
+    @Transactional
+    public Long  maxIndex(Long conversationId){
+        return conversationSequenceService.getMaxSequence(conversationId);
     }
 
     @Transactional
