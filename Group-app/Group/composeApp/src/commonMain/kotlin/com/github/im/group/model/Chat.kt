@@ -2,38 +2,60 @@ package com.github.im.group.model
 
 import com.github.im.group.api.FileMeta
 import com.github.im.group.api.MessageDTO
-import com.github.im.group.api.MessagePayLoad
 import com.github.im.group.api.extraAs
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.proto.AccountInfo
 import com.github.im.group.model.proto.ChatMessage
-import com.github.im.group.model.proto.MessagesStatus
 import kotlinx.datetime.LocalDateTime
-import kotlinx.serialization.Serializable
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 class Chat {
 }
 
 interface MessageItem {
+    /**
+     * 消息ID 服务端生产的id
+     */
     val id: Long
 
+    /**
+     * 会话ID
+     */
     val conversationId:Long
 
+    /**
+     * 客户端发送时生成的 MsgId
+     */
     val clientMsgId : String
 
+    /**
+     * 客户端发送消息的时间
+     * TODO 目前只有本地发送出去的数据 会存
+     */
+    val clientTime: LocalDateTime?
+
+    /**
+     * 服务端的消息时间
+     */
     val time: LocalDateTime
 
     val userInfo : UserInfo
     /**
-     * 序列号
+     *  服务端生成的 序列号
      */
     val seqId : Long
 
-    // 可选：用于 UI 渲染的类型标识
+    /**
+     * 消息类型
+     */
     val type: MessageType
 
-    val status : MessageStatus?
+    /**
+     * 消息状态
+     */
+    val status : MessageStatus
 
     val content: String
 
@@ -54,13 +76,19 @@ data class MessageWrapper(
 ) : MessageItem {
 
 
-
-    override val status: MessageStatus?
+    override val clientTime: LocalDateTime?
+        get() = when {
+            message?.clientTimeStamp != null -> {
+                val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(message.clientTimeStamp)
+                instant.toLocalDateTime(TimeZone.currentSystemDefault())
+            }
+            else -> null
+        }
+    override val status: MessageStatus
         get() = when{
-           
             message?.messagesStatus != null -> MessageStatus.valueOf(message.messagesStatus.name)
             messageDto?.status != null -> messageDto.status
-            else -> null
+            else -> MessageStatus.SENDING
         }
 
     override val fileMeta: FileMeta?

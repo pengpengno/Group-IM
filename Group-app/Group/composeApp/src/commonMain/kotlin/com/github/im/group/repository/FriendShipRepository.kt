@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
  */
 class FriendShipRepository(
     val userRepository: UserRepository,
+    val friendRequestRepository: FriendRequestRepository,
     val db: AppDatabase
 ) {
 
@@ -57,6 +58,27 @@ class FriendShipRepository(
         }
 
 
+    }
+    
+    /**
+     * 同步好友关系
+     * 使用本地数据库中最大的ID作为基准从服务器获取更新
+     */
+    suspend fun syncFriends() {
+        val user = userRepository.withLoggedInUser {
+            it.user
+        }
+        
+        val userId = user.userId
+        
+        // 获取本地数据库中最大的好友关系ID
+        val maxId = db.friendshipQueries.selectMaxId().executeAsOneOrNull()
+            .let {
+                it?.MAX?:0L
+            }
+        
+        // 同步好友关系
+        friendRequestRepository.syncFriendRequests(userId, maxId)
     }
 
 

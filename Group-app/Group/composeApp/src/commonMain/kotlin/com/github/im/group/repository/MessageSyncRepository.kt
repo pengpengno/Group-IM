@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.launch
+import kotlin.collections.emptyList
 
 /**
  * 消息同步仓库，负责处理本地和远程消息的同步
@@ -72,6 +73,103 @@ class MessageSyncRepository(
         }
     }
     
+    /**
+//     * 获取历史消息（本地优先）
+//     * @param conversationId 会话ID
+//     * @param beforeSequenceId 在此序列号之前的消息
+//     * @param limit 限制返回的消息数量
+//     * @return 消息列表
+//     */
+//    suspend fun getHistoricalMessages(conversationId: Long, beforeSequenceId: Long, limit: Int = 20): List<MessageItem> {
+//        return getMessagesWithStrategy(
+//            conversationId = conversationId,
+//            loadingMessage = "获取历史消息",
+//            remoteFetch = {
+//                val pageResult = ChatApi.getMessages(conversationId, 0, beforeSequenceId)
+//                pageResult.content.filter { (it.sequenceId ?: 0) < beforeSequenceId }.take(limit)
+//            }
+//        )
+//    }
+    
+//    /**
+//     * 获取最新消息（本地优先）
+//     * @param conversationId 会话ID
+//     * @param afterSequenceId 在此序列号之后的消息
+//     * @return 消息列表
+//     */
+//    suspend fun getLatestMessages(conversationId: Long, afterSequenceId: Long): List<MessageItem> {
+//        return getMessagesWithStrategy(
+//            conversationId = conversationId,
+//            loadingMessage = "获取最新消息",
+//            remoteFetch = {
+//                val pageResult = ChatApi.getMessages(conversationId, afterSequenceId)
+//                pageResult.content
+//            }
+//        )
+//    }
+    
+    /**
+     * 通用的消息获取方法，实现本地优先策略
+     * @param conversationId 会话ID
+     * @param currentIndex 当前索引
+     * @param isForward 是否向前获取（历史消息）
+     * @return 消息列表
+     */
+    suspend fun getMessagesWithStrategy(
+        conversationId: Long,
+        currentIndex: Long,
+        isForward: Boolean
+    ): List<MessageItem> {
+        Napier.d("获取消息: conversationId=$conversationId, currentIndex=$currentIndex, isForward=$isForward")
+        
+        try {
+            val messageItem =  isForward.let {
+                if (isForward) {
+                    messageRepository.getMessagesBeforeSequence(conversationId, currentIndex)
+                } else {
+                    //  查询当前索引 之后的数据
+                    messageRepository.getMessagesAfterSequence(conversationId, currentIndex)
+                }
+            }.let {items->
+                items.ifEmpty {
+                    // 从服务器获取消息
+                    val remoteMessages = if (isForward) {
+                        ChatApi.getMessages(conversationId, toSequenceId = currentIndex).content
+                    } else {
+                        ChatApi.getMessages(conversationId, fromSequenceId = currentIndex).content
+                    }
+
+                    Napier.d("从服务器获取到 ${remoteMessages.size} 条消息")
+
+                    if (remoteMessages.isNotEmpty()) {
+                        // 保存到本地数据库
+                        messageRepository.insertMessages(remoteMessages)
+
+                        // 保存文件元数据
+                        val fileMetas = remoteMessages
+                            .filter { it.type.isFile() }
+                            .mapNotNull { it.extraAs<com.github.im.group.api.FileMeta>() }
+
+                        if (fileMetas.isNotEmpty()) {
+                            filesRepository.addFiles(fileMetas)
+                        }
+
+                        Napier.d("从服务器获取并保存了 ${remoteMessages.size} 条消息")
+                        remoteMessages
+                    } else {
+                        emptyList()
+                    }
+                }
+                return@let items
+            }
+            
+            return messageItem
+        } catch (e: Exception) {
+            Napier.e("获取消息时发生错误", e)
+            return emptyList()
+        }
+    }
+
     /**
      * 获取指定会话的消息（本地优先）
      * @param conversationId 会话ID

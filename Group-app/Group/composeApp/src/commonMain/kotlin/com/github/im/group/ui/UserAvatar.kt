@@ -15,6 +15,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.absoluteValue
 
+/**
+ * 用户头像
+ */
 @Composable
 fun UserAvatar(
     username: String,

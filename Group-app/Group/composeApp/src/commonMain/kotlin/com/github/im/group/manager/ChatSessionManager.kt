@@ -30,6 +30,7 @@ class ChatSessionManager  (
      * 避免重复进入页面重复刷新
      */
     fun register(conversationId: Long, viewModel: ChatMessageViewModel) {
+
         sessionMap[conversationId] = viewModel
         // 若缓存中有消息，立即投递并清除
         messageBuffer.remove(conversationId)?.forEach { message ->

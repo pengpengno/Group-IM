@@ -13,6 +13,7 @@ import com.github.im.group.listener.WebRTCLoginListener
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.FilesRepository
+import com.github.im.group.repository.FriendRequestRepository
 import com.github.im.group.repository.MessageSyncRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.AndroidAudioPlayer
@@ -51,8 +52,8 @@ val appModule = module {
     single { UserRepository(get()) }
     single { ChatMessageRepository(get()) }
     single { FilesRepository(get()) }
+    single { FriendRequestRepository(get()) }
     single { MessageSyncRepository(get(), get(), get()) }
-    single { FilesRepository(get()) }
 
 
     single { 
@@ -82,6 +83,7 @@ val appModule = module {
             chatSessionManager = get(),
             chatMessageRepository = get(),
             messageSyncRepository = get(),
+            filesRepository = get(), // 添加文件仓库依赖
             senderSdk = get(),
             filePicker = get() ,
             fileStorageManager = get()
@@ -122,7 +124,13 @@ val appModule = module {
     }
 
 
-    single  {UserViewModel(get(),get())}// 注册为 ViewModel，由 Koin 自动管理生命周期
+    viewModel { 
+        UserViewModel(
+            userRepository = get(),
+            loginStateManager = get(),
+            friendRequestRepository = get()
+        )
+    }   // 注册为 ViewModel，由 Koin 自动管理生命周期
     
     // 注册VideoCallViewModel
     viewModel { 

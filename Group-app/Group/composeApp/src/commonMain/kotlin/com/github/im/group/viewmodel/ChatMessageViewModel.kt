@@ -2,7 +2,6 @@ package com.github.im.group.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.github.im.group.api.ChatApi
 import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.api.FileApi
@@ -15,6 +14,7 @@ import com.github.im.group.model.proto.MessageType
 import com.github.im.group.model.proto.MessagesStatus
 import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.MessageSyncRepository
+import com.github.im.group.repository.FilesRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.FileStorageManager
@@ -22,7 +22,6 @@ import com.github.im.group.sdk.PickedFile
 import com.github.im.group.sdk.SenderSdk
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,7 +41,7 @@ import kotlin.uuid.Uuid
  */
 data class ChatUiState(
 //    val messages: List<MessageWrapper> = emptyList(),
-    val messages: List<MessageItem> = emptyList(),
+    val messages: MutableList<MessageItem> = mutableListOf(),
     val conversation: ConversationRes = ConversationRes(),
     val loading: Boolean = false
 )
@@ -56,38 +55,14 @@ data class FileDownloadState(
     val isSuccess: Boolean = false,
     val fileContent: ByteArray? = null,
     val error: String? = null
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is FileDownloadState) return false
-
-        if (fileId != other.fileId) return false
-        if (isDownloading != other.isDownloading) return false
-        if (isSuccess != other.isSuccess) return false
-        if (fileContent != null) {
-            if (other.fileContent == null) return false
-            if (!fileContent.contentEquals(other.fileContent)) return false
-        } else if (other.fileContent != null) return false
-        if (error != other.error) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = fileId.hashCode()
-        result = 31 * result + isDownloading.hashCode()
-        result = 31 * result + isSuccess.hashCode()
-        result = 31 * result + (fileContent?.contentHashCode() ?: 0)
-        result = 31 * result + (error?.hashCode() ?: 0)
-        return result
-    }
-}
+)
 
 class ChatMessageViewModel(
     val userRepository: UserRepository,
     val chatSessionManager: ChatSessionManager,
     val chatMessageRepository: ChatMessageRepository,
     val messageSyncRepository: MessageSyncRepository,
+    val filesRepository: FilesRepository, // 添加文件仓库依赖
     val senderSdk: SenderSdk,
     val filePicker: FilePicker,  // 通过构造函数注入FilePicker
     val fileStorageManager: FileStorageManager // 文件存储管理器
@@ -113,7 +88,9 @@ class ChatMessageViewModel(
      */
     fun onReceiveMessage(message: MessageItem){
         _uiState.update {
-            it.copy(messages = it.messages + message)
+            val updatedMessages = it.messages.toMutableList()
+            updatedMessages.add(message)
+            it.copy(messages = updatedMessages)
         }
     }
 
@@ -170,7 +147,11 @@ class ChatMessageViewModel(
                 
                 // 更新UI显示本地消息
                 _uiState.update {
-                    it.copy(messages = localMessages)
+                    val messageList = mutableListOf<MessageItem>()
+                    localMessages.forEach { message ->
+                        messageList.add(message)
+                    }
+                    it.copy(messages = messageList)
                 }
 
                 // 然后从服务器同步新消息（增量同步）
@@ -183,7 +164,11 @@ class ChatMessageViewModel(
                     Napier.d("更新后共有 ${updatedMessages.size} 条消息")
                     
                     _uiState.update {
-                        it.copy(messages = updatedMessages)
+                        val messageList = mutableListOf<MessageItem>()
+                        updatedMessages.forEach { message ->
+                            messageList.add(message)
+                        }
+                        it.copy(messages = messageList)
                     }
                 }
             } catch (e: Exception) {
@@ -194,7 +179,6 @@ class ChatMessageViewModel(
                 }
             }
         }
-
     }
 
     /**
@@ -217,7 +201,11 @@ class ChatMessageViewModel(
                     Napier.d("刷新后共有 ${updatedMessages.size} 条消息")
                     
                     _uiState.update {
-                        it.copy(messages = updatedMessages)
+                        val messageList = mutableListOf<MessageItem>()
+                        updatedMessages.forEach { message ->
+                            messageList.add(message)
+                        }
+                        it.copy(messages = messageList)
                     }
                 }
             } catch (e: Exception) {
@@ -231,19 +219,85 @@ class ChatMessageViewModel(
     }
 
     /**
-     * 接收新的消息
+     * 加载更多历史消息（上拉加载更多）
+     * @param conversationId 会话ID
+     * @param beforeSequenceId 加载此序列号之前的消息
+     */
+    fun loadMoreMessages(conversationId: Long, beforeSequenceId: Long) {
+        loadMessagesWithProgress(
+            conversationId = conversationId,
+            isFront = true,
+            currentIndex = beforeSequenceId
+        )
+    }
+    
+    /**
+     * 获取最新消息（下拉刷新获取新消息）
+     * @param conversationId 会话ID
+     * @param afterSequenceId 获取此序列号之后的消息
+     */
+    fun loadLatestMessages(conversationId: Long, afterSequenceId: Long) {
+        loadMessagesWithProgress(
+            conversationId = conversationId,
+            isFront = false,
+            currentIndex = afterSequenceId
+        )
+    }
+    
+    /**
+     * 通用的消息加载方法，带有加载进度状态管理
+     * @param conversationId 会话ID
+     * @param isFront 是否是向前加载（历史消息）
+     * @param currentIndex 当前索引
+     */
+    private fun loadMessagesWithProgress(
+        conversationId: Long,
+        isFront: Boolean,
+        currentIndex: Long
+    ) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(loading = true)
+            }
+            try {
+                val messages = messageSyncRepository.getMessagesWithStrategy(conversationId, currentIndex, isFront)
+                Napier.d("加载了: ${messages.size} 条消息")
+                // 更新UI状态
+                _uiState.update { currentState ->
+                    val updatedMessages = currentState.messages
+                    if (isFront) {
+                        // 历史消息，添加到列表开头
+                        updatedMessages.addAll(0, messages)
+                    } else {
+                        // 最新消息，添加到列表末尾
+                        updatedMessages.addAll(messages)
+                    }
+                    currentState.copy(messages = updatedMessages)
+                }
+            } catch (e: Exception) {
+                Napier.e("加载消息失败", e)
+            } finally {
+                _uiState.update {
+                    it.copy(loading = false)
+                }
+            }
+        }
+    }
+
+    /**
+     * 接收/ 更新 服务端发送的新的新的消息
      */
     private fun addMessage(chatMessage: ChatMessage){
-
         senderSdk.sendMessage(chatMessage)
-        chatMessageRepository.insertMessage(chatMessage)
+        chatMessageRepository.insertOrUpdateMessage(MessageWrapper(chatMessage))
         val message = MessageWrapper(chatMessage)
         _uiState.update {
             // 更新消息列表
-            val updatedList = it.messages + message
+            val updatedMessages = it.messages.toMutableList()
+            updatedMessages.add(message)
             // clientMsgId  建立索引
-            messageIndex[message.clientMsgId] = updatedList.lastIndex
-            it.copy(messages = updatedList)
+            messageIndex[message.clientMsgId] = updatedMessages.size - 1
+            it.copy(messages = updatedMessages)
         }
     }
 
@@ -254,13 +308,13 @@ class ChatMessageViewModel(
     fun removeMessage(clientMsgId: String) {
         val idx = messageIndex.remove(clientMsgId) ?: return
         _uiState.update { state ->
-            val updatedList = state.messages.toMutableList()
-            updatedList.removeAt(idx)
+            val updatedMessages = state.messages.toMutableList()
+            updatedMessages.removeAt(idx)
             // 重新建立索引
-            updatedList.forEachIndexed { i, msg ->
+            updatedMessages.forEachIndexed { i, msg ->
                 messageIndex[msg.clientMsgId] = i
             }
-            state.copy(messages = updatedList)
+            state.copy(messages = updatedMessages)
         }
     }
 
@@ -412,17 +466,24 @@ class ChatMessageViewModel(
     }
 
     /**
-     * 获取文件元信息
+     * 获取文件元信息（本地优先）
      */
     fun getFileMessageMeta(messageItem: MessageItem): FileMeta? {
         if(messageItem.type.isFile()){
             messageItem.fileMeta?.let {
                 return it
             }
-            // 如果没有，通过API获取
+            // 优先从本地数据库获取文件元数据
+            filesRepository.getFileMeta(messageItem.content)?.let { 
+                return it
+            }
+            // 如果本地没有，通过API获取并存储到本地
             runBlocking {
                 try {
-                    return@runBlocking getFileMessageMeta(messageItem.content)
+                    val fileMeta = getFileMessageMeta(messageItem.content)
+                    // 将文件元数据存储到本地数据库
+                    filesRepository.addFile(fileMeta)
+                    return@runBlocking fileMeta
                 } catch (e: Exception) {
                     Napier.e("获取文件元信息失败", e)
                     null

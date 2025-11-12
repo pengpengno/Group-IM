@@ -11,13 +11,18 @@ package com.github.im.server.model.enums;
  */
 public enum Status {
 
-    PENDING ,
+    PENDING ,  // 等待响应
 
-    ACTIVE ,
+    ACTIVE ,  // 激活
 
-    DISCARD ,
+    REJECT ,  // 拒绝
 
-    REJECT ,
+    DISCARD ,  // 丢弃
+
+    DELETED ,  // 删除
+
+    BLOCKED ,  // 封禁
+
 
     ;
 

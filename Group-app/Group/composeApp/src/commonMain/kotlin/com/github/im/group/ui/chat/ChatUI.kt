@@ -28,6 +28,7 @@ import com.github.im.group.ui.ChatRoom
 import com.github.im.group.ui.UserAvatar
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.UserViewModel
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -84,15 +85,13 @@ fun ChatUI(
         } else {
             // 显示会话列表
             conversations.forEach { conversation ->
-                if (userInfo != null) {
-                    ChatItem(
-                        conversation = conversation,
-                        userInfo = userInfo,
-                        onClick = {
-                            navHostController.navigate(ChatRoom(conversation.conversationId))
-                        }
-                    )
-                }
+                ChatItem(
+                    conversation = conversation,
+                    userInfo = userInfo,
+                    onClick = {
+                        navHostController.navigate(ChatRoom(conversation.conversationId))
+                    }
+                )
             }
         }
     }

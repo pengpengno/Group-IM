@@ -18,13 +18,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -52,20 +55,41 @@ public class MessageService {
 
     // 拉取历史消息
     @Transactional(readOnly = true)
-    public Page<MessageDTO<MessagePayLoad>> pullHistoryMessages(Long sessionId,  LocalDateTime startTime, LocalDateTime endTime, Long fromSequenceId, Pageable pageable) {
+    public Page<MessageDTO<MessagePayLoad>> pullHistoryMessages(MessagePullRequest request) {
+        final var conversationId = request.getConversationId();
+        final var startTime = request.getStartTime();
+        final var endTime = request.getEndTime();
+        final var fromSequenceId = request.getFromSequenceId();
+        final Long toSequenceId = request.getToSequenceId();
+        final Pageable pageable = PageRequest.of(
+                request.getPage(),
+                request.getSize(),
+                Sort.by(Optional.ofNullable(request.getSort())
+                        .orElse("createTime")).descending()
+        );
           return messageRepository.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("conversation").get("conversationId"), sessionId));
+            predicates.add(cb.equal(root.get("conversation").get("conversationId"), conversationId));
             if (startTime != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("timestamp"), startTime));
             }
             if (endTime != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("timestamp"), endTime));
             }
-            if (fromSequenceId != null  && fromSequenceId !=0L) {
-                predicates.add(cb.greaterThan(root.get("sequenceId"), fromSequenceId));
+            // 获取指定会话中指定时间段内指定序列之后的消息
+            if (fromSequenceId != null  ) {
+                if (fromSequenceId > 0L){
+                    predicates.add(cb.greaterThan(root.get("sequenceId"), fromSequenceId));
+                }else {
+                    // 如果传入的 fromSequenceId 为0L 则 获取该会话中 最新的条数据 不添加过滤条件
+
+                }
             }
-            return cb.and(predicates.toArray(new Predicate[0]));
+            // 获取指定会话中指定时间段内指定序列之前的消息
+            if ( toSequenceId != null && toSequenceId > 0L) {
+                predicates.add(cb.lessThan(root.get("sequenceId"), toSequenceId));
+            }
+          return cb.and(predicates.toArray(new Predicate[0]));
         }, pageable)
         .map(this::convertMessage);
     }

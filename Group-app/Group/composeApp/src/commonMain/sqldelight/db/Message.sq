@@ -33,7 +33,7 @@ deleteMessage:
 DELETE FROM message WHERE msg_id = ?;
 
 -- 根据 msgId 查询
-selectMessageById:
+selectMessageByMsgId:
 SELECT * FROM message WHERE msg_id = ?;
 
 -- 根据 clientMsgId 查询
@@ -58,6 +58,18 @@ SELECT MAX(sequence_id) FROM message WHERE conversation_id = ?;
 -- 根据conversationId 获取最新的一条消息
 selectLatestMessageByConversation:
 SELECT * FROM message WHERE conversation_id = ? ORDER BY server_timestamp DESC LIMIT 1;
+
+-- 根据conversationId 和 sequence_id 查询指定序列号之前的消息
+selectMessagesBeforeSequence:
+SELECT * FROM message WHERE conversation_id = ? AND sequence_id < ? ORDER BY server_timestamp DESC  LIMIT ? ;
+
+-- 根据conversationId 和 sequence_id 查询指定序列号之后的消息
+selectMessagesAfterSequence:
+SELECT * FROM message WHERE conversation_id = ? AND sequence_id > ? ORDER BY server_timestamp ASC  LIMIT ? ;
+
+-- 根据 msgId 更新消息
+updateMessageByMsgId:
+UPDATE message SET status = ?, server_timestamp = ?, sequence_id = ? WHERE msg_id = ?;
 
 updateMessageByClientMsgId:
 UPDATE message SET status = ? , server_timestamp = ? , sequence_id = ? ,msg_id = ? WHERE client_msg_id = ?;

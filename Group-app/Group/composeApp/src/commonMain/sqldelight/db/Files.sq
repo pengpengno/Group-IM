@@ -4,8 +4,8 @@ import kotlinx.datetime.LocalDateTime;
 -- 文件资源表
 CREATE TABLE FileResource (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT ,         --自增
-  originalName TEXT,
-  contentType TEXT,
+  originalName TEXT NOT NULL ,
+  contentType TEXT NOT NULL ,
   serverId TEXT ,    -- 服务端文件uuId
   size INTEGER NOT NULL,
   storagePath TEXT NOT NULL,   -- 在 本地的存储路径

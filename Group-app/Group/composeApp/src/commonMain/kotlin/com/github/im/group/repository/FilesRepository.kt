@@ -189,4 +189,23 @@ class FilesRepository(
         val file = getFile(fileId)
         return file != null && file.status == FileStatus.NORMAL
     }
+    
+    /**
+     * 根据文件ID获取文件元数据（本地优先）
+     * @param fileId 文件ID
+     * @return 文件元数据
+     */
+    fun getFileMeta(fileId: String): FileMeta? {
+        val file = getFile(fileId)
+        return file?.let {
+            FileMeta(
+                fileName = it.originalName,
+                size = it.size,
+                contentType = it.contentType,
+                hash = it.clientId,
+                type = it.contentType,
+                duration = null // 本地存储不包含时长信息
+            )
+        }
+    }
 }

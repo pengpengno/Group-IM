@@ -10,7 +10,7 @@ import org.mapstruct.factory.Mappers;
 
 import java.util.List;
 
-@Mapper(uses = {UserMapper.class})
+@Mapper(componentModel = "spring",uses = {UserMapper.class})
 public interface FriendShipMapper {
 
     FriendShipMapper INSTANCE = Mappers.getMapper(FriendShipMapper.class);

@@ -6,17 +6,20 @@ import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import com.github.im.group.db.entities.ConversationStatus
 import com.github.im.group.db.entities.FileStatus
+import com.github.im.group.db.entities.FriendRequestStatus
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.db.entities.UserStatus
 import db.Conversation
 import db.FileResource
+import db.Friendship
 import db.Message
 import db.User
 
 class AndroidDatabaseDriverFactory(private val context: Context) : DatabaseDriverFactory {
     override fun createDriver(): SqlDriver {
-        return AndroidSqliteDriver(AppDatabase.Schema, context, "launch.db")
+
+        return AndroidSqliteDriver(AppDatabase.Schema, context, "GroupApp.db")
     }
 
     override fun createDatabase(): AppDatabase {
@@ -39,6 +42,13 @@ class AndroidDatabaseDriverFactory(private val context: Context) : DatabaseDrive
                 statusAdapter = EnumColumnAdapter<FileStatus>(),
                 uploadTimeAdapter = localDateTimeAdapter
             ),
+
+
+            FriendshipAdapter = Friendship.Adapter(
+                statusAdapter = EnumColumnAdapter<FriendRequestStatus>(),
+                created_atAdapter = localDateTimeAdapter,
+                updated_atAdapter = localDateTimeAdapter
+            )
         )
     }
 }

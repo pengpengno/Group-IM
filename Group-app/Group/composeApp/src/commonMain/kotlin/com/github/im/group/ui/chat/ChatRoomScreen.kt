@@ -69,7 +69,8 @@ import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.runtime.snapshotFlow
+import com.github.im.group.ui.UserAvatar
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
@@ -120,6 +121,9 @@ fun ChatRoomScreen(
         messageViewModel.refreshMessages(conversationId)
     })
 
+    // 上拉加载更多状态
+    var isLoadingMore by remember { mutableStateOf(false) }
+
     LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) {
             listState.animateScrollToItem(state.messages.lastIndex)
@@ -131,6 +135,34 @@ fun ChatRoomScreen(
         if (!state.loading && isRefreshing) {
             isRefreshing = false
         }
+    }
+
+    // 监听列表滚动，实现上拉加载更多
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex }
+            .collect { firstVisibleIndex ->
+                // 当滚动到顶部附近时，加载更多历史消息
+                if (firstVisibleIndex < 5 && !isLoadingMore && state.messages.isNotEmpty()) {
+                    // 获取最早的消息的序列号
+                    val earliestMessage = state.messages.minByOrNull { it.seqId }
+                    earliestMessage?.let {
+                        isLoadingMore = true
+                        messageViewModel.loadMoreMessages(conversationId, it.seqId)
+                        isLoadingMore = false
+                    }
+                }
+                
+                // 当滚动到底部附近时，获取最新消息
+                if (firstVisibleIndex > state.messages.size - 5 && !isLoadingMore && state.messages.isNotEmpty()) {
+                    // 获取最新的消息的序列号
+                    val latestMessage = state.messages.maxByOrNull { it.seqId }
+                    latestMessage?.let {
+                        isLoadingMore = true
+                        messageViewModel.loadLatestMessages(conversationId, it.seqId)
+                        isLoadingMore = false
+                    }
+                }
+            }
     }
 
     DisposableEffect(Unit) {
@@ -238,15 +270,18 @@ fun ChatRoomScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 state = listState,
-                reverseLayout = false, // false: 新消息在底部
+                reverseLayout = true, // true: 新消息在底部，列表倒序排列
                 contentPadding = PaddingValues(bottom = 40.dp) // 为输入框腾出空间
             ) {
-                items(state.messages) { msg ->
+                items(state.messages.reversed()) { msg ->
+                    // 计算是否应该显示头像
+                    val showAvatar = shouldShowAvatar(msg, state.messages, userInfo)
+                    
                     // 头像
-
                     MessageBubble(
                         isOwnMessage = msg.userInfo.userId == userInfo.userId,
                         msg = msg,
+                        showAvatar = showAvatar,
                         onFileMessageClick = { fileMsg ->
                             // 处理文件消息点击事件
                             // 触发文件下载（实现本地优先策略）
@@ -372,69 +407,142 @@ fun ChatRoomScreen(
 }
 
 /**
+ * 判断是否应该显示头像
+ * 在以下情况下显示头像：
+ * 1. 第一条消息（最新的消息）
+ * 2. 当前消息发送者与前一条消息发送者不同
+ * 3. 当前消息与前一条消息间隔时间较长（可选）
+ */
+fun shouldShowAvatar(currentMsg: MessageItem, allMessages: List<MessageItem>, currentUser: UserInfo?): Boolean {
+    val currentIndex = allMessages.indexOf(currentMsg)
+    
+    // 如果是第一条消息（最新的消息），显示头像
+    if (currentIndex == 0) {
+        return true
+    }
+    
+    // 获取前一条消息
+    val previousMsg = allMessages[currentIndex - 1]
+    
+    // 如果当前消息发送者与前一条消息发送者不同，显示头像
+    if (currentMsg.userInfo.userId != previousMsg.userInfo.userId) {
+        return true
+    }
+    
+    // 如果是当前用户发送的消息，根据需要决定是否显示自己的头像
+    // 这里可以根据UI设计决定是否显示自己的头像
+    return false
+}
+
+/**
  * 聊天气泡
  */
 @Composable
-fun MessageBubble(isOwnMessage: Boolean, msg: MessageItem,
-                  onVoiceMessageClick: (MessageContent.Voice) -> Unit = {},
-                  onFileMessageClick: (MessageItem) -> Unit = {}) {
-
+fun MessageBubble(
+    isOwnMessage: Boolean, 
+    msg: MessageItem,
+    showAvatar: Boolean = true,
+    onVoiceMessageClick: (MessageContent.Voice) -> Unit = {},
+    onFileMessageClick: (MessageItem) -> Unit = {}
+) {
     val messageViewModel: ChatMessageViewModel = koinViewModel()
+    
+    // 使用 Row 来包含头像和消息气泡
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp,
-                vertical = 4.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
         horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
+        if (!isOwnMessage) {
+            // 对方消息显示头像在左侧
+            if (showAvatar) {
+                UserAvatar(
+                    username = msg.userInfo.username,
+                    size = 40
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            } else {
+                // 不显示头像时保留占位空间
+                Spacer(modifier = Modifier.width(48.dp))
+            }
+        }
+        
+        Column(
+            horizontalAlignment = if (isOwnMessage) Alignment.End else Alignment.Start
         ) {
-
-            if (isOwnMessage && msg.status == MessageStatus.SENDING) {
-
-                // 发送中状态
-                SendingSpinner(
-                    modifier = Modifier
-                        .padding(end = 8.dp)
-                        .size(16.dp),
-                    color = Color.Gray
+            // 显示用户名（仅在群聊中且需要显示头像时）
+            if (showAvatar && !isOwnMessage) {
+                Text(
+                    text = msg.userInfo.username,
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
-
-            Surface(
-                color = if (isOwnMessage) Color(0xFFB3E5FC) else Color(0xFFF0F0F0),
-                shape = MaterialTheme.shapes.medium,
-                tonalElevation = 1.dp
+            
+            // 消息气泡
+            Row(
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                when (msg.type) {
-                    MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content))
+                if (isOwnMessage && msg.status == MessageStatus.SENDING) {
+                    // 发送中状态
+                    SendingSpinner(
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .size(16.dp),
+                        color = Color.Gray
+                    )
+                }
 
-                    MessageType.VOICE -> {
-                        // TODO TCP 推送的数据缺失了 FileMeta 信息 考虑下是否需要 TCP 将其都传入过来,保持 一致性
-                        /***
-                         *
-                         * 目前通过  {@see com.github.im.group.viewmodel.ChatMessageViewModel
-                         * .getFileMessageMeta(com.github.im.group.model.MessageItem) 获取文件元数据 }
-                         * 来处理
-                         */
+                Surface(
+                    color = if (isOwnMessage) Color(0xFFB3E5FC) else Color(0xFFF0F0F0),
+                    shape = MaterialTheme.shapes.medium,
+                    tonalElevation = 1.dp
+                ) {
+                    when (msg.type) {
+                        MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content))
+
+                        MessageType.VOICE -> {
+                            // TODO TCP 推送的数据缺失了 FileMeta 信息 考虑下是否需要 TCP 将其都传入过来,保持 一致性
+                            /***
+                             *
+                             * 目前通过  {@see com.github.im.group.viewmodel.ChatMessageViewModel
+                             * .getFileMessageMeta(com.github.im.group.model.MessageItem) 获取文件元数据 }
+                             * 来处理
+                             */
 
 
-                        val duration = messageViewModel.getFileMessageMeta(msg)?.duration ?: 1
-                        VoiceMessage(MessageContent.Voice(msg.content, duration)) {
-                            onVoiceMessageClick(MessageContent.Voice(msg.content, duration))
+                            val duration = messageViewModel.getFileMessageMeta(msg)?.duration ?: 1
+                            VoiceMessage(MessageContent.Voice(msg.content, duration)) {
+                                onVoiceMessageClick(MessageContent.Voice(msg.content, duration))
+                            }
                         }
+                        MessageType.IMAGE -> ImageMessage(MessageContent.Image(msg.content))
+                        MessageType.VIDEO -> VideoBubble(MessageContent.Video(msg.content))
+                        MessageType.FILE -> FileMessageBubble(msg, onFileMessageClick)
+                        else -> TextMessage(MessageContent.Text(msg.content))
                     }
-                    MessageType.IMAGE -> ImageMessage(MessageContent.Image(msg.content))
-                    MessageType.VIDEO -> VideoBubble(MessageContent.Video(msg.content))
-                    MessageType.FILE -> FileMessageBubble(msg, onFileMessageClick)
-                    else -> TextMessage(MessageContent.Text(msg.content))
                 }
             }
-
+        }
+        
+        if (isOwnMessage) {
+            // 自己发送的消息显示头像在右侧
+            if (showAvatar) {
+                Spacer(modifier = Modifier.width(8.dp))
+                UserAvatar(
+                    username = msg.userInfo.username,
+                    size = 40
+                )
+            } else {
+                // 不显示头像时保留占位空间
+                Spacer(modifier = Modifier.width(48.dp))
+            }
         }
     }
 }
+
 /**
  * 文件类型气泡
  */

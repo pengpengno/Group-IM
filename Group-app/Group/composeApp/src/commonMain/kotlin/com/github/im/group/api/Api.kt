@@ -1,18 +1,17 @@
 package com.github.im.group.api
 
 import ProxyApi
+import ProxyConfig
 import com.github.im.group.GlobalCredentialProvider
+import com.github.im.group.db.entities.FriendRequestStatus
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.UserInfo
-import io.ktor.client.call.body
-import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.headers
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsBytes
 import io.ktor.client.statement.bodyAsText
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.SerialName
@@ -47,7 +46,6 @@ object UserApi{
         return ProxyApi.request<String, PageResult<UserInfo>>(
             hmethod = HttpMethod.Post,
             path = "/api/users/query",
-
             requestParams = mapOf("query" to queryString)
         )
     }
@@ -171,7 +169,7 @@ object ChatApi {
     /**
      * 获取会话消息
      */
-    suspend fun getMessages(conversationId: Long, fromSequenceId: Long = 0): PageResult<MessageDTO> {
+    suspend fun getMessages(conversationId: Long, fromSequenceId: Long = 0, toSequenceId: Long = 0): PageResult<MessageDTO> {
 
 
         val requestBody = MessagePullRequest(
@@ -182,7 +180,8 @@ object ChatApi {
             page = 0,
             size = 50,
             sort = null,
-            fromSequenceId = fromSequenceId
+            fromSequenceId = fromSequenceId,
+            toSequenceId = toSequenceId
         )
         return ProxyApi.request<MessagePullRequest, PageResult<MessageDTO>>(
             hmethod = HttpMethod.Post,
@@ -213,13 +212,45 @@ object FriendShipApi {
     /**
      * 添加联系人
      */
-    suspend fun addFriend(userId:Long,friendId:Long) : FriendshipDTO{
-        return ProxyApi.request< Unit,FriendshipDTO>(
+    suspend fun addFriend(userId:Long,friendId:Long ,applyRemark :String) : FriendshipDTO{
+        return ProxyApi.request< FriendRequest,FriendshipDTO>(
             hmethod = HttpMethod.Post,
-            path = "/api/friendships/add",
-            requestParams = mapOf("userId" to userId.toString(),"friendId" to friendId.toString())
+            path = "/api/friendships/request",
+            body =FriendRequest(userId,friendId,applyRemark)
+//            requestParams = mapOf("userId" to userId.toString(),"friendId" to friendId.toString())
         )
     }
+    
+    /**
+     * 查询用户的好友请求
+     * @param userId 用户ID
+     * @return 好友请求列表
+     */
+    suspend fun getSentFriendRequests(userId: Long): List<FriendshipDTO> {
+        return ProxyApi.request<Unit, List<FriendshipDTO>>(
+            hmethod = HttpMethod.Post,
+            path = "/api/friendships/queryRequest",
+            requestParams = mapOf("userId" to userId.toString())
+        )
+    }
+    
+    /**
+     * 同步好友请求
+     * @param userId 用户ID
+     * @param maxId 客户端目前最大的关系ID，只获取比这个ID大的数据
+     * @return 新的好友请求列表
+     */
+    suspend fun syncFriendRequests(userId: Long, maxId: Long): List<FriendshipDTO> {
+        return ProxyApi.request<Unit, List<FriendshipDTO>>(
+            hmethod = HttpMethod.Post,
+            path = "/api/friendships/sync",
+            requestParams = mapOf(
+                "userId" to userId.toString(),
+                "maxId" to maxId.toString()
+            )
+        )
+    }
+
 }
 
 
@@ -233,6 +264,7 @@ data class MessagePullRequest(
     val size: Int = 50,
     val sort: String? = null,
     val fromSequenceId: Long? = null,  // 添加从指定sequenceId开始拉取的参数
+    val toSequenceId: Long = 0L,  // 添加从指定sequenceId开始拉取的参数
 )
 
 
@@ -295,8 +327,22 @@ data class FriendshipDTO(
     val id: Long? = null,  // 关系ID
     val userInfo: UserInfo? = null, // 当前用户的用户信息，仅返回用户ID和用户名 /TODO 这个可以省略
     val friendUserInfo: UserInfo? = null, // 好友的用户信息
+    val status: FriendRequestStatus? = null,
     val conversationId: Long? = null  //与好友当前存在的会话
 )
+
+/**
+ * 好友请求
+ */
+@Serializable
+data class FriendRequest  (
+     val userId: Long ,
+     val friendId: Long,
+     val applyRemark: String,
+)
+
+
+
 
 @Serializable
 data class MessageDTO(
@@ -309,7 +355,7 @@ data class MessageDTO(
     val fromAccount: UserInfo? = null,
     val type: MessageType,
     val status: MessageStatus,
-    val timestamp: String, // ISO 格式时间
+    val timestamp: String,  // 服务端的时间戳
 
     val payload: MessagePayLoad? = null
 

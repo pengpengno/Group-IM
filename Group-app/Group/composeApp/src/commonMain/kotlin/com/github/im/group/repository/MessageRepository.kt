@@ -2,12 +2,11 @@ package com.github.im.group.repository
 
 import com.github.im.group.api.MessageDTO
 import com.github.im.group.db.AppDatabase
-import com.github.im.group.db.entities.MessageStatus
-import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.UserInfo
-import com.github.im.group.model.proto.ChatMessage
+import db.Message
+import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -34,23 +33,46 @@ class ChatMessageRepository (
     /**
      * 在本地数据库中插入单条消息
      */
-    fun insertMessage(messageItem: ChatMessage){
-        db.transaction {
-            // 1. 毫秒 → Instant
-            val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(messageItem.clientTimeStamp)
+    fun insertOrUpdateMessage(messageItem: MessageItem){
+        // 检查是否已经存在相同 clientMsgId 的消息
 
-            val localDateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-            db.messageQueries
-                .insertMessage(
-                    conversation_id = messageItem.conversationId,
-                    from_account_id = messageItem.fromAccountInfo?.userId ?: 0L,
-                    content = messageItem.content,
-                    client_msg_id = messageItem.clientMsgId,
-                    client_timestamp = localDateTime,
-                    type = MessageType.valueOf(messageItem.type.name),
-                    status =MessageStatus.valueOf(messageItem.messagesStatus.name),
-                    sequence_id = messageItem.sequenceId
-                )
+        val existingMessage = messageItem.id.let {
+            if (it <= 0L){
+                // 如果id 不存在说明是 本地生成的消息  还没在服务端ACK 的消息/  推送的消息
+                db.messageQueries.selectMessageByClientMsgId(messageItem.clientMsgId).executeAsOneOrNull()
+            }else{
+                // 如果id 存在说明是 服务端推送的消息
+                db.messageQueries.selectMessageByMsgId(it).executeAsOneOrNull()
+            }
+        }
+        
+        if (existingMessage != null) {
+            // 如果消息已存在，则更新它
+            db.messageQueries.updateMessageByClientMsgId(
+                status = messageItem.status,
+                server_timestamp = messageItem.time,
+                sequence_id = messageItem.seqId,
+                client_msg_id = messageItem.clientMsgId,
+                msg_id = messageItem.id
+            )
+        } else {
+            // 如果消息不存在，则插入新记录
+            db.transaction {
+                val clientTime = messageItem.clientTime?.let {
+                    Instant.fromEpochMilliseconds(System.currentTimeMillis()).toLocalDateTime(TimeZone.currentSystemDefault())
+                }
+                db.messageQueries
+                    .insertMessage(
+                        conversation_id = messageItem.conversationId,
+                        from_account_id = messageItem.userInfo?.userId ?: 0L,
+                        content = messageItem.content,
+                        client_msg_id = messageItem.clientMsgId,
+                        client_timestamp = clientTime,
+                        type = messageItem.type,
+                        status =messageItem.status,
+                        sequence_id = messageItem.seqId
+                    )
+            }
         }
     }
     
@@ -64,37 +86,32 @@ class ChatMessageRepository (
         
         db.transaction {
             messageDTOs.forEach { messageDTO ->
-                insertMessageInTransaction(messageDTO)
+                insertOrUpdateMessage(MessageWrapper(messageDto = messageDTO))
             }
         }
     }
     
+
+    
     /**
-     * 在事务中插入单条来自DTO的消息
+     * 根据 msgId 更新消息
      */
-    private fun insertMessageInTransaction(messageDTO: MessageDTO) {
+    private fun updateMessageByMsgId(messageDTO: MessageDTO) {
         val localDateTime = kotlinx.datetime.Instant.parse(messageDTO.timestamp).toLocalDateTime(TimeZone.currentSystemDefault())
-        db.messageQueries.insertMessage(
-            conversation_id = messageDTO.conversationId ?: 0L,
-            from_account_id = messageDTO.fromAccount?.userId ?: 0L,
-            content = messageDTO.content ?: "",
-            client_msg_id = messageDTO.clientMsgId ?: "",
-            client_timestamp = localDateTime,
-            type = messageDTO.type,
-            status = messageDTO.status,
-            sequence_id = messageDTO.sequenceId ?: 0L
-        )
-    }
-    
-    /**
-     * 插入来自DTO的消息
-     */
-    fun insertMessage(messageDTO: MessageDTO) {
-        db.transaction {
-            insertMessageInTransaction(messageDTO)
+
+        messageDTO.msgId?.let { msgId ->
+            // 如果消息已存在，则更新它
+            db.messageQueries.updateMessageByMsgId(
+                status = messageDTO.status,
+                server_timestamp = localDateTime,
+                sequence_id = messageDTO.sequenceId ?: 0L,
+                msg_id = msgId
+            )
         }
+
     }
-    
+
+
     /**
      * 获取指定会话的最大序列号
      */
@@ -133,9 +150,58 @@ class ChatMessageRepository (
     }
     
     /**
+     * 获取指定会话中指定序列号之前的消息
+     * @param conversationId 会话ID
+     * @param beforeSequenceId 在此序列号之前的消息
+     * @param limit 限制返回的消息数量
+     */
+    fun getMessagesBeforeSequence(conversationId: Long, beforeSequenceId: Long, limit: Long = 20): List<MessageItem> {
+        val entities = db.messageQueries.selectMessagesBeforeSequence(conversationId, beforeSequenceId,
+            limit
+        ).executeAsList()
+        return entities.map { entity ->
+            MessageWrapper(
+                messageDto = entityToMessageDTO(entity)
+            )
+        }
+    }
+    
+    /**
+     * 获取指定会话中指定序列号之后的消息
+     * @param conversationId 会话ID
+     * @param afterSequenceId 在此序列号之后的消息
+     */
+    fun getMessagesAfterSequence(conversationId: Long, afterSequenceId: Long, limit: Long = 20): List<MessageItem> {
+        val entities = db.messageQueries.selectMessagesAfterSequence(conversationId, afterSequenceId,limit).executeAsList()
+        return entities.map { entity ->
+            MessageWrapper(
+                messageDto = entityToMessageDTO(entity)
+            )
+        }
+    }
+
+
+    /**
+     * 将DTO转换为数据库实体
+     */
+    private fun dtoToExistMessage(dto: MessageDTO, message: Message ): Message {
+        val localDateTime = kotlinx.datetime.Instant.parse(dto.timestamp).toLocalDateTime(TimeZone.currentSystemDefault())
+        return  message.copy(
+            msg_id = dto.msgId,
+            client_msg_id = dto.clientMsgId,
+            conversation_id = dto.conversationId ?: 0L,
+            from_account_id = dto.fromAccount?.userId ?: 0L,
+            content = dto.content ?: "",
+            type = dto.type,
+            status = dto.status,
+            server_timestamp = localDateTime,
+            sequence_id = dto.sequenceId
+        )
+    }
+    /**
      * 将数据库实体转换为MessageDTO
      */
-    private fun entityToMessageDTO(entity: db.Message): MessageDTO {
+    private fun entityToMessageDTO(entity: Message): MessageDTO {
         return MessageDTO(
             msgId = entity.msg_id,
             clientMsgId = entity.client_msg_id,

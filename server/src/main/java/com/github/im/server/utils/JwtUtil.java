@@ -38,6 +38,7 @@ public class JwtUtil {
         Instant now = Instant.now();
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
+                .id(user.getUserId().toString())
                 .issuer(user.getUserId().toString())
                 .issuedAt(now)
                 .expiresAt(now.plus(ACCESS_TOKEN_EXPIRY, ChronoUnit.SECONDS)) // 设置为1小时过期

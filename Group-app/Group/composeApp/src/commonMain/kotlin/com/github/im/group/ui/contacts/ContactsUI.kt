@@ -14,8 +14,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pending
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,11 +59,19 @@ fun ContactsUI (
     val userViewModel: UserViewModel = koinViewModel()
     val chatViewModel: ChatViewModel = koinViewModel()
     val friends by userViewModel.friends.collectAsState()
+    val pendingFriendRequests by userViewModel.pendingFriendRequests.collectAsState()
+    val pendingFriendRequestsCount by userViewModel.pendingFriendRequestsCount.collectAsState()
     val scope = rememberCoroutineScope()
     var contactSearchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         userViewModel.loadFriends()
+        // 加载已发送的好友请求
+        val currentUser = userViewModel.getCurrentUser()
+        if (currentUser.userId != 0L) {
+            userViewModel.loadSentFriendRequests(currentUser.userId)
+            userViewModel.loadReceivedFriendRequests(currentUser.userId)
+        }
         Napier.d("加载联系人列表")
     }
 
@@ -83,15 +94,26 @@ fun ContactsUI (
                     .weight(1f)
             )
             
-            IconButton(
-                onClick = { navHostController.navigate(AddFriend) },
-                modifier = Modifier
-                    .padding(start = 8.dp)
+            // 添加好友按钮，带未读好友请求红点
+            BadgedBox(
+                badge = {
+                    if (pendingFriendRequestsCount > 0) {
+                        Badge {
+                            Text(pendingFriendRequestsCount.toString())
+                        }
+                    }
+                }
             ) {
-                Icon(
-                    imageVector = Icons.Default.PersonAdd,
-                    contentDescription = "添加好友"
-                )
+                IconButton(
+                    onClick = { navHostController.navigate(AddFriend) },
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PersonAdd,
+                        contentDescription = "添加好友"
+                    )
+                }
             }
         }
         
@@ -120,6 +142,36 @@ fun ContactsUI (
             }
         } else {
             LazyColumn {
+                // 显示待处理的好友请求
+                if (pendingFriendRequests.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "好友请求",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFE0E0E0))
+                                .padding(8.dp)
+                        )
+                    }
+                    
+                    items(pendingFriendRequests) { request ->
+                        PendingFriendRequestItem(
+                            request = request,
+                            onAccept = {
+                                request.id?.let { requestId ->
+                                    userViewModel.acceptFriendRequest(requestId)
+                                }
+                            },
+                            onReject = {
+                                request.id?.let { requestId ->
+                                    userViewModel.rejectFriendRequest(requestId)
+                                }
+                            }
+                        )
+                    }
+                }
+                
                 filteredAndGroupedFriends.forEach { (initial, contacts) ->
                     // 字母标题
                     item {

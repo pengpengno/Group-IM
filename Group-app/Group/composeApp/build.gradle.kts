@@ -191,6 +191,8 @@ sqldelight {
     databases {
         create("AppDatabase") {
             packageName.set("com.github.im.group.db")
+            schemaOutputDirectory.set(file("src/commonMain/sqldelight/db/migration"))
+            verifyMigrations.set(true)
 //            packageName.set("db")
         }
     }

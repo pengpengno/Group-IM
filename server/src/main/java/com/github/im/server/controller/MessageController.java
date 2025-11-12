@@ -33,20 +33,9 @@ public class MessageController {
     // 拉取历史消息
     @PostMapping("/pull")
     public ResponseEntity<PagedModel<MessageDTO<MessagePayLoad>>> pullHistoryMessages(@RequestBody MessagePullRequest request) {
-        Pageable pageable = PageRequest.of(
-                request.getPage(),
-                request.getSize(),
-                Sort.by(Optional.ofNullable(request.getSort())
-                        .orElse("createTime")).descending()
-        );
 
-        Page<MessageDTO<MessagePayLoad>> messages = messageService.pullHistoryMessages(
-                request.getConversationId(),
-                request.getStartTime(),
-                request.getEndTime(),
-                request.getFromSequenceId(),
-                pageable
-        );
+
+        Page<MessageDTO<MessagePayLoad>> messages = messageService.pullHistoryMessages(request );
 
         return ResponseEntity.ok(new PagedModel<>(messages));
     }

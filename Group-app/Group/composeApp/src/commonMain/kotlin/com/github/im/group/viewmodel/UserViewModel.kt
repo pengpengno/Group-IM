@@ -9,8 +9,8 @@ import com.github.im.group.api.LoginApi
 import com.github.im.group.api.UserApi
 import com.github.im.group.manager.LoginStateManager
 import com.github.im.group.model.UserInfo
+import com.github.im.group.repository.FriendRequestRepository
 import com.github.im.group.repository.UserRepository
-import com.github.im.group.sdk.SenderSdk
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,7 +30,8 @@ sealed class LoginState {
 
 class UserViewModel(
     val userRepository: UserRepository,
-    private val loginStateManager: LoginStateManager
+    private val loginStateManager: LoginStateManager,
+    private val friendRequestRepository: FriendRequestRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserInfo())
@@ -50,7 +51,14 @@ class UserViewModel(
 
     private val _searchResults = MutableStateFlow<List<UserInfo>>(emptyList())
     val searchResults: StateFlow<List<UserInfo>> = _searchResults.asStateFlow()
-
+    
+    // 待处理好友请求数量状态
+    private val _pendingFriendRequestsCount = MutableStateFlow<Long>(0)
+    val pendingFriendRequestsCount: StateFlow<Long> = _pendingFriendRequestsCount.asStateFlow()
+    
+    // 待处理好友请求列表
+    private val _pendingFriendRequests = MutableStateFlow<List<FriendshipDTO>>(emptyList())
+    val pendingFriendRequests: StateFlow<List<FriendshipDTO>> = _pendingFriendRequests.asStateFlow()
 
     fun getCurrentUser() : UserInfo{
        return userRepository.withLoggedInUser { it.user }
@@ -95,16 +103,15 @@ class UserViewModel(
             _searchResults.value = emptyList()
             return
         }
-
-        Napier.d("查询用户为${queryString}")
-
+        
         viewModelScope.launch {
+            Napier.d("查询用户为${queryString}")
             try {
                 val result = UserApi.findUser(queryString)
                 Napier.d("搜索用户成功: ${result.content}")
                 _searchResults.value = result.content
             } catch (e: Exception) {
-                Napier.d("搜索用户失败: $e")
+                Napier.e("搜索用户失败: $e")
                 _searchResults.value = emptyList()
             }
         }
@@ -121,16 +128,122 @@ class UserViewModel(
     fun addFriend(userId: Long, friendId: Long) {
         viewModelScope.launch {
             try {
-                // TODO: 实现添加好友的API调用
-                // 这里需要根据实际的API来实现
-                FriendShipApi.addFriend(userId, friendId)
+                FriendShipApi.addFriend(userId, friendId,"")
                 Napier.d("添加好友: userId=$userId, friendId=$friendId")
             } catch (e: Exception) {
                 Napier.d("添加好友失败: $e")
             }
         }
     }
-
+    
+    /**
+     * 加载已发送的好友请求
+     */
+    fun loadSentFriendRequests(userId: Long) {
+        viewModelScope.launch {
+            try {
+                // 1. 从服务端获取好友请求
+                val sentRequests = FriendShipApi.getSentFriendRequests(userId)
+                
+                // 2. 保存到本地数据库
+                friendRequestRepository.saveFriendRequests(sentRequests)
+                
+                // 3. 从本地数据库加载并更新状态
+                val localRequests = friendRequestRepository.getSentFriendRequests(userId)
+                // TODO: 更新状态以在UI中显示
+                
+                Napier.d("加载已发送的好友请求: ${sentRequests.size} 个")
+            } catch (e: Exception) {
+                Napier.e("加载已发送的好友请求失败: $e")
+            }
+        }
+    }
+    
+    /**
+     * 加载收到的好友请求（用于显示未读请求）
+     */
+    fun loadReceivedFriendRequests(userId: Long) {
+        viewModelScope.launch {
+            try {
+                // 这里可以添加从服务端获取最新好友请求的逻辑
+                // 然后保存到本地数据库
+                // 最后从本地数据库加载显示
+                
+                // 获取未读好友请求数量
+                val pendingCount = friendRequestRepository.getPendingFriendRequestsCount(userId)
+                _pendingFriendRequestsCount.value = pendingCount
+                
+                // 获取待处理的好友请求列表
+                val pendingRequests = friendRequestRepository.getReceivedFriendRequests(userId)
+                _pendingFriendRequests.value = pendingRequests.filter { 
+                    it.status == com.github.im.group.db.entities.FriendRequestStatus.PENDING 
+                }
+                
+                Napier.d("未读好友请求数量: $pendingCount")
+            } catch (e: Exception) {
+                Napier.e("加载收到的好友请求失败: $e")
+            }
+        }
+    }
+    
+    /**
+     * 获取待处理的好友请求数量
+     */
+    fun getPendingFriendRequestsCount(userId: Long): Long {
+        return friendRequestRepository.getPendingFriendRequestsCount(userId)
+    }
+    
+    /**
+     * 接受好友请求
+     */
+    fun acceptFriendRequest(requestId: Long) {
+        viewModelScope.launch {
+            try {
+                // 更新本地数据库状态
+                friendRequestRepository.updateFriendRequestStatus(
+                    requestId, 
+                    com.github.im.group.db.entities.FriendRequestStatus.ACCEPTED
+                )
+                
+                // 重新加载好友列表和待处理请求
+                loadFriends()
+                val currentUser = getCurrentUser()
+                if (currentUser.userId != 0L) {
+                    loadReceivedFriendRequests(currentUser.userId)
+                }
+                
+                Napier.d("已接受好友请求: $requestId")
+            } catch (e: Exception) {
+                Napier.e("接受好友请求失败: $e")
+            }
+        }
+    }
+    
+    /**
+     * 拒绝好友请求
+     */
+    fun rejectFriendRequest(requestId: Long) {
+        viewModelScope.launch {
+            try {
+                // 更新本地数据库状态
+                friendRequestRepository.updateFriendRequestStatus(
+                    requestId, 
+                    com.github.im.group.db.entities.FriendRequestStatus.REJECTED
+                )
+                
+                // 重新加载待处理请求
+                val currentUser = getCurrentUser()
+                if (currentUser.userId != 0L) {
+                    loadReceivedFriendRequests(currentUser.userId)
+                }
+                
+                Napier.d("已拒绝好友请求: $requestId")
+            } catch (e: Exception) {
+                Napier.e("拒绝好友请求失败: $e")
+            }
+        }
+    }
+    
     /**
      * 自动登录
      * 如果本地存储了 用户信息 则尝试自动登录
@@ -153,8 +266,7 @@ class UserViewModel(
     suspend fun login(uname: String ="",
                       pwd:String ="",
                       refreshToken:String =""): Boolean {
-
-         _LoginState.value = LoginState.Logging
+            _LoginState.value = LoginState.Logging
 
             try {
                 val response = LoginApi.login(uname, pwd,refreshToken)

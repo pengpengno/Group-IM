@@ -1,0 +1,50 @@
+import com.github.im.group.db.entities.FriendRequestStatus;
+import kotlinx.datetime.LocalDateTime;
+
+-- 好友关系表
+CREATE TABLE Friendship (
+    id INTEGER NOT NULL PRIMARY KEY,                 -- 服务端的主键
+    from_user_id INTEGER NOT NULL,                   -- 发起请求的用户ID
+    to_user_id INTEGER NOT NULL,                     -- 接收请求的用户ID
+    status TEXT AS FriendRequestStatus NOT NULL DEFAULT 'PENDING',  -- 请求状态 (PENDING, ACCEPTED, REJECTED, BLOCKED)
+    conversation_id INTEGER,                         -- 关联的会话ID（如果已创建）
+    created_at INTEGER AS LocalDateTime,             -- 创建时间
+    updated_at INTEGER AS LocalDateTime              -- 更新时间
+);
+
+-- 查询所有待处理的好友请求
+selectPendingRequests:
+SELECT * FROM Friendship WHERE status = 'PENDING' ORDER BY created_at DESC;
+
+-- 查询特定用户收到的所有好友请求
+selectReceivedRequests:
+SELECT * FROM Friendship WHERE to_user_id = ? ORDER BY created_at DESC;
+
+-- 查询特定用户发送的所有好友请求
+selectSentRequests:
+SELECT * FROM Friendship WHERE from_user_id = ? ORDER BY created_at DESC;
+
+-- 查询特定用户待处理的好友请求数量
+selectPendingRequestsCount:
+SELECT COUNT(*) FROM Friendship WHERE to_user_id = ? AND status = 'PENDING';
+
+-- 根据ID查询好友关系
+selectById:
+SELECT * FROM Friendship WHERE id = ?;
+
+-- 插入好友关系
+insertFriendship:
+INSERT INTO Friendship (id, from_user_id, to_user_id, status, conversation_id, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+-- 更新好友关系状态
+updateFriendshipStatus:
+UPDATE Friendship SET status = ?, updated_at = ? WHERE id = ?;
+
+-- 删除好友关系
+deleteFriendship:
+DELETE FROM Friendship WHERE id = ?;
+
+-- 查询最大的好友关系ID
+selectMaxId:
+SELECT MAX(id) FROM Friendship;

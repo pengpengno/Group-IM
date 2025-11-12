@@ -52,7 +52,7 @@ public class SendMessageToClientEndPointImpl implements SendMessageToClientEndPo
         FriendRequest friendRequest = new FriendRequest(friendship);
         Optional<BaseMessage.BaseMessagePkg> pkgOpt = friendRequest.toPkg();
 
-
+        
         pkgOpt.ifPresent(pkg-> {
 
             final BindAttr<String> bindAttr = friendRequest.getBindAttr();
