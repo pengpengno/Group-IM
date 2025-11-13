@@ -14,6 +14,8 @@ import lombok.val;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Hooks;
 import reactor.netty.Connection;
+
+import java.time.ZoneId;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -53,8 +55,12 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
         var sequenceId = saveMessage.getSequenceId();
         val msgId = saveMessage.getMsgId();
         // 复制一份 用于推送到各个客户端
+        var epochMilli = saveMessage.getTimestamp().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
         final var newChatMessage = Chat.ChatMessage.newBuilder(chatMessage)
                 .setSequenceId(sequenceId)
+                .setServerTimeStamp(epochMilli)
+                .setMsgId(msgId)
+                .setMessagesStatus(Chat.MessagesStatus.SENT)
                 .build();
 
         final var newBaseMessage = BaseMessage.BaseMessagePkg.newBuilder(message)
@@ -67,32 +73,33 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
         val fromAccountInfo = chatMessage.getFromAccountInfo();
         Optional.ofNullable(membersByGroupId)
             .ifPresent(members -> {
-                members.stream()
-                        .filter(e-> !Objects.equals(e.getUsername(), fromAccountInfo.getAccount()))
+                members.parallelStream()
+//                        .filter(e-> !Objects.equals(e.getUsername(), fromAccountInfo.getAccount()))
                         .forEach(member -> {
 
                     var bindAttr = BindAttr.getBindAttrForPush(member.getUsername());
 
                     ReactiveConnectionManager.addBaseMessage(bindAttr, newBaseMessage);
 
-                });
             });
+
+        });
+
 
 //        TODO  1.  QOS ACK 2. Encryption
             // 先实现 单向 ACK
-
-        Chat.AckMessage ackMessage = Chat.AckMessage.newBuilder()
-                .setClientMsgId(clientMsgId)
-                .setServerMsgId(msgId)
-                .setConversationId(conversationId)
-                .setFromAccount( Account.AccountInfo.newBuilder().setAccount(fromAccountInfo.getAccount()))
-                .setAckTimestamp(System.currentTimeMillis())
-                .setStatus(Chat.MessagesStatus.SENT)
-                .build();
-        BaseMessage.BaseMessagePkg ackMessagePkg = BaseMessage.BaseMessagePkg.newBuilder()
-                .setAck(ackMessage)
-                .build();
-
-        con.outbound().sendObject(ackMessagePkg).then().subscribe();
+//        Chat.AckMessage ackMessage = Chat.AckMessage.newBuilder()
+//                .setClientMsgId(clientMsgId)
+//                .setServerMsgId(msgId)
+//                .setConversationId(conversationId)
+//                .setFromAccount( Account.AccountInfo.newBuilder().setAccount(fromAccountInfo.getAccount()))
+//                .setAckTimestamp(System.currentTimeMillis())
+//                .setStatus(Chat.MessagesStatus.SENT)
+//                .build();
+//        BaseMessage.BaseMessagePkg ackMessagePkg = BaseMessage.BaseMessagePkg.newBuilder()
+//                .setAck(ackMessage)
+//                .build();
+//
+//        con.outbound().sendObject(ackMessagePkg).then().subscribe();
     }
 }

@@ -6,6 +6,7 @@ import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.FileMeta
+import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
@@ -29,6 +30,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import okio.Path
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -43,7 +48,8 @@ data class ChatUiState(
 //    val messages: List<MessageWrapper> = emptyList(),
     val messages: MutableList<MessageItem> = mutableListOf(),
     val conversation: ConversationRes = ConversationRes(),
-    val loading: Boolean = false
+    val loading: Boolean = false,
+    val messageIndex: Int = 0   // 消息的索引
 )
 
 /**
@@ -70,7 +76,11 @@ class ChatMessageViewModel(
 
     private val _uiState = MutableStateFlow(ChatUiState())
 
+    //   用于处理客户端 发送消息 后 返回数据的 ui 更新辅助
     private val messageIndex = mutableMapOf<String, Int>() // clientMsgId -> messages list index
+
+    //  sequence  辅助 messageItem
+    private val messageSequenceIdIndex = mutableMapOf<Long, Int>() // sequenceId -> messages list index
 
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
     
@@ -82,16 +92,18 @@ class ChatMessageViewModel(
 
 
 
+    fun scrollIndex(index : Int){
+        _uiState.update {
+            it.copy(messageIndex = index)
+        }
+    }
 
     /**
      * 接收到消息
      */
     fun onReceiveMessage(message: MessageItem){
-        _uiState.update {
-            val updatedMessages = it.messages.toMutableList()
-            updatedMessages.add(message)
-            it.copy(messages = updatedMessages)
-        }
+        Napier.d("收到消息 $message")
+        addNewMessage( message)
     }
 
 
@@ -99,8 +111,24 @@ class ChatMessageViewModel(
      * 更新消息
      * 从本地数据库中获取最新消息数据
      * 更新 状态  ui
+     *  TODO  设计为所有 PROTOBUF 的ACK
+     *  1.  建立 发送缓存池
+     *     a)  收到ACK 才会 remove
+     *     b) 未 收到ACK  则在 一段时间内等待 ACK确认 超时 后重新发送
      *
      */
+    fun receiveAckUpdateStatus (clientMsgId: String ,ackTimeStamp: Long) {
+        // ACK 确认收到消息 表明发送成功， 更新数据库对应消息状态
+        val ackLocalDateTime: LocalDateTime =
+            Instant.fromEpochMilliseconds(ackTimeStamp)
+                .toLocalDateTime(TimeZone.currentSystemDefault())
+//        chatMessageRepository.getMessageByClientMsgId(clientMsgId)?.let {}.
+//        db.messageQueries
+//            .updateMessageByClientMsgId(MessageStatus.SENT,
+//                ackLocalDateTime,
+//                it.serverMsgId, it.serverMsgId,
+//                client_msg_id = it.clientMsgId)
+    }
     fun updateMessage(clientMsgId: String?) {
         if (clientMsgId == null) return
 
@@ -133,9 +161,10 @@ class ChatMessageViewModel(
     /**
      * 加载消息
      * @param conversationId 会话id
-     * 默认加载最新的 50 条消息
+     * @param limit 加载消息数量
+     * 默认加载最新的 30 条消息
      */
-    fun loadMessages(conversationId: Long) {
+    fun loadMessages(conversationId: Long, limit: Long = 30) {
         viewModelScope.launch {
             _uiState.update {
                 it.copy(loading = true)
@@ -148,9 +177,7 @@ class ChatMessageViewModel(
                 // 更新UI显示本地消息
                 _uiState.update {
                     val messageList = mutableListOf<MessageItem>()
-                    localMessages.forEach { message ->
-                        messageList.add(message)
-                    }
+                    messageList.addAll(0,localMessages)
                     it.copy(messages = messageList)
                 }
 
@@ -160,14 +187,13 @@ class ChatMessageViewModel(
                 
                 // 如果有新消息，重新从本地加载所有消息
                 if (newMessageCount > 0) {
-                    val updatedMessages = chatMessageRepository.getMessagesByConversation(conversationId)
+                    val updatedMessages = chatMessageRepository.getMessagesByConversation(conversationId,limit)
                     Napier.d("更新后共有 ${updatedMessages.size} 条消息")
                     
                     _uiState.update {
                         val messageList = mutableListOf<MessageItem>()
-                        updatedMessages.forEach { message ->
-                            messageList.add(message)
-                        }
+                        messageList.addAll(updatedMessages)
+                        messageList.addAll(it.messages)
                         it.copy(messages = messageList)
                     }
                 }
@@ -224,6 +250,7 @@ class ChatMessageViewModel(
      * @param beforeSequenceId 加载此序列号之前的消息
      */
     fun loadMoreMessages(conversationId: Long, beforeSequenceId: Long) {
+        Napier.i("加载更多历史消息: beforeSequenceId=$beforeSequenceId")
         loadMessagesWithProgress(
             conversationId = conversationId,
             isFront = true,
@@ -237,6 +264,7 @@ class ChatMessageViewModel(
      * @param afterSequenceId 获取此序列号之后的消息
      */
     fun loadLatestMessages(conversationId: Long, afterSequenceId: Long) {
+        Napier.i("加载最新消息: afterSequenceId=$afterSequenceId")
         loadMessagesWithProgress(
             conversationId = conversationId,
             isFront = false,
@@ -261,18 +289,23 @@ class ChatMessageViewModel(
             }
             try {
                 val messages = messageSyncRepository.getMessagesWithStrategy(conversationId, currentIndex, isFront)
-                Napier.d("加载了: ${messages.size} 条消息")
+                Napier.d("加载了: ${messages.size} 条消息 currentIndex $currentIndex isFront $isFront")
                 // 更新UI状态
                 _uiState.update { currentState ->
+                    val list =  mutableListOf<MessageItem>()
                     val updatedMessages = currentState.messages
                     if (isFront) {
                         // 历史消息，添加到列表开头
-                        updatedMessages.addAll(0, messages)
+                        list.addAll( messages)
+                        list.addAll(updatedMessages)
+//                        updatedMessages.addAll(0, messages)
                     } else {
                         // 最新消息，添加到列表末尾
-                        updatedMessages.addAll(messages)
+                        list.addAll( updatedMessages)
+                        list.addAll(messages)
+//                        updatedMessages.addAll(messages)
                     }
-                    currentState.copy(messages = updatedMessages)
+                    currentState.copy(messages = list)
                 }
             } catch (e: Exception) {
                 Napier.e("加载消息失败", e)
@@ -286,17 +319,38 @@ class ChatMessageViewModel(
 
     /**
      * 接收/ 更新 服务端发送的新的新的消息
+     *
+     *  本地 发送的消息不存在
      */
-    private fun addMessage(chatMessage: ChatMessage){
-        senderSdk.sendMessage(chatMessage)
-        chatMessageRepository.insertOrUpdateMessage(MessageWrapper(chatMessage))
-        val message = MessageWrapper(chatMessage)
+    private fun addNewMessage(message: MessageItem){
+//        val message = MessageWrapper(chatMessage)
+        chatMessageRepository.insertOrUpdateMessage(message)
         _uiState.update {
             // 更新消息列表
             val updatedMessages = it.messages.toMutableList()
-            updatedMessages.add(message)
+            // 新来的消息，添加到列表开头
             // clientMsgId  建立索引
-            messageIndex[message.clientMsgId] = updatedMessages.size - 1
+            val isExisted =  messageIndex.containsKey(message.clientMsgId)
+            Napier.d("addNewMessage: isExisted $isExisted")
+            if(isExisted){
+                //  如果已经存在 那么就 更新掉原始的版本
+                val idx = messageIndex[message.clientMsgId]!!
+                updatedMessages[idx] = message
+            }else{
+                // 不存在则 录入 clientMsgId 索引 并且添加到列表首位
+                updatedMessages.add(0, message)
+                // 更新所有消息的索引（因为头插法改变了所有消息的位置）
+                messageIndex.clear()
+                updatedMessages.forEachIndexed { index, msg ->
+                    if (msg.clientMsgId .isNotBlank()){
+                        messageIndex[msg.clientMsgId] = index
+                    }
+                }
+            }
+            if(message.seqId != 0L ){
+                //  因为
+                messageSequenceIdIndex[message.seqId] = 0 // 新消息在索引0位置
+            }
             it.copy(messages = updatedMessages)
         }
     }
@@ -633,7 +687,9 @@ class ChatMessageViewModel(
                         clientTimeStamp = Clock.System.now().toEpochMilliseconds(),
                         clientMsgId =  Uuid.random().toString()
                     )
-                    addMessage(chatMessage)
+                    senderSdk.sendMessage(chatMessage)
+
+                    addNewMessage(MessageWrapper(chatMessage))
                 }
 
             } catch (e: Exception) {

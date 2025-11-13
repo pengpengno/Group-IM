@@ -34,8 +34,8 @@ class ChatMessageRepository (
      * 在本地数据库中插入单条消息
      */
     fun insertOrUpdateMessage(messageItem: MessageItem){
-        // 检查是否已经存在相同 clientMsgId 的消息
 
+        // 检查是否已经存在相同 clientMsgId 的消息
         val existingMessage = messageItem.id.let {
             if (it <= 0L){
                 // 如果id 不存在说明是 本地生成的消息  还没在服务端ACK 的消息/  推送的消息
@@ -61,17 +61,59 @@ class ChatMessageRepository (
                 val clientTime = messageItem.clientTime?.let {
                     Instant.fromEpochMilliseconds(System.currentTimeMillis()).toLocalDateTime(TimeZone.currentSystemDefault())
                 }
-                db.messageQueries
-                    .insertMessage(
-                        conversation_id = messageItem.conversationId,
-                        from_account_id = messageItem.userInfo?.userId ?: 0L,
-                        content = messageItem.content,
-                        client_msg_id = messageItem.clientMsgId,
-                        client_timestamp = clientTime,
-                        type = messageItem.type,
-                        status =messageItem.status,
-                        sequence_id = messageItem.seqId
-                    )
+                messageItem.id.let {
+                    if (it <= 0L){
+                        // 如果id 不存在说明是 本地生成的消息  还没在服务端ACK 的消息/  推送的消息
+                        db.messageQueries.insertMessage(
+                            conversation_id = messageItem.conversationId,
+                            from_account_id = messageItem.userInfo.userId,
+                            content = messageItem.content,
+                            client_msg_id = messageItem.clientMsgId,
+                            client_timestamp = clientTime,
+                            type = messageItem.type,
+                            status =messageItem.status,
+                            sequence_id = messageItem.seqId
+                        )
+                    }else{
+                        // 如果id 存在说明是 服务端推送的消息
+                        db.messageQueries.insertMessageWithMsgId(
+                            conversation_id = messageItem.conversationId,
+                            from_account_id = messageItem.userInfo.userId,
+                            content = messageItem.content,
+                            client_msg_id = messageItem.clientMsgId,
+                            server_timestamp = messageItem.time,
+                            msg_id = messageItem.id,
+                            type = messageItem.type,
+                            status =messageItem.status,
+                            sequence_id = messageItem.seqId
+                        )
+                    }
+                }
+            }
+            
+            // 同时保存用户信息到用户表
+            saveUserInfo(messageItem.userInfo)
+        }
+    }
+    
+    /**
+     * 保存用户信息到本地数据库
+     */
+    private fun saveUserInfo(userInfo: UserInfo) {
+        db.transaction {
+            // 先检查用户是否存在
+            val existingUser = db.userQueries.selectById(userInfo.userId).executeAsOneOrNull()
+            if (existingUser == null) {
+                // 用户不存在则插入
+                db.userQueries.insertUser(
+                    userId = userInfo.userId,
+                    username = userInfo.username,
+                    email = userInfo.email,
+                    phoneNumber = "",
+                    avatarUrl = null,
+                    bio = null,
+                    userStatus = com.github.im.group.db.entities.UserStatus.ACTIVE
+                )
             }
         }
     }
@@ -126,13 +168,29 @@ class ChatMessageRepository (
     }
     
     /**
-     * 获取指定会话的所有消息
+     * 获取指定会话的 所有消息
+     * @param conversationId 会话ID
+     * @param limit 限制返回的消息数量 默认30
      */
-    fun getMessagesByConversation(conversationId: Long): List<MessageItem> {
-        val entities = db.messageQueries.selectMessagesByConversation(conversationId).executeAsList()
+    fun getMessagesByConversation(conversationId: Long, limit: Long = 30): List<MessageItem> {
+        // 获取指定会话的所有消息  ORDER  BY  server_time_stamp DESC
+        val entities = db.messageQueries.selectMessagesWithUserInfoByConversation(conversationId, limit).executeAsList()
         return entities.map { entity ->
             MessageWrapper(
-                messageDto = entityToMessageDTO(entity)
+                messageDto = MessageDTO(
+                    msgId = entity.msg_id,
+                    conversationId = entity.conversation_id,
+                    status = entity.status,
+                    content = entity.content,
+                    type =  entity.type,
+                    timestamp = entity.server_timestamp.toString(),
+                    sequenceId = entity.sequence_id,
+                    fromAccount = UserInfo(
+                        userId = entity.from_account_id,
+                        username = entity.username?:"",
+                        email = entity.email?:""
+                    ),
+                )
             )
         }
     }
@@ -141,13 +199,31 @@ class ChatMessageRepository (
      * 获取指定会话的最新消息
      */
     fun getLatestMessage(conversationId: Long): MessageWrapper? {
-        val entity = db.messageQueries.selectLatestMessageByConversation(conversationId).executeAsOneOrNull()
+        val entity = db.messageQueries.selectLatestMessageWithUserInfoByConversation(conversationId).executeAsOneOrNull()
         return entity?.let {
             MessageWrapper(
-                messageDto = entityToMessageDTO(it)
+                messageDto = MessageDTO(
+                    msgId = entity.msg_id,
+                    conversationId = entity.conversation_id,
+                    status = entity.status,
+                    content = entity.content,
+                    type =  entity.type,
+                    timestamp = entity.server_timestamp.toString(),
+                    fromAccount = UserInfo(
+                        userId = entity.from_account_id,
+                        username = entity.username?:"",
+                        email = entity.email?:""
+                    ),
+
+                )
             )
         }
     }
+
+//    fun updateMsgStatusAndTimeStampByClientMsgId(clientMsgId: String, status: MessageStatus, timestamp: LocalDateTime){
+//        db.messageQueries.updateMessageByClientMsgId(status, timestamp, clientMsgId)
+//
+//    }
     
     /**
      * 获取指定会话中指定序列号之前的消息
@@ -156,12 +232,25 @@ class ChatMessageRepository (
      * @param limit 限制返回的消息数量
      */
     fun getMessagesBeforeSequence(conversationId: Long, beforeSequenceId: Long, limit: Long = 20): List<MessageItem> {
-        val entities = db.messageQueries.selectMessagesBeforeSequence(conversationId, beforeSequenceId,
+        val entities = db.messageQueries.selectMessagesWithUserInfoBeforeSequence(conversationId, beforeSequenceId,
             limit
         ).executeAsList()
         return entities.map { entity ->
             MessageWrapper(
-                messageDto = entityToMessageDTO(entity)
+                messageDto = MessageDTO(
+                    msgId = entity.msg_id,
+                    conversationId = entity.conversation_id,
+                    status = entity.status,
+                    content = entity.content,
+                    type =  entity.type,
+                    timestamp = entity.server_timestamp.toString(),
+                    fromAccount = UserInfo(
+                        userId = entity.from_account_id,
+                        username = entity.username?:"",
+                        email = entity.email?:""
+                    ),
+
+                    )
             )
         }
     }
@@ -172,10 +261,23 @@ class ChatMessageRepository (
      * @param afterSequenceId 在此序列号之后的消息
      */
     fun getMessagesAfterSequence(conversationId: Long, afterSequenceId: Long, limit: Long = 20): List<MessageItem> {
-        val entities = db.messageQueries.selectMessagesAfterSequence(conversationId, afterSequenceId,limit).executeAsList()
+        val entities = db.messageQueries.selectMessagesWithUserInfoAfterSequence(conversationId, afterSequenceId, limit).executeAsList()
         return entities.map { entity ->
             MessageWrapper(
-                messageDto = entityToMessageDTO(entity)
+                messageDto = MessageDTO(
+                    msgId = entity.msg_id,
+                    conversationId = entity.conversation_id,
+                    status = entity.status,
+                    content = entity.content,
+                    type =  entity.type,
+                    timestamp = entity.server_timestamp.toString(),
+                    fromAccount = UserInfo(
+                        userId = entity.from_account_id,
+                        username = entity.username?:"",
+                        email = entity.email?:""
+                    ),
+
+                    )
             )
         }
     }
@@ -209,7 +311,7 @@ class ChatMessageRepository (
             fromAccount = UserInfo(entity.from_account_id),
             type = entity.type,
             status = entity.status,
-            timestamp = entity.client_timestamp.toString(),
+            timestamp = entity.server_timestamp.toString(),
             conversationId = entity.conversation_id,
             sequenceId = entity.sequence_id
         )

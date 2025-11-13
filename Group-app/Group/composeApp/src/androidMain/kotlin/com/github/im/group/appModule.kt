@@ -53,7 +53,7 @@ val appModule = module {
     single { ChatMessageRepository(get()) }
     single { FilesRepository(get()) }
     single { FriendRequestRepository(get()) }
-    single { MessageSyncRepository(get(), get(), get()) }
+    single { MessageSyncRepository(get(), get(), get(),get()) }
 
 
     single { 

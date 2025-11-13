@@ -22,12 +22,18 @@ import kotlin.collections.emptyList
 class MessageSyncRepository(
     private val messageRepository: ChatMessageRepository,
     private val filesRepository: FilesRepository,
-    private val fileStorageManager: FileStorageManager
+    private val fileStorageManager: FileStorageManager,
+    private val userRepository: UserRepository
 ) {
     private val syncScope = CoroutineScope(Dispatchers.IO)
 
     /**
-     * 同步指定会话的消息
+     * 同步指定会话的新消息
+     * 1. 获取本地会话 最大索引 SequenceId
+     * 2. 从服务器获取消息，只获取比本地序列号大的消息
+     * 3. 插入到本地数据库
+     *    3.1 同时保存文件的元数据信息
+     * 4. 返回新增的数据量
      * @param conversationId 会话ID
      * @return 同步到的新消息数量
      */
@@ -36,8 +42,8 @@ class MessageSyncRepository(
         
         try {
             // 获取会话信息，包括索引信息
-            val conversation = ConversationApi.getConversation(conversationId)
-            Napier.d("获取会话信息: $conversation")
+//            val conversation = ConversationApi.getConversation(conversationId)
+//            Napier.d("获取会话信息: $conversation")
             
             // 获取本地最大序列号
             val localMaxSequenceId = messageRepository.getMaxSequenceId(conversationId)
@@ -49,6 +55,16 @@ class MessageSyncRepository(
             Napier.d("从服务器获取到 ${remoteMessages.size} 条新消息")
             
             if (remoteMessages.isNotEmpty()) {
+
+                // 先保存用户数据
+                val userInfos = remoteMessages.filter {
+                    it.fromAccount != null && it.fromAccount.username.isNotBlank()
+                }.mapNotNull { it ->
+                    it.fromAccount?.takeIf { it.username.isNotBlank() }
+                }
+                if (userInfos.isNotEmpty()) {
+                    userRepository.addOrUpdateUsers(userInfos)
+                }
                 // 批量保存新消息到本地（使用事务）
                 messageRepository.insertMessages(remoteMessages)
                 
@@ -72,41 +88,6 @@ class MessageSyncRepository(
             return 0
         }
     }
-    
-    /**
-//     * 获取历史消息（本地优先）
-//     * @param conversationId 会话ID
-//     * @param beforeSequenceId 在此序列号之前的消息
-//     * @param limit 限制返回的消息数量
-//     * @return 消息列表
-//     */
-//    suspend fun getHistoricalMessages(conversationId: Long, beforeSequenceId: Long, limit: Int = 20): List<MessageItem> {
-//        return getMessagesWithStrategy(
-//            conversationId = conversationId,
-//            loadingMessage = "获取历史消息",
-//            remoteFetch = {
-//                val pageResult = ChatApi.getMessages(conversationId, 0, beforeSequenceId)
-//                pageResult.content.filter { (it.sequenceId ?: 0) < beforeSequenceId }.take(limit)
-//            }
-//        )
-//    }
-    
-//    /**
-//     * 获取最新消息（本地优先）
-//     * @param conversationId 会话ID
-//     * @param afterSequenceId 在此序列号之后的消息
-//     * @return 消息列表
-//     */
-//    suspend fun getLatestMessages(conversationId: Long, afterSequenceId: Long): List<MessageItem> {
-//        return getMessagesWithStrategy(
-//            conversationId = conversationId,
-//            loadingMessage = "获取最新消息",
-//            remoteFetch = {
-//                val pageResult = ChatApi.getMessages(conversationId, afterSequenceId)
-//                pageResult.content
-//            }
-//        )
-//    }
     
     /**
      * 通用的消息获取方法，实现本地优先策略
@@ -143,6 +124,7 @@ class MessageSyncRepository(
 
                     if (remoteMessages.isNotEmpty()) {
                         // 保存到本地数据库
+                        Napier.d ("保存到本地数据库 ${remoteMessages.size}" )
                         messageRepository.insertMessages(remoteMessages)
 
                         // 保存文件元数据
@@ -155,14 +137,14 @@ class MessageSyncRepository(
                         }
 
                         Napier.d("从服务器获取并保存了 ${remoteMessages.size} 条消息")
-                        remoteMessages
+                        return@ifEmpty remoteMessages
                     } else {
-                        emptyList()
+                        return@ifEmpty emptyList()
                     }
                 }
                 return@let items
             }
-            
+
             return messageItem
         } catch (e: Exception) {
             Napier.e("获取消息时发生错误", e)
@@ -170,35 +152,6 @@ class MessageSyncRepository(
         }
     }
 
-    /**
-     * 获取指定会话的消息（本地优先）
-     * @param conversationId 会话ID
-     * @return 消息列表
-     */
-    suspend fun getMessages(conversationId: Long): List<MessageItem> {
-        Napier.d("获取会话消息: conversationId=$conversationId")
-        
-        try {
-            // 从本地获取所有消息
-            val localMessages = messageRepository.getMessagesByConversation(conversationId)
-            Napier.d("从本地获取到 ${localMessages.size} 条消息")
-            
-            // 对于文件类型消息，确保文件已下载
-            localMessages.forEach { message ->
-                if (message.type.isFile()) {
-                    message.fileMeta?.let { fileMeta ->
-                        ensureFileDownloaded(fileMeta.hash)
-                    }
-                }
-            }
-            
-            return localMessages
-        } catch (e: Exception) {
-            Napier.e("获取消息时发生错误", e)
-            return emptyList()
-        }
-    }
-    
     /**
      * 确保文件已下载到本地
      * @param fileId 文件ID

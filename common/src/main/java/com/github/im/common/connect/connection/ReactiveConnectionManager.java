@@ -83,9 +83,9 @@ public class ReactiveConnectionManager {
      * @param baseMessagePkg
      */
     public static void addBaseMessage(BindAttr<String> ATTR , BaseMessage.BaseMessagePkg baseMessagePkg) {
-
         if(isSubscribe(ATTR))
         {
+            /**如果在线就推送**/
             getAllSubscribeAttr(ATTR).forEach(
                     bindAttr -> {
                         BASE_MESSAGE_SINKS.get(bindAttr).tryEmitNext(baseMessagePkg).orThrow();
@@ -94,6 +94,7 @@ public class ReactiveConnectionManager {
 //            BASE_MESSAGE_SINKS.get(ATTR).tryEmitNext(baseMessagePkg).orThrow();
 
         }else{
+            /**不在线 不操作**/
             log.debug("未找到对应的 sink , ATTR : {}",ATTR);
         }
 

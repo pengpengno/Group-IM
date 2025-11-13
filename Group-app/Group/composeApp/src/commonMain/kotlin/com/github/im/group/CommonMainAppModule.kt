@@ -13,11 +13,4 @@ import org.koin.dsl.module
 
 val commonModule = module {
 
-    single {
-        FileStorageManager(
-            filesRepository = get(),
-            fileSystem = FileSystem.SYSTEM,
-            baseDirectory = Path.Companion.DIRECTORY_SEPARATOR.toPath() // 默认根路径，具体平台会覆盖
-        ) 
-    }
 }

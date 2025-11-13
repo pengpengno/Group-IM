@@ -5,6 +5,7 @@ import com.github.im.group.api.MessageDTO
 import com.github.im.group.api.extraAs
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
+import com.github.im.group.db.entities.UserStatus
 import com.github.im.group.model.proto.AccountInfo
 import com.github.im.group.model.proto.ChatMessage
 import kotlinx.datetime.LocalDateTime

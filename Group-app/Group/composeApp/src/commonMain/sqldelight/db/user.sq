@@ -2,10 +2,10 @@ import com.github.im.group.db.entities.UserStatus;
 import kotlinx.datetime.LocalDateTime;
 
 CREATE TABLE User (
-  userId INTEGER NOT NULL PRIMARY KEY  ,
-  username TEXT ,
-  email TEXT ,
-  phoneNumber TEXT ,
+  userId INTEGER NOT NULL PRIMARY KEY,
+  username TEXT NOT NULL,
+  email TEXT,
+  phoneNumber TEXT,
   avatarUrl TEXT,
   bio TEXT,
   userStatus TEXT AS UserStatus NOT NULL DEFAULT 'ACTIVE'          -- 对应枚举 Status (ACTIVE, INACTIVE 等)
@@ -25,12 +25,15 @@ INSERT INTO User (
   userId,
   username,
   email,
-  phoneNumber
-) VALUES (?,?, ?, ?);
+  phoneNumber,
+  avatarUrl,
+  bio,
+  userStatus
+) VALUES (?, ?, ?, ?, ?, ?, ?);
 
 updateUser:
 UPDATE User
-SET username = ?, email = ?, phoneNumber = ?
+SET username = ?, email = ?, phoneNumber = ?, avatarUrl = ?, bio = ?, userStatus = ?
 WHERE userId = ?;
 
 deleteUser:

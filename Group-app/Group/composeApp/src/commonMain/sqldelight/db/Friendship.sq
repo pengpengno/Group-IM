@@ -7,10 +7,15 @@ CREATE TABLE Friendship (
     from_user_id INTEGER NOT NULL,                   -- 发起请求的用户ID
     to_user_id INTEGER NOT NULL,                     -- 接收请求的用户ID
     status TEXT AS FriendRequestStatus NOT NULL DEFAULT 'PENDING',  -- 请求状态 (PENDING, ACCEPTED, REJECTED, BLOCKED)
-    conversation_id INTEGER,                         -- 关联的会话ID（如果已创建）
+    conversation_id INTEGER,                         -- 关联的会话ID（如果已创建）私聊 有且仅 同时存在一个
     created_at INTEGER AS LocalDateTime,             -- 创建时间
     updated_at INTEGER AS LocalDateTime              -- 更新时间
 );
+
+-- 查询所有的好友请求
+selectAllRequests:
+SELECT * FROM Friendship WHERE status = 'PENDING' ORDER BY created_at DESC LIMIT ? OFFSET ?;
+
 
 -- 查询所有待处理的好友请求
 selectPendingRequests:

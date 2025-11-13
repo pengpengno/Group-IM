@@ -74,15 +74,26 @@ class UserRepository (
 
 
 
+    /**
+     * 插入或更新用户信息
+     * 用户不存在时才会插入， 存在则更新
+     */
+    fun addOrUpdateUsers(users: List<UserInfo>) {
+        db.transaction {
+            users.forEach { user ->
+                addOrUpdateUser(user)
+            }
+        }
+    }
 
     /**
      * 插入一条用户信息
      * 用户不存在时才会插入， 存在则忽略
      */
-    private  fun addOrUpdateUser(user: UserInfo) {
+    fun addOrUpdateUser(user: UserInfo) {
         db.transaction {
             // 先检查用户是否存在
-            val existingUser = db.userQueries.selectByUsername(user.username).executeAsOneOrNull()
+            val existingUser = db.userQueries.selectById(user.userId).executeAsOneOrNull()
             if (existingUser == null) {
                 // 用户不存在则插入
                 db.userQueries.insertUser(
@@ -90,15 +101,37 @@ class UserRepository (
                     username = user.username,
                     email = user.email,
                     phoneNumber = "",
+                    avatarUrl = null,
+                    bio = null,
+                    userStatus = UserStatus.ACTIVE
                 )
-            }else{
+            } else {
                 db.userQueries.updateUser(
-                    userId = existingUser.userId,
                     username = user.username,
                     email = user.email,
                     phoneNumber = "",
+                    avatarUrl = null,
+                    bio = null,
+                    userStatus = UserStatus.ACTIVE,
+                    userId = existingUser.userId
                 )
             }
+        }
+    }
+    
+    /**
+     * 根据用户ID获取用户信息
+     */
+    fun getUserById(userId: Long): UserInfo? {
+        val userEntity = db.userQueries.selectById(userId).executeAsOneOrNull()
+        return userEntity?.let {
+            UserInfo(
+                userId = it.userId,
+                username = it.username,
+                email = it.email ?: "",
+                token = "",
+                refreshToken = ""
+            )
         }
     }
 }

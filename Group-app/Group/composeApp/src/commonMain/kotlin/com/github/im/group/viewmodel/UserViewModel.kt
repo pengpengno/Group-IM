@@ -150,8 +150,7 @@ class UserViewModel(
                 
                 // 3. 从本地数据库加载并更新状态
                 val localRequests = friendRequestRepository.getSentFriendRequests(userId)
-                // TODO: 更新状态以在UI中显示
-                
+                _pendingFriendRequests.value = localRequests
                 Napier.d("加载已发送的好友请求: ${sentRequests.size} 个")
             } catch (e: Exception) {
                 Napier.e("加载已发送的好友请求失败: $e")

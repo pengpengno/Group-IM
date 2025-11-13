@@ -107,7 +107,6 @@ fun ChatRoomScreen(
 
     val userInfo = userViewModel.getCurrentUser()
 
-
     
     // 获取VideoCallViewModel
     val videoCallViewModel: VideoCallViewModel = koinViewModel()
@@ -122,11 +121,12 @@ fun ChatRoomScreen(
     })
 
     // 上拉加载更多状态
-    var isLoadingMore by remember { mutableStateOf(false) }
+//    var isLoadingMore by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) {
-            listState.animateScrollToItem(state.messages.lastIndex)
+            // 刷新到 指定 的消息索引
+            listState.animateScrollToItem(state.messageIndex)
         }
     }
 
@@ -139,35 +139,41 @@ fun ChatRoomScreen(
 
     // 监听列表滚动，实现上拉加载更多
     LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex }
-            .collect { firstVisibleIndex ->
-                // 当滚动到顶部附近时，加载更多历史消息
-                if (firstVisibleIndex < 5 && !isLoadingMore && state.messages.isNotEmpty()) {
+        Napier.d  ("ChatRoomScreen $listState")
+        snapshotFlow { listState.firstVisibleItemIndex to listState.layoutInfo.totalItemsCount }
+            .collect { (firstVisibleIndex, totalItemsCount) ->
+                messageViewModel.scrollIndex(firstVisibleIndex)
+                // 当滚动到顶部附近时，加载更多历史消息（向后翻页）
+                Napier.d  ("ChatRoomScreen firstVisibleIndex $firstVisibleIndex totalItemsCount $totalItemsCount")
+                val remainItemIndex = totalItemsCount - firstVisibleIndex
+                val isLoadingMore = state.loading
+                if (remainItemIndex < 5 && !isLoadingMore && state.messages.isNotEmpty()) {
                     // 获取最早的消息的序列号
-                    val earliestMessage = state.messages.minByOrNull { it.seqId }
+                    val earliestMessage = state.messages.filter{ it.seqId > 0L }.minByOrNull { it.seqId }
+                    Napier.d  ("earliestMessage  $earliestMessage ")
+
                     earliestMessage?.let {
-                        isLoadingMore = true
-                        messageViewModel.loadMoreMessages(conversationId, it.seqId)
-                        isLoadingMore = false
+                        messageViewModel.loadMoreMessages(conversationId, earliestMessage.seqId)
                     }
                 }
                 
-                // 当滚动到底部附近时，获取最新消息
-                if (firstVisibleIndex > state.messages.size - 5 && !isLoadingMore && state.messages.isNotEmpty()) {
-                    // 获取最新的消息的序列号
-                    val latestMessage = state.messages.maxByOrNull { it.seqId }
-                    latestMessage?.let {
-                        isLoadingMore = true
-                        messageViewModel.loadLatestMessages(conversationId, it.seqId)
-                        isLoadingMore = false
-                    }
-                }
+                // 当滚动到底部附近时，获取最新消息（向前翻页）
+//                if (firstVisibleIndex > totalItemsCount - 5 && !isLoadingMore && state.messages.isNotEmpty()) {
+//                    // 获取最新的消息的序列号
+//                    val latestMessage = state.messages.filter { it.seqId > 0L }.maxByOrNull { it.seqId }
+//                    latestMessage?.let {
+//                        isLoadingMore = true
+//                        viewModelScope.launch {
+//                            messageViewModel.loadLatestMessages(conversationId, it.seqId)
+//                            isLoadingMore = false
+//                        }
+//                    }
+//                }
             }
     }
 
     DisposableEffect(Unit) {
         onDispose {
-
             if (uiState is RecorderUiState.Recording){
                 Napier.d("close VoiceMessage")
                 voiceViewModel.stopRecording(AnimatedContentTransitionScope.SlideDirection.Left)
@@ -273,7 +279,7 @@ fun ChatRoomScreen(
                 reverseLayout = true, // true: 新消息在底部，列表倒序排列
                 contentPadding = PaddingValues(bottom = 40.dp) // 为输入框腾出空间
             ) {
-                items(state.messages.reversed()) { msg ->
+                items(state.messages) { msg ->
                     // 计算是否应该显示头像
                     val showAvatar = shouldShowAvatar(msg, state.messages, userInfo)
                     
@@ -296,22 +302,24 @@ fun ChatRoomScreen(
             if (state.loading && !isRefreshing) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f)),
+                        .fillMaxWidth()
+                        .padding(8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
                     ) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(50.dp),
-                            color = Color.White
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 2.dp
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "消息加载中...",
-                            color = Color.White,
-                            fontSize = 16.sp
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -472,7 +480,7 @@ fun MessageBubble(
             horizontalAlignment = if (isOwnMessage) Alignment.End else Alignment.Start
         ) {
             // 显示用户名（仅在群聊中且需要显示头像时）
-            if (showAvatar && !isOwnMessage) {
+            if (showAvatar && !isOwnMessage && msg.userInfo.username.isNotEmpty()) {
                 Text(
                     text = msg.userInfo.username,
                     fontSize = 12.sp,

@@ -68,7 +68,7 @@ class SenderSdk(
                 reconnectJob = launch {
                     var retryCount = 0L
                     while (isActive) {
-                        Napier.d("正在检查连接状态...")
+//                        Napier.d("正在检查连接状态...")
                         try {
                             val isConnected = tcpClient.isActive()
                             Napier.d("连接状态: $isConnected")
@@ -90,8 +90,8 @@ class SenderSdk(
                             delay(delayTime)
                         }
 
-                        // 每5秒检查一次连接状态
-                        delay(5000)
+                        // 每15秒检查一次连接状态
+                        delay(15000)
                     }
                 }
             }

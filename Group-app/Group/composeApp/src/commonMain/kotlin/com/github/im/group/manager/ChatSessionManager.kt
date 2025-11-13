@@ -52,17 +52,12 @@ class ChatSessionManager  (
 
             // 回执 ACK 消息 更新 本地数据库 ，更新对应消息状态
             val conversationId = it.conversationId
-            // ACK 确认收到消息 表明发送成功， 更新数据库对应消息状态
-            val ackLocalDateTime: LocalDateTime =
-                Instant.fromEpochMilliseconds(it.ackTimestamp)
-                    .toLocalDateTime(TimeZone.currentSystemDefault())
-            db.messageQueries
-                .updateMessageByClientMsgId(MessageStatus.SENT,
-                    ackLocalDateTime,
-                    it.serverMsgId, it.serverMsgId,
-                    client_msg_id = it.clientMsgId)
+
             val vm = sessionMap[conversationId]
             if (vm != null) {
+                it.clientMsgId.let { clientMsgId ->
+                    vm.receiveAckUpdateStatus(clientMsgId,it.ackTimestamp)
+                }
                 vm.updateMessage(it.clientMsgId)
             } else {
 

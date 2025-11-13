@@ -20,17 +20,31 @@ class FriendRequestRepository(
      * 保存好友关系到本地数据库
      */
     fun saveFriendRequest(friendshipDTO: FriendshipDTO) {
+        if (friendshipDTO.id == null) return
         val currentTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-        
-        db.friendshipQueries.insertFriendship(
-            id = friendshipDTO.id ?: 0,
-            from_user_id = friendshipDTO.userInfo?.userId ?: 0,
-            to_user_id = friendshipDTO.friendUserInfo?.userId ?: 0,
-            status = friendshipDTO.status ?: FriendRequestStatus.PENDING,
-            conversation_id = friendshipDTO.conversationId,
-            created_at = currentTime,
-            updated_at = currentTime
-        )
+
+        // 查询是否存在 该关系
+         db.friendshipQueries.selectById(friendshipDTO.id).executeAsOneOrNull().let {
+            if (it == null ){
+                db.friendshipQueries.insertFriendship(
+                    id = friendshipDTO.id,
+                    from_user_id = friendshipDTO.userInfo?.userId ?: 0,
+                    to_user_id = friendshipDTO.friendUserInfo?.userId ?: 0,
+                    status = friendshipDTO.status ?: FriendRequestStatus.PENDING,
+                    conversation_id = friendshipDTO.conversationId,
+                    created_at = currentTime,
+                    updated_at = currentTime
+                )
+            }else{
+                db.friendshipQueries.updateFriendshipStatus(
+                    id = friendshipDTO.id,
+                    status = friendshipDTO.status ?: FriendRequestStatus.PENDING,
+                    updated_at = currentTime
+                )
+            }
+        }
+
+
     }
     
     /**
@@ -73,6 +87,25 @@ class FriendRequestRepository(
      */
     fun getSentFriendRequests(userId: Long): List<FriendshipDTO> {
         return db.friendshipQueries.selectSentRequests(userId).executeAsList().map { entity ->
+            FriendshipDTO(
+                id = entity.id,
+                userInfo = UserInfo(userId = entity.from_user_id),
+                friendUserInfo = UserInfo(userId = entity.to_user_id),
+                conversationId = entity.conversation_id,
+                status = entity.status
+            )
+        }
+    }
+
+    /**
+     * 获取所有的好友关系请求
+     * @param limit 每页数量
+     * @param offset 偏移量
+     *
+     * @return 好友关系列表
+     */
+    fun getAllFriendRequests(limit : Long = 20 , offset : Long = 0): List<FriendshipDTO> {
+        return db.friendshipQueries.selectAllRequests(limit,offset).executeAsList().map { entity ->
             FriendshipDTO(
                 id = entity.id,
                 userInfo = UserInfo(userId = entity.from_user_id),

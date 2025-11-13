@@ -1,6 +1,6 @@
--- commonMain/sqldelight/com/github/im/db/Message.sq
 import com.github.im.group.db.entities.MessageStatus;
 import com.github.im.group.db.entities.MessageType;
+import com.github.im.group.db.entities.UserStatus;
 import kotlinx.datetime.LocalDateTime;
 
 CREATE TABLE message (
@@ -22,11 +22,17 @@ CREATE TABLE message (
 selectAll:
 SELECT * FROM message;
 
--- 插入消息
+-- 插入消息 用于本地的消息发送插入 没有服务端的信息
 insertMessage:
 INSERT INTO message ( conversation_id, from_account_id, content, client_msg_id,
  type, status, client_timestamp, sequence_id)
 VALUES ( ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- 插入消息  带有服务端返回的数据
+insertMessageWithMsgId:
+INSERT INTO message ( conversation_id, msg_id,from_account_id, content, client_msg_id,
+ type, status, server_timestamp, sequence_id)
+VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- 根据 msgId 删除
 deleteMessage:
@@ -49,7 +55,34 @@ SELECT * FROM message WHERE conversation_id = ? ORDER BY server_timestamp DESC L
 
 -- 根据 conversationId 查询所有消息
 selectMessagesByConversation:
-SELECT * FROM message WHERE conversation_id = ? ORDER BY server_timestamp ASC;
+SELECT * FROM message WHERE conversation_id = ? ORDER BY server_timestamp DESC  LIMIT ? ;
+
+-- 根据 conversationId 查询所有消息并关联用户信息
+selectMessagesWithUserInfoByConversation:
+SELECT m.*, u.username, u.email 
+FROM message m 
+LEFT JOIN User u ON m.from_account_id = u.userId 
+WHERE m.conversation_id = ? 
+ORDER BY m.server_timestamp DESC  
+LIMIT ? ;
+
+-- 根据 conversationId 和 sequence_id 查询指定序列号之前的消息并关联用户信息
+selectMessagesWithUserInfoBeforeSequence:
+SELECT m.*, u.username, u.email 
+FROM message m 
+LEFT JOIN User u ON m.from_account_id = u.userId 
+WHERE m.conversation_id = ? AND m.sequence_id < ? 
+ORDER BY m.server_timestamp DESC  
+LIMIT ? ;
+
+-- 根据 conversationId 和 sequence_id 查询指定序列号之后的消息并关联用户信息
+selectMessagesWithUserInfoAfterSequence:
+SELECT m.*, u.username, u.email 
+FROM message m 
+LEFT JOIN User u ON m.from_account_id = u.userId 
+WHERE m.conversation_id = ? AND m.sequence_id > ? 
+ORDER BY m.server_timestamp ASC  
+LIMIT ? ;
 
 -- 根据conversationId 获取对应最大序列号
 selectMaxSequenceIdByConversation:
@@ -58,6 +91,15 @@ SELECT MAX(sequence_id) FROM message WHERE conversation_id = ?;
 -- 根据conversationId 获取最新的一条消息
 selectLatestMessageByConversation:
 SELECT * FROM message WHERE conversation_id = ? ORDER BY server_timestamp DESC LIMIT 1;
+
+-- 根据conversationId 获取最新的一条消息并关联用户信息
+selectLatestMessageWithUserInfoByConversation:
+SELECT m.*, u.username, u.email 
+FROM message m 
+LEFT JOIN User u ON m.from_account_id = u.userId 
+WHERE m.conversation_id = ? 
+ORDER BY m.server_timestamp DESC 
+LIMIT 1;
 
 -- 根据conversationId 和 sequence_id 查询指定序列号之前的消息
 selectMessagesBeforeSequence:
