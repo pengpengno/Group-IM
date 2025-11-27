@@ -8,6 +8,7 @@ import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.server.service.ConversationService;
 import com.github.im.server.service.MessageService;
+import com.github.im.server.utils.EnumsTransUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
@@ -60,7 +61,7 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
                 .setSequenceId(sequenceId)
                 .setServerTimeStamp(epochMilli)
                 .setMsgId(msgId)
-                .setMessagesStatus(Chat.MessagesStatus.SENT)
+                .setMessagesStatus(EnumsTransUtil.convertMessageStatus(saveMessage.getStatus()))
                 .build();
 
         final var newBaseMessage = BaseMessage.BaseMessagePkg.newBuilder(message)

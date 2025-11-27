@@ -33,6 +33,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.ldap.authentication.LdapAuthenticationProvider;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
@@ -69,23 +70,25 @@ public class SecurityConfig  {
     }
 
 
-    //@ConditionalOnBean(UserDetailsServiceImpl.class)
-    @Bean
+        @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http,
                                                        @Autowired UserDetailsServiceImpl userService,
                                                        @Autowired RefreshAuthenticationProvider refreshAuthenticationProvider,
-                                                       @Autowired(required = false) LdapUserDetailsMapper ldapUserDetailsMapper
+                                                       @Autowired(required = false) LdapAuthenticationProvider ldapAuthenticationProvider
                                                        ) throws Exception {
         AuthenticationManagerBuilder auth = http.getSharedObject(AuthenticationManagerBuilder.class);
         auth.authenticationProvider(refreshAuthenticationProvider);
 
-//        auth.userDetailsService(userService)
-//                .passwordEncoder(passwordEncoder());
-//        // 添加DAO认证提供者
+        // 添加DAO认证提供者
         DaoAuthenticationProvider daoAuthProvider = new DaoAuthenticationProvider();
         daoAuthProvider.setUserDetailsService(userService);
         daoAuthProvider.setPasswordEncoder(passwordEncoder());
         auth.authenticationProvider(daoAuthProvider);
+        
+        // 添加LDAP认证提供者（如果有配置）
+        if (ldapAuthenticationProvider != null) {
+            auth.authenticationProvider(ldapAuthenticationProvider);
+        }
         
         var authenticationManager = auth.build();
         return authenticationManager;
@@ -104,15 +107,10 @@ public class SecurityConfig  {
                                 "/api/users/login",
                                 "/static/**",
                                 "/socket.io/**",
-                                "/signaling"  , // 信令服务器
                                 "/ws/**"  , // 信令服务器
-                                "/ws/*"  , // 信令服务器
-                                "/meeting/**"  , // 信令服务器
-                                "/ws"  , // 信令服务器
                                 "/rtc"  , // 信令服务器
                                 "/rtc/*"  , // 信令服务器
                                 "/webrtc/**",   // WebRTC信令服务器
-                                "/ws/**",   // WebRTC信令服务器
                                 "/websocket/**",   // WebSocket端点
                                 "/signaling/**"    // 专用信令端点
                         )

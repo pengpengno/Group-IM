@@ -50,7 +50,7 @@ val appModule = module {
     single<AudioPlayer> { AndroidAudioPlayer(androidContext()) }
     single<WebRTCManager> { AndroidWebRTCManager(androidContext()) }
     single { UserRepository(get()) }
-    single { ChatMessageRepository(get()) }
+    single { ChatMessageRepository(get(),get()) }
     single { FilesRepository(get()) }
     single { FriendRequestRepository(get()) }
     single { MessageSyncRepository(get(), get(), get(),get()) }

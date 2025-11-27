@@ -1,11 +1,14 @@
 package com.github.im.group.repository
 
+import com.github.im.group.api.ChatApi
 import com.github.im.group.api.MessageDTO
+import com.github.im.group.api.extraAs
 import com.github.im.group.db.AppDatabase
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.UserInfo
 import db.Message
+import io.github.aakira.napier.Napier
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -14,7 +17,8 @@ import kotlinx.datetime.toLocalDateTime
  * 聊天消息本地存储
  */
 class ChatMessageRepository (
-    private val db: AppDatabase
+    private val db: AppDatabase,
+    private val userRepository: UserRepository
 ){
 
 
@@ -32,6 +36,8 @@ class ChatMessageRepository (
 
     /**
      * 在本地数据库中插入单条消息
+     *
+     * 根据 clientMsgId 来查询
      */
     fun insertOrUpdateMessage(messageItem: MessageItem){
 
@@ -41,8 +47,15 @@ class ChatMessageRepository (
                 // 如果id 不存在说明是 本地生成的消息  还没在服务端ACK 的消息/  推送的消息
                 db.messageQueries.selectMessageByClientMsgId(messageItem.clientMsgId).executeAsOneOrNull()
             }else{
-                // 如果id 存在说明是 服务端推送的消息
-                db.messageQueries.selectMessageByMsgId(it).executeAsOneOrNull()
+                // 如果id 存在说明是 服务端推送的消息 先在本地根据 clientID 查不到则说明不是本地更新的返回消息 再 通过 msg_id 查询
+                db.messageQueries.selectMessageByClientMsgId(messageItem.clientMsgId).executeAsOneOrNull()
+                    .let { message ->
+                        if (message == null){
+                            return@let db.messageQueries.selectMessageByMsgId(it).executeAsOneOrNull()
+                        }
+                        return@let  message
+                    }
+
             }
         }
         
@@ -169,6 +182,7 @@ class ChatMessageRepository (
     
     /**
      * 获取指定会话的 所有消息
+     * 根据服务端的创建时间排序 DESC
      * @param conversationId 会话ID
      * @param limit 限制返回的消息数量 默认30
      */
@@ -197,8 +211,42 @@ class ChatMessageRepository (
     
     /**
      * 获取指定会话的最新消息
+     * 优先
      */
-    fun getLatestMessage(conversationId: Long): MessageWrapper? {
+    suspend fun getLatestMessage(conversationId: Long): MessageWrapper? {
+
+        // 获取本地最新Index
+
+        val localMaxSequenceId = getMaxSequenceId(conversationId)
+        Napier.d("本地最大序列号: $localMaxSequenceId")
+
+        // 从服务器获取消息，只获取比本地序列号大的消息
+        val pageResult = ChatApi.getMessages(conversationId, localMaxSequenceId)
+        val remoteMessages = pageResult.content
+        Napier.d("从服务器获取到 ${remoteMessages.size} 条新消息")
+
+        if (remoteMessages.isNotEmpty()) {
+
+            // 先保存用户数据
+            val userInfos = remoteMessages.filter {
+                it.fromAccount != null && it.fromAccount.username.isNotBlank()
+            }.mapNotNull { it ->
+                it.fromAccount?.takeIf { it.username.isNotBlank() }
+            }
+            if (userInfos.isNotEmpty()) {
+                userRepository.addOrUpdateUsers(userInfos)
+            }
+            // 批量保存新消息到本地（使用事务）
+            insertMessages(remoteMessages)
+
+            // 批量保存文件元数据
+            val fileMetas = remoteMessages
+                .filter { it.type.isFile() }
+                .mapNotNull { it.extraAs<com.github.im.group.api.FileMeta>() }
+
+            Napier.d("同步完成，新增 ${remoteMessages.size} 条消息")
+        }
+        // 开始查询 展示 最新消息
         val entity = db.messageQueries.selectLatestMessageWithUserInfoByConversation(conversationId).executeAsOneOrNull()
         return entity?.let {
             MessageWrapper(

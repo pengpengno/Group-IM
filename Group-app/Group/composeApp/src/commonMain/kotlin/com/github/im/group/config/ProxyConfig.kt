@@ -4,9 +4,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 object ProxyConfig {
-//    var host by mutableStateOf("192.168.1.17")
-//    var host by mutableStateOf("192.168.8.252")
     var host by mutableStateOf("192.168.3.21")
+//    var host by mutableStateOf("192.168.244.252")
     var port by mutableStateOf(8080)
     var tcp_port by mutableStateOf(8088)
     var enableProxy by mutableStateOf(false)

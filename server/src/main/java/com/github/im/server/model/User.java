@@ -53,7 +53,10 @@ public class User implements UserDetails {
     @Column(length = 1024)
     private String refreshToken;
 
-    @Column(nullable = false)
+    /**
+     * 账户状态 false 是的话
+     */
+    @Column(nullable = false, columnDefinition = "boolean default true")
     private boolean status = true;
 
     @Enumerated(EnumType.STRING)
@@ -79,6 +82,7 @@ public class User implements UserDetails {
         var now = LocalDateTime.now();
         this.updatedAt = now;
         this.userStatus = Status.ACTIVE;
+        this.status = true;
         this.createdAt = now;
     }
 

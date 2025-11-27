@@ -4,6 +4,7 @@ import com.github.im.dto.session.MessageDTO;
 import com.github.im.dto.session.MessagePayLoad;
 import com.github.im.dto.session.MessagePullRequest;
 import com.github.im.dto.session.MessageSearchRequest;
+import com.github.im.server.model.User;
 import com.github.im.server.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -13,6 +14,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
 
@@ -43,8 +46,10 @@ public class MessageController {
 
     // 标记消息为已读
     @PostMapping("/mark-as-read")
-    public ResponseEntity<Void> markAsRead(@RequestParam Long msgId) {
-        messageService.markAsRead(msgId);
+    public ResponseEntity<Void> markAsRead(@RequestParam Long msgId ) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Object principal = authentication.getPrincipal();
+        messageService.markAsRead(msgId,(User) principal);
         return ResponseEntity.ok().build();
     }
 

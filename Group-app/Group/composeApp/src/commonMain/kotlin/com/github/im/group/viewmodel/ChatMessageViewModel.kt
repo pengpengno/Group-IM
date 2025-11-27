@@ -45,7 +45,8 @@ import kotlin.uuid.Uuid
  * 聊天消息记录model
  */
 data class ChatUiState(
-//    val messages: List<MessageWrapper> = emptyList(),
+
+    //  { 老消息 }  {当前消息}  {新消息}
     val messages: MutableList<MessageItem> = mutableListOf(),
     val conversation: ConversationRes = ConversationRes(),
     val loading: Boolean = false,
@@ -59,7 +60,7 @@ data class FileDownloadState(
     val fileId: String,
     val isDownloading: Boolean = false,
     val isSuccess: Boolean = false,
-    val fileContent: ByteArray? = null,
+//    val fileContent: ByteArray? = null,
     val error: String? = null
 )
 
@@ -156,7 +157,60 @@ class ChatMessageViewModel(
         chatSessionManager.unregister(conversationId)
     }
 
+    /**
+     * 加载本地现 有的消息
+     */
+    fun loadLocalMessages(conversationId: Long, limit: Long = 30) {
 
+        // 然后再加载本地消息
+        val messages = chatMessageRepository.getMessagesByConversation(conversationId,limit)
+        Napier.d("读取到  ${messages.size} 条消息")
+
+        _uiState.update {
+            val messageList = mutableListOf<MessageItem>()
+            messageList.addAll(messages)
+            it.copy(messages = messageList)
+        }
+    }
+
+    /**
+     * 加载远程消息
+     * @param conversationId 会话id
+     * @param limit 加载消息数量
+     * 默认加载最新的 30 条消息
+     */
+
+    fun loadRemoteMessages(conversationId: Long, limit: Long = 30) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(loading = true)
+            }
+            try {
+
+
+                // 先尝试从服务器同步新消息（增量同步）
+                val newMessageCount = messageSyncRepository.syncMessages(conversationId)
+                Napier.d("同步到 $newMessageCount 条新消息")
+
+                // 然后再加载本地消息
+                val messages = chatMessageRepository.getMessagesByConversation(conversationId,limit)
+                Napier.d("读取到  ${messages.size} 条消息")
+
+                _uiState.update {
+                    val messageList = mutableListOf<MessageItem>()
+                    messageList.addAll(messages)
+                    it.copy(messages = messageList)
+                }
+
+            } catch (e: Exception) {
+                Napier.e("加载消息失败", e)
+            } finally {
+                _uiState.update {
+                    it.copy(loading = false)
+                }
+            }
+        }
+    }
 
     /**
      * 加载消息
@@ -170,33 +224,22 @@ class ChatMessageViewModel(
                 it.copy(loading = true)
             }
             try {
-                // 首先从本地数据库加载已有消息
-                val localMessages = chatMessageRepository.getMessagesByConversation(conversationId)
-                Napier.d("从本地加载到 ${localMessages.size} 条消息")
-                
-                // 更新UI显示本地消息
+
+
+                // 先尝试从服务器同步新消息（增量同步）
+                val newMessageCount = messageSyncRepository.syncMessages(conversationId)
+                Napier.d("同步到 $newMessageCount 条新消息")
+
+                // 然后再加载本地消息
+                val messages = chatMessageRepository.getMessagesByConversation(conversationId,limit)
+                Napier.d("读取到  ${messages.size} 条消息")
+
                 _uiState.update {
                     val messageList = mutableListOf<MessageItem>()
-                    messageList.addAll(0,localMessages)
+                    messageList.addAll(messages)
                     it.copy(messages = messageList)
                 }
 
-                // 然后从服务器同步新消息（增量同步）
-                val newMessageCount = messageSyncRepository.syncMessages(conversationId)
-                Napier.d("同步到 $newMessageCount 条新消息")
-                
-                // 如果有新消息，重新从本地加载所有消息
-                if (newMessageCount > 0) {
-                    val updatedMessages = chatMessageRepository.getMessagesByConversation(conversationId,limit)
-                    Napier.d("更新后共有 ${updatedMessages.size} 条消息")
-                    
-                    _uiState.update {
-                        val messageList = mutableListOf<MessageItem>()
-                        messageList.addAll(updatedMessages)
-                        messageList.addAll(it.messages)
-                        it.copy(messages = messageList)
-                    }
-                }
             } catch (e: Exception) {
                 Napier.e("加载消息失败", e)
             } finally {
@@ -320,7 +363,6 @@ class ChatMessageViewModel(
     /**
      * 接收/ 更新 服务端发送的新的新的消息
      *
-     *  本地 发送的消息不存在
      */
     private fun addNewMessage(message: MessageItem){
 //        val message = MessageWrapper(chatMessage)
@@ -604,7 +646,7 @@ class ChatMessageViewModel(
                         fileId = fileId,
                         isDownloading = false,
                         isSuccess = true,
-                        fileContent = fileContent
+//                        fileContent = fileContent
                     ))
                 }
                 

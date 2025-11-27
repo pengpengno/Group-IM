@@ -95,7 +95,11 @@ fun ChatRoomScreen(
     LaunchedEffect(conversationId) {
         chatViewModel.getConversations(conversationId)
         messageViewModel.getConversation(conversationId)
-        messageViewModel.loadMessages(conversationId)
+        // 先本地加载
+        messageViewModel.loadLocalMessages(conversationId)
+        // 再同步远程消息
+        messageViewModel.loadRemoteMessages(conversationId)
+        
         messageViewModel.register(conversationId)
     }
 
@@ -156,19 +160,7 @@ fun ChatRoomScreen(
                         messageViewModel.loadMoreMessages(conversationId, earliestMessage.seqId)
                     }
                 }
-                
-                // 当滚动到底部附近时，获取最新消息（向前翻页）
-//                if (firstVisibleIndex > totalItemsCount - 5 && !isLoadingMore && state.messages.isNotEmpty()) {
-//                    // 获取最新的消息的序列号
-//                    val latestMessage = state.messages.filter { it.seqId > 0L }.maxByOrNull { it.seqId }
-//                    latestMessage?.let {
-//                        isLoadingMore = true
-//                        viewModelScope.launch {
-//                            messageViewModel.loadLatestMessages(conversationId, it.seqId)
-//                            isLoadingMore = false
-//                        }
-//                    }
-//                }
+
             }
     }
 
@@ -377,7 +369,7 @@ fun ChatRoomScreen(
             
             // 文件下载完成后的处理
             if (!downloadState.isDownloading && downloadState.isSuccess) {
-                Napier.d("文件下载完成，大小: ${downloadState.fileContent?.size ?: 0} 字节")
+//                Napier.d("文件下载完成，大小: ${downloadState.fileContent?.size ?: 0} 字节")
                 // 这里可以添加文件保存或打开的逻辑
                 // 下载完成后清除状态
                 // messageViewModel.clearFileDownloadState(fileId)

@@ -102,7 +102,7 @@ public class MessageService {
 
     // 标记消息为已读
     @Transactional
-    public void markAsRead(Long msgId) {
+    public void markAsRead(Long msgId,User user) {
         messageRepository.findById(msgId).ifPresent(message -> {
             message.setStatus(MessageStatus.READ);
             messageRepository.save(message);
@@ -121,7 +121,11 @@ public class MessageService {
         message.setSequenceId(conversationSequenceService.nextSequence(chatMessage.getConversationId()));
         message.setFromAccountId(userProxy);
         message.setType(EnumsTransUtil.convertMessageType(chatMessage.getType()));
-        message.setStatus(MessageStatus.SENT);
+        if(chatMessage.getMessagesStatus() == Chat.MessagesStatus.SENDING){
+            message.setStatus(MessageStatus.SENT);
+        }else{
+            message.setStatus(EnumsTransUtil.convertMessageStatus(chatMessage.getMessagesStatus()));
+        }
         message.setTimestamp(LocalDateTime.now());
         return messageRepository.save(message);
     }
@@ -136,7 +140,6 @@ public class MessageService {
      * @param message
      * @return 返回给到前台战士 的 MessageDto
      */
-
     @SneakyThrows
     private MessageDTO<MessagePayLoad> convertMessage(Message message) {
 

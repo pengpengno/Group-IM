@@ -108,6 +108,14 @@ class VoiceViewModel(
     }
 
     /**
+     * 重置为初始状态
+     */
+    fun reset(){
+        val result = voiceRecorder.stopRecording()
+        _uiState.value = RecorderUiState.Idle
+    }
+
+    /**
      * 获取录音数据
      */
     fun getVoiceData(): VoiceRecordingResult? {
