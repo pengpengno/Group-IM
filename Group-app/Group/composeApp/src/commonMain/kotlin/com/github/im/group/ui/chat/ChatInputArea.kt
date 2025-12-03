@@ -360,12 +360,10 @@ fun VoiceRecordButton(
             .background(Color.White)
             .pointerInput( Unit){
                 while(true){
-
                     var lastHapticDirection: SlideDirection? = null
                     var slideDirection = SlideDirection.Start
                     var isStillPressed = true
                     Napier.d("isStillPressed: $isStillPressed")
-
                     awaitPointerEventScope {
 
                         while (isStillPressed) {
@@ -373,7 +371,6 @@ fun VoiceRecordButton(
                             val event = awaitPointerEvent()
                             Napier.d("event: $event")
                             val change = event.changes.firstOrNull() ?: continue
-//                        val change = event.changes.firstOrNull { it.id == down.id } ?: continue
                             val position = change.position
 
                             // 判断滑动方向
@@ -448,7 +445,7 @@ fun VoiceRecordButton(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier
-                        .weight(1f)
+                        .weight(2f)
                         .padding(horizontal = 16.dp, vertical = 12.dp)
 
                 )
@@ -467,30 +464,31 @@ fun VoiceRecordButton(
                 color = if (voiceRecordingState is RecorderUiState.Recording) Color.Black else Color.Black,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
+//                modifier =  if (voiceRecordingState is RecorderUiState.Recording) Modifier.weight(2f)
                 modifier =  if (voiceRecordingState is RecorderUiState.Recording) Modifier.weight(2f)
                             else  Modifier.fillMaxWidth()
 
             )
-
-            if (voiceRecordingState is RecorderUiState.Recording) {
-                // 分割线
-                Divider(
-                    color = Color.LightGray,
-                    modifier = Modifier
-                        .width(1.dp)
-                        .fillMaxHeight()
-                )
-                // 右侧回放区域 (1/4)
-                Text(
-                    text = "回放",
-                    color = Color.Green,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                )
-            }
+//
+//            if (voiceRecordingState is RecorderUiState.Recording) {
+//                // 分割线
+//                Divider(
+//                    color = Color.LightGray,
+//                    modifier = Modifier
+//                        .width(1.dp)
+//                        .fillMaxHeight()
+//                )
+//                // 右侧回放区域 (1/4)
+//                Text(
+//                    text = "回放",
+//                    color = Color.Green,
+//                    fontSize = 16.sp,
+//                    fontWeight = FontWeight.Medium,
+//                    modifier = Modifier
+//                        .weight(1f)
+//                        .padding(horizontal = 16.dp, vertical = 12.dp)
+//                )
+//            }
         }
     }
 }

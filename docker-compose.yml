@@ -1,15 +1,23 @@
 #version: '3.8'
 services:
-  compile:
-    container_name: compileEnv
-    image: compileapk:1.1
-    volumes:
-      - ./:/app  # 将当前目录挂载到容器的 /app 目录
+#  compile:
+#    container_name: compileEnv
+#    image: compileapk:1.1
+#    volumes:
+#      - ./:/app  # 将当前目录挂载到容器的 /app 目录
 #    environment:
 #      - JAVA_HOME=/usr/lib/jvm/graalvm # 设置 Java 环境变量（如果有其他配置环境变量需要添加）
 #      - GRAALVM_HOME=/usr/lib/jvm/graalvm  # 设置 Java 环境变量（如果有其他配置环境变量需要添加）
 #      - PATH=/usr/lib/jvm/graalvm/bin:$PATH  # 确保能使用 GraalVM 和相关工具
-
+  redis:
+    image: redis:6.2
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis_data:/data
+    networks:
+      - app-network
   postgres:
     container_name: database
     image: postgres:14.13
@@ -23,18 +31,56 @@ services:
       - ./logs/postgres:/etc/logs/postgres
       - ./logs/postgres:/var/log/postgres
       - ./data/postgres:/var/lib/postgresql/data
-
-  rabbitmq:
-    container_name: rabbitmq
-    image: rabbitmq:3-management
-    ports:
-      - 5672:5672
-      - 15672:15672
-      - 15692:15692
+    networks:
+      - app-network
+  openldap:
+    image: osixia/openldap:1.5.0
+    container_name: local-openldap
     environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: admin
-      RABBITMQ_DEFAULT_VHOST: /
+      LDAP_ORGANISATION: "MyCompany"
+      LDAP_DOMAIN: "mycompany.com"
+      LDAP_ADMIN_PASSWORD: "admin"
+    ports:
+      - "389:389"     # LDAP
+      - "636:636"     # LDAPS（如不需要可去掉）
     volumes:
-      - ./logs/rabbitmq:/var/log/rabbitmq
+      - ./ldap_data:/var/lib/ldap
+      - ./ldap_config:/etc/ldap/slapd.d
+    networks:
+      - app-network
+  phpldapadmin:
+    image: dinkel/phpldapadmin
+    ports:
+      - "8085:80"
+    environment:
+      LDAP_SERVER_HOST: openldap
+      LDAP_SERVER_PORT: 389
+    networks:
+      - app-network
+    depends_on:
+      - openldap
+  server:
+    build: ./server
+    ports:
+      - "8088:8088"
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev,ldap
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/group
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_LDAP_URLS=ldap://openldap:389
+      - SPRING_LDAP_USERNAME=cn=admin,dc=mycompany,dc=com
+      - SPRING_LDAP_PASSWORD=admin
+      - SPRING_LDAP_BASE=dc=mycompany,dc=com
+    volumes:
+      - ./logs/app:/app/logs
+    networks:
+      - app-network
+    depends_on:
+      - postgres
+      - openldap
 
+networks:
+  app-network:
+    driver: bridge

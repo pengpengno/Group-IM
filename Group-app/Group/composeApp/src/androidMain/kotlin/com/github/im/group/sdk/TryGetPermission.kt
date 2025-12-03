@@ -89,7 +89,7 @@ actual fun TryGetPermission(
         }
     }
     
-    // 权限被拒绝 就 页面提死并且 尝试 手动引导获取
+    // 权限被拒绝 就 页面提示并且 尝试 手动引导获取
     if (showPermissionScreen) {
 
             PermissionRequestScreen(
@@ -139,7 +139,7 @@ fun PermissionRequestScreen(
         else -> Icons.Default.Info
     }
 
-    Dialog(onDismissRequest = {}
+    Dialog(onDismissRequest = { onPermissionResult(false) }
         , properties = DialogProperties( usePlatformDefaultWidth = false )
     ) {
         Column(

@@ -62,9 +62,16 @@ kotlin {
     jvm("desktop")
     
     sourceSets {
-        val commonMain by getting{
-//            proto.srcDir("src/commonMain/proto")
+        val commonMain by getting
+        
+        val commonTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+                implementation("io.mockative:mockative:2.0.1")
+            }
         }
+        
         val androidMain by getting
         val desktopMain by getting
 

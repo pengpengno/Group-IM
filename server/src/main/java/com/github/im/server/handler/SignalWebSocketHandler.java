@@ -18,6 +18,9 @@ public class SignalWebSocketHandler extends TextWebSocketHandler {
     private final ObjectMapper mapper = new ObjectMapper();
 
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
+    /**
+     * 正在通话中
+      */
     private final Map<String, String> inCall = new ConcurrentHashMap<>();
 
     @Override
@@ -38,8 +41,7 @@ public class SignalWebSocketHandler extends TextWebSocketHandler {
             SignalMessage msg = mapper.readValue(message.getPayload(), SignalMessage.class);
             String from = msg.getFromUser();
             String to = msg.getToUser();
-            String type = msg.getType();
-
+            String type = msg.getType().toLowerCase();
             log.info("Received message: type={}, from={}, to={}", type, from, to);
 
             switch (type) {
@@ -54,8 +56,9 @@ public class SignalWebSocketHandler extends TextWebSocketHandler {
                     break;
 
                 case "call/end":
-                    String peer = inCall.remove(from);
+                    String peer = inCall.get(from);
                     if (peer != null) inCall.remove(peer);
+                    // 挂断发送到相应的客户端
                     forward(peer, message);
                     break;
 

@@ -52,6 +52,7 @@ public class ConversationService {
                 .description(description)
                 .conversationType(ConversationType.GROUP)
                 .status(ConversationStatus.ACTIVE)
+                .createdBy(owner)
                 .build();
 
         // 保存群组

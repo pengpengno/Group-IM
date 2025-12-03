@@ -1,5 +1,6 @@
 package com.github.im.group.repository
 
+import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.db.AppDatabase
 import com.github.im.group.db.entities.UserStatus
 import com.github.im.group.model.UserInfo
@@ -45,6 +46,11 @@ class UserRepository (
             is UserState.LoggedIn -> state.info
             is UserState.LoggedOut ->{
                 Napier.d("用户未登录")
+                // 从数据库获取用户信息
+//                GlobalCredentialProvider.storage.getUserInfo()?.let {
+//                    saveCurrentUser(it)
+//                }
+
                 throw IllegalStateException("用户未登录")
             }
             is UserState.Logging -> {
@@ -67,7 +73,6 @@ class UserRepository (
             eMail = user.email,
             platformType = PlatformType.ANDROID,
         )
-//        _userState.value = CurrentUserInfoContainer(user, accountInfo)
         _userState.value = UserState.LoggedIn(CurrentUserInfoContainer(user, accountInfo))
         addOrUpdateUser(user)
     }

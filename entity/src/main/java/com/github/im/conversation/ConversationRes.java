@@ -15,6 +15,10 @@ public class ConversationRes {
     private String description;
     private List<UserInfo> members;
 
+    private Long createBy;
+
+    private String createAt;
+
     /**
      * {@link com.github.im.enums.ConversationStatus}
      */

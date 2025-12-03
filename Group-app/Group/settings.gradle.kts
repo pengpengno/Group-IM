@@ -38,6 +38,9 @@ dependencyResolutionManagement {
         
         // 添加 WebRTC KMP 库的仓库
         maven { url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/") }
+        
+        // 添加Square Wire的官方仓库以解决JS依赖问题
+        maven { url = uri("https://repo.maven.apache.org/maven2") }
     }
 }
 

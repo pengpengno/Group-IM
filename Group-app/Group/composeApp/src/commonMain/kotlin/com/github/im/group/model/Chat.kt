@@ -108,7 +108,14 @@ data class MessageWrapper(
     override val clientMsgId: String = message?.clientMsgId ?: messageDto?.clientMsgId ?: ""
 
     override val time: LocalDateTime =
-        LocalDateTime.parse( messageDto?.timestamp ?:"1970-01-01T00:00:00.000")
+        when {
+            messageDto?.timestamp != null -> LocalDateTime.parse(messageDto.timestamp)
+            message?.serverTimeStamp != null -> {
+                val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(message.serverTimeStamp)
+                instant.toLocalDateTime(TimeZone.currentSystemDefault())
+            }
+            else -> LocalDateTime.parse("1970-01-01T00:00:00.000")
+        }
 
     override val seqId: Long = message?.sequenceId ?: messageDto?.sequenceId ?: 0L
 

@@ -24,7 +24,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -126,6 +129,12 @@ public class MessageService {
         }else{
             message.setStatus(EnumsTransUtil.convertMessageStatus(chatMessage.getMessagesStatus()));
         }
+        long clientTimeStamp = chatMessage.getClientTimeStamp();
+        if(clientTimeStamp == 0L){
+            clientTimeStamp = System.currentTimeMillis();
+        }
+        // 时间戳转为日期
+        message.setClientTimestamp(LocalDateTime.ofInstant(Instant.ofEpochSecond(clientTimeStamp), ZoneId.systemDefault()));
         message.setTimestamp(LocalDateTime.now());
         return messageRepository.save(message);
     }

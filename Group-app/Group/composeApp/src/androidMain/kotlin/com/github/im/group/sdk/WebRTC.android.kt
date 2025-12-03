@@ -102,13 +102,11 @@ class AndroidRemoteMediaStream(private val videoTrack: AndroidVideoTrack,
         get() = listOf(audioTrack)
 }
 
-
 /**
  * WebRTC管理器实现
  */
 class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     private var localMediaStream: AndroidMediaStream? = null
-
 
     private val _connectionState = MutableStateFlow(VideoCallState())
     override val videoCallState: StateFlow<VideoCallState> = _connectionState
@@ -119,11 +117,20 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     private val _remoteAudioTrack = MutableStateFlow<AndroidAudioTrack?>(null)
     override val remoteAudioTrack: StateFlow<AndroidAudioTrack?> = _remoteAudioTrack
 
+    // 新增：用于存储待处理的来电请求
+    private var pendingCallRequest: WebrtcMessage? = null
 
     private var webSocket: WebSocket? = null
     private var userId: String = ""
     private var remoteUserId: String = ""
     private var peerConnection: PeerConnection? = null
+    
+    // 新增：WebSocket连接相关变量
+    private var signalingServerUrl: String = ""
+    private var reconnectAttempts = 0
+    private val maxReconnectAttempts = 5
+    private val reconnectDelayMillis = 5000L // 5秒后重试
+    
     private val iceServers = listOf(
         com.shepeliev.webrtckmp.IceServer(listOf("stun:stun.l.google.com:19302"))
     )
@@ -160,20 +167,30 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     }
     
     override fun connectToSignalingServer(serverUrl: String, userId: String) {
-
+        // 保存连接信息用于重连
+        this.signalingServerUrl = serverUrl
         this.userId = userId
+        
+        establishWebSocketConnection()
+    }
+    
+    // 新增：建立WebSocket连接的方法
+    private fun establishWebSocketConnection() {
         val host = ProxyConfig.host
         val port = ProxyConfig.port
         val protocol = if (host.startsWith("https://")) "wss" else "ws"
         val cleanHost = host.replace(Regex("^https?://"), "")
         val request = Request.Builder()
             .url("$protocol://$cleanHost:$port/ws?userId=$userId")
+            .header("Authorization", GlobalCredentialProvider.currentToken)
             .build()
         Napier.d("WebRTC 创建WebSocket连接: $request")
-            // TODO 鉴权
+
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 Log.d("WebRTC", "WebSocket连接已建立")
+                // 重置重连尝试次数
+                reconnectAttempts = 0
             }
             
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -183,12 +200,44 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
             
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e("WebRTC", "WebSocket连接失败", t)
+                handleWebSocketFailure()
             }
             
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 Log.d("WebRTC", "WebSocket连接已关闭: $reason")
+                handleWebSocketClosure(code, reason)
             }
         })
+    }
+    
+    // 新增：处理WebSocket连接失败
+    private fun handleWebSocketFailure() {
+        attemptReconnect()
+    }
+    
+    // 新增：处理WebSocket连接关闭
+    private fun handleWebSocketClosure(code: Int, reason: String) {
+        // 正常关闭不需要重连（例如用户主动结束通话）
+        if (code != 1000) { // 1000是正常关闭代码
+            attemptReconnect()
+        }
+    }
+    
+    // 新增：尝试重新连接
+    private fun attemptReconnect() {
+        if (reconnectAttempts < maxReconnectAttempts) {
+            reconnectAttempts++
+            Log.d("WebRTC", "尝试第 $reconnectAttempts 次重连...")
+            
+            // 延迟后重连
+            kotlinx.coroutines.MainScope().launch {
+                kotlinx.coroutines.delay(reconnectDelayMillis)
+                establishWebSocketConnection()
+            }
+        } else {
+            Log.e("WebRTC", "达到最大重连次数，放弃重连")
+            // 可以在这里通知上层应用连接失败
+        }
     }
 
     /**
@@ -217,14 +266,19 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
      */
     private fun handleCallRequest(message: WebrtcMessage) {
         Log.d("WebRTC", "收到呼叫请求，来自: ${message.fromUser}")
+        // 保存来电请求，等待用户确认
+        pendingCallRequest = message
         remoteUserId = message.fromUser ?: ""
-        createPeerConnection()
-        val response = WebrtcMessage(
-            type = "call/accept",
-            fromUser = userId,
-            toUser = remoteUserId
+        
+        // 更新状态以便UI显示来电对话框
+        _connectionState.value = VideoCallState(
+            callStatus = com.github.im.group.ui.video.CallStatus.INCOMING,
+            remoteUser = com.github.im.group.model.UserInfo(
+                userId = message.fromUser?.toLongOrNull() ?: 0L,
+                username = "User-${message.fromUser}",
+                email = "",
+            )
         )
-        sendWebSocketMessage(response)
     }
     
     private fun handleCallAccept(message: WebrtcMessage) {
@@ -262,7 +316,7 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
         Log.d("WebRTC", "处理Offer")
 //        createPeerConnection()
         
-        message.sdp?.let { sdp ->
+        message.sdp?.let { sdp -> 
             val offer = SessionDescription(
                 SessionDescriptionType.Offer,
                 sdp
@@ -297,7 +351,7 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     
     private fun handleAnswer(message: WebrtcMessage) {
         Log.d("WebRTC", "处理Answer")
-        message.sdp?.let { sdp ->
+        message.sdp?.let { sdp -> 
             val answer = SessionDescription(
                 SessionDescriptionType.Answer,
                 sdp
@@ -315,7 +369,7 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     
     private fun handleIceCandidate(message: WebrtcMessage) {
         Log.d("WebRTC", "处理ICE候选")
-        message.candidate?.let { candidate ->
+        message.candidate?.let { candidate -> 
             val iceCandidate = IceCandidate(
                 candidate.sdpMid ?: "",
                 candidate.sdpMLineIndex,
@@ -348,15 +402,15 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
 //        val config = RtcConfiguration(iceServers)
         peerConnection = PeerConnection()
         // 添加本地媒体轨道到PeerConnection
-        localMediaStream?.let { stream ->
-            stream.videoTracks.forEach { track ->
+        localMediaStream?.let { stream -> 
+            stream.videoTracks.forEach { track -> 
                 if (track is AndroidVideoTrack){
                     Napier.d  ("Adding  Local Video Track")
 
                     peerConnection?.addTrack(track.webrtcVideoTrack)
                 }
             }
-            stream.audioTracks.forEach { track ->
+            stream.audioTracks.forEach { track -> 
                 if (track is AndroidAudioTrack){
                     Napier.d  ("Adding  Local Audio Track")
                     peerConnection?.addTrack(track.webrtcAudioTrack)
@@ -367,12 +421,12 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
         CoroutineScope(Dispatchers.IO).launch{
 
             // 设置事件监听器
-            peerConnection?.onIceCandidate?.onEach { candidate ->
+            peerConnection?.onIceCandidate?.onEach { candidate -> 
                 handleIceCandidateEvent(candidate)
             }?.launchIn(this)
 
-            peerConnection?.onTrack ?.onEach{ event ->
-                event.track?.let { track ->
+            peerConnection?.onTrack ?.onEach{ event -> 
+                event.track?.let { track -> 
 
                     when (track.kind) {
                         MediaStreamTrackKind.Audio -> {
@@ -423,6 +477,14 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
         if (peerConnection == null) {
             createPeerConnection()
         }
+        
+        // 发送接受通话的信令消息
+        val message = WebrtcMessage(
+            type = "call/accept",
+            fromUser = userId,
+            toUser = remoteUserId
+        )
+        sendWebSocketMessage(message)
     }
     
     override fun rejectCall(callId: String) {
@@ -449,14 +511,14 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     }
     
     override fun toggleCamera(enabled: Boolean) {
-        localMediaStream?.videoTracks?.forEach { track ->
+        localMediaStream?.videoTracks?.forEach { track -> 
             track.setEnabled(enabled)
         }
         Log.d("WebRTC", "摄像头状态: $enabled")
     }
     
     override fun toggleMicrophone(enabled: Boolean) {
-        localMediaStream?.audioTracks?.forEach { track ->
+        localMediaStream?.audioTracks?.forEach { track -> 
             track.setEnabled(enabled)
         }
         Log.d("WebRTC", "麦克风状态: $enabled")
@@ -484,11 +546,7 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
         } catch (e: Exception) {
             Log.w("WebRTC", "清理资源时出错", e)
         }
-//        try {
-//            client.dispatcher.executorService.shutdown()
-//        } catch (e: Exception) {
-//            Log.w("WebRTC", "关闭HTTP客户端时出错", e)
-//        }
+
     }
     
     private fun sendWebSocketMessage(message: WebrtcMessage) {
@@ -527,7 +585,7 @@ actual fun VideoScreenView(
 
     val lifecycleEventObserver =
         remember(renderer, videoTrack) {
-            LifecycleEventObserver { _, event ->
+            LifecycleEventObserver { _, event -> 
                 when (event) {
                     Lifecycle.Event.ON_RESUME -> {
                         renderer?.also {
@@ -571,7 +629,7 @@ actual fun VideoScreenView(
 
     AndroidView(
         modifier = modifier,
-        factory = { context ->
+        factory = { context -> 
             SurfaceViewRenderer(context).apply {
                 setScalingType(
                     RendererCommon.ScalingType.SCALE_ASPECT_BALANCED,

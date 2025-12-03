@@ -30,12 +30,6 @@ class WebRTCLoginListener(
             webRTCManager.connectToSignalingServer("", userInfo.userId.toString())
         }
 
-        
-        // 2. 连接到信令服务器
-        // webRTCManager.connectToSignalingServer(serverUrl, userInfo.userId.toString())
-        
-        // 3. 其他WebRTC相关的登录操作
-        // ...
     }
     
     override fun onLogout() {

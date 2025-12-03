@@ -1,20 +1,32 @@
 package com.github.im.group.ui.chat
 
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.VideoCall
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,36 +39,21 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
-import com.github.im.group.db.entities.MessageStatus
-import com.github.im.group.db.entities.MessageType
-import com.github.im.group.model.MessageItem
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
+import androidx.navigation.NavHostController
 import com.github.im.group.model.UserInfo
+import com.github.im.group.ui.UserAvatar
 import com.github.im.group.ui.video.VideoCallUI
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
@@ -66,11 +63,15 @@ import com.github.im.group.viewmodel.VoiceViewModel
 import com.github.im.group.ui.video.VideoCallViewModel
 import io.github.aakira.napier.Napier
 import org.koin.compose.viewmodel.koinViewModel
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import androidx.compose.runtime.snapshotFlow
-import com.github.im.group.ui.UserAvatar
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.window.Dialog
+import androidx.navigation.compose.rememberNavController
+import com.github.im.group.db.entities.MessageStatus
+import com.github.im.group.db.entities.MessageType
+import com.github.im.group.model.MessageItem
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
@@ -83,327 +84,214 @@ fun ChatRoomScreen(
     val userViewModel: UserViewModel = koinViewModel()
     val voiceViewModel: VoiceViewModel = koinViewModel()
     val messageViewModel: ChatMessageViewModel = koinViewModel()
+    val videoCallViewModel: VideoCallViewModel = koinViewModel()
     
-    // 视频通话状态
-    var showVideoCall by remember { mutableStateOf(false) }
-    var remoteUser by remember { mutableStateOf<UserInfo?>(null) }
-
-    // 录音时遮罩
     val uiState by voiceViewModel.uiState.collectAsState()
-    val amplitude by voiceViewModel.amplitude.collectAsState()
-
-    LaunchedEffect(conversationId) {
-        chatViewModel.getConversations(conversationId)
-        messageViewModel.getConversation(conversationId)
-        // 先本地加载
-        messageViewModel.loadLocalMessages(conversationId)
-        // 再同步远程消息
-        messageViewModel.loadRemoteMessages(conversationId)
-        
-        messageViewModel.register(conversationId)
-    }
-
-
-    // 加载完消息后自动滚动到底部
-
     val state by messageViewModel.uiState.collectAsState()
-    val fileDownloadStates by messageViewModel.fileDownloadStates.collectAsState()
-
     val userInfo = userViewModel.getCurrentUser()
 
+    var showEmojiPanel by remember { mutableStateOf(false) }
+    var showMorePanel by remember { mutableStateOf(false) }
+    var showVideoCall by remember { mutableStateOf(false) }
+    var remoteUser by remember { mutableStateOf<UserInfo?>(null) }
     
-    // 获取VideoCallViewModel
-    val videoCallViewModel: VideoCallViewModel = koinViewModel()
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = state.loading,
+        onRefresh = { 
+            messageViewModel.refreshMessages(conversationId)
+        }
+    )
+    val isRefreshing = pullRefreshState.progress
 
     val listState = rememberLazyListState()
     
-    // 下拉刷新状态
-    var isRefreshing by remember { mutableStateOf(false) }
-    val pullRefreshState = rememberPullRefreshState(isRefreshing, onRefresh = {
-        isRefreshing = true
-        messageViewModel.refreshMessages(conversationId)
-    })
+    LaunchedEffect(conversationId) {
+        messageViewModel.loadMessages(conversationId)
+        messageViewModel.getConversation(conversationId) // 获取会话信息
 
-    // 上拉加载更多状态
-//    var isLoadingMore by remember { mutableStateOf(false) }
-
-    LaunchedEffect(state.messages.size) {
-        if (state.messages.isNotEmpty()) {
-            // 刷新到 指定 的消息索引
-            listState.animateScrollToItem(state.messageIndex)
-        }
-    }
-
-    // 监听刷新完成状态
-    LaunchedEffect(state.loading) {
-        if (!state.loading && isRefreshing) {
-            isRefreshing = false
-        }
-    }
-
-    // 监听列表滚动，实现上拉加载更多
-    LaunchedEffect(listState) {
-        Napier.d  ("ChatRoomScreen $listState")
-        snapshotFlow { listState.firstVisibleItemIndex to listState.layoutInfo.totalItemsCount }
-            .collect { (firstVisibleIndex, totalItemsCount) ->
-                messageViewModel.scrollIndex(firstVisibleIndex)
-                // 当滚动到顶部附近时，加载更多历史消息（向后翻页）
-                Napier.d  ("ChatRoomScreen firstVisibleIndex $firstVisibleIndex totalItemsCount $totalItemsCount")
-                val remainItemIndex = totalItemsCount - firstVisibleIndex
-                val isLoadingMore = state.loading
-                if (remainItemIndex < 5 && !isLoadingMore && state.messages.isNotEmpty()) {
-                    // 获取最早的消息的序列号
-                    val earliestMessage = state.messages.filter{ it.seqId > 0L }.minByOrNull { it.seqId }
-                    Napier.d  ("earliestMessage  $earliestMessage ")
-
-                    earliestMessage?.let {
-                        messageViewModel.loadMoreMessages(conversationId, earliestMessage.seqId)
-                    }
-                }
-
-            }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            if (uiState is RecorderUiState.Recording){
-                Napier.d("close VoiceMessage")
-                voiceViewModel.stopRecording(AnimatedContentTransitionScope.SlideDirection.Left)
-            }
-        }
-    }
-
-
-    /**
-     * 发送语音消息
-     */
-    fun sendVoiceMessage() {
-        voiceViewModel.getVoiceData()?.let {
-            messageViewModel.sendVoiceMessage(
-                conversationId,
-                it.bytes,
-                it.name,
-                it.durationMillis
-            )
-            voiceViewModel.cancel() // 发送后重置状态
-        }
+        // 设置远程用户（这里应该是从会话中获取对方用户信息）
+        remoteUser = state.conversation.getOtherUser(userInfo)
+        Napier.i ("state ${state.conversation}")
     }
     
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex }
+            .collect { firstVisibleIndex ->
+                if (firstVisibleIndex == 0 && state.messages.isNotEmpty()) {
+                    // 用户滚动到了顶部，加载更多历史消息
+                    val oldestMessage = state.messages.lastOrNull()
+                    oldestMessage?.seqId?.let { sequenceId ->
+                        messageViewModel.loadMoreMessages(conversationId, sequenceId)
+                    }
+                }
+            }
+    }
+    
+    // 视频通话界面
+    if (showVideoCall) {
+        VideoCallUI(
+            remoteUser = remoteUser,
+            localMediaStream = null, // 让VideoCallUI内部自己获取
+//            navHostController = navHostController,
+            onEndCall = { 
+                showVideoCall = false
+                // TODO: 结束通话逻辑
+            },
+            onToggleCamera = { videoCallViewModel.toggleCamera() },
+            onToggleMicrophone = { videoCallViewModel.toggleMicrophone() },
+            onSwitchCamera = { videoCallViewModel.switchCamera() },
+            onMinimizeCall = { showVideoCall = false },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(state.conversation.getName(userInfo), color = Color.White) },
+                title = { 
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        // 显示对方用户头像和昵称
+                        state.conversation.getOtherUser(userInfo)?.let { otherUser ->
+                            UserAvatar(
+                                username = otherUser.username,
+                                size = 32,
+//                                fontSize = 14.sp
+                            )
+                            
+                            Spacer(modifier = Modifier.width(8.dp))
+                            
+                            Column {
+                                Text(
+                                    text = otherUser.username,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                                // TODO: 显示在线状态
+                                Text(
+                                    text = "在线",
+                                    color = Color.Green,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        } ?: run {
+                            // 如果没有获取到对方用户信息，显示群组名称
+                            Text(state.conversation.groupName ?: "未知会话")
+                        }
+                        
+                        Spacer(modifier = Modifier.weight(1f))
+                        
+                        // 视频通话按钮
+                        IconButton(
+                            onClick = { 
+                                showVideoCall = true
+                                // TODO: 初始化视频通话
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VideoCall,
+                                contentDescription = "视频通话"
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
                 },
-                actions = {
-                    // 视频通话按钮
-                    IconButton(onClick = {
-                        // 设置远程用户（这里应该是从会话中获取对方用户信息）
-                        remoteUser = state.conversation.getOtherUser(userInfo)
-                        Napier.d("remoteUser: $remoteUser")
-                        Napier.d("currentUser: $userInfo")
-                        // 启动视频通话
-                        remoteUser?.let { 
-                            // 设置当前用户ID
-                            videoCallViewModel.startVideoCall(it)
-                            showVideoCall = true
-                        }
-                    }) {
-                        Icon(Icons.Default.VideoCall, contentDescription = "视频通话", tint = Color.White)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0088CC))
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
             )
         },
-        // 录音时候不展示 底部
-        bottomBar = {
-            ChatInputArea(
-                onSendText = { text ->
-                    messageViewModel.sendMessage(conversationId, text)
-                },
-                onRelease = { direction ->
-                    Napier.d(" direction  : $direction")
-                    when (direction) {
-                        AnimatedContentTransitionScope.SlideDirection.Start -> {
-                            voiceViewModel.stopRecording( direction)
-                            Napier.d(" start  : $direction")
-                            // 直接发送消息
-                            sendVoiceMessage()
+        content = { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .pullRefresh(pullRefreshState)
+            ) {
+                // 消息列表
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    reverseLayout = true, // 最新消息在底部
+                    contentPadding = PaddingValues(bottom = 80.dp) // 为输入区域留出空间
+                ) {
+                    
+                    // 显示历史加载指示器
+                    if (state.loading) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("加载中...")
+                            }
                         }
-                        AnimatedContentTransitionScope.SlideDirection.Left -> {
-                            Napier.d(" left  : $direction")
-
-                            // 取消录音
-                            voiceViewModel.cancel()
-                        }
-
-                        AnimatedContentTransitionScope.SlideDirection.Right -> {
-                            // 取消录音
-                            voiceViewModel.stopRecording(direction)
-                        }else -> {
-                        Napier.d(" else  : $direction")
-                            // 取消录音
-                            voiceViewModel.cancel()
-                        }
-
                     }
-
-                },
-                onFileSelected = { files ->
-                    // 处理选择的文件
-                    files.forEach { file ->
-                        messageViewModel.sendFileMessage(conversationId, file)
+                    
+                    // 显示消息列表
+                    items(state.messages, key = { it.clientMsgId }) { message ->
+                        // 根据消息方向显示不同的气泡样式
+                        val isMyMessage = message.userInfo.userId == userInfo?.userId
+                        
+                        MessageBubble(
+                            isOwnMessage = isMyMessage,
+                            msg = message,
+                            onFileMessageClick = { 
+                                messageViewModel.downloadFileMessage(it.content)
+                            }
+                        )
                     }
                 }
-            )
-        }
-    ) { padding ->
-        Box(modifier = Modifier
-            .padding(padding)
-            .fillMaxSize()
-            .pullRefresh(pullRefreshState)) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                state = listState,
-                reverseLayout = true, // true: 新消息在底部，列表倒序排列
-                contentPadding = PaddingValues(bottom = 40.dp) // 为输入框腾出空间
-            ) {
-                items(state.messages) { msg ->
-                    // 计算是否应该显示头像
-                    val showAvatar = shouldShowAvatar(msg, state.messages, userInfo)
-                    
-                    // 头像
-                    MessageBubble(
-                        isOwnMessage = msg.userInfo.userId == userInfo.userId,
-                        msg = msg,
-                        showAvatar = showAvatar,
-                        onFileMessageClick = { fileMsg ->
-                            // 处理文件消息点击事件
-                            // 触发文件下载（实现本地优先策略）
-                            Napier.d("点击文件消息: ${fileMsg.content}")
-                            messageViewModel.downloadFileMessage(fileMsg.content)
+                
+                // 下拉刷新指示器
+                PullRefreshIndicator(
+                    refreshing = state.loading,
+                    state = pullRefreshState,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+                
+                // 输入区域
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                ) {
+                    ChatInputArea(
+                        onSendText = { text ->
+                            if (text.isNotBlank()) {
+                                messageViewModel.sendMessage(conversationId, text)
+                            }
+                        },
+                        onRelease = {
+                            // 处理录音释放事件
+                            when (uiState) {
+                                is RecorderUiState.Stop -> {
+                                    // 根据滑动方向决定是发送还是取消
+                                    // 这里简化处理，总是发送
+                                    voiceViewModel.audioPlayer.stop()
+                                }
+                                else -> {}
+                            }
+                        },
+                        onFileSelected = { files ->
+                            files.forEach { file ->
+                                messageViewModel.sendFileMessage(conversationId, file)
+                            }
                         }
                     )
                 }
             }
-            
-            // 加载指示器
-            if (state.loading && !isRefreshing) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "消息加载中...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            }
-            
-            // 下拉刷新指示器
-            PullRefreshIndicator(
-                refreshing = isRefreshing,
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
         }
-
-        // 录音控制浮窗
-        val vm by voiceViewModel.amplitude.collectAsState()
-        if (uiState is RecorderUiState.Recording) {
-            VoiceControlOverlayWithRipple(
-                amplitude = vm ,
-                onFinish =  {
-//                    voiceViewModel.stopRecording()
-                },
-            )
-        }
-
-
-        // 回放浮窗
-        if (uiState is RecorderUiState.Playback) {
-
-            VoiceReplay(
-                onSend = {
-                    sendVoiceMessage()
-                }
-            )
-        }
-        
-        // 文件下载状态指示器（支持多个文件同时下载）
-        fileDownloadStates.forEach { (fileId, downloadState) ->
-            if (downloadState.isDownloading) {
-                Dialog(onDismissRequest = { }) {
-                    Box(
-                        modifier = Modifier
-                            .background(Color.White, shape = RoundedCornerShape(8.dp))
-                            .padding(16.dp)
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            CircularProgressIndicator()
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("文件下载中... ($fileId)")
-                        }
-                    }
-                }
-            }
-            
-            // 文件下载完成后的处理
-            if (!downloadState.isDownloading && downloadState.isSuccess) {
-//                Napier.d("文件下载完成，大小: ${downloadState.fileContent?.size ?: 0} 字节")
-                // 这里可以添加文件保存或打开的逻辑
-                // 下载完成后清除状态
-                // messageViewModel.clearFileDownloadState(fileId)
-            }
-            
-            // 文件下载失败的处理
-            if (!downloadState.isDownloading && !downloadState.isSuccess) {
-                Napier.e("文件下载失败: ${downloadState.error}")
-                // 这里可以添加错误提示的逻辑
-                // 下载失败后清除状态
-                // messageViewModel.clearFileDownloadState(fileId)
-            }
-        }
-        
-        // 视频通话界面
-        if (showVideoCall) {
-            VideoCallUI(
-                navHostController = navHostController,
-                remoteUser = remoteUser,
-                localMediaStream = null,
-                onEndCall = {
-                    videoCallViewModel.endCall()
-                    showVideoCall = false
-                },
-                onToggleCamera = { videoCallViewModel.toggleCamera() },
-                onToggleMicrophone = { videoCallViewModel.toggleMicrophone() },
-                onSwitchCamera = { videoCallViewModel.switchCamera() },
-                onMinimizeCall = {
-                    videoCallViewModel.minimizeCall()
-                    showVideoCall = false
-                },
-            )
-        }
-    }
+    )
 }
 
 /**
@@ -439,7 +327,7 @@ fun shouldShowAvatar(currentMsg: MessageItem, allMessages: List<MessageItem>, cu
  */
 @Composable
 fun MessageBubble(
-    isOwnMessage: Boolean, 
+    isOwnMessage: Boolean,
     msg: MessageItem,
     showAvatar: Boolean = true,
     onVoiceMessageClick: (MessageContent.Voice) -> Unit = {},

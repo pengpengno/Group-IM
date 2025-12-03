@@ -43,16 +43,12 @@ class VideoCallViewModel(
     private val _remoteVideo = MutableStateFlow<VideoTrack?>(null)
     val remoteVideo: StateFlow<VideoTrack?> = _remoteVideo
 
-
-
     // 远程音频流
     private val _remoteAudio = MutableStateFlow<AudioTrack?>(null)
     val remoteAudio: StateFlow<AudioTrack?> = _remoteAudio
 
-
     // WebRTC管理器
     private var webRTCManager: com.github.im.group.sdk.WebRTCManager? = null
-
 
     fun setWebRTCManager(manager: com.github.im.group.sdk.WebRTCManager) {
         this.webRTCManager = manager
@@ -71,17 +67,15 @@ class VideoCallViewModel(
                 Napier.d("收到远程音频轨道更新: ${audioTrack != null}")
             }
         }
-
     }
 
     fun startVideoCall(remoteUser: UserInfo) {
-
         /**发起视频通话
          * 1. 向信令服务器 发起呼叫请求
-         *
+         * 2. 创建本地媒体流
+         * 3. 创建远程媒体流
          */
         viewModelScope.launch {
-
             _videoCallState.value = _videoCallState.value.copy(
                 callStatus = CallStatus.CONNECTING,
                 remoteUser = remoteUser
@@ -92,9 +86,9 @@ class VideoCallViewModel(
             // 初始化WebRTC连接
             try {
                 webRTCManager?.initialize()
+
                 // 先初始化本地媒体流
                 initializeLocalMediaStream()
-
                 // 发送呼叫请求
                 sendCallRequest(remoteUser.userId.toString())
 
@@ -109,6 +103,7 @@ class VideoCallViewModel(
                     callStatus = CallStatus.ERROR,
                     errorMessage = e.message
                 )
+                Napier.e("startVideoCall error", e )
             }
         }
     }
@@ -151,19 +146,15 @@ class VideoCallViewModel(
             // 切换前后摄像头
             webRTCManager?.switchCamera()
         }
-
     }
 
     /**
      * 初始化本地媒体流
      */
     private suspend fun initializeLocalMediaStream() {
-
-
         val mediaStream = webRTCManager?.createLocalMediaStream()
         _localMediaStream.value = mediaStream
     }
-
 
     private fun sendCallRequest(userId: String) {
         // 通过信令服务器发送呼叫请求
@@ -173,7 +164,6 @@ class VideoCallViewModel(
     private fun cleanupWebRTCConnection() {
         // 清理WebRTC连接
         webRTCManager?.endCall()
-//        webRTCManager?.release()
     }
 }
 
@@ -186,6 +176,7 @@ data class VideoCallState(
 enum class CallStatus {
     IDLE,
     CONNECTING,
+    INCOMING,  // 新增来电状态
     ACTIVE,
     MINIMIZED,
     ENDED,

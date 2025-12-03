@@ -38,4 +38,7 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     
     @Query("SELECT u FROM User u WHERE u.username IN ?1 OR u.email IN ?2")
     List<User> findByUsernameInOrEmailIn(List<String> usernames, List<String> emails);
+    
+    // 根据公司ID查找用户
+    List<User> findByCompanyId(Long companyId);
 }

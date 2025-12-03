@@ -12,6 +12,7 @@ import com.github.im.group.manager.UserDataSyncListener
 import com.github.im.group.listener.WebRTCLoginListener
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.repository.ChatMessageRepository
+import com.github.im.group.repository.ConversationRepository
 import com.github.im.group.repository.FilesRepository
 import com.github.im.group.repository.FriendRequestRepository
 import com.github.im.group.repository.MessageSyncRepository
@@ -39,7 +40,7 @@ import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
-val appModule = module {
+val appmodule = module {
 
 
 
@@ -55,41 +56,41 @@ val appModule = module {
     single { FriendRequestRepository(get()) }
     single { MessageSyncRepository(get(), get(), get(),get()) }
 
-
-    single { 
+    single { ConversationRepository(get()) }
+    single {
         FileStorageManager(
             filesRepository = get(),
             fileSystem = FileSystem.SYSTEM,
             baseDirectory = androidContext().filesDir.absolutePath.toPath()
-        ) 
+        )
     }
-    
+
     // 为ChatViewModel添加所有必需的依赖项
-    viewModel { 
+    viewModel {
         ChatViewModel(
             tcpClient = get(),
             userRepository = get(),
             filePicker = get(),
             loginStateManager = get(),
             messageRepository = get(),
-
         )
     }
-    
+
     // 为ChatMessageViewModel添加所有必需的依赖项
-    viewModel { 
+    viewModel {
         ChatMessageViewModel(
             get(),
             chatSessionManager = get(),
             chatMessageRepository = get(),
             messageSyncRepository = get(),
+            conversationRepository = get(),
             filesRepository = get(), // 添加文件仓库依赖
             senderSdk = get(),
             filePicker = get() ,
             fileStorageManager = get()
         )
     }
-    
+
     single { ChatSessionManager(get()) }
     single { TCPMessageViewModel(get()) }
     single { VoiceRecorderFactory.create()}
@@ -117,28 +118,28 @@ val appModule = module {
     }
     single {
 
-       val manager =  LoginStateManager(get())
+        val manager =  LoginStateManager(get())
 
         get<List<LoginStateListener>>().forEach { manager.addListener(it) }
         manager
     }
 
 
-    viewModel { 
+    viewModel {
         UserViewModel(
             userRepository = get(),
             loginStateManager = get(),
             friendRequestRepository = get()
         )
     }   // 注册为 ViewModel，由 Koin 自动管理生命周期
-    
+
     // 注册VideoCallViewModel
-    viewModel { 
+    viewModel {
         val vm = VideoCallViewModel(get())
         // 注入WebRTC管理器
         vm.setWebRTCManager(get())
         vm
     }
-    
+
 
 }

@@ -31,13 +31,13 @@ public class User implements UserDetails {
     // account
     private String username;
 
-    @Column(nullable = false, unique = true)
+    @Column()
     private String email;
 
     @Transient
     private String password;
 
-    @Column(nullable = false, unique = true)
+    @Column()
     private String phoneNumber;
 
     @Column(nullable = false)
@@ -68,6 +68,14 @@ public class User implements UserDetails {
      */
     @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean forcePasswordChange = false;
+
+    // 添加公司ID字段
+    @Column(name = "company_id")
+    private Long companyId;
+
+    // 添加部门ID字段
+    @Column(name = "department_id")
+    private Long departmentId;
 
     private LocalDateTime createdAt ;
     private LocalDateTime updatedAt ;

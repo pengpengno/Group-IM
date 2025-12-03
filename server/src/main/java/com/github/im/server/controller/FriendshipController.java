@@ -31,7 +31,8 @@ public class FriendshipController {
     /**
      * 同步好友请求
      * 传入 客户端 目前最大的关系id ，并且获取之后获取新的关系数据
-     * @param
+     * @param userId 用户ID
+     *               maxId 最大关系id
      * @return
      */
     @PostMapping("/sync")

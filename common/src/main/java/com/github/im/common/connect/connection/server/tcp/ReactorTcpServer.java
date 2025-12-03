@@ -124,7 +124,8 @@ public class ReactorTcpServer implements ReactiveServer {
 
         log.info("start netty server on port {}",address.getPort());
         disposableServer = server.bindNow();
-        disposableServer.onDispose().block();
+        // 不再阻塞线程，让服务器在后台运行
+        // disposableServer.onDispose().block();
         return this;
     }
 
@@ -133,7 +134,7 @@ public class ReactorTcpServer implements ReactiveServer {
         if(disposableServer == null){
             return false;
         }
-        return disposableServer.isDisposed();
+        return !disposableServer.isDisposed();
     }
 
 //    /**

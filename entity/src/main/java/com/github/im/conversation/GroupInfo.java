@@ -13,6 +13,10 @@ public class GroupInfo {
     private String groupName;
     private String description;
 
+    // 发起者
+    private Long creatorId;
+    // 拥有者
+    private Long ownerId ;
     @NotEmpty()
     private List<UserInfo> members;
 

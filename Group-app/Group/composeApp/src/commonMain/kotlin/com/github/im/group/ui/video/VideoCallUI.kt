@@ -22,7 +22,6 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun VideoCallUI(
-    navHostController: NavHostController,
     remoteUser: UserInfo?, // 添加远程用户信息参数
     localMediaStream: MediaStream?, // 本地媒体流
     onEndCall: () -> Unit = {},

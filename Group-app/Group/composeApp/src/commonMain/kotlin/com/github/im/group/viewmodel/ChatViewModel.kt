@@ -6,7 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.config.SocketClient
+import com.github.im.group.db.entities.MessageType
 import com.github.im.group.manager.LoginStateManager
+import com.github.im.group.model.MessageItem
+import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.UserInfo
 import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.UserRepository
@@ -42,11 +45,27 @@ class ChatViewModel (
             _loading.value = true
             try {
                 val response = ConversationApi.getActiveConversationsByUserId(uId)
-                
+                /**
+                 * 获取消息的描述文本
+                 *
+                 * @param message 消息包装对象
+                 * @return 返回对应消息类型的描述文本
+                 */
+                fun getMessageDesc(message: MessageWrapper): String {
+                    return when (message.type) {
+                        MessageType.TEXT -> message.content
+                        MessageType.FILE -> "文件消息"
+                        MessageType.VOICE -> "语音消息"
+                        MessageType.VIDEO -> "视频消息"
+                        MessageType.IMAGE -> "图片消息"
+                    }
+                }
                 // 为每个会话获取最新消息
                 val conversationsWithLatestMessages = response.map { conversation ->
                     val latestMessage = messageRepository.getLatestMessage(conversation.conversationId)
-                    val lastMessageText = latestMessage?.content ?: ""
+                    val lastMessageText = latestMessage?.let { message ->
+                        getMessageDesc(message)
+                    } ?: ""
                     conversation.copy(lastMessage = lastMessageText)
                 }
                 

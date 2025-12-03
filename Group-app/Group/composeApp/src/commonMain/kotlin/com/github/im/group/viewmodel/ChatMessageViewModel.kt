@@ -14,6 +14,7 @@ import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.model.proto.MessageType
 import com.github.im.group.model.proto.MessagesStatus
 import com.github.im.group.repository.ChatMessageRepository
+import com.github.im.group.repository.ConversationRepository
 import com.github.im.group.repository.MessageSyncRepository
 import com.github.im.group.repository.FilesRepository
 import com.github.im.group.repository.UserRepository
@@ -70,6 +71,7 @@ class ChatMessageViewModel(
     val chatMessageRepository: ChatMessageRepository,
     val messageSyncRepository: MessageSyncRepository,
     val filesRepository: FilesRepository, // 添加文件仓库依赖
+    val conversationRepository: ConversationRepository, // 添加会话仓库依赖
     val senderSdk: SenderSdk,
     val filePicker: FilePicker,  // 通过构造函数注入FilePicker
     val fileStorageManager: FileStorageManager // 文件存储管理器
@@ -416,9 +418,9 @@ class ChatMessageViewModel(
 
 
     /**
-     * 查询指定 群聊
+     * 查询指定会话（本地优先策略）
      */
-    fun getConversation (uId: Long ) {
+    fun getConversation (conversationId: Long ) {
         viewModelScope.launch {
 
             _uiState.update {
@@ -426,9 +428,10 @@ class ChatMessageViewModel(
             }
 
             try {
-                val response = ConversationApi.getConversation(uId)
+                // 使用本地优先策略获取会话信息
+                val conversation = conversationRepository.getConversation(conversationId)
                 _uiState.update {
-                    it.copy(conversation = response)
+                    it.copy(conversation = conversation)
                 }
 
             } catch (e: Exception) {

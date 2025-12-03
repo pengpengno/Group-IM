@@ -3,8 +3,31 @@ spring:
     redis:
         host: ${REDIS_HOST:localhost}
         port: ${REDIS_PORT:6379}
-        password: ${REDIS_PASSWORD:null}
-        timeout: 0
+#        password: ${REDIS_PASSWORD:null}
+#        timeout: 10000
+  ldap:
+    # LDAP服务器URL，可以是多个，用逗号分隔
+    urls: ldap://localhost:389
+    # LDAP管理员DN（用于绑定和搜索用户）
+    username: cn=admin,dc=mycompany,dc=com
+    # LDAP管理员密码
+    password: admin
+    # 基础DN
+    base: dc=mycompany,dc=com
+
+  security:
+    ldap:
+#      # 用户DN模式（可选，如果指定则直接使用该模式构建用户DN）
+#      user-dn-pattern: uid={0},ou=people
+      # 用户搜索基础DN
+      user-search-base: ou=people
+      # 用户搜索过滤器，{0}会被替换为用户名
+      user-search-filter: (uid={0})
+#      # 组搜索基础DN
+#      group-search-base: ou=groups
+#      # 组搜索过滤器
+#      group-search-filter: (uniqueMember={0})
+
   webflux:
     multipart:
       max-in-memory-size: 100MB   # 超过这个大小的内容将写入磁盘临时文件
@@ -12,8 +35,6 @@ spring:
     multipart:
       max-file-size: 100MB
       max-request-size: 100MB
-  thymeleaf:
-    cache: false  # 开发环境禁用环境，便于调试
   resources:
     static-locations: classpath:/META-INF/resources/,classpath:/resources/,classpath:/static/,classpath:/public/
   datasource:
@@ -43,8 +64,11 @@ spring:
         initialization-fail-timeout: 60000  # 启动时等待数据库可用60秒
         prepareThreshold: 0
         cachePrepStmts: false
-    url: jdbc:postgresql://${DB_IP:aws-1-ap-southeast-1.pooler.supabase.com}:${DB_PORT:6543}/postgres
-    username: ${DB_USER:postgres.jjivmxncgzvdqglxwnvq}
+#    url: jdbc:postgresql://${DB_IP:aws-1-ap-southeast-1.pooler.supabase.com}:${DB_PORT:6543}/postgres
+#    username: ${DB_USER:postgres.jjivmxncgzvdqglxwnvq}
+#    password: ${DB_PASSWORD:postgres}
+    url: jdbc:postgresql://${DB_IP:localhost}:${DB_PORT:5432}/group
+    username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
   jpa:

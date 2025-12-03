@@ -1,13 +1,16 @@
 package com.github.im.server.config;
 
 import com.github.im.server.service.impl.security.LdapUserDetailsMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.ldap.core.ContextSource;
-import org.springframework.ldap.core.support.LdapContextSource;
+import org.springframework.ldap.core.LdapClient;
+import org.springframework.ldap.core.LdapTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -16,13 +19,16 @@ import org.springframework.security.ldap.authentication.BindAuthenticator;
 import org.springframework.security.ldap.authentication.LdapAuthenticationProvider;
 import org.springframework.security.ldap.search.FilterBasedLdapUserSearch;
 import org.springframework.security.ldap.userdetails.DefaultLdapAuthoritiesPopulator;
+import org.springframework.security.ldap.userdetails.PersonContextMapper;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * LDAP安全配置类
  * 仅在启用LDAP时加载
  */
+@Slf4j
 @Configuration
 @ConditionalOnProperty(prefix = "spring.ldap", name = "urls")
 public class LdapSecurityConfig {
@@ -31,20 +37,31 @@ public class LdapSecurityConfig {
     private Environment env;
 
     @Bean
-    ContextSource contextSource() {
-        String ldapUrls = env.getProperty("spring.ldap.urls");
+    DefaultSpringSecurityContextSource contextSource() {
+        List<String> ldapUrls = env.getProperty("spring.ldap.urls", List.class, List.of("ldap://localhost:389"));
         String managerDn = env.getProperty("spring.ldap.username");
         String managerPassword = env.getProperty("spring.ldap.password");
         String baseDn = env.getProperty("spring.ldap.base", "");
 
-        LdapContextSource ldapContextSource = new LdapContextSource();
-        ldapContextSource.setUrl(ldapUrls);
-        ldapContextSource.setUserDn(managerDn);
-        ldapContextSource.setPassword(managerPassword);
-        ldapContextSource.setBase(baseDn);
-        ldapContextSource.afterPropertiesSet(); // 初始化
+        DefaultSpringSecurityContextSource contextSource = new DefaultSpringSecurityContextSource(ldapUrls, baseDn);
+        contextSource.setUserDn(managerDn);
+        contextSource.setPassword(managerPassword);
+        contextSource.afterPropertiesSet(); // 初始化
+        log.info("LDAP context source initialized");
         
-        return ldapContextSource;
+        return contextSource;
+    }
+
+    @Bean
+    @ConditionalOnBean(DefaultSpringSecurityContextSource.class)
+    LdapClient ldapClient(ContextSource contextSource) {
+        return LdapClient.create(contextSource);
+    }
+
+    @Bean
+    @ConditionalOnBean(DefaultSpringSecurityContextSource.class)
+    LdapTemplate ldapTemplate(ContextSource contextSource) {
+        return new LdapTemplate(contextSource);
     }
 
 
@@ -56,10 +73,10 @@ public class LdapSecurityConfig {
         BindAuthenticator authenticator = new BindAuthenticator(contextSource);
 
         // 配置用户DN模式或用户搜索
-        String userDnPattern = env.getProperty("spring.security.ldap.user-dn-pattern");
+        List<String> userDnPattern = env.getProperty("spring.security.ldap.user-dn-pattern", List.class, List.of("uid={0},ou=people"));
         if (userDnPattern != null && !userDnPattern.isEmpty()) {
-            String[] userDnPatterns = userDnPattern.split(",");
-            authenticator.setUserDnPatterns(userDnPatterns);
+//            String[] userDnPatterns = userDnPattern.split(",");
+            authenticator.setUserDnPatterns(userDnPattern.toArray(new String[0]));
         } else {
             String userSearchBase = env.getProperty("spring.security.ldap.user-search-base", "");
             String userSearchFilter = env.getProperty("spring.security.ldap.user-search-filter", "(uid={0})");
@@ -67,14 +84,16 @@ public class LdapSecurityConfig {
             authenticator.setUserSearch(userSearch);
         }
 
-        // 配置组搜索
-        String groupSearchBase = env.getProperty("spring.security.ldap.group-search-base", "");
-        DefaultLdapAuthoritiesPopulator authoritiesPopulator = new DefaultLdapAuthoritiesPopulator(contextSource, groupSearchBase);
-        authoritiesPopulator.setIgnorePartialResultException(true);
+//        // 配置组搜索
+//        String groupSearchBase = env.getProperty("spring.security.ldap.group-search-base", "");
+//        DefaultLdapAuthoritiesPopulator authoritiesPopulator = new DefaultLdapAuthoritiesPopulator(contextSource, groupSearchBase);
+//        authoritiesPopulator.setIgnorePartialResultException(true);
 
         // 创建LDAP认证提供者
-        LdapAuthenticationProvider provider = new LdapAuthenticationProvider(authenticator, authoritiesPopulator);
+//        LdapAuthenticationProvider provider = new LdapAuthenticationProvider(authenticator, authoritiesPopulator);
+        LdapAuthenticationProvider provider = new LdapAuthenticationProvider(authenticator);
         provider.setUserDetailsContextMapper(ldapUserDetailsMapper);
+//        provider.setUserDetailsContextMapper(new PersonContextMapper());
         return provider;
     }
 

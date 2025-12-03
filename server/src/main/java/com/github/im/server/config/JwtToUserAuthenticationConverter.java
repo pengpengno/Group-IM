@@ -25,16 +25,12 @@ public  class JwtToUserAuthenticationConverter implements Converter<Jwt, Abstrac
         // 从 JWT 提取角色信息
         Collection<SimpleGrantedAuthority> authorities = extractAuthorities(jwt);
 
-
         long userId = Long.parseLong(jwt.getId());
         Optional<User> userOptional = userRepository.findById(userId);
 
         // 将 JWT 中的 claim 映射为你的 User 实体
-
         return userOptional.map(user-> {
-
             return new UsernamePasswordAuthenticationToken(user,user.getPasswordHash(), user.getAuthorities());
-//            new UsernamePasswordAuthenticationToken(user, jwt.getTokenValue(), authorities)
         }).orElseThrow(()-> new BadCredentialsException("Invalid refresh token"));
     }
 

@@ -49,8 +49,11 @@ class VoiceViewModel(
     private var lastFilePath: String? = null
     private var lastDuration: Long = 0
 
-    fun startRecording() {
 
+    /***
+     * 开始录音
+     */
+    fun startRecording() {
 
         viewModelScope.launch(Dispatchers.IO) {
             voiceRecorder.startRecording()

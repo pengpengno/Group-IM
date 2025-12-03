@@ -1,32 +1,32 @@
-//@file:JvmName("MainScreenKt")
-
 package com.github.im.group.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.BottomNavigation
-import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,11 +50,15 @@ import com.github.im.group.ui.chat.ChatUI
 import com.github.im.group.ui.contacts.ContactsUI
 import com.github.im.group.ui.profile.ProfileUI
 import com.github.im.group.ui.video.DraggableVideoWindow
+import com.github.im.group.ui.video.IncomingCallDialog
 import com.github.im.group.viewmodel.LoginState
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+
+// 底部导航项数据类
+data class BottomNavItem(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,6 +115,33 @@ fun ChatMainScreen(
             firstTopBarText = "登录"
         }
     }
+    
+    // 获取WebRTC管理器实例
+    val webRTCManager = koinInject<com.github.im.group.sdk.WebRTCManager>()
+    
+    // 观察来电状态
+    val videoCallState by webRTCManager.videoCallState.collectAsState()
+    
+    // 处理来电逻辑
+    if (videoCallState.callStatus == com.github.im.group.ui.video.CallStatus.INCOMING) {
+        videoCallState.remoteUser?.let { caller ->
+            IncomingCallDialog(
+                caller = caller,
+                onAccept = {
+                    // 接受来电
+                    webRTCManager.acceptCall("")
+                    
+                    // 打开视频通话界面
+                    isVideoCallMinimized = false
+                },
+                onReject = {
+                    // 拒绝来电
+                    webRTCManager.rejectCall("")
+                }
+            )
+        }
+    }
+    
     ModalNavigationDrawer(
         drawerContent = {
             Box(
@@ -156,87 +187,64 @@ fun ChatMainScreen(
                                     Icon(Icons.Default.Search, contentDescription = "搜索", tint = Color.White)
                                 }
                             },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = Color(0xFF0088CC),
-                                titleContentColor = Color.White,
-                                navigationIconContentColor = Color.White,
-                                actionIconContentColor = Color.White
+                            colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                                containerColor = Color(0xFF0088CC)
                             )
                         )
                     }
                     1 -> {
-                        // 联系人界面的 TopAppBar，显示添加好友按钮
+                        // 联系人界面的 TopAppBar
                         TopAppBar(
-                            title = {
-                                Text(text = "联系人", color = Color.White)
-                            },
+                            title = { Text(text = "联系人", color = Color.White) },
                             navigationIcon = {
                                 IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                     Icon(Icons.Default.Menu, contentDescription = "菜单", tint = Color.White)
                                 }
                             },
-                            actions = {
-                                IconButton(onClick = {
-                                    // 导航到添加好友页面
-                                    navHostController.navigate(AddFriend)
-                                }) {
-                                    Icon(Icons.Default.Add, contentDescription = "添加好友", tint = Color.White)
-                                }
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = Color(0xFF0088CC),
-                                titleContentColor = Color.White,
-                                navigationIconContentColor = Color.White,
-                                actionIconContentColor = Color.White
+                            colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                                containerColor = Color(0xFF0088CC)
                             )
                         )
                     }
-                    else -> {
-                        // 默认的 TopAppBar
+                    2 -> {
+                        // 个人界面的 TopAppBar
                         TopAppBar(
-                            title = {
-                                Text(text = "首页", color = Color.White)
-                            },
+                            title = { Text(text = "我", color = Color.White) },
                             navigationIcon = {
                                 IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                     Icon(Icons.Default.Menu, contentDescription = "菜单", tint = Color.White)
                                 }
                             },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = Color(0xFF0088CC),
-                                titleContentColor = Color.White,
-                                navigationIconContentColor = Color.White,
-                                actionIconContentColor = Color.White
+                            colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                                containerColor = Color(0xFF0088CC)
                             )
                         )
                     }
                 }
             },
             bottomBar = {
-                BottomNavigation(
-                    backgroundColor = Color(0xFF0088CC),
-                    contentColor = Color.White
+                NavigationBar(
+                    containerColor = Color(0xFF0088CC)
                 ) {
                     bottomNavItems.forEachIndexed { index, item ->
-                        BottomNavigationItem(
+                        NavigationBarItem(
                             icon = {
                                 Icon(
                                     item.icon,
                                     contentDescription = item.title,
-                                    modifier = Modifier.size(24.dp)
+                                    tint = if (selectedItem == index) Color.White else Color(0x99FFFFFF)
                                 )
                             },
                             label = { 
                                 Text(
                                     text = item.title,
-                                    style = MaterialTheme.typography.bodySmall
+                                    color = if (selectedItem == index) Color.White else Color(0x99FFFFFF)
                                 ) 
                             },
                             selected = selectedItem == index,
-                            onClick = { selectedItem = index },
-                            selectedContentColor = Color.White,
-                            unselectedContentColor = Color(0x99FFFFFF) // 半透明白色
+                            onClick = { selectedItem = index }
                         )
+
                     }
                 }
             }
@@ -245,8 +253,8 @@ fun ChatMainScreen(
                 modifier = Modifier
                     .padding(padding)
                     .fillMaxSize()
-                    .background(Color(0xFFF0F0F0)
-            )) {
+                    .background(Color(0xFFF0F0F0))
+            ) {
                 // 根据底部导航选择显示不同内容
                 when (selectedItem) {
                     0 -> {
@@ -266,20 +274,12 @@ fun ChatMainScreen(
                 // 小窗视频通话
                 if (isVideoCallMinimized) {
                     DraggableVideoWindow(
-                        mediaStream = localMediaStream,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(16.dp),
-                        onDismissRequest = { 
-                            isVideoCallMinimized = false
-                            localMediaStream = null
-                        }
+                        null,
+                        Modifier.align(Alignment.BottomEnd)
                     )
                 }
+
             }
         }
     }
 }
-
-// 底部导航项数据类
-data class BottomNavItem(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)

@@ -1,6 +1,5 @@
 package com.github.im.server.config;
 
-import com.github.im.common.connect.connection.server.ProtoBufProcessHandler;
 import com.github.im.common.connect.connection.server.ReactiveServer;
 import com.github.im.common.connect.connection.server.tcp.ReactorTcpServer;
 import jakarta.annotation.PostConstruct;
@@ -8,37 +7,43 @@ import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.SmartLifecycle;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class NettyServerInitializer  implements SmartLifecycle {
+public class NettyServerInitializer implements SmartLifecycle {
 
     private final ReactiveServer tcpServer;
-
+    private ExecutorService executorService;
 
     @Override
     public boolean isAutoStartup() {
         return true;
     }
 
-
     @Override
     public void start() {
         log.info("start netty server");
-//        new Thread(()->startNettyServerAsync() ).start();
-        startNettyServerAsync();
-        log.info("start netty server succ");
-
+        // 在单独的线程中启动Netty服务器，避免阻塞主线程
+        executorService = Executors.newSingleThreadExecutor();
+        executorService.submit(this::startNettyServerAsync);
+        log.info("netty server start command issued");
     }
 
     @Override
     public void stop() {
         tcpServer.stop();
+        if (executorService != null) {
+            executorService.shutdown();
+        }
     }
 
     @Override
@@ -46,13 +51,19 @@ public class NettyServerInitializer  implements SmartLifecycle {
         return tcpServer.isRunning();
     }
 
-    @Async
     public void startNettyServerAsync() {
-        tcpServer.start();
+        try {
+            tcpServer.start();
+        } catch (Exception e) {
+            log.error("Failed to start Netty server", e);
+        }
     }
 
     @PreDestroy
     public void stopNettyServer() {
         tcpServer.stop();
+        if (executorService != null) {
+            executorService.shutdown();
+        }
     }
 }

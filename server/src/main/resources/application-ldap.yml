@@ -3,24 +3,25 @@ spring:
     # LDAP服务器URL，可以是多个，用逗号分隔
     urls: ldap://localhost:389
     # LDAP管理员DN（用于绑定和搜索用户）
-    username: cn=admin,dc=example,dc=com
+    username: cn=admin,dc=mycompany,dc=com
     # LDAP管理员密码
     password: admin
     # 基础DN
-    base: dc=example,dc=com
+    base: dc=mycompany,dc=com
     
   security:
     ldap:
       # 用户DN模式（可选，如果指定则直接使用该模式构建用户DN）
-      user-dn-pattern: uid={0},ou=people
+      user-dn-pattern:
+        - "uid={0},ou=people"
       # 用户搜索基础DN
       user-search-base: ou=people
       # 用户搜索过滤器，{0}会被替换为用户名
       user-search-filter: (uid={0})
-      # 组搜索基础DN
-      group-search-base: ou=groups
-      # 组搜索过滤器
-      group-search-filter: (uniqueMember={0})
+#      # 组搜索基础DN
+#      group-search-base: ou=groups
+#      # 组搜索过滤器
+#      group-search-filter: (uniqueMember={0})
 
 ---
 spring:
