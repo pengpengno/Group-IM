@@ -6,12 +6,18 @@ import com.github.im.server.repository.DepartmentRepository;
 import com.github.im.server.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 @Service
 public class OrganizationService {
@@ -23,23 +29,17 @@ public class OrganizationService {
     private UserRepository userRepository;
 
     /**
-     * 获取指定公司的组织架构树
+     * 获取指定公司的组织架构
      * @param companyId 公司ID
      * @return 组织架构树
      */
     public List<Department> getOrganizationStructure(Long companyId) {
-        // 获取该公司所有的有效部门
+        // 获取公司所有部门
         List<Department> allDepartments = departmentRepository.findByCompanyIdAndStatusTrue(companyId);
 
-        if (allDepartments.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        // 构建ID到部门的映射
-        Map<Long, Department> departmentMap = new HashMap<>();
-        for (Department dept : allDepartments) {
-            departmentMap.put(dept.getDepartmentId(), dept);
-        }
+        // 构建部门ID到部门对象的映射
+        Map<Long, Department> departmentMap = allDepartments.stream()
+                .collect(Collectors.toMap(Department::getDepartmentId, dept -> dept));
 
         // 构建树形结构
         List<Department> rootDepartments = new ArrayList<>();
@@ -98,5 +98,85 @@ public class OrganizationService {
         }
         
         return getOrganizationStructure(user.getCompanyId());
+    }
+    
+    /**
+     * 导入部门数据
+     * @param file Excel文件
+     * @param companyId 公司ID
+     */
+    public void importDepartments(MultipartFile file, Long companyId) throws Exception {
+        // 这里应该实现具体的Excel解析和部门数据导入逻辑
+        // 为简化起见，此处仅给出框架代码
+        InputStream inputStream = file.getInputStream();
+        // 解析Excel文件
+        // 验证数据格式
+        // 保存到数据库
+    }
+    
+    /**
+     * 导入员工数据
+     * @param file Excel文件
+     * @param companyId 公司ID
+     */
+    public void importEmployees(MultipartFile file, Long companyId) throws Exception {
+        // 这里应该实现具体的Excel解析和员工数据导入逻辑
+        // 为简化起见，此处仅给出框架代码
+        InputStream inputStream = file.getInputStream();
+        // 解析Excel文件
+        // 验证数据格式
+        // 保存到数据库
+    }
+    
+    /**
+     * 生成部门导入Excel模板
+     * @param outputStream 输出流
+     * @throws IOException IO异常
+     */
+    public void generateDepartmentsImportTemplate(OutputStream outputStream) throws IOException {
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("部门导入模板");
+        
+        // 创建标题行
+        Row headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("部门名称(name)");
+        headerRow.createCell(1).setCellValue("父部门ID(parentId)");
+        headerRow.createCell(2).setCellValue("部门描述(description)");
+        
+        // 调整列宽
+        sheet.autoSizeColumn(0);
+        sheet.autoSizeColumn(1);
+        sheet.autoSizeColumn(2);
+        
+        // 写入输出流
+        workbook.write(outputStream);
+        workbook.close();
+    }
+    
+    /**
+     * 生成员工导入Excel模板
+     * @param outputStream 输出流
+     * @throws IOException IO异常
+     */
+    public void generateEmployeesImportTemplate(OutputStream outputStream) throws IOException {
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("员工导入模板");
+        
+        // 创建标题行
+        Row headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("用户名(username)");
+        headerRow.createCell(1).setCellValue("邮箱(email)");
+        headerRow.createCell(2).setCellValue("手机号(phoneNumber)");
+        headerRow.createCell(3).setCellValue("部门ID(departmentId)");
+        
+        // 调整列宽
+        sheet.autoSizeColumn(0);
+        sheet.autoSizeColumn(1);
+        sheet.autoSizeColumn(2);
+        sheet.autoSizeColumn(3);
+        
+        // 写入输出流
+        workbook.write(outputStream);
+        workbook.close();
     }
 }

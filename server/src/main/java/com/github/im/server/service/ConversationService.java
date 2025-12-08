@@ -28,7 +28,6 @@ public class ConversationService {
     private final ConversationMapper conversationsMapper;
     private final GroupMemberMapper groupMemberMapper;
     private final GroupMemberService groupMemberService;
-
     private final ConversationSequenceService conversationSequenceService;
 
     /**

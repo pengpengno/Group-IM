@@ -42,8 +42,8 @@ spring:
       properties:
       hibernate:
       multiTenancy: SCHEMA
-      tenant_identifier_resolver: com.example.multitenant.config.CurrentTenantIdentifierResolverImpl
-      multi_tenant_connection_provider: com.example.multitenant.config.SchemaMultiTenantConnectionProvider
+      tenant_identifier_resolver: com.github.im.server.config.CurrentTenantIdentifierResolverImpl
+      multi_tenant_connection_provider: com.github.im.server.config.SchemaMultiTenantConnectionProvider
       show-sql: true
 #      maximum-pool-size: 10         # 最大连接池数量
 #      minimum-idle: 5               # 最小空闲连接数

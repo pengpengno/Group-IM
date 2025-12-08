@@ -62,7 +62,6 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Status userStatus;
 
-
     /**
      * 标记用户是否需要在下次登录时修改密码
      */
