@@ -1,0 +1,929 @@
+{
+  "info": {
+    "name": "GroupIM API",
+    "description": "Comprehensive API collection for GroupIM instant messaging platform. Includes endpoints for user management, authentication, friendships, groups, messages, conversations, file operations, and organization management.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "User Management",
+      "description": "User registration, authentication, and profile management endpoints",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"John Doe\",\n  \"username\": \"johndoe\",\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"SecurePass123\",\n  \"confirmPassword\": \"SecurePass123\",\n  \"phoneNumber\": \"+1234567890\"\n}"
+            },
+            "url": "{{baseUrl}}/api/users/register",
+            "description": "Register a new user account"
+          }
+        },
+        {
+          "name": "Batch Register Users",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"fullName\": \"User One\",\n    \"username\": \"user1\",\n    \"email\": \"user1@example.com\",\n    \"password\": \"Pass123\",\n    \"confirmPassword\": \"Pass123\"\n  },\n  {\n    \"fullName\": \"User Two\",\n    \"username\": \"user2\",\n    \"email\": \"user2@example.com\",\n    \"password\": \"Pass123\",\n    \"confirmPassword\": \"Pass123\"\n  }\n]"
+            },
+            "url": "{{baseUrl}}/api/users/batch-register",
+            "description": "Register multiple users in a single request"
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loginAccount\": \"johndoe\",\n  \"password\": \"SecurePass123\",\n  \"refreshToken\": \"\"\n}"
+            },
+            "url": "{{baseUrl}}/api/users/login",
+            "description": "Authenticate user and obtain access token"
+          }
+        },
+        {
+          "name": "Get User by Username",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/{{username}}",
+            "description": "Retrieve user information by username"
+          }
+        },
+        {
+          "name": "Query Users",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/query?query={{searchQuery}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "query"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "{{searchQuery}}",
+                  "description": "Search by username or email"
+                }
+              ]
+            },
+            "description": "Search users by username or email"
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "\"NewSecurePassword123\""
+            },
+            "url": "{{baseUrl}}/api/users/reset-password/{{userId}}",
+            "description": "Reset user password"
+          }
+        },
+        {
+          "name": "Import Users from Excel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/users/import",
+            "description": "Import users from Excel file"
+          }
+        },
+        {
+          "name": "Download User Import Template",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/import-template",
+            "description": "Download Excel template for user import"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Friendships",
+      "description": "Friend request and friendship management endpoints",
+      "item": [
+        {
+          "name": "Send Friend Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"friendId\": 2,\n  \"account\": \"user1\",\n  \"friendAccount\": \"user2\",\n  \"friendName\": \"User Two\",\n  \"userName\": \"User One\",\n  \"remark\": \"Friend request\",\n  \"applyRemark\": \"Let's be friends\"\n}"
+            },
+            "url": "{{baseUrl}}/api/friendships/request",
+            "description": "Send a friend request to another user"
+          }
+        },
+        {
+          "name": "Sync Friend Requests",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/friendships/sync?userId={{userId}}&maxId={{maxId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "friendships", "sync"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                },
+                {
+                  "key": "maxId",
+                  "value": "{{maxId}}",
+                  "description": "Maximum relationship ID (optional, default: 0)"
+                }
+              ]
+            },
+            "description": "Sync friend requests from server"
+          }
+        },
+        {
+          "name": "Accept Friend Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"friendId\": 2\n}"
+            },
+            "url": "{{baseUrl}}/api/friendships/accept",
+            "description": "Accept a friend request"
+          }
+        },
+        {
+          "name": "Reject Friend Request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/friendships/reject?userId={{userId}}&friendId={{friendId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "friendships", "reject"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                },
+                {
+                  "key": "friendId",
+                  "value": "{{friendId}}"
+                }
+              ]
+            },
+            "description": "Reject a friend request"
+          }
+        },
+        {
+          "name": "Delete Friend Request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/friendships/delete?userId={{userId}}&friendId={{friendId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "friendships", "delete"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                },
+                {
+                  "key": "friendId",
+                  "value": "{{friendId}}"
+                }
+              ]
+            },
+            "description": "Delete a friend request"
+          }
+        },
+        {
+          "name": "Get Friends List",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authior",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/friendships/list?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "friendships", "list"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                }
+              ]
+            },
+            "description": "Get all friends for a user"
+          }
+        },
+        {
+          "name": "Query Friend Requests",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/friendships/queryRequest?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "friendships", "queryRequest"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                }
+              ]
+            },
+            "description": "Get all friend requests for a user"
+          }
+        },
+        {
+          "name": "Delete Friend",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/friendships/{{userId}}/{{friendId}}",
+            "description": "Remove a friend from user's friend list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Groups",
+      "description": "Group membership management endpoints",
+      "item": [
+        {
+          "name": "Get Group Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/members",
+            "description": "Get all members of a specific group"
+          }
+        },
+        {
+          "name": "Get User Groups",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/groups/users/{{userId}}/groups",
+            "description": "Get all groups that a user belongs to"
+          }
+        },
+        {
+          "name": "Add Member to Group",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/members/{{userId}}",
+            "description": "Add a single member to a group"
+          }
+        },
+        {
+          "name": "Add Multiple Members to Group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[1, 2, 3, 4, 5]"
+            },
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/members/bulk",
+            "description": "Add multiple members to a group in bulk"
+          }
+        },
+        {
+          "name": "Remove Member from Group",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/members/{{userId}}",
+            "description": "Remove a member from a group"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Conversations",
+      "description": "Conversation and group chat management endpoints",
+      "item": [
+        {
+          "name": "Create Group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groupName\": \"Project Team\",\n  \"description\": \"Team collaboration group\",\n  \"creatorId\": 1,\n  \"ownerId\": 1,\n  \"members\": [\n    {\n      \"userId\": 1,\n      \"username\": \"user1\"\n    },\n    {\n      \"userId\": 2,\n      \"username\": \"user2\"\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/conversations/group",
+            "description": "Create a new group conversation"
+          }
+        },
+        {
+          "name": "Get Conversation Max Index",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/conversations/max-index?conversationId={{conversationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "conversations", "max-index"],
+              "query": [
+                {
+                  "key": "conversationId",
+                  "value": "{{conversationId}}"
+                }
+              ]
+            },
+            "description": "Get the maximum message index for a conversation"
+          }
+        },
+        {
+          "name": "Get Conversation by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/conversations/{{conversationId}}",
+            "description": "Get conversation details by ID"
+          }
+        },
+        {
+          "name": "Create or Get Private Chat",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/conversations/private-chat?userId={{userId}}&friendId={{friendId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "conversations", "private-chat"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                },
+                {
+                  "key": "friendId",
+                  "value": "{{friendId}}"
+                }
+              ]
+            },
+            "description": "Create or retrieve a private chat conversation between two users"
+          }
+        },
+        {
+          "name": "Get Active Conversations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/conversations/{{userId}}/active",
+            "description": "Get all active conversations for a user"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Messages",
+      "description": "Message retrieval and management endpoints",
+      "item": [
+        {
+          "name": "Get Message by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/messages/{{msgId}}",
+            "description": "Retrieve a specific message by its ID"
+          }
+        },
+        {
+          "name": "Pull History Messages",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"conversationId\": 1,\n  \"fromAccountId\": 1,\n  \"startTime\": \"2024-01-01T00:00:00\",\n  \"endTime\": \"2024-12-31T23:59:59\",\n  \"page\": 0,\n  \"size\": 50,\n  \"sort\": \"timestamp\",\n  \"fromSequenceId\": 0,\n  \"toSequenceId\": 100\n}"
+            },
+            "url": "{{baseUrl}}/api/messages/pull",
+            "description": "Pull historical messages from a conversation"
+          }
+        },
+        {
+          "name": "Mark Message as Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messages/mark-as-read?msgId={{msgId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messages", "mark-as-read"],
+              "query": [
+                {
+                  "key": "msgId",
+                  "value": "{{msgId}}"
+                }
+              ]
+            },
+            "description": "Mark a message as read by the current user"
+          }
+        },
+        {
+          "name": "Search Messages",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"keyword\": \"search term\",\n  \"sessionId\": 1\n}"
+            },
+            "url": "{{baseUrl}}/api/messages/search",
+            "description": "Search messages by keyword within a session"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Files",
+      "description": "File upload, download, and metadata management endpoints",
+      "item": [
+        {
+          "name": "Upload File",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "clientId",
+                  "value": "{{clientId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "duration",
+                  "value": "0",
+                  "type": "text",
+                  "description": "Audio duration in milliseconds"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/files/upload",
+            "description": "Upload a single file (suitable for small files)"
+          }
+        },
+        {
+          "name": "Upload File Chunk",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "fileHash",
+                  "value": "{{fileHash}}",
+                  "type": "text"
+                },
+                {
+                  "key": "chunkIndex",
+                  "value": "0",
+                  "type": "text"
+                },
+                {
+                  "key": "totalChunks",
+                  "value": "10",
+                  "type": "text"
+                },
+                {
+                  "key": "clientId",
+                  "value": "{{clientId}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/files/upload/chunk",
+            "description": "Upload a file chunk for resumable uploads"
+          }
+        },
+        {
+          "name": "Merge File Chunks",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/files/upload/merge?fileHash={{fileHash}}&fileName={{fileName}}&clientId={{clientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "files", "upload", "merge"],
+              "query": [
+                {
+                  "key": "fileHash",
+                  "value": "{{fileHash}}"
+                },
+                {
+                  "key": "fileName",
+                  "value": "{{fileName}}"
+                },
+                {
+                  "key": "clientId",
+                  "value": "{{clientId}}"
+                }
+              ]
+            },
+            "description": "Merge uploaded chunks into a complete file"
+          }
+        },
+        {
+          "name": "Check Uploaded Chunks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/files/upload/check?fileHash={{fileHash}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "files", "upload", "check"],
+              "query": [
+                {
+                  "key": "fileHash",
+                  "value": "{{fileHash}}"
+                }
+              ]
+            },
+            "description": "Check which chunks have been uploaded for resumable upload"
+          }
+        },
+        {
+          "name": "Download File",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Range",
+                "value": "bytes=0-1023",
+                "disabled": true
+              }
+            ],
+            "url": "{{baseUrl}}/api/files/download/{{fileId}}",
+            "description": "Download a file (supports range requests for streaming)"
+          }
+        },
+        {
+          "name": "Get File Metadata",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/files/meta?fileId={{fileId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "files", "meta"],
+              "query": [
+                {
+                  "key": "fileId",
+                  "value": "{{fileId}}"
+                }
+              ]
+            },
+            "description": "Get metadata information for a file"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Organization",
+      "description": "Organization structure and company management endpoints",
+      "item": [
+        {
+          "name": "Get Organization Structure by Company",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organization/structure/{{companyId}}",
+            "description": "Get organization structure for a specific company"
+          }
+        },
+        {
+          "name": "Get Current User Organization Structure",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organization/structure",
+            "description": "Get organization structure for current user's company"
+          }
+        },
+        {
+          "name": "Register Company",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme Corporation\",\n  \"description\": \"Technology company\",\n  \"address\": \"123 Main St\"\n}"
+            },
+            "url": "{{baseUrl}}/api/organization/company/register",
+            "description": "Register a new company (admin only)"
+          }
+        },
+        {
+          "name": "Get All Companies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organization/company",
+            "description": "Get list of all companies (admin only)"
+          }
+        },
+        {
+          "name": "Import Departments",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "companyId",
+                  "value": "{{companyId}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/organization/departments/import",
+            "description": "Import departments from Excel file"
+          }
+        },
+        {
+          "name": "Download Departments Template",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/organization/departments/template",
+            "description": "Download Excel template for department import"
+          }
+        },
+        {
+          "name": "Import Employees",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "companyId",
+                  "value": "{{companyId}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/organization/employees/import",
+            "description": "Import employees from Excel file"
+          }
+        },
+        {
+          "name": "Download Employees Template",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/organization/employees/template",
+            "description": "Download Excel template for employee import"
+          }
+        }
+      ]
+    },
+    {
+      "name": "System",
+      "description": "System utilities and health check endpoints",
+      "item": [
+        {
+          "name": "Get Server Time",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/system/clock",
+            "description": "Get current server timestamp for client time synchronization"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "username",
+      "value": "johndoe",
+      "type": "string"
+    },
+    {
+      "key": "groupId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "conversationId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "msgId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "fileId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fileHash",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fileName",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "companyId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "friendId",
+      "value": "2",
+      "type": "string"
+    },
+    {
+      "key": "searchQuery",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "maxId",
+      "value": "0",
+      "type": "string"
+    }
+  ]
+}
