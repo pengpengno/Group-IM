@@ -1,6 +1,6 @@
 DROP FUNCTION IF EXISTS create_or_sync_company_schema;
 CREATE OR REPLACE FUNCTION create_or_sync_company_schema(schema_name text)
-RETURNS void AS $$
+RETURNS text AS $$
 DECLARE
     table_rec record;
     column_rec record;
@@ -103,7 +103,7 @@ BEGIN
                     ' ON ' || schema_name || '.'
                  );
     END LOOP;
-
+    RETURN schema_name;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -113,21 +113,20 @@ $$ LANGUAGE plpgsql;
 --  应用程序中 来触发即可
 ---- 创建触发器，当向company表插入数据时自动创建schema
 -- 创建一个触发器函数，当在company表中插入新记录时自动创建schema
-DROP FUNCTION IF EXISTS create_company_schema_trigger_func;
-CREATE OR REPLACE FUNCTION create_company_schema_trigger_func()
-RETURNS TRIGGER AS $$
-BEGIN
-    -- 调用创建schema的函数
-    PERFORM create_or_sync_company_schema(NEW.schema_name);
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
---  应用程序中 来触发即可
----- 创建触发器，当向company表插入数据时自动创建schema
-DROP TRIGGER IF EXISTS create_company_schema_trigger ON company;
-CREATE TRIGGER create_company_schema_trigger
-    AFTER INSERT ON company
-    FOR EACH ROW
-    EXECUTE FUNCTION create_company_schema_trigger_func();
--- SELECT create_or_sync_company_schema('company_tike2');
+-- DROP FUNCTION IF EXISTS create_company_schema_trigger_func;
+-- CREATE OR REPLACE FUNCTION create_company_schema_trigger_func()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--     -- 调用创建schema的函数
+--     PERFORM create_or_sync_company_schema(NEW.schema_name);
+--     RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
+--
+-- --  应用程序中 来触发即可
+-- ---- 创建触发器，当向company表插入数据时自动创建schema
+-- DROP TRIGGER IF EXISTS create_company_schema_trigger ON company;
+-- CREATE TRIGGER create_company_schema_trigger
+--     AFTER INSERT ON company
+--     FOR EACH ROW
+--     EXECUTE FUNCTION create_company_schema_trigger_func();
