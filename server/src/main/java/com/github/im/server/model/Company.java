@@ -1,6 +1,5 @@
 package com.github.im.server.model;
 
-import com.github.im.server.listener.CompanyEntityListener;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -15,7 +14,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "company")
 @Data
-@EntityListeners(CompanyEntityListener.class)
 public class Company {
 
     @Id

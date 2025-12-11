@@ -3,8 +3,7 @@
     "_postman_id": "4408f10d-17c2-4c35-a76a-bc6247bde94a",
     "name": "REST API接口",
     "description": "# 🚀 Get started here\n\nThis template guides you through CRUD operations (GET, POST, PUT, DELETE), variables, and tests.\n\n## 🔖 **How to use this template**\n\n#### **Step 1: Send requests**\n\nRESTful APIs allow you to perform CRUD operations using the POST, GET, PUT, and DELETE HTTP methods.\n\nThis collection contains each of these [request](https://learning.postman.com/docs/sending-requests/requests/) types. Open each request and click \"Send\" to see what happens.\n\n#### **Step 2: View responses**\n\nObserve the response tab for status code (200 OK), response time, and size.\n\n#### **Step 3: Send new Body data**\n\nUpdate or add new data in \"Body\" in the POST request. Typically, Body data is also used in PUT request.\n\n```\n{\n    \"name\": \"Add your name in the body\"\n}\n\n ```\n\n#### **Step 4: Update the variable**\n\nVariables enable you to store and reuse values in Postman. We have created a [variable](https://learning.postman.com/docs/sending-requests/variables/) called `base_url` with the sample request [https://postman-api-learner.glitch.me](https://postman-api-learner.glitch.me). Replace it with your API endpoint to customize this collection.\n\n#### **Step 5: Add tests in the \"Scripts\" tab**\n\nAdding tests to your requests can help you confirm that your API is working as expected. You can write test scripts in JavaScript and view the output in the \"Test Results\" tab.\n\n<img src=\"https://content.pstmn.io/fa30ea0a-373d-4545-a668-e7b283cca343/aW1hZ2UucG5n\" width=\"2162\" height=\"1530\">\n\n## 💪 Pro tips\n\n- Use folders to group related requests and organize the collection.\n    \n- Add more [scripts](https://learning.postman.com/docs/writing-scripts/intro-to-scripts/) to verify if the API works as expected and execute workflows.\n    \n\n## 💡Related templates\n\n[API testing basics](https://go.postman.co/redirect/workspace?type=personal&collectionTemplateId=e9a37a28-055b-49cd-8c7e-97494a21eb54&sourceTemplateId=ddb19591-3097-41cf-82af-c84273e56719)  \n[API documentation](https://go.postman.co/redirect/workspace?type=personal&collectionTemplateId=e9c28f47-1253-44af-a2f3-20dce4da1f18&sourceTemplateId=ddb19591-3097-41cf-82af-c84273e56719)  \n[Authorization methods](https://go.postman.co/redirect/workspace?type=personal&collectionTemplateId=31a9a6ed-4cdf-4ced-984c-d12c9aec1c27&sourceTemplateId=ddb19591-3097-41cf-82af-c84273e56719)",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "16761636"
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
@@ -175,7 +174,122 @@
           "id": "ea3fbc5f-f247-4422-8760-ed14618831b1",
           "request": {
             "method": "GET",
-            "header": []
+            "header": [],
+            "url": {
+              "raw": ""
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "用户注册",
+          "id": "user-registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newuser\",\n  \"email\": \"newuser@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{rest-host}}/api/users/register",
+              "host": [
+                "{{rest-host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "register"
+              ]
+            },
+            "description": "注册新用户"
+          },
+          "response": []
+        },
+        {
+          "name": "批量用户注册",
+          "id": "batch-user-registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"username\": \"user1\",\n    \"email\": \"user1@example.com\",\n    \"password\": \"password123\"\n  },\n  {\n    \"username\": \"user2\",\n    \"email\": \"user2@example.com\",\n    \"password\": \"password123\"\n  }\n]"
+            },
+            "url": {
+              "raw": "{{rest-host}}/api/users/batch-register",
+              "host": [
+                "{{rest-host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "batch-register"
+              ]
+            },
+            "description": "批量注册用户"
+          },
+          "response": []
+        },
+        {
+          "name": "根据用户名获取用户",
+          "id": "get-user-by-username",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{rest-host}}/api/users/{username}",
+              "host": [
+                "{{rest-host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{username}"
+              ]
+            },
+            "description": "根据用户名获取用户信息"
+          },
+          "response": []
+        },
+        {
+          "name": "重置用户密码",
+          "id": "reset-user-password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "newpassword123"
+            },
+            "url": {
+              "raw": "{{rest-host}}/api/users/reset-password/{userId}",
+              "host": [
+                "{{rest-host}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "reset-password",
+                "{userId}"
+              ]
+            },
+            "description": "重置指定用户的密码"
           },
           "response": []
         }
@@ -211,6 +325,84 @@
                 "pull"
               ]
             }
+          },
+          "response": []
+        },
+        {
+          "name": "根据ID获取消息",
+          "id": "get-message-by-id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{rest-host}}/api/messages/{msgId}",
+              "host": [
+                "{{rest-host}}"
+              ],
+              "path": [
+                "api",
+                "messages",
+                "{msgId}"
+              ]
+            },
+            "description": "根据消息ID获取消息详情"
+          },
+          "response": []
+        },
+        {
+          "name": "标记消息为已读",
+          "id": "mark-message-as-read",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{rest-host}}/api/messages/mark-as-read?msgId={msgId}",
+              "host": [
+                "{{rest-host}}"
+              ],
+              "path": [
+                "api",
+                "messages",
+                "mark-as-read"
+              ],
+              "query": [
+                {
+                  "key": "msgId",
+                  "value": "{msgId}"
+                }
+              ]
+            },
+            "description": "将指定消息标记为已读"
+          },
+          "response": []
+        },
+        {
+          "name": "搜索消息",
+          "id": "search-messages",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"keyword\": \"search term\",\n  \"conversationId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{rest-host}}/api/messages/search",
+              "host": [
+                "{{rest-host}}"
+              ],
+              "path": [
+                "api",
+                "messages",
+                "search"
+              ]
+            },
+            "description": "根据关键词搜索消息"
           },
           "response": []
         }
@@ -542,6 +734,33 @@
             "description": "下载文件"
           },
           "response": []
+        },
+        {
+          "name": "Get File Meta",
+          "id": "get-file-meta",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/files/meta?fileId=550e8400-e29b-41d4-a716-446655440000",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "files",
+                "meta"
+              ],
+              "query": [
+                {
+                  "key": "fileId",
+                  "value": "550e8400-e29b-41d4-a716-446655440000"
+                }
+              ]
+            },
+            "description": "获取文件的元信息数据"
+          },
+          "response": []
         }
       ],
       "id": "b1acc106-9a4e-40f0-8d0c-86192ec127e1"
@@ -782,7 +1001,7 @@
       "id": "f5e6a02d-6c1a-44ae-948b-f4cf374df39a"
     },
     {
-      "name": "conversationMember",
+      "name": "Group Member",
       "item": [
         {
           "name": "Get Members By Group ID",
@@ -909,6 +1128,283 @@
         }
       ],
       "id": "a9162440-0de5-4506-b3b6-b80f50f474bc"
+    },
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Get Server Time",
+          "id": "get-server-time",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/system/clock",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "system",
+                "clock"
+              ]
+            },
+            "description": "获取服务器当前时间，客户端进行对时操作"
+          },
+          "response": []
+        }
+      ],
+      "id": "system-controller"
+    },
+    {
+      "name": "Organization",
+      "item": [
+        {
+          "name": "注册新公司",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "id": "d928a9da-d3a9-4458-855f-5e96fbe689ec",
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "id": "bc995a84-7006-48f9-b67d-f83b6ad2d75d",
+                "exec": [
+                  "pm.collectionVariables.set(\"companyId\", pm.response.json().companyId);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "id": "35d2a3fd-13ea-45c0-ace0-a8c4f3276355",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"name\":\"金街222fsdff\",\r\n    \"code\":\"ti\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/organization/company/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "organization",
+                "company",
+                "register"
+              ]
+            },
+            "description": "注册新公司"
+          },
+          "response": []
+        },
+        {
+          "name": "获取组织架构",
+          "id": "get-organization-structure",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/organization/structure/{companyId}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "organization",
+                "structure",
+                "{companyId}"
+              ]
+            },
+            "description": "获取指定公司的组织架构"
+          },
+          "response": []
+        },
+        {
+          "name": "获取当前用户所在公司的组织架构",
+          "id": "get-current-user-organization-structure",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/organization/structure",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "organization",
+                "structure"
+              ]
+            },
+            "description": "获取当前用户所在公司的组织架构"
+          },
+          "response": []
+        },
+        {
+          "name": "获取所有公司列表",
+          "id": "get-all-companies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/organization/company",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "organization",
+                "company"
+              ]
+            },
+            "description": "获取所有公司列表"
+          },
+          "response": []
+        },
+        {
+          "name": "导入部门数据",
+          "id": "import-departments",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/departments.xlsx"
+                },
+                {
+                  "key": "companyId",
+                  "value": "1",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/organization/departments/import",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "organization",
+                "departments",
+                "import"
+              ]
+            },
+            "description": "导入部门数据"
+          },
+          "response": []
+        },
+        {
+          "name": "导出部门导入模板",
+          "id": "export-departments-template",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/organization/departments/template",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "organization",
+                "departments",
+                "template"
+              ]
+            },
+            "description": "导出部门导入模板"
+          },
+          "response": []
+        },
+        {
+          "name": "导入员工数据",
+          "id": "import-employees",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/employees.xlsx"
+                },
+                {
+                  "key": "companyId",
+                  "value": "1",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/organization/employees/import",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "organization",
+                "employees",
+                "import"
+              ]
+            },
+            "description": "导入员工数据"
+          },
+          "response": []
+        },
+        {
+          "name": "导出员工导入模板",
+          "id": "export-employees-template",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/organization/employees/template",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "organization",
+                "employees",
+                "template"
+              ]
+            },
+            "description": "导出员工导入模板"
+          },
+          "response": []
+        }
+      ],
+      "id": "organization-controller"
     }
   ],
   "auth": {
@@ -921,48 +1417,25 @@
       }
     ]
   },
-  "event": [
-    {
-      "listen": "prerequest",
-      "script": {
-        "id": "130af1f8-a291-4237-980a-bc50c71b0b67",
-        "type": "text/javascript",
-        "exec": [
-          ""
-        ]
-      }
-    },
-    {
-      "listen": "test",
-      "script": {
-        "id": "be05bf5d-d5aa-4991-bfb7-4bf0d83e897b",
-        "type": "text/javascript",
-        "exec": [
-          ""
-        ]
-      }
-    }
-  ],
   "variable": [
     {
-      "id": "0d37e8f5-fd25-4914-a02b-00e439d67dd3",
+      "id": "b8dcf9f6-e21e-40e4-b740-45211edd7080",
       "key": "id",
       "value": "1"
     },
     {
-      "id": "6baa3073-ceec-49b8-b02e-2476dc8a9942",
+      "id": "37a6675e-7af0-45a4-aa41-64dc983eb865",
       "key": "base_url",
       "value": "localhost:8080"
     },
     {
-      "id": "dd5d3b29-0919-4219-8857-ec6dc9f5d210",
+      "id": "67923ba8-17af-47c7-bd57-d82ed0ee63e0",
       "key": "rest-host",
-      "value": "localhost:8080",
-      "type": "string"
+      "value": "localhost:8080"
     },
     {
-      "id": "e96565cd-d123-42d4-9f62-2ef40dd06a9a",
-      "key": "authtoken",
+      "id": "18e2f6fc-5d5a-4375-a6ff-5def7d2fd9e8",
+      "key": "companyId",
       "value": ""
     }
   ]

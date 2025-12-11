@@ -1,8 +1,10 @@
 package com.github.im.server.service;
 
+import com.github.im.server.event.CompanyCreatedEvent;
 import com.github.im.server.model.Company;
 import com.github.im.server.repository.CompanyRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +16,9 @@ public class CompanyService {
     
     @Autowired
     private CompanyRepository companyRepository;
+    
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
     
     /**
      * 根据公司ID查找公司
@@ -49,8 +54,12 @@ public class CompanyService {
      */
     @Transactional
     public Company save(Company company) {
-        // 保存公司信息，EntityListener会自动创建schema
+        // 保存公司信息
         Company savedCompany = companyRepository.save(company);
+        
+        // 发布公司创建事件，触发schema创建
+        eventPublisher.publishEvent(new CompanyCreatedEvent(savedCompany));
+        
         return savedCompany;
     }
     

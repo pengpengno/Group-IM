@@ -1,5 +1,8 @@
 package com.github.im.server.controller;
 
+import com.github.im.dto.organization.CompanyDTO;
+import com.github.im.dto.organization.DepartmentDTO;
+import com.github.im.server.mapstruct.OrganizationMapper;
 import com.github.im.server.model.Company;
 import com.github.im.server.model.Department;
 import com.github.im.server.model.User;
@@ -26,6 +29,9 @@ public class OrganizationController {
     
     @Autowired
     private CompanyService companyService;
+    
+    @Autowired
+    private OrganizationMapper organizationMapper;
 
     /**
      * 获取组织架构
@@ -33,7 +39,7 @@ public class OrganizationController {
      * @return 组织架构树
      */
     @GetMapping("/structure/{companyId}")
-    public ResponseEntity<List<Department>> getOrganizationStructure(@PathVariable Long companyId) {
+    public ResponseEntity<List<DepartmentDTO>> getOrganizationStructure(@PathVariable Long companyId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
         
@@ -43,7 +49,8 @@ public class OrganizationController {
         }
         
         List<Department> structure = organizationService.getOrganizationStructure(companyId);
-        return ResponseEntity.ok(structure);
+        List<DepartmentDTO> departmentDTOs = organizationMapper.departmentsToDepartmentDTOs(structure);
+        return ResponseEntity.ok(departmentDTOs);
     }
     
     /**
@@ -51,20 +58,21 @@ public class OrganizationController {
      * @return 组织架构树
      */
     @GetMapping("/structure")
-    public ResponseEntity<List<Department>> getCurrentUserOrganizationStructure() {
+    public ResponseEntity<List<DepartmentDTO>> getCurrentUserOrganizationStructure() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
         List<Department> structure = organizationService.getUserOrganizationStructure(currentUser);
-        return ResponseEntity.ok(structure);
+        List<DepartmentDTO> departmentDTOs = organizationMapper.departmentsToDepartmentDTOs(structure);
+        return ResponseEntity.ok(departmentDTOs);
     }
     
     /**
      * 注册新公司
-     * @param company 公司信息
+     * @param companyDTO 公司信息
      * @return 注册结果
      */
     @PostMapping("/company/register")
-    public ResponseEntity<Company> registerCompany(@RequestBody Company company) {
+    public ResponseEntity<CompanyDTO> registerCompany(@RequestBody CompanyDTO companyDTO) {
         // 只有系统管理员才能注册新公司
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
@@ -72,9 +80,18 @@ public class OrganizationController {
         // 这里应该添加权限检查，确保只有系统管理员可以注册公司
         // 为简化起见，这里假设所有已登录用户都可以注册公司
         
+        // 转换DTO到实体
+        Company company = organizationMapper.companyDTOToCompany(companyDTO);
+        if (company.getActive() == null) {
+            company.setActive(true);
+        }
+        
         // 保存公司信息
         Company savedCompany = companyService.save(company);
-        return ResponseEntity.ok(savedCompany);
+        
+        // 转换实体到DTO
+        CompanyDTO savedCompanyDTO = organizationMapper.companyToCompanyDTO(savedCompany);
+        return ResponseEntity.ok(savedCompanyDTO);
     }
     
     /**
@@ -82,10 +99,11 @@ public class OrganizationController {
      * @return 公司列表
      */
     @GetMapping("/company")
-    public ResponseEntity<List<Company>> getAllCompanies() {
+    public ResponseEntity<List<CompanyDTO>> getAllCompanies() {
         // 只有系统管理员才能查看所有公司
         List<Company> companies = companyService.findAll();
-        return ResponseEntity.ok(companies);
+        List<CompanyDTO> companyDTOs = organizationMapper.companiesToCompanyDTOs(companies);
+        return ResponseEntity.ok(companyDTOs);
     }
     
     /**
