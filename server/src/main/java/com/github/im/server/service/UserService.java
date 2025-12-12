@@ -130,7 +130,7 @@ public class UserService {
         }
         
         // 如果有错误，抛出包含所有错误信息的异常
-        if (batchErrors.length() > 0) {
+        if (!batchErrors.isEmpty()) {
             throw new IllegalArgumentException("批量注册完成，但部分用户注册失败: " + batchErrors.toString());
         }
         return registeredUsers;
@@ -165,9 +165,7 @@ public class UserService {
      * 用户登录逻辑，返回用户信息
      */
     public Optional<UserInfo> loginUser(LoginRequest loginRequest) {
-
-       return  authenticationService.login(loginRequest);
-
+        return authenticationService.login(loginRequest);
     }
 
     /**

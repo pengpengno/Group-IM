@@ -15,7 +15,8 @@ public class ConversationRes {
     private String description;
     private List<UserInfo> members;
 
-    private Long createBy;
+//    private Long createBy;
+    private UserInfo createBy;
 
     private String createAt;
 

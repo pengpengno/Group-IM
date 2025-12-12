@@ -32,4 +32,11 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
      * @return 部门列表
      */
     List<Department> findByCompanyIdAndStatusTrue(Long companyId);
+    
+    /**
+     * 根据公司ID查找所有部门
+     * @param companyId 公司ID
+     * @return 部门列表
+     */
+    List<Department> findByCompanyId(Long companyId);
 }

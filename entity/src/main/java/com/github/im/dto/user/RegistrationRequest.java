@@ -10,14 +10,14 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class RegistrationRequest {
 
-    private String fullName;
-    @NotBlank
+
+    @NotBlank(message = "Username cannot be blank")
     private String username;
-    @NotBlank
+    @NotBlank(message = "Email cannot be blank")
     private String email;
-    @NotBlank
+    @NotBlank(message = "Password cannot be blank")
     private String password;
-    @NotBlank
+    @NotBlank(message = "Confirm Password cannot be blank")
     private String confirmPassword;
 
     private String phoneNumber; // Optional

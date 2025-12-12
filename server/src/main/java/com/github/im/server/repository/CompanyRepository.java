@@ -2,6 +2,7 @@ package com.github.im.server.repository;
 
 import com.github.im.server.model.Company;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -21,6 +22,7 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
      * @param schemaName schema名称
      * @return 公司对象
      */
+    @Cacheable(value = "companiesBySchemaName", key = "'company:' + #schemaName",unless = "#result==null")
     Optional<Company> findBySchemaName(String schemaName);
     
     /**

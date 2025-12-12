@@ -92,9 +92,6 @@ public class LdapUserService {
                     .email(email)
                     .phoneNumber(RandomUtil.randomNumbers(11)) // LDAP用户可能没有电话号码
                     .passwordHash("") // LDAP用户不需要本地密码
-                    .avatarUrl("")
-                    .bio("")
-                    .status(true)
                     .forcePasswordChange(false)
                     .createdAt(LocalDateTime.now())
                     .updatedAt(LocalDateTime.now())

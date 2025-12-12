@@ -43,9 +43,6 @@ public class LdapUserDetailsMapper implements UserDetailsContextMapper , Context
                         .email(email)
                         .phoneNumber(phoneNumber)
                         .passwordHash("") // LDAP用户不需要本地密码
-                        .avatarUrl("")
-                        .bio("")
-                        .status(true)
                         .forcePasswordChange(false)
                         .createdAt(LocalDateTime.now())
                         .updatedAt(LocalDateTime.now())
@@ -73,9 +70,6 @@ public class LdapUserDetailsMapper implements UserDetailsContextMapper , Context
                     .email(extractEmail(ctx, username))
                     .phoneNumber(extractPhoneNumber(ctx))
                     .passwordHash("") // LDAP用户不需要本地密码
-                    .avatarUrl("")
-                    .bio("")
-                    .status(true)
                     .forcePasswordChange(false)
                     .createdAt(LocalDateTime.now())
                     .updatedAt(LocalDateTime.now())

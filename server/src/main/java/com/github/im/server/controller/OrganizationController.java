@@ -8,6 +8,9 @@ import com.github.im.server.model.Department;
 import com.github.im.server.model.User;
 import com.github.im.server.service.OrganizationService;
 import com.github.im.server.service.CompanyService;
+import com.github.im.server.web.ApiResponse;
+import com.github.im.server.web.ResponseUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +23,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/organization")
 public class OrganizationController {
@@ -39,18 +43,23 @@ public class OrganizationController {
      * @return 组织架构树
      */
     @GetMapping("/structure/{companyId}")
-    public ResponseEntity<List<DepartmentDTO>> getOrganizationStructure(@PathVariable Long companyId) {
+    public ResponseEntity<ApiResponse<List<DepartmentDTO>>> getOrganizationStructure(@PathVariable Long companyId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
         
         // 检查用户是否有权访问该公司的组织架构
         if (!currentUser.getCurrentLoginCompanyId().equals(companyId)) {
-            return ResponseEntity.status(403).build();
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(org.springframework.http.HttpStatus.FORBIDDEN.value(), "无权限访问该公司的组织架构"));
         }
         
-        List<Department> structure = organizationService.getOrganizationStructure(companyId);
-        List<DepartmentDTO> departmentDTOs = organizationMapper.departmentsToDepartmentDTOs(structure);
-        return ResponseEntity.ok(departmentDTOs);
+        try {
+            List<DepartmentDTO> departmentDTOs = organizationService.getDepartmentDTOs(currentUser);
+            return ResponseUtil.success("获取组织架构成功", departmentDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR.value(), "获取组织架构失败: " + e.getMessage()));
+        }
     }
     
     /**
@@ -58,12 +67,18 @@ public class OrganizationController {
      * @return 组织架构树
      */
     @GetMapping("/structure")
-    public ResponseEntity<List<DepartmentDTO>> getCurrentUserOrganizationStructure() {
+    public ResponseEntity<ApiResponse<List<DepartmentDTO>>> getCurrentUserOrganizationStructure() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
-        List<Department> structure = organizationService.getUserOrganizationStructure(currentUser);
-        List<DepartmentDTO> departmentDTOs = organizationMapper.departmentsToDepartmentDTOs(structure);
-        return ResponseEntity.ok(departmentDTOs);
+        
+        try {
+            List<DepartmentDTO> departmentDTOs = organizationService.getDepartmentDTOs(currentUser);
+            return ResponseUtil.success("获取组织架构成功", departmentDTOs);
+        } catch (Exception e) {
+            log.error("获取组织架构失败", e);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR.value(), "获取组织架构失败: " + e.getMessage()));
+        }
     }
     
     /**
@@ -72,7 +87,7 @@ public class OrganizationController {
      * @return 注册结果
      */
     @PostMapping("/company/register")
-    public ResponseEntity<CompanyDTO> registerCompany(@RequestBody CompanyDTO companyDTO) {
+    public ResponseEntity<ApiResponse<CompanyDTO>> registerCompany(@RequestBody CompanyDTO companyDTO) {
         // 只有系统管理员才能注册新公司
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
@@ -80,18 +95,23 @@ public class OrganizationController {
         // 这里应该添加权限检查，确保只有系统管理员可以注册公司
         // 为简化起见，这里假设所有已登录用户都可以注册公司
         
-        // 转换DTO到实体
-        Company company = organizationMapper.companyDTOToCompany(companyDTO);
-        if (company.getActive() == null) {
-            company.setActive(true);
+        try {
+            // 转换DTO到实体
+            Company company = organizationMapper.companyDTOToCompany(companyDTO);
+            if (company.getActive() == null) {
+                company.setActive(true);
+            }
+            
+            // 保存公司信息
+            Company savedCompany = companyService.save(company);
+            
+            // 转换实体到DTO
+            CompanyDTO savedCompanyDTO = organizationMapper.companyToCompanyDTO(savedCompany);
+            return ResponseUtil.success("公司注册成功", savedCompanyDTO);
+        } catch (Exception e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR.value(), "公司注册失败: " + e.getMessage()));
         }
-        
-        // 保存公司信息
-        Company savedCompany = companyService.save(company);
-        
-        // 转换实体到DTO
-        CompanyDTO savedCompanyDTO = organizationMapper.companyToCompanyDTO(savedCompany);
-        return ResponseEntity.ok(savedCompanyDTO);
     }
     
     /**
@@ -99,11 +119,16 @@ public class OrganizationController {
      * @return 公司列表
      */
     @GetMapping("/company")
-    public ResponseEntity<List<CompanyDTO>> getAllCompanies() {
-        // 只有系统管理员才能查看所有公司
-        List<Company> companies = companyService.findAll();
-        List<CompanyDTO> companyDTOs = organizationMapper.companiesToCompanyDTOs(companies);
-        return ResponseEntity.ok(companyDTOs);
+    public ResponseEntity<ApiResponse<List<CompanyDTO>>> getAllCompanies() {
+        try {
+            // 只有系统管理员才能查看所有公司
+            List<Company> companies = companyService.findAll();
+            List<CompanyDTO> companyDTOs = organizationMapper.companiesToCompanyDTOs(companies);
+            return ResponseUtil.success("获取公司列表成功", companyDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR.value(), "获取公司列表失败: " + e.getMessage()));
+        }
     }
     
     /**
@@ -113,21 +138,23 @@ public class OrganizationController {
      * @return 导入结果
      */
     @PostMapping("/departments/import")
-    public ResponseEntity<String> importDepartments(@RequestParam("file") MultipartFile file, 
+    public ResponseEntity<ApiResponse<Object>> importDepartments(@RequestParam("file") MultipartFile file, 
                                                    @RequestParam("companyId") Long companyId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
         
         // 检查用户是否有权导入该公司的部门数据
         if (!currentUser.getCurrentLoginCompanyId().equals(companyId)) {
-            return ResponseEntity.status(403).body("无权限导入该公司的部门数据");
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(org.springframework.http.HttpStatus.FORBIDDEN.value(), "无权限导入该公司的部门数据"));
         }
         
         try {
             organizationService.importDepartments(file, companyId);
-            return ResponseEntity.ok("部门数据导入成功");
+            return ResponseUtil.success("部门数据导入成功");
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("导入失败: " + e.getMessage());
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR.value(), "导入失败: " + e.getMessage()));
         }
     }
     
@@ -148,22 +175,24 @@ public class OrganizationController {
      * @param companyId 公司ID
      * @return 导入结果
      */
-    @PostMapping("/employees/import")
-    public ResponseEntity<String> importEmployees(@RequestParam("file") MultipartFile file, 
+    @PostMapping("/users/import")
+    public ResponseEntity<ApiResponse<Object>> importEmployees(@RequestParam("file") MultipartFile file, 
                                                  @RequestParam("companyId") Long companyId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
         
         // 检查用户是否有权导入该公司的员工数据
         if (!currentUser.getCurrentLoginCompanyId().equals(companyId)) {
-            return ResponseEntity.status(403).body("无权限导入该公司的员工数据");
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(org.springframework.http.HttpStatus.FORBIDDEN.value(), "无权限导入该公司的员工数据"));
         }
         
         try {
             organizationService.importEmployees(file, companyId);
-            return ResponseEntity.ok("员工数据导入成功");
+            return ResponseUtil.success("员工数据导入成功");
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("导入失败: " + e.getMessage());
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR.value(), "导入失败: " + e.getMessage()));
         }
     }
     
@@ -171,10 +200,10 @@ public class OrganizationController {
      * 导出员工导入模板
      * @param response HTTP响应
      */
-    @GetMapping("/employees/template")
+    @GetMapping("/users/template")
     public void exportEmployeesTemplate(HttpServletResponse response) throws IOException {
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=employees_template.xlsx");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=users_template.xlsx");
         
         organizationService.generateEmployeesImportTemplate(response.getOutputStream());
     }

@@ -47,7 +47,6 @@ public class CompanyService {
      * @param schemaName schema名称
      * @return 公司对象
      */
-    @Cacheable(value = "companiesBySchemaName", key = "#schemaName")
     public Optional<Company> findBySchemaName(String schemaName) {
         return companyRepository.findBySchemaName(schemaName);
     }
@@ -60,7 +59,6 @@ public class CompanyService {
     @Transactional
     @CacheEvict(value = {"companies", "companiesByName", "companiesBySchemaName"}, allEntries = true)
     public Company save(Company company) {
-
         // 判断 当前公司是否存在
         Optional<Company> existingCompany = companyRepository.findBySchemaName(company.getSchemaName());
         if (existingCompany.isPresent()) {
@@ -69,8 +67,11 @@ public class CompanyService {
         // 保存公司信息
         Company savedCompany = companyRepository.save(company);
         
-        // 发布公司创建事件，触发schema创建
-        eventPublisher.publishEvent(new CompanyCreatedEvent(savedCompany));
+        // 对于public公司，不触发事件创建schema，因为它本身就是public schema
+        if (!"public".equals(company.getSchemaName())) {
+            // 发布公司创建事件，触发schema创建
+            eventPublisher.publishEvent(new CompanyCreatedEvent(savedCompany));
+        }
         
         return savedCompany;
     }

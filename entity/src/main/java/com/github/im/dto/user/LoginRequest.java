@@ -11,10 +11,10 @@ import java.io.Serializable;
 @AllArgsConstructor
 @NoArgsConstructor
 public class LoginRequest implements Serializable {
-    @NotBlank
+    @NotBlank(message = "登录账号不能为空")
     private String loginAccount ;
 
-    @NotBlank
+    @NotBlank(message = "密码不能为空")
     private String password;
 
     /**
@@ -28,5 +28,10 @@ public class LoginRequest implements Serializable {
      * 登录公司ID
      */
     private Long companyId;
+    /**
+     * 登录的公司的 Code
+     * 指代公司的  schema_name
+     */
+    private String companyCode = "public"; // 默认使用public公司
 
 }

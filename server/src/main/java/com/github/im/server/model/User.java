@@ -43,21 +43,13 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String passwordHash;
 
-    private String avatarUrl;
-
-    private String bio;
-
     /**
      * 长期 TOKEN
      */
     @Column(length = 1024)
     private String refreshToken;
 
-    /**
-     * 账户状态 false 是的话
-     */
-    @Column(nullable = false, columnDefinition = "boolean default true")
-    private boolean status = true;
+
 
     @Enumerated(EnumType.STRING)
     private Status userStatus;
@@ -83,10 +75,6 @@ public class User implements UserDetails {
     private Long currentLoginCompanyId;
 
 
-//    // 添加部门ID字段
-//    @Column(name = "department_id")
-//    private Long departmentId;
-
     private LocalDateTime createdAt ;
     private LocalDateTime updatedAt ;
 
@@ -100,7 +88,6 @@ public class User implements UserDetails {
         var now = LocalDateTime.now();
         this.updatedAt = now;
         this.userStatus = Status.ACTIVE;
-        this.status = true;
         this.createdAt = now;
     }
 

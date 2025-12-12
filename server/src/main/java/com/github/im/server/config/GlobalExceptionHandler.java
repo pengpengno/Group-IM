@@ -1,83 +1,114 @@
 package com.github.im.server.config;
 
-import lombok.extern.slf4j.Slf4j;
+import com.github.im.server.exception.BusinessException;
+import com.github.im.server.web.ApiResponse;
 import org.springframework.dao.DataAccessException;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.http.*;
+import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.io.FileNotFoundException;
-import java.util.HashMap;
-import java.util.Map;
+import java.net.URI;
+import java.time.Instant;
 
-@RestControllerAdvice
-@Slf4j
+@ControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
+    // 处理业务异常
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<Object> handleBusinessException(BusinessException ex, WebRequest request) {
+        return handleExceptionInternal(ex, ex.getMessage(), new HttpHeaders(), ex.getStatus(), request);
+    }
 
-
-    // 处理业务逻辑异常
+    // 处理非法参数异常
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgumentException(IllegalArgumentException ex) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("code", HttpStatus.BAD_REQUEST.value());
-        response.put("message", ex.getMessage());
-        response.put("timestamp", System.currentTimeMillis());
-        
-        log.warn("Business logic error: {}", ex.getMessage());
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    public ResponseEntity<Object> handleIllegalArgumentException(IllegalArgumentException ex, WebRequest request) {
+        return handleExceptionInternal(ex, "参数错误: " + ex.getMessage(), new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
     }
 
     // 处理数据库访问异常
     @ExceptionHandler(DataAccessException.class)
-    public ResponseEntity<Map<String, Object>> handleDataAccessException(DataAccessException ex) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("code", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        response.put("message", "数据库访问异常");
-        response.put("timestamp", System.currentTimeMillis());
-        
-        log.error("Database access error", ex);
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    public ResponseEntity<Object> handleDataAccessException(DataAccessException ex, WebRequest request) {
+        return handleExceptionInternal(ex, "数据库访问异常", new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
     }
 
     // 处理文件相关异常
     @ExceptionHandler(FileNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleFileNotFoundException(FileNotFoundException ex) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("code", HttpStatus.NOT_FOUND.value());
-        response.put("message", "文件未找到: " + ex.getMessage());
-        response.put("timestamp", System.currentTimeMillis());
-        
-        log.warn("File not found: {}", ex.getMessage());
-        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    public ResponseEntity<Object> handleFileNotFoundException(FileNotFoundException ex, WebRequest request) {
+        return handleExceptionInternal(ex, "文件未找到: " + ex.getMessage(), new HttpHeaders(), HttpStatus.NOT_FOUND, request);
     }
 
     // 处理认证异常
-    @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<Map<String, Object>> handleBadCredentialsException(BadCredentialsException ex) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("code", HttpStatus.UNAUTHORIZED.value());
-        response.put("message", "用户鉴权验证失败！");
-        response.put("timestamp", System.currentTimeMillis());
-        
-        log.warn("Authentication failed: {}", ex.getMessage());
-        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<Object> handleAuthenticationException(org.springframework.security.core.AuthenticationException ex, WebRequest request) {
+        return handleExceptionInternal(ex, "认证失败: " + ex.getMessage(), new HttpHeaders(), HttpStatus.UNAUTHORIZED, request);
     }
 
-    // 处理其他所有未被捕获的异常
+    // 处理通用异常
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("code", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        response.put("message", "服务内部错误");
-        response.put("timestamp", System.currentTimeMillis());
+    public ResponseEntity<Object> handleGeneralException(Exception ex, WebRequest request) {
+        return handleExceptionInternal(ex, "服务器内部错误: " + ex.getMessage(), new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleExceptionInternal(Exception ex, Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
+        // 如果body已经是ProblemDetail，则直接使用
+        if (body instanceof ProblemDetail) {
+            return ResponseEntity.status(statusCode).headers(headers).body(body);
+        }
+
+        // 创建ProblemDetail
+        ProblemDetail problemDetail = ProblemDetail.forStatus(statusCode);
+        problemDetail.setTitle(getTitleForStatus(statusCode));
+        problemDetail.setDetail(body != null ? body.toString() : "服务器内部错误");
         
-        log.error("Unexpected error occurred", ex);
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        // 添加instance属性
+        String requestDescription = request.getDescription(false);
+        if (requestDescription.startsWith("uri=")) {
+            problemDetail.setInstance(URI.create(requestDescription.substring(4)));
+        }
+        
+        // 添加时间戳和错误代码
+        problemDetail.setProperty("timestamp", Instant.now().toEpochMilli());
+        
+        if (ex instanceof BusinessException) {
+            problemDetail.setProperty("errorCode", ((BusinessException) ex).getErrorCode());
+        }
+
+        // 根据客户端期望的内容类型决定返回格式
+        String acceptHeader = request.getHeader("Accept");
+        if (acceptHeader != null && acceptHeader.contains("application/json") && !acceptHeader.contains("application/problem+json")) {
+            // 客户端期望JSON格式，返回ApiResponse
+            ApiResponse<Object> apiResponse = new ApiResponse<>(
+                statusCode.value(),
+                body != null ? body.toString() : "服务器内部错误"
+            );
+            apiResponse.setTimestamp(Instant.now().toEpochMilli());
+            return ResponseEntity.status(statusCode).headers(headers).body(apiResponse);
+        } else {
+            // 默认返回ProblemDetail
+            return ResponseEntity.status(statusCode).headers(headers).body(problemDetail);
+        }
+    }
+
+    /**
+     * 根据HTTP状态码获取标题
+     * @param status HTTP状态码
+     * @return 标题
+     */
+    private String getTitleForStatus(HttpStatusCode status) {
+        if (status.equals(HttpStatus.BAD_REQUEST)) {
+            return "Bad Request";
+        } else if (status.equals(HttpStatus.UNAUTHORIZED)) {
+            return "Unauthorized";
+        } else if (status.equals(HttpStatus.NOT_FOUND)) {
+            return "Not Found";
+        } else if (status.equals(HttpStatus.INTERNAL_SERVER_ERROR)) {
+            return "Internal Server Error";
+        } else {
+            return "Error";
+        }
     }
 }

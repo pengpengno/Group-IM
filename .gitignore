@@ -17,6 +17,8 @@ target/
 .idea/contentModel.xml
 logs/**
 data/**
+ldap_data/
+ldap_config/
 
 ### Eclipse ###
 .apt_generated

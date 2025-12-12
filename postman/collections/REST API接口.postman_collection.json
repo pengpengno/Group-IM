@@ -82,9 +82,24 @@
                 "exec": [
                   "const response = pm.response.json();\r",
                   "pm.environment.set(\"authtoken\", response.token);\r",
+                  "pm.environment.set(\"companyId\", response.currentLoginCompanyId);\r",
                   ""
                 ],
-                "type": "text/javascript"
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "id": "8a179fc2-ee2a-47a6-a1d8-377138d2ab82",
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
               }
             }
           ],
@@ -1228,7 +1243,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/organization/structure/{companyId}",
+              "raw": "{{base_url}}/api/organization/structure/{{companyId}}",
               "host": [
                 "{{base_url}}"
               ],
@@ -1236,7 +1251,7 @@
                 "api",
                 "organization",
                 "structure",
-                "{companyId}"
+                "{{companyId}}"
               ]
             },
             "description": "获取指定公司的组织架构"
@@ -1262,7 +1277,91 @@
             },
             "description": "获取当前用户所在公司的组织架构"
           },
-          "response": []
+          "response": [
+            {
+              "id": "b771a468-940c-4a52-8c53-4c495c2c7f3b",
+              "name": "success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/organization/structure",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "organization",
+                    "structure"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Vary",
+                  "value": "Origin"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Method"
+                },
+                {
+                  "key": "Vary",
+                  "value": "Access-Control-Request-Headers"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-XSS-Protection",
+                  "value": "0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, no-store, max-age=0, must-revalidate"
+                },
+                {
+                  "key": "Pragma",
+                  "value": "no-cache"
+                },
+                {
+                  "key": "Expires",
+                  "value": "0"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Fri, 12 Dec 2025 07:48:36 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "responseTime": "2025-12-12T07:49:42.438Z",
+              "body": "{\n    \"code\": 200,\n    \"message\": \"获取组织架构成功\",\n    \"data\": [\n        {\n            \"departmentId\": 1,\n            \"name\": \"人力资源部\",\n            \"description\": \"负责人力资源管理\",\n            \"companyId\": 1,\n            \"status\": true,\n            \"createdAt\": \"2025-12-12T15:10:10.237297\",\n            \"updatedAt\": \"2025-12-12T15:10:10.237297\",\n            \"children\": [\n                {\n                    \"departmentId\": 2,\n                    \"name\": \"招聘组\",\n                    \"description\": \"负责招聘工作\",\n                    \"companyId\": 1,\n                    \"parentId\": 1,\n                    \"status\": true,\n                    \"createdAt\": \"2025-12-12T15:10:10.262257\",\n                    \"updatedAt\": \"2025-12-12T15:10:10.262257\"\n                }\n            ]\n        },\n        {\n            \"departmentId\": 3,\n            \"name\": \"生产部门\",\n            \"companyId\": 1,\n            \"status\": true,\n            \"createdAt\": \"2025-12-12T15:10:10.26816\",\n            \"updatedAt\": \"2025-12-12T15:10:10.26816\",\n            \"children\": [\n                {\n                    \"departmentId\": 4,\n                    \"name\": \"研发部门\",\n                    \"companyId\": 1,\n                    \"parentId\": 3,\n                    \"status\": true,\n                    \"createdAt\": \"2025-12-12T15:10:10.272447\",\n                    \"updatedAt\": \"2025-12-12T15:10:10.272447\"\n                },\n                {\n                    \"departmentId\": 5,\n                    \"name\": \"产品部门\",\n                    \"companyId\": 1,\n                    \"parentId\": 3,\n                    \"status\": true,\n                    \"createdAt\": \"2025-12-12T15:10:10.276851\",\n                    \"updatedAt\": \"2025-12-12T15:10:10.276851\"\n                }\n            ]\n        }\n    ],\n    \"timestamp\": 1765525716293\n}"
+            }
+          ]
         },
         {
           "name": "获取所有公司列表",
@@ -1297,7 +1396,9 @@
                 {
                   "key": "file",
                   "type": "file",
-                  "src": "/path/to/departments.xlsx"
+                  "src": [
+                    "/D:/Users/王鹏/Downloads/users_template.xlsx"
+                  ]
                 },
                 {
                   "key": "companyId",
@@ -1356,7 +1457,9 @@
                 {
                   "key": "file",
                   "type": "file",
-                  "src": "/path/to/employees.xlsx"
+                  "src": [
+                    "/path/to/employees.xlsx"
+                  ]
                 },
                 {
                   "key": "companyId",
@@ -1366,15 +1469,22 @@
               ]
             },
             "url": {
-              "raw": "{{base_url}}/api/organization/employees/import",
+              "raw": "{{base_url}}/api/organization/users/import?companyId=1",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "organization",
-                "employees",
+                "users",
                 "import"
+              ],
+              "query": [
+                {
+                  "key": "companyId",
+                  "value": "1",
+                  "type": "text"
+                }
               ]
             },
             "description": "导入员工数据"
@@ -1388,14 +1498,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/organization/employees/template",
+              "raw": "{{base_url}}/api/organization/users/template",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "organization",
-                "employees",
+                "users",
                 "template"
               ]
             },

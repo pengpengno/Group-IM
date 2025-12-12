@@ -31,6 +31,7 @@ public class AuthenticationService  {
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
 
+    private final CompanyService companyService;
 
     public Optional<UserInfo> login(LoginRequest loginRequest){
 
@@ -65,6 +66,10 @@ public class AuthenticationService  {
         // 设置登录公司
         if (loginRequest.getCompanyId() != null) {
             user.setCurrentLoginCompanyId(loginRequest.getCompanyId());
+        } else if (loginRequest.getCompanyCode() != null && !loginRequest.getCompanyCode().isEmpty() && !"public".equals(loginRequest.getCompanyCode())) {
+            // 如果指定了公司code且不是默认的public，则查找对应的公司
+            companyService.findBySchemaName(loginRequest.getCompanyCode())
+                    .ifPresent(company -> user.setCurrentLoginCompanyId(company.getCompanyId()));
         } else if (user.getPrimaryCompanyId() != null) {
             // 如果没有指定公司，则使用主公司
             user.setCurrentLoginCompanyId(user.getPrimaryCompanyId());
