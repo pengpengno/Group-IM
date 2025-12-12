@@ -1,11 +1,21 @@
 package com.github.im.server.controller;
 
+import com.github.im.dto.organization.DepartmentDTO;
+import com.github.im.dto.user.UserInfo;
+import com.github.im.server.model.User;
+import com.github.im.server.service.CompanyService;
+import com.github.im.server.service.OrganizationService;
 import com.github.im.server.service.UserService;
-import com.github.im.server.utils.JwtUtil;
+import com.github.im.server.web.ApiResponse;
+import com.github.im.server.web.ResponseUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -13,47 +23,51 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class CompanyController {
     
-    @Autowired
+    private final CompanyService companyService;
+    private final OrganizationService organizationService;
     private final UserService userService;
     
-    @Autowired
-    private final JwtUtil jwtUtil;
+    /**
+     * 获取当前用户所在公司的组织架构信息，包含部门及用户
+     * 没有部门的员工将放在根节点
+     * @return 组织架构信息
+     */
+    @GetMapping("/departmentInfo")
+    public ResponseEntity<ApiResponse<DepartmentDTO>> getCurrentCompanyOrganization() {
+        try {
 
 
 
-//    /**
-//     * 切换当前登录公司
-//     * @param switchCompanyRequest 包含目标公司ID的请求
-//     * @return 更新后的用户信息和新的JWT令牌
-//     */
-//    @PostMapping("/switch")
-//    public ResponseEntity<UserInfo> switchCompany(@RequestBody SwitchCompanyRequest switchCompanyRequest) {
-//        // 获取当前认证的用户
-//        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-//        User currentUser = (User) authentication.getPrincipal();
-//
-//        // 检查用户是否有权限访问该公司
-//        if (currentUser.getCompanyIds() == null ||
-//            !currentUser.getCompanyIds().contains(switchCompanyRequest.getCompanyId())) {
-//            return ResponseEntity.status(403).build(); // 无权限访问该公司
-//        }
-//
-//        // 更新用户当前登录公司
-//        currentUser.setCurrentLoginCompanyId(switchCompanyRequest.getCompanyId());
-//
-//        // 生成新的JWT令牌
-//        String newToken = jwtUtil.createToken(currentUser);
-//
-//        // 构造返回的用户信息
-//        UserInfo userInfo = new UserInfo();
-//        userInfo.setUserId(currentUser.getUserId());
-//        userInfo.setUsername(currentUser.getUsername());
-//        userInfo.setEmail(currentUser.getEmail());
-//        userInfo.setToken(newToken);
-//        userInfo.setCurrentLoginCompanyId(currentUser.getCurrentLoginCompanyId());
-//
-//        return ResponseEntity.ok(userInfo);
-//    }
+            // 从SecurityContext获取当前认证用户
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return ResponseEntity.status(401)
+                    .body(ApiResponse.error(401, "用户未认证"));
+            }
+            
+            // 获取当前用户信息
+            Object principal = authentication.getPrincipal();
+            if (!(principal instanceof User)) {
+                return ResponseEntity.status(400)
+                    .body(ApiResponse.error(400, "用户信息无效"));
+            }
+            
+            User currentUser = (User) principal;
+            Long companyId = currentUser.getCurrentLoginCompanyId();
+            
+            if (companyId == null) {
+                return ResponseEntity.status(400)
+                    .body(ApiResponse.error(400, "用户未选择公司"));
+            }
 
+            // 获取公司组织架构
+            var  departmentDTO = companyService.getCompanyDepartmentDto(companyId);
 
+            return ResponseUtil.success("获取公司组织架构成功", departmentDTO);
+        } catch (Exception e) {
+            log.error("获取公司组织架构失败", e);
+            return ResponseEntity.status(500)
+                .body(ApiResponse.error(500, "获取公司组织架构失败: " + e.getMessage()));
+        }
+    }
 }

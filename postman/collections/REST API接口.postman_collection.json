@@ -1515,6 +1515,59 @@
         }
       ],
       "id": "organization-controller"
+    },
+    {
+      "name": "Company",
+      "item": [
+        {
+          "name": "获取所有公司",
+          "id": "093355d8-16a6-4369-a926-ed9ce780cd4d",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/companies",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "companies"
+              ]
+            },
+            "description": "获取所有公司列表"
+          },
+          "response": []
+        },
+        {
+          "name": "根据ID获取公司",
+          "id": "eb0d06da-c662-474a-863f-68dbbca839e3",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/companies/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "companies",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "根据ID获取公司信息"
+          },
+          "response": []
+        }
+      ],
+      "id": "company-controller"
     }
   ],
   "auth": {

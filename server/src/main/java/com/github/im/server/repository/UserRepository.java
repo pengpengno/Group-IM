@@ -40,7 +40,14 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     List<User> findByUsernameInOrEmailIn(List<String> usernames, List<String> emails);
     
 
-    
     // 根据主公司ID查找用户
     List<User> findByPrimaryCompanyId(Long primaryCompanyId);
+    
+    /**
+     * 根据公司ID查找用户，并立即加载其部门信息
+     * @param companyId 公司ID
+     * @return 用户列表
+     */
+    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.departments d WHERE u.primaryCompanyId = ?1")
+    List<User> findByPrimaryCompanyIdWithDepartments(Long companyId);
 }

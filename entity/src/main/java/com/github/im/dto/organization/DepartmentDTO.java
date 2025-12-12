@@ -15,7 +15,7 @@ import java.util.List;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class DepartmentDTO implements Serializable {
-    private Long departmentId;
+    private Long departmentId;  // 根节点  是  公司 设为 空即可
     private String name;
     private String description;
     private Long companyId;

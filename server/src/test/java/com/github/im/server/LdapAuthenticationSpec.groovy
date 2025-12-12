@@ -1,16 +1,10 @@
 package com.github.im.server
 
-import com.github.im.server.config.LdapSecurityConfig
+import com.github.im.server.config.security.LdapSecurityConfig
 import com.github.im.server.model.User
 import com.github.im.server.repository.UserRepository
 import com.github.im.server.service.impl.security.LdapUserDetailsMapper
 import org.springframework.ldap.core.DirContextOperations
-import org.springframework.security.authentication.AuthenticationProvider
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
-import org.springframework.security.core.Authentication
-import org.springframework.security.core.GrantedAuthority
-import org.springframework.security.core.authority.SimpleGrantedAuthority
-import org.springframework.security.ldap.authentication.LdapAuthenticationProvider
 import spock.lang.Specification
 
 class LdapAuthenticationSpec extends Specification {

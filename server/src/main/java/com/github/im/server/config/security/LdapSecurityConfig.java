@@ -1,4 +1,4 @@
-package com.github.im.server.config;
+package com.github.im.server.config.security;
 
 import com.github.im.server.service.impl.security.LdapUserDetailsMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -18,10 +18,7 @@ import org.springframework.security.ldap.DefaultSpringSecurityContextSource;
 import org.springframework.security.ldap.authentication.BindAuthenticator;
 import org.springframework.security.ldap.authentication.LdapAuthenticationProvider;
 import org.springframework.security.ldap.search.FilterBasedLdapUserSearch;
-import org.springframework.security.ldap.userdetails.DefaultLdapAuthoritiesPopulator;
-import org.springframework.security.ldap.userdetails.PersonContextMapper;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**

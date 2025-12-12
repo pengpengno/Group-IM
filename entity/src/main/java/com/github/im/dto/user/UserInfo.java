@@ -25,6 +25,9 @@ public class UserInfo implements Serializable {
 
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String phoneNumber;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private String refreshToken;
 
     /**

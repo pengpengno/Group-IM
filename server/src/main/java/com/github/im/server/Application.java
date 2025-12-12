@@ -1,6 +1,7 @@
 package com.github.im.server;
 
 import com.github.im.common.connect.connection.server.tcp.ReactorTcpServer;
+import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
@@ -10,6 +11,7 @@ import org.springframework.boot.web.context.WebServerInitializedEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.data.web.config.EnableSpringDataWebSupport;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
@@ -27,6 +29,7 @@ public class Application {
         SpringApplication.run(Application.class);
 
     }
+
 
 
     @Component

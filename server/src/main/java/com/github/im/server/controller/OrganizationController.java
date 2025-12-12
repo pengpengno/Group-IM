@@ -2,9 +2,8 @@ package com.github.im.server.controller;
 
 import com.github.im.dto.organization.CompanyDTO;
 import com.github.im.dto.organization.DepartmentDTO;
-import com.github.im.server.mapstruct.OrganizationMapper;
+import com.github.im.server.mapstruct.CompanyMapper;
 import com.github.im.server.model.Company;
-import com.github.im.server.model.Department;
 import com.github.im.server.model.User;
 import com.github.im.server.service.OrganizationService;
 import com.github.im.server.service.CompanyService;
@@ -35,7 +34,7 @@ public class OrganizationController {
     private CompanyService companyService;
     
     @Autowired
-    private OrganizationMapper organizationMapper;
+    private CompanyMapper companyMapper;
 
     /**
      * 获取组织架构
@@ -97,7 +96,7 @@ public class OrganizationController {
         
         try {
             // 转换DTO到实体
-            Company company = organizationMapper.companyDTOToCompany(companyDTO);
+            Company company = companyMapper.companyDTOToCompany(companyDTO);
             if (company.getActive() == null) {
                 company.setActive(true);
             }
@@ -106,7 +105,7 @@ public class OrganizationController {
             Company savedCompany = companyService.save(company);
             
             // 转换实体到DTO
-            CompanyDTO savedCompanyDTO = organizationMapper.companyToCompanyDTO(savedCompany);
+            CompanyDTO savedCompanyDTO = companyMapper.companyToCompanyDTO(savedCompany);
             return ResponseUtil.success("公司注册成功", savedCompanyDTO);
         } catch (Exception e) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
@@ -123,7 +122,7 @@ public class OrganizationController {
         try {
             // 只有系统管理员才能查看所有公司
             List<Company> companies = companyService.findAll();
-            List<CompanyDTO> companyDTOs = organizationMapper.companiesToCompanyDTOs(companies);
+            List<CompanyDTO> companyDTOs = companyMapper.companiesToCompanyDTOs(companies);
             return ResponseUtil.success("获取公司列表成功", companyDTOs);
         } catch (Exception e) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)

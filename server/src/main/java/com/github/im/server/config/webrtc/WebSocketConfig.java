@@ -1,4 +1,4 @@
-package com.github.im.server.config;
+package com.github.im.server.config.webrtc;
 
 import com.github.im.server.handler.SignalWebSocketHandler;
 import org.springframework.context.annotation.Configuration;

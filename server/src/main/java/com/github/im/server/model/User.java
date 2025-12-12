@@ -73,6 +73,17 @@ public class User implements UserDetails {
      */
     @Transient
     private Long currentLoginCompanyId;
+    
+    /**
+     * 用户所属的部门列表
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "user_departments",
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "department_id")
+    )
+    private List<Department> departments = new ArrayList<>();
 
 
     private LocalDateTime createdAt ;
@@ -117,7 +128,6 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() {
         return Status.ACTIVE.equals(getUserStatus()) ;
-//        return true;
     }
 
 

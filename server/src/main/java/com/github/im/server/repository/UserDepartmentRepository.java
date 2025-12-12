@@ -25,4 +25,12 @@ public interface UserDepartmentRepository extends JpaRepository<UserDepartment, 
     
     @Query("SELECT ud.userId FROM UserDepartment ud WHERE ud.departmentId = :departmentId")
     List<Long> findUserIdsByDepartmentId(@Param("departmentId") Long departmentId);
+    
+    /**
+     * 根据公司ID获取该公司的所有用户及其部门信息
+     * @param companyId 公司ID
+     * @return 用户ID列表
+     */
+    @Query("SELECT DISTINCT ud.userId FROM UserDepartment ud JOIN Department d ON ud.departmentId = d.departmentId WHERE d.companyId = :companyId")
+    List<Long> findUserIdsByCompanyId(@Param("companyId") Long companyId);
 }

@@ -1,4 +1,4 @@
-package com.github.im.server.config;
+package com.github.im.server.config.mult;
 
 import com.github.im.server.model.User;
 import com.github.im.server.service.CompanyService;
@@ -26,17 +26,20 @@ public class CurrentTenantIdentifierResolverImpl implements CurrentTenantIdentif
      */
     @Override
     public String resolveCurrentTenantIdentifier() {
-        // 从安全上下文中获取当前认证信息
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        log.debug("当前用户: {}", authentication);
-        
-        if (authentication != null && authentication.getPrincipal() instanceof User user) {
-
-            // 根据用户所属公司返回对应的schema名称
-            if (user.getCurrentLoginCompanyId() != null) {
-                // 根据公司ID查询对应的schema名称
-                return companyService.getSchemaNameByCompanyId(user.getCurrentLoginCompanyId());
+        try {
+            // 从安全上下文中获取当前认证信息
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            log.debug("当前用户: {}", authentication);
+            
+            if (authentication != null && authentication.getPrincipal() instanceof User user) {
+                // 根据用户所属公司返回对应的schema名称
+                if (user.getCurrentLoginCompanyId() != null) {
+                    // 根据公司ID查询对应的schema名称
+                    return companyService.getSchemaNameByCompanyId(user.getCurrentLoginCompanyId());
+                }
             }
+        } catch (Exception e) {
+            log.error("解析租户标识时发生错误", e);
         }
         
         // 默认使用public schema
@@ -51,6 +54,4 @@ public class CurrentTenantIdentifierResolverImpl implements CurrentTenantIdentif
     public boolean validateExistingCurrentSessions() {
         return true;
     }
-    
-
 }

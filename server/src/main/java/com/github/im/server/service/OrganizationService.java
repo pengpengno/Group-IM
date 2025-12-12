@@ -1,7 +1,7 @@
 package com.github.im.server.service;
 
 import com.github.im.dto.organization.DepartmentDTO;
-import com.github.im.server.mapstruct.OrganizationMapper;
+import com.github.im.server.mapstruct.DepartmentMapper;
 import com.github.im.server.model.Department;
 import com.github.im.server.model.User;
 import com.github.im.server.model.UserDepartment;
@@ -9,12 +9,10 @@ import com.github.im.server.repository.CompanyRepository;
 import com.github.im.server.repository.DepartmentRepository;
 import com.github.im.server.repository.UserDepartmentRepository;
 import com.github.im.server.repository.UserRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,8 +32,8 @@ public class OrganizationService {
     private final DepartmentRepository departmentRepository;
     private final UserRepository userRepository;
     private final UserDepartmentRepository userDepartmentRepository;
-    private final OrganizationMapper organizationMapper;
-    
+    private final DepartmentMapper departmentMapper;
+
     /**
      * 获取组织架构树
      * @param companyId 公司ID
@@ -73,7 +71,7 @@ public class OrganizationService {
         return rootDepartments;
     }
     public List<DepartmentDTO> getDepartmentDTOs(User user) {
-        return organizationMapper.departmentsToDepartmentDTOs(getOrganizationStructure(user.getCurrentLoginCompanyId()));
+        return departmentMapper.departmentsToDepartmentDTOs(getOrganizationStructure(user.getCurrentLoginCompanyId()));
     }
     /**
      * 获取用户的组织架构（仅包含该用户所在公司）

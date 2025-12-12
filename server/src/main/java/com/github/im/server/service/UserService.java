@@ -5,6 +5,7 @@ import com.github.im.dto.user.LoginRequest;
 import com.github.im.dto.user.RegistrationRequest;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.server.config.ForcePasswordChangeConfig;
+import com.github.im.server.config.mult.CurrentTenantIdentifierResolverImpl;
 import com.github.im.server.mapstruct.UserMapper;
 import com.github.im.server.model.User;
 import com.github.im.server.repository.UserRepository;
@@ -15,16 +16,12 @@ import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.dao.DataAccessException;
-import org.springframework.data.domain.Example;
-import org.springframework.data.domain.ExampleMatcher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,6 +43,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationService authenticationService;
     private final ForcePasswordChangeConfig forcePasswordChangeConfig;
+    private final UserMapper userMapper;
 
     /**
      * 用户注册逻辑
@@ -355,10 +353,32 @@ public class UserService {
                 return "";
         }
     }
-    
+
+    /**
+     * 查询 所有用户
+     * {@link CurrentTenantIdentifierResolverImpl}
+     * @return 所有用户
+     */
+    public List<UserInfo> getAllUsers() {
+        return userMapper.usersToUserInfos(userRepository.findAll());
+    }
 
     // 根据主公司ID查找用户
-    public List<User> findByPrimaryCompanyId(Long primaryCompanyId) {
-        return userRepository.findByPrimaryCompanyId(primaryCompanyId);
+    public List<User> getUsersByCompanyId(Long companyId) {
+        return userRepository.findByPrimaryCompanyId(companyId);
+    }
+    
+    // 根据用户ID获取用户
+    public User getUserById(Long userId) {
+        return userRepository.findById(userId).orElse(null);
+    }
+    
+    // 检查用户是否属于指定公司
+    public boolean isUserInCompany(Long userId, Long companyId) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return false;
+        }
+        return companyId.equals(user.getPrimaryCompanyId());
     }
 }
