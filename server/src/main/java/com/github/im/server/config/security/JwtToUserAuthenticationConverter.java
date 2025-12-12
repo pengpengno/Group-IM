@@ -1,4 +1,4 @@
-package com.github.im.server.config;
+package com.github.im.server.config.security;
 
 import com.github.im.server.model.User;
 import com.github.im.server.repository.UserRepository;
@@ -30,6 +30,11 @@ public  class JwtToUserAuthenticationConverter implements Converter<Jwt, Abstrac
 
         // 将 JWT 中的 claim 映射为你的 User 实体
         return userOptional.map(user-> {
+            // 从JWT中提取公司ID并设置到用户对象
+            Long companyId = jwt.getClaim("companyId");
+            if (companyId != null) {
+                user.setCurrentLoginCompanyId(companyId);
+            }
             return new UsernamePasswordAuthenticationToken(user,user.getPasswordHash(), user.getAuthorities());
         }).orElseThrow(()-> new BadCredentialsException("Invalid refresh token"));
     }

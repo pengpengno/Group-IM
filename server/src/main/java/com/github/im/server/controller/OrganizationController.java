@@ -44,7 +44,7 @@ public class OrganizationController {
         User currentUser = (User) authentication.getPrincipal();
         
         // 检查用户是否有权访问该公司的组织架构
-        if (!currentUser.getCompanyId().equals(companyId)) {
+        if (!currentUser.getCurrentLoginCompanyId().equals(companyId)) {
             return ResponseEntity.status(403).build();
         }
         
@@ -119,7 +119,7 @@ public class OrganizationController {
         User currentUser = (User) authentication.getPrincipal();
         
         // 检查用户是否有权导入该公司的部门数据
-        if (!currentUser.getCompanyId().equals(companyId)) {
+        if (!currentUser.getCurrentLoginCompanyId().equals(companyId)) {
             return ResponseEntity.status(403).body("无权限导入该公司的部门数据");
         }
         
@@ -155,7 +155,7 @@ public class OrganizationController {
         User currentUser = (User) authentication.getPrincipal();
         
         // 检查用户是否有权导入该公司的员工数据
-        if (!currentUser.getCompanyId().equals(companyId)) {
+        if (!currentUser.getCurrentLoginCompanyId().equals(companyId)) {
             return ResponseEntity.status(403).body("无权限导入该公司的员工数据");
         }
         

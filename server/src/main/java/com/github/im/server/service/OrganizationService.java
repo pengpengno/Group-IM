@@ -73,7 +73,7 @@ public class OrganizationService {
      */
     private void loadMembersForDepartments(List<Department> departments, Long companyId) {
         // 获取公司所有用户
-        List<User> companyUsers = userRepository.findByCompanyId(companyId);
+        List<User> companyUsers = userRepository.findByPrimaryCompanyId(companyId);
 
         // 按部门分组用户
         Map<Long, List<User>> usersByDepartment = companyUsers.stream()
@@ -93,11 +93,11 @@ public class OrganizationService {
      * @return 组织架构树
      */
     public List<Department> getUserOrganizationStructure(User user) {
-        if (user.getCompanyId() == null) {
+        if (user.getCurrentLoginCompanyId() == null) {
             return new ArrayList<>();
         }
         
-        return getOrganizationStructure(user.getCompanyId());
+        return getOrganizationStructure(user.getCurrentLoginCompanyId());
     }
     
     /**

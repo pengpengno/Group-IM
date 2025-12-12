@@ -28,7 +28,7 @@ public class CompanyOwnershipSecurityExpressionRoot extends SecurityExpressionRo
         
         if (getPrincipal() instanceof User) {
             User user = (User) getPrincipal();
-            return user.getCompanyId() != null && user.getCompanyId().equals(companyId);
+            return user.getCurrentLoginCompanyId() != null && user.getCurrentLoginCompanyId().equals(companyId);
         }
         
         return false;

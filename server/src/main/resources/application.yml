@@ -3,8 +3,7 @@ spring:
     redis:
         host: ${REDIS_HOST:localhost}
         port: ${REDIS_PORT:6379}
-#        password: ${REDIS_PASSWORD:null}
-#        timeout: 10000
+
   ldap:
     # LDAP服务器URL，可以是多个，用逗号分隔
     urls: ldap://localhost:389
@@ -94,13 +93,13 @@ server:
 tcp:
   port: 8088
 
-app:
-  security:
-    force-password-change-enabled: true  # 初次登录强制修改密码
-    default-password: "12345"   # 用户新增时候的默认密码
-  sequence-sync:
-    enabled: true
-    autoScan: true
+#app:
+#  security:
+#    force-password-change-enabled: true  # 初次登录强制修改密码
+#    default-password: "12345"   # 用户新增时候的默认密码
+#  sequence-sync:
+#    enabled: true
+#    autoScan: true
 #    tables:
 #      - table-name: users
 #      - table-name: users

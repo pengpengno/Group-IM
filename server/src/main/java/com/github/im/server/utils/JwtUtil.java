@@ -34,6 +34,9 @@ public class JwtUtil {
     private static final long REFRESH_TOKEN_EXPIRY = 2592000L; // 30 days
 
 
+    private static String NAME_FIELD = "name";
+    private static String COMPANYID_FIELD = "companyId";
+
     public String createToken(User user) {
         Instant now = Instant.now();
 
@@ -43,18 +46,20 @@ public class JwtUtil {
                 .issuedAt(now)
                 .expiresAt(now.plus(ACCESS_TOKEN_EXPIRY, ChronoUnit.SECONDS)) // 设置为1小时过期
                 .subject(user.getUsername())
-                .claim("name", user.getUsername())
+                .claim(NAME_FIELD, user.getUsername())
+                // 当前登录公司 Id
+                .claim(COMPANYID_FIELD, user.getCurrentLoginCompanyId())
                 .build();
 
         var encode = encoder.encode(JwtEncoderParameters.from(claims));
-        var tokenValue = encode
+        return encode
                 .getTokenValue();
-        return tokenValue;
     }
 
 
     /**
      * 生成长期的 RefreshToken
+     * RefreshToken中也包含当前登录公司ID，以便在刷新token时保持公司上下文
      */
     public String createRefreshToken(User user) {
         Instant now = Instant.now();
@@ -65,7 +70,9 @@ public class JwtUtil {
                 .issuedAt(now)
                 .expiresAt(now.plus(REFRESH_TOKEN_EXPIRY, ChronoUnit.SECONDS)) // 设置为30天过期
                 .subject(user.getUsername())
-                .claim("name", user.getUsername())
+                .claim(NAME_FIELD, user.getUsername())
+                // 当前登录公司 Id
+                .claim(COMPANYID_FIELD, user.getCurrentLoginCompanyId())
                 .build();
 
         return encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
@@ -112,8 +119,16 @@ public class JwtUtil {
 
         return Long.parseLong(userId);
     }
-
-
-
-
+    
+    /**
+     * 从JWT中解析公司ID
+     * @param authToken JWT令牌
+     * @return 公司ID，如果不存在则返回null
+     */
+    public Long parseCompanyIdFromToken(String authToken) {
+        Assert.notNull(authToken, "Auth token must not be null.");
+        var jwt = jwtDecoder.decode(authToken);
+        var companyId = jwt.getClaimAsString("companyId");
+        return companyId != null ? Long.parseLong(companyId) : null;
+    }
 }

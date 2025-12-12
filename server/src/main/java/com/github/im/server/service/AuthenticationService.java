@@ -61,6 +61,18 @@ public class AuthenticationService  {
                 .setAuthentication(authResult);
 
         User user = (User) authResult.getPrincipal();
+        
+        // 设置登录公司
+        if (loginRequest.getCompanyId() != null) {
+            user.setCurrentLoginCompanyId(loginRequest.getCompanyId());
+        } else if (user.getPrimaryCompanyId() != null) {
+            // 如果没有指定公司，则使用主公司
+            user.setCurrentLoginCompanyId(user.getPrimaryCompanyId());
+        } else if (user.getCompanyIds() != null && !user.getCompanyIds().isEmpty()) {
+            // 如果没有主公司，则使用第一个公司
+            user.setCurrentLoginCompanyId(user.getCompanyIds().get(0));
+        }
+
         // 生成Token
         val token = jwtUtil.createToken(user);
         val refreshToken = jwtUtil.createRefreshToken(user);
@@ -77,8 +89,8 @@ public class AuthenticationService  {
 
     /**
      * 根据长期 Token 登录
-     * @param refreshToken
-     * @return
+     * @param refreshToken 长期有效的刷新令牌
+     * @return 用户信息及新的访问令牌
      */
     public Optional<UserInfo> loginViaRefreshToken(String refreshToken) {
         var authToken = new RefreshAuthenticationToken(refreshToken);
@@ -93,7 +105,4 @@ public class AuthenticationService  {
         userInfo.setRefreshToken(user.getRefreshToken());
         return Optional.of(userInfo);
     }
-
-
-
 }

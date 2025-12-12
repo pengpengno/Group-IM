@@ -33,9 +33,9 @@ public class CurrentTenantIdentifierResolverImpl implements CurrentTenantIdentif
         if (authentication != null && authentication.getPrincipal() instanceof User user) {
 
             // 根据用户所属公司返回对应的schema名称
-            if (user.getCompanyId() != null) {
+            if (user.getCurrentLoginCompanyId() != null) {
                 // 根据公司ID查询对应的schema名称
-                return companyService.getSchemaNameByCompanyId(user.getCompanyId());
+                return companyService.getSchemaNameByCompanyId(user.getCurrentLoginCompanyId());
             }
         }
         

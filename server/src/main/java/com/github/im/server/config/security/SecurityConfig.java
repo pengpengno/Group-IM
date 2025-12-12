@@ -1,10 +1,8 @@
-package com.github.im.server.config;
+package com.github.im.server.config.security;
 
-import com.github.im.server.model.User;
 import com.github.im.server.security.CompanyAccessDeniedHandler;
 import com.github.im.server.security.CompanyOwnershipSecurityExpressionHandler;
 import com.github.im.server.service.AuthenticationService;
-import com.github.im.server.service.impl.security.LdapUserDetailsMapper;
 import com.github.im.server.service.impl.security.RefreshAuthenticationProvider;
 import com.github.im.server.service.impl.security.UserDetailsServiceImpl;
 import com.nimbusds.jose.jwk.JWK;

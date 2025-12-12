@@ -15,16 +15,22 @@ public class UserInfo implements Serializable {
 
     private String username;
 
-    @JsonInclude(JsonInclude.Include.NON_NULL) // 不为null时才序列化
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private String avatar;
 
-    private String email;
+    private String email;  // 邮箱
 
-    @JsonInclude(JsonInclude.Include.NON_NULL) //不为null时才序列化
-    private String token ;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String token ;  // token
 
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String refreshToken;
+
+    /**
+     * 当前 登录的公司 Id
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Long currentLoginCompanyId;
 
 }

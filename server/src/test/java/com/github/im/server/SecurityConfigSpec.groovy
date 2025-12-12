@@ -1,9 +1,8 @@
 package com.github.im.server
 
-import com.github.im.server.config.SecurityConfig
+import com.github.im.server.config.security.SecurityConfig
 import com.github.im.server.service.impl.security.RefreshAuthenticationProvider
 import com.github.im.server.service.impl.security.UserDetailsServiceImpl
-import org.springframework.security.authentication.AuthenticationProvider
 import org.springframework.security.authentication.ProviderManager
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder
 import org.springframework.security.config.annotation.web.builders.HttpSecurity

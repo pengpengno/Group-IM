@@ -1198,7 +1198,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"name\":\"金街222fsdff\",\r\n    \"code\":\"ti\"\r\n}",
+              "raw": "{\r\n    \"name\":\"金街222fsdff\",\r\n    \"code\":\"tsi\"\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1419,22 +1419,22 @@
   },
   "variable": [
     {
-      "id": "b8dcf9f6-e21e-40e4-b740-45211edd7080",
+      "id": "e81fd7ba-07a5-40a1-880b-57336fce7595",
       "key": "id",
       "value": "1"
     },
     {
-      "id": "37a6675e-7af0-45a4-aa41-64dc983eb865",
+      "id": "61b15d90-9ad4-4e6e-b898-2093d47523ad",
       "key": "base_url",
       "value": "localhost:8080"
     },
     {
-      "id": "67923ba8-17af-47c7-bd57-d82ed0ee63e0",
+      "id": "86a9b4fd-4bed-406c-a05d-ccf33074afd4",
       "key": "rest-host",
       "value": "localhost:8080"
     },
     {
-      "id": "18e2f6fc-5d5a-4375-a6ff-5def7d2fd9e8",
+      "id": "adbcee20-ced9-4885-941d-565a22a43c33",
       "key": "companyId",
       "value": ""
     }

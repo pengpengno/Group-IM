@@ -4,6 +4,8 @@ import com.github.im.server.event.CompanyCreatedEvent;
 import com.github.im.server.model.Company;
 import com.github.im.server.repository.CompanyRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,7 @@ public class CompanyService {
      * @param companyId 公司ID
      * @return 公司对象
      */
+    @Cacheable(value = "companies", key = "#companyId")
     public Optional<Company> findById(Long companyId) {
         return companyRepository.findById(companyId);
     }
@@ -34,6 +37,7 @@ public class CompanyService {
      * @param name 公司名称
      * @return 公司对象
      */
+    @Cacheable(value = "companiesByName", key = "#name")
     public Optional<Company> findByName(String name) {
         return companyRepository.findByName(name);
     }
@@ -43,6 +47,7 @@ public class CompanyService {
      * @param schemaName schema名称
      * @return 公司对象
      */
+    @Cacheable(value = "companiesBySchemaName", key = "#schemaName")
     public Optional<Company> findBySchemaName(String schemaName) {
         return companyRepository.findBySchemaName(schemaName);
     }
@@ -53,7 +58,14 @@ public class CompanyService {
      * @return 保存后的公司对象
      */
     @Transactional
+    @CacheEvict(value = {"companies", "companiesByName", "companiesBySchemaName"}, allEntries = true)
     public Company save(Company company) {
+
+        // 判断 当前公司是否存在
+        Optional<Company> existingCompany = companyRepository.findBySchemaName(company.getSchemaName());
+        if (existingCompany.isPresent()) {
+            throw new RuntimeException("Company already exists");
+        }
         // 保存公司信息
         Company savedCompany = companyRepository.save(company);
         
@@ -62,21 +74,14 @@ public class CompanyService {
         
         return savedCompany;
     }
-    
-    /**
-     * 手动调用数据库函数创建schema（如果需要手动控制）
-     * @param schemaName schema名称
-     */
-    public void createSchemaUsingFunction(String schemaName) {
-        // 这个方法可以用于手动创建schema
-        // 在实际使用中，通常不需要手动调用
-    }
+
     
     /**
      * 根据公司ID查找对应的schema名称
      * @param companyId 公司ID
      * @return schema名称
      */
+    @Cacheable(value = "companySchemas", key = "#companyId")
     public String getSchemaNameByCompanyId(Long companyId) {
         return companyRepository.findById(companyId)
                 .map(Company::getSchemaName)

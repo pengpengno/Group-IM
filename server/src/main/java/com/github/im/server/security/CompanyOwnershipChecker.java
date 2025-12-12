@@ -21,10 +21,10 @@ public class CompanyOwnershipChecker {
      * @return 如果用户属于该公司则返回true，否则返回false
      */
     public boolean userBelongsToCompany(Long companyId, User user) {
-        if (user.getCompanyId() == null) {
+        if (user.getCurrentLoginCompanyId() == null) {
             return false;
         }
-        return user.getCompanyId().equals(companyId);
+        return user.getCurrentLoginCompanyId().equals(companyId);
     }
 
     /**
@@ -38,7 +38,7 @@ public class CompanyOwnershipChecker {
         Optional<User> userOptional = userRepository.findById(userId);
         if (userOptional.isPresent()) {
             User user = userOptional.get();
-            return user.getCompanyId() != null && user.getCompanyId().equals(companyId);
+            return user.getCurrentLoginCompanyId() != null && user.getCurrentLoginCompanyId().equals(companyId);
         }
         return false;
     }
@@ -57,7 +57,7 @@ public class CompanyOwnershipChecker {
         if (user1Opt.isPresent() && user2Opt.isPresent()) {
             User user1 = user1Opt.get();
             User user2 = user2Opt.get();
-            return user1.getCompanyId() != null && user1.getCompanyId().equals(user2.getCompanyId());
+            return user1.getCurrentLoginCompanyId() != null && user1.getCurrentLoginCompanyId().equals(user2.getCurrentLoginCompanyId());
         }
         return false;
     }

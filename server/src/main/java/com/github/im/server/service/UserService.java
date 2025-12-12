@@ -357,4 +357,10 @@ public class UserService {
                 return "";
         }
     }
+    
+
+    // 根据主公司ID查找用户
+    public List<User> findByPrimaryCompanyId(Long primaryCompanyId) {
+        return userRepository.findByPrimaryCompanyId(primaryCompanyId);
+    }
 }

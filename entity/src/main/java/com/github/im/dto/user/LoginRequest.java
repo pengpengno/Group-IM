@@ -23,5 +23,10 @@ public class LoginRequest implements Serializable {
      * 2. 自动登录
      */
     private String  refreshToken;
+    
+    /**
+     * 登录公司ID
+     */
+    private Long companyId;
 
 }

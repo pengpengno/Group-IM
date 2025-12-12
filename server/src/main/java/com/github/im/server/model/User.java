@@ -69,12 +69,23 @@ public class User implements UserDetails {
     private boolean forcePasswordChange = false;
 
     // 添加公司ID字段
-    @Column(name = "company_id")
-    private Long companyId;
+    @Column(name = "company_ids")
+    private List<Long> companyIds;
 
-    // 添加部门ID字段
-    @Column(name = "department_id")
-    private Long departmentId;
+    // 主公司ID
+    @Column(name = "primary_company_id")
+    private Long primaryCompanyId;
+    
+    /**
+     * 当前登录的 公司Id 
+     */
+    @Transient
+    private Long currentLoginCompanyId;
+
+
+//    // 添加部门ID字段
+//    @Column(name = "department_id")
+//    private Long departmentId;
 
     private LocalDateTime createdAt ;
     private LocalDateTime updatedAt ;
@@ -118,18 +129,16 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-//        return Status.ACTIVE.equals(getUserStatus()) ;
-        return true;
+        return Status.ACTIVE.equals(getUserStatus()) ;
+//        return true;
     }
 
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-//        TODo
         List<GrantedAuthority> authorities = new ArrayList<>();
-        authorities.add(new SimpleGrantedAuthority("ROLE_USER"));  // 假设角色为 USER
-        // 如果有其他角色，继续添加
+        authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+
         return authorities;
-//        return null;
     }
 }

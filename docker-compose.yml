@@ -31,6 +31,8 @@ services:
       - ./logs/postgres:/etc/logs/postgres
       - ./logs/postgres:/var/log/postgres
       - ./data/postgres:/var/lib/postgresql/data
+      - ./scripts/create_company_schema_function.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
     networks:
       - app-network
   openldap:
