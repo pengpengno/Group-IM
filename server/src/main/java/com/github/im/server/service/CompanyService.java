@@ -85,9 +85,9 @@ public class CompanyService {
      * @return 保存后的公司对象
      */
     @CacheEvict(value = "companies", allEntries = true)
+    @Transactional  // 后面逻辑错误 则会回滚
     public Company save(Company company) {
         Company savedCompany = companyRepository.save(company);
-        
         // 发布公司创建事件，触发schema创建
         eventPublisher.publishEvent(new CompanyCreatedEvent(savedCompany));
         

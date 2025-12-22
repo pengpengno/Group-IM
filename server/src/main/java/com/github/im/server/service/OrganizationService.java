@@ -46,7 +46,195 @@ public class OrganizationService {
     private final CompanyService companyService;
     private final EntityManager entityManager;
     private final UserService userService;
-//    private final UserService entityManagerFactory;
+
+    /**
+     * 创建部门
+     * @param departmentDTO 部门信息
+     * @return 创建后的部门信息
+     */
+    @Transactional
+    public DepartmentDTO createDepartment(DepartmentDTO departmentDTO) {
+        String schemaName = companyService.getSchemaNameByCompanyId(departmentDTO.getCompanyId());
+        
+        return SchemaSwitcher.executeWithFreshConnectionInSchema(entityManager, schemaName, em -> {
+            Department department = new Department();
+            department.setName(departmentDTO.getName());
+            department.setDescription(departmentDTO.getDescription());
+            department.setCompanyId(departmentDTO.getCompanyId());
+            department.setParentId(departmentDTO.getParentId());
+            department.setOrderNum(departmentDTO.getOrderNum());
+            department.setStatus(departmentDTO.getStatus() != null ? departmentDTO.getStatus() : true);
+            
+            Department savedDepartment = departmentRepository.save(department);
+            return departmentMapper.departmentToDepartmentDTO(savedDepartment);
+        });
+    }
+
+    /**
+     * 更新部门信息
+     * @param departmentId 部门ID
+     * @param departmentDTO 部门信息
+     * @return 更新后的部门信息
+     */
+    @Transactional
+    public DepartmentDTO updateDepartment(Long departmentId, DepartmentDTO departmentDTO) {
+        // 先找到部门所属的公司
+        Department department = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new RuntimeException("部门不存在"));
+        
+        String schemaName = companyService.getSchemaNameByCompanyId(department.getCompanyId());
+        
+        return SchemaSwitcher.executeWithFreshConnectionInSchema(entityManager, schemaName, em -> {
+            department.setName(departmentDTO.getName());
+            department.setDescription(departmentDTO.getDescription());
+            if (departmentDTO.getOrderNum() != null) {
+                department.setOrderNum(departmentDTO.getOrderNum());
+            }
+            if (departmentDTO.getStatus() != null) {
+                department.setStatus(departmentDTO.getStatus());
+            }
+            
+            Department savedDepartment = departmentRepository.save(department);
+            return departmentMapper.departmentToDepartmentDTO(savedDepartment);
+        });
+    }
+
+    /**
+     * 删除部门
+     * @param departmentId 部门ID
+     */
+    @Transactional
+    public void deleteDepartment(Long departmentId) {
+        // 先找到部门所属的公司
+        Department department = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new RuntimeException("部门不存在"));
+        
+        String schemaName = companyService.getSchemaNameByCompanyId(department.getCompanyId());
+        
+        SchemaSwitcher.executeWithFreshConnectionInSchema(entityManager, schemaName, em -> {
+            // 删除部门及其关联的用户关系
+            deleteUserDepartmentByDepartmentId(em, departmentId);
+            departmentRepository.deleteById(departmentId);
+            return null;
+        });
+    }
+
+    /**
+     * 移动部门到新的父部门下
+     * @param departmentId 部门ID
+     * @param newParentId 新的父部门ID，如果为null则移动到根节点
+     * @return 移动后的部门信息
+     */
+    @Transactional
+    public DepartmentDTO moveDepartment(Long departmentId, Long newParentId) {
+        // 先找到部门所属的公司
+        Department department = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new RuntimeException("部门不存在"));
+        
+        String schemaName = companyService.getSchemaNameByCompanyId(department.getCompanyId());
+        
+        return SchemaSwitcher.executeWithFreshConnectionInSchema(entityManager, schemaName, em -> {
+            department.setParentId(newParentId);
+            Department savedDepartment = departmentRepository.save(department);
+            return departmentMapper.departmentToDepartmentDTO(savedDepartment);
+        });
+    }
+
+    /**
+     * 将用户分配到部门
+     * @param userId 用户ID
+     * @param departmentId 部门ID
+     */
+    @Transactional
+    public void assignUserToDepartment(Long userId, Long departmentId) {
+        // 先找到部门所属的公司
+        Department department = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new RuntimeException("部门不存在"));
+        
+        String schemaName = companyService.getSchemaNameByCompanyId(department.getCompanyId());
+        
+        SchemaSwitcher.executeWithFreshConnectionInSchema(entityManager, schemaName, em -> {
+            UserDepartment userDepartment = new UserDepartment(userId, departmentId);
+            em.persist(userDepartment);
+            return null;
+        });
+    }
+
+    /**
+     * 将用户从部门移除
+     * @param userId 用户ID
+     * @param departmentId 部门ID
+     */
+    @Transactional
+    public void removeUserFromDepartment(Long userId, Long departmentId) {
+        // 先找到部门所属的公司
+        Department department = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new RuntimeException("部门不存在"));
+        
+        String schemaName = companyService.getSchemaNameByCompanyId(department.getCompanyId());
+        
+        SchemaSwitcher.executeWithFreshConnectionInSchema(entityManager, schemaName, em -> {
+            userDepartmentRepository.deleteByUserIdAndDepartmentId(userId, departmentId);
+            return null;
+        });
+    }
+
+    /**
+     * 删除部门相关的用户关系
+     * @param em EntityManager
+     * @param departmentId 部门ID
+     */
+    private void deleteUserDepartmentByDepartmentId(EntityManager em, Long departmentId) {
+        // 删除用户部门关联关系
+        em.createQuery("DELETE FROM UserDepartment ud WHERE ud.departmentId = :departmentId")
+                .setParameter("departmentId", departmentId)
+                .executeUpdate();
+    }
+
+    /**
+     * 调整组织架构
+     * @param companyId 公司ID
+     * @param departmentDTOS 新的组织架构信息
+     */
+    @Transactional
+    public void adjustOrganizationStructure(Long companyId, List<DepartmentDTO> departmentDTOS) {
+        String schemaName = companyService.getSchemaNameByCompanyId(companyId);
+        
+        SchemaSwitcher.executeWithFreshConnectionInSchema(entityManager, schemaName, em -> {
+            // 删除现有所有部门
+            departmentRepository.deleteByCompanyId(companyId);
+            
+            // 重新创建部门结构
+            createDepartmentsRecursive(null, departmentDTOS, companyId);
+        });
+    }
+    
+    /**
+     * 递归创建部门结构
+     * @param parentId 父部门ID
+     * @param children 子部门列表
+     * @param companyId 公司ID
+     */
+    private void createDepartmentsRecursive(Long parentId, List<DepartmentDTO> children, Long companyId) {
+        if (children == null || children.isEmpty()) {
+            return;
+        }
+        
+        for (DepartmentDTO dto : children) {
+            Department department = new Department();
+            department.setName(dto.getName());
+            department.setDescription(dto.getDescription());
+            department.setCompanyId(companyId);
+            department.setParentId(parentId);
+            department.setOrderNum(dto.getOrderNum());
+            department.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
+            
+            Department savedDepartment = departmentRepository.save(department);
+            
+            // 递归处理子部门
+            createDepartmentsRecursive(savedDepartment.getDepartmentId(), dto.getChildren(), companyId);
+        }
+    }
 
     /**
      * 获取组织架构树
@@ -122,11 +310,12 @@ public class OrganizationService {
 
     /**
      * 导入部门数据
+     * 只需要操作 Schema 下的数据。
      * @param file Excel文件
      * @param companyId 公司ID
      */
     @Transactional
-    public void importDepartments(MultipartFile file, Long companyId) throws Exception {
+    public void importDepartments(MultipartFile file, Long companyId){
         String schemaName = companyService.getSchemaNameByCompanyId(companyId);
         SchemaSwitcher.executeWithFreshConnectionInSchema(entityManager, schemaName, em -> {
             try (InputStream inputStream = file.getInputStream();
@@ -188,7 +377,6 @@ public class OrganizationService {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
-            return null;
         });
     }
 
@@ -227,7 +415,7 @@ public class OrganizationService {
      * @param companyId 公司ID
      */
 //    @Transactional
-    public void importEmployees(MultipartFile file, Long companyId) throws Exception {
+    public void importEmployees(MultipartFile file, Long companyId){
         String schemaName = companyService.getSchemaNameByCompanyId(companyId);
         
         try (InputStream inputStream = file.getInputStream();
@@ -281,12 +469,9 @@ public class OrganizationService {
                     // 存在则 跳过 记录日志即可
                     log.info("用户已存在: {}", username);
                     continue;
-//                    throw new IllegalArgumentException("第" + (i + 1) + "行: 用户 '" + username + "' 已存在");
                 }
 
-
-
-                // 在public schema中保存用户
+                // 在public schema 中保存用户
                 User savedUser =  userService.createDefaultUser(username, email, phoneNumber, companyId);
 
                 // 添加用户到公司（在company_user表中创建记录）

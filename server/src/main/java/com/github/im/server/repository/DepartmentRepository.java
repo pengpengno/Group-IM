@@ -2,6 +2,7 @@ package com.github.im.server.repository;
 
 import com.github.im.server.model.Department;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -35,6 +36,13 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
     @Query("SELECT d FROM Department d WHERE d.companyId = ?1 AND d.status = true ORDER BY d.orderNum")
     List<Department> findByCompanyIdAndStatusTrue(Long companyId);
 
+    /**
+     * 根据公司ID删除所有部门
+     * @param companyId 公司ID
+     */
+    @Modifying
+    @Query("DELETE FROM Department d WHERE d.companyId = ?1")
+    void deleteByCompanyId(Long companyId);
 
     /**
      * 根据部门ID查找部门及子部门

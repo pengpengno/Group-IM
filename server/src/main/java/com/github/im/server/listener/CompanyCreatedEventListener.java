@@ -40,14 +40,20 @@ public class CompanyCreatedEventListener  {
             }
             
             if (entityManager != null) {
-                Object singleResult = entityManager.createNativeQuery("SELECT create_or_sync_company_schema(?1, ?2)")
-                        .setParameter(1, schemaName)
-                        .setParameter(2, event.getCompany().getCompanyId())
-                        .getSingleResult();
-                logger.info("Successfully created schema for company: {} ,result {} ", event.getCompany().getName(),singleResult);
+                // 使用字符串拼接的方式调用函数，避免参数类型推断问题
+                String sql = String.format(
+                    "SELECT public.create_or_sync_company_schema('%s', %d)", 
+                    schemaName.replace("'", "''"), // 防止SQL注入
+                    event.getCompany().getCompanyId()
+                );
+                
+                Object singleResult = entityManager.createNativeQuery(sql).getSingleResult();
+                logger.info("Successfully created schema for company: {} ,result {} ", event.getCompany().getName(), singleResult);
             }
         } catch (Exception e) {
             logger.error("Failed to create schema for company: {}", event.getCompany().getName(), e);
+            // 重新抛出异常以触发事务回滚
+            throw new RuntimeException("Failed to create schema for company: " + event.getCompany().getName(), e);
         }
     }
 }

@@ -82,9 +82,12 @@ public class OrganizationController {
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
-        
-        // 这里应该添加权限检查，确保只有系统管理员可以注册公司
-        // 为简化起见，这里假设所有已登录用户都可以注册公司
+
+        // 只有admin用户允许导入数据
+        if (!isAdminUser(currentUser)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(org.springframework.http.HttpStatus.FORBIDDEN.value(), "只有admin用户允许导入数据"));
+        }
         
         try {
             CompanyDTO savedCompanyDTO = companyService.registerCompany(companyDTO);
@@ -122,12 +125,6 @@ public class OrganizationController {
                                                    @RequestParam("companyId") Long companyId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
-        
-//         检查用户是否有权导入该公司的部门数据
-//        if (!currentUser.getCurrentLoginCompanyId().equals(companyId)) {
-//            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
-//                    .body(ApiResponse.error(org.springframework.http.HttpStatus.FORBIDDEN.value(), "无权限导入该公司的部门数据"));
-//        }
         
         // 只有admin用户允许导入数据
         if (!isAdminUser(currentUser)) {
@@ -201,9 +198,6 @@ public class OrganizationController {
      * @return 是否为admin用户
      */
     private boolean isAdminUser(User user) {
-        // 这里可以根据实际需求判断用户是否为admin
-        // 例如可以通过用户的角色或者特定属性来判断
-        // 目前简单实现，您可以根据实际情况修改
         return user.getUsername().equals("admin");
     }
 }

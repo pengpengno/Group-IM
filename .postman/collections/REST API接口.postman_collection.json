@@ -1512,6 +1512,196 @@
             "description": "导出员工导入模板"
           },
           "response": []
+        },
+        {
+          "name": "调整公司组织架构",
+          "id": "adjust-company-organization",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"name\": \"人力资源部\",\n    \"description\": \"负责人力资源管理\",\n    \"orderNum\": 1,\n    \"status\": true,\n    \"children\": [\n      {\n        \"name\": \"招聘组\",\n        \"description\": \"负责招聘工作\",\n        \"orderNum\": 1,\n        \"status\": true\n      }\n    ]\n  },\n  {\n    \"name\": \"技术部\",\n    \"description\": \"负责技术研发\",\n    \"orderNum\": 2,\n    \"status\": true,\n    \"children\": [\n      {\n        \"name\": \"前端组\",\n        \"description\": \"负责前端开发\",\n        \"orderNum\": 1,\n        \"status\": true\n      },\n      {\n        \"name\": \"后端组\",\n        \"description\": \"负责后端开发\",\n        \"orderNum\": 2,\n        \"status\": true\n      }\n    ]\n  }\n]"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/company/organization",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "organization"
+              ]
+            },
+            "description": "调整公司组织架构，会清空原有结构并重建新的组织架构"
+          },
+          "response": []
+        },
+        {
+          "name": "创建部门",
+          "id": "create-department",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"新部门\",\n  \"description\": \"部门描述\",\n  \"parentId\": null,\n  \"orderNum\": 1,\n  \"status\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/company/department",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "department"
+              ]
+            },
+            "description": "创建一个新的部门"
+          },
+          "response": []
+        },
+        {
+          "name": "更新部门",
+          "id": "update-department",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"更新后的部门名称\",\n  \"description\": \"更新后的部门描述\",\n  \"orderNum\": 2,\n  \"status\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/company/department/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "department",
+                "1"
+              ]
+            },
+            "description": "更新指定ID的部门信息"
+          },
+          "response": []
+        },
+        {
+          "name": "删除部门",
+          "id": "delete-department",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/company/department/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "department",
+                "1"
+              ]
+            },
+            "description": "删除指定ID的部门"
+          },
+          "response": []
+        },
+        {
+          "name": "移动部门",
+          "id": "move-department",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/company/department/1/move?newParentId=2",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "department",
+                "1",
+                "move"
+              ],
+              "query": [
+                {
+                  "key": "newParentId",
+                  "value": "2"
+                }
+              ]
+            },
+            "description": "将指定ID的部门移动到新的父部门下，如果不传newParentId参数则移动到根节点"
+          },
+          "response": []
+        },
+        {
+          "name": "将用户分配到部门",
+          "id": "assign-user-to-department",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/company/department/1/user/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "department",
+                "1",
+                "user",
+                "1"
+              ]
+            },
+            "description": "将指定用户分配到指定部门"
+          },
+          "response": []
+        },
+        {
+          "name": "将用户从部门移除",
+          "id": "remove-user-from-department",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/company/department/1/user/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "department",
+                "1",
+                "user",
+                "1"
+              ]
+            },
+            "description": "将指定用户从指定部门移除"
+          },
+          "response": []
         }
       ],
       "id": "organization-controller"

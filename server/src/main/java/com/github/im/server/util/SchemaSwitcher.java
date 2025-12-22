@@ -118,7 +118,7 @@ public class SchemaSwitcher {
                 });
             } catch (Exception e) {
                 log.warn("无法unwrap到Session或设置schema失败，将通过原生SQL设置schema");
-                // 如果无法unwrap到Session，则通过执行原生SQL设置schema
+                // 如果无法 unwrap 到 Session，则通过执行原生 SQL 设置 schema
                 freshEntityManager.createNativeQuery("SET LOCAL search_path TO " + schemaName).executeUpdate();
             }
             
