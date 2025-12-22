@@ -34,8 +34,9 @@ public class JwtUtil {
     private static final long REFRESH_TOKEN_EXPIRY = 2592000L; // 30 days
 
 
-    private static String NAME_FIELD = "name";
-    private static String COMPANYID_FIELD = "companyId";
+    public static String USER_NAME_FIELD = "name";
+    public static String COMPANY_ID_FIELD = "companyId";
+    public static String COMPANY_SCHEMA_FIELD = "companySchema";
 
     public String createToken(User user) {
         Instant now = Instant.now();
@@ -46,9 +47,10 @@ public class JwtUtil {
                 .issuedAt(now)
                 .expiresAt(now.plus(ACCESS_TOKEN_EXPIRY, ChronoUnit.SECONDS)) // 设置为1小时过期
                 .subject(user.getUsername())
-                .claim(NAME_FIELD, user.getUsername())
+                .claim(USER_NAME_FIELD, user.getUsername())
                 // 当前登录公司 Id
-                .claim(COMPANYID_FIELD, user.getCurrentLoginCompanyId())
+                .claim(COMPANY_ID_FIELD, user.getCurrentCompany().getCompanyId())
+                .claim(COMPANY_SCHEMA_FIELD, user.getCurrentCompany().getSchemaName())
                 .build();
 
         var encode = encoder.encode(JwtEncoderParameters.from(claims));
@@ -70,9 +72,10 @@ public class JwtUtil {
                 .issuedAt(now)
                 .expiresAt(now.plus(REFRESH_TOKEN_EXPIRY, ChronoUnit.SECONDS)) // 设置为30天过期
                 .subject(user.getUsername())
-                .claim(NAME_FIELD, user.getUsername())
+                .claim(USER_NAME_FIELD, user.getUsername())
                 // 当前登录公司 Id
-                .claim(COMPANYID_FIELD, user.getCurrentLoginCompanyId())
+                .claim(COMPANY_ID_FIELD, user.getCurrentCompany().getCompanyId())
+                .claim(COMPANY_SCHEMA_FIELD, user.getCurrentCompany().getSchemaName())
                 .build();
 
         return encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();

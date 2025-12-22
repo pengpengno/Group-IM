@@ -45,12 +45,41 @@ public class DepartmentService {
 
     /**
      * 获取公司组织架构信息，包含部门及用户
-     * 没有部门的员工将放在根节点
+     * 公司作为顶层节点，部门作为子节点，没有部门的员工将放在公司节点下
      * @return 组织架构信息
      */
-    public List<DepartmentDTO> getCompanyDepartmentDto(Long companyId) {
+    public DepartmentDTO getCompanyDepartmentDto(Long companyId) {
+        // 获取公司信息
+        Optional<Company> companyOpt = companyRepository.findById(companyId);
+        if (companyOpt.isEmpty()) {
+            return new DepartmentDTO();
+        }
+        
+        Company company = companyOpt.get();
+        
         // 获取公司下所有启用的部门
-        List<Department> allDepartments = departmentRepository.findAll();
+        List<Department> allDepartments = departmentRepository.findByCompanyIdAndStatusTrue(companyId);
+        
+        // 构建部门树结构
+        Map<Long, Department> departmentMap = allDepartments.stream()
+                .collect(Collectors.toMap(Department::getDepartmentId, d -> d));
+        
+        List<Department> rootDepartments = new ArrayList<>();
+        
+        // 构建父子关系
+        for (Department dept : allDepartments) {
+            if (dept.getParentId() == null) {
+                rootDepartments.add(dept);
+            } else {
+                Department parent = departmentMap.get(dept.getParentId());
+                if (parent != null) {
+                    if (parent.getChildren() == null) {
+                        parent.setChildren(new ArrayList<>());
+                    }
+                    parent.getChildren().add(dept);
+                }
+            }
+        }
         
         // 获取所有部门ID
         List<Long> departmentIds = allDepartments.stream()
@@ -58,10 +87,13 @@ public class DepartmentService {
                 .collect(Collectors.toList());
         
         // 获取所有部门的用户关联信息
-        List<UserDepartment> userDepartments = userDepartmentRepository.findByDepartmentIdIn(departmentIds);
+        List<UserDepartment> userDepartments = new ArrayList<>();
+        if (!departmentIds.isEmpty()) {
+            userDepartments = userDepartmentRepository.findByDepartmentIdIn(departmentIds);
+        }
         
         // 获取所有用户信息
-        List<User> allCompanyUsers = userRepository.findAll();
+        List<User> allCompanyUsers = userRepository.findByPrimaryCompanyId(companyId);
         Map<Long, User> userMap = allCompanyUsers.stream()
                 .collect(Collectors.toMap(User::getUserId, user -> user));
         
@@ -93,61 +125,28 @@ public class DepartmentService {
                 .collect(Collectors.toList());
         
         // 转换为DTO
-        List<DepartmentDTO> departmentDTOs = allDepartments.stream()
-                .map(this::convertToDepartmentDTO)
-                .collect(Collectors.toList());
+        List<DepartmentDTO> rootDepartmentDTOs = departmentMapper.departmentsToDepartmentDTOs(rootDepartments);
         
-        // 创建一个特殊的"未分配"部门来存放没有部门的用户
+        // 创建公司节点作为顶层节点
+        DepartmentDTO companyDto = new DepartmentDTO();
+        companyDto.setDepartmentId(company.getCompanyId());
+        companyDto.setName(company.getName());
+        companyDto.setDescription("公司顶层节点");
+        companyDto.setCompanyId(companyId);
+        companyDto.setChildren(rootDepartmentDTOs);
+        
+        // 将未分配的用户放到公司节点下
         if (!unassignedUsers.isEmpty()) {
-            DepartmentDTO unassignedDept = new DepartmentDTO();
-            unassignedDept.setDepartmentId(-1L);
-            unassignedDept.setName("未分配员工");
-            unassignedDept.setDescription("没有分配到任何部门的员工");
-            unassignedDept.setCompanyId(companyId);
-            unassignedDept.setMembers(unassignedUsers.stream()
-                    .map(this::convertUserToUserInfo)
-                    .collect(Collectors.toList()));
-            
-            departmentDTOs.add(unassignedDept);
+            companyDto.setMembers(userMapper.usersToUserInfos(unassignedUsers));
         }
         
-        return departmentDTOs;
+        // 返回只包含公司节点的列表，公司节点下包含所有部门
+        List<DepartmentDTO> result = new ArrayList<>();
+        result.add(companyDto);
+        
+        return companyDto;
     }
-    
-    /**
-     * 将Department转换为DepartmentDTO
-     * @param department 部门实体
-     * @return 部门DTO
-     */
-    private DepartmentDTO convertToDepartmentDTO(Department department) {
-        DepartmentDTO dto = new DepartmentDTO();
-        dto.setDepartmentId(department.getDepartmentId());
-        dto.setName(department.getName());
-        dto.setDescription(department.getDescription());
-        dto.setCompanyId(department.getCompanyId());
-        dto.setParentId(department.getParentId());
-        dto.setOrderNum(department.getOrderNum());
-        dto.setStatus(department.getStatus());
-        dto.setCreatedAt(department.getCreatedAt());
-        dto.setUpdatedAt(department.getUpdatedAt());
-        
-        // 转换子部门
-        if (department.getChildren() != null) {
-            dto.setChildren(department.getChildren().stream()
-                    .map(this::convertToDepartmentDTO)
-                    .collect(Collectors.toList()));
-        }
-        
-        // 转换成员
-        if (department.getMembers() != null) {
-            dto.setMembers(department.getMembers().stream()
-                    .map(this::convertUserToUserInfo)
-                    .collect(Collectors.toList()));
-        }
-        
-        return dto;
-    }
-    
+
     /**
      * 将User转换为UserInfo
      * @param user 用户实体

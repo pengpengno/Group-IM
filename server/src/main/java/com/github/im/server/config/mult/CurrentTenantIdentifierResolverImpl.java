@@ -1,47 +1,38 @@
 package com.github.im.server.config.mult;
 
-import com.github.im.server.model.User;
-import com.github.im.server.service.CompanyService;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.context.spi.CurrentTenantIdentifierResolver;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 
 /**
  * 当前租户标识解析器
  * 用于确定当前请求应该使用的租户标识(schema)
+ * 
+ * 使用TenantContext中的租户信息，确保在线程池环境下也能正确获取租户标识
  */
 @Slf4j
-@Component
 public class CurrentTenantIdentifierResolverImpl implements CurrentTenantIdentifierResolver<String> {
-
-    @Autowired
-    private CompanyService companyService;
 
     /**
      * 获取当前租户标识
+     * 
+     * 优先从TenantContext中获取租户标识，如果获取不到再从SecurityContext中解析
+     * 这样可以确保在线程池环境下也能正确获取租户标识
+     * 
      * @return 租户标识
      */
     @Override
     public String resolveCurrentTenantIdentifier() {
         try {
-            // 从安全上下文中获取当前认证信息
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            log.debug("当前用户: {}", authentication);
-            
-            if (authentication != null && authentication.getPrincipal() instanceof User user) {
-                // 根据用户所属公司返回对应的schema名称
-                if (user.getCurrentLoginCompanyId() != null) {
-                    // 根据公司ID查询对应的schema名称
-                    return companyService.getSchemaNameByCompanyId(user.getCurrentLoginCompanyId());
-                }
+            // 首先尝试从TenantContext中获取租户标识
+            String tenantFromContext = SchemaContext.getCurrentTenant();
+            if (tenantFromContext != null && !tenantFromContext.isEmpty()) {
+                log.info("从TenantContext获取到租户标识: {}", tenantFromContext);
+                return tenantFromContext;
             }
+
         } catch (Exception e) {
             log.error("解析租户标识时发生错误", e);
         }
-        
         // 默认使用public schema
         return "public";
     }

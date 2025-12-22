@@ -67,11 +67,6 @@
             <version>${protobuf.version}</version>
         </dependency>
 
-<!--        <dependency>-->
-<!--            <groupId>com.google.protobuf</groupId>-->
-<!--            <artifactId>protobuf-javalite</artifactId>-->
-<!--            <version>3.25.3</version>-->
-<!--        </dependency>-->
 
         <dependency>
             <groupId>io.projectreactor.netty</groupId>

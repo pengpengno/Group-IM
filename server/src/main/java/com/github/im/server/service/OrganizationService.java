@@ -1,6 +1,9 @@
 package com.github.im.server.service;
 
 import com.github.im.dto.organization.DepartmentDTO;
+import com.github.im.dto.user.RegistrationRequest;
+import com.github.im.server.config.ForcePasswordChangeConfig;
+import com.github.im.server.config.mult.SchemaContext;
 import com.github.im.server.mapstruct.DepartmentMapper;
 import com.github.im.server.model.Department;
 import com.github.im.server.model.User;
@@ -9,17 +12,26 @@ import com.github.im.server.repository.CompanyRepository;
 import com.github.im.server.repository.DepartmentRepository;
 import com.github.im.server.repository.UserDepartmentRepository;
 import com.github.im.server.repository.UserRepository;
+import com.github.im.server.service.impl.security.UserDetailsServiceImpl;
+import com.github.im.server.util.SchemaSwitcher;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.hibernate.Session;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.jpa.repository.support.SimpleJpaRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -28,11 +40,13 @@ import java.util.stream.Collectors;
 @Slf4j
 public class OrganizationService {
     
-    private final CompanyRepository companyRepository;
     private final DepartmentRepository departmentRepository;
-    private final UserRepository userRepository;
-    private final UserDepartmentRepository userDepartmentRepository;
     private final DepartmentMapper departmentMapper;
+    private final CompanyUserService companyUserService;
+    private final CompanyService companyService;
+    private final EntityManager entityManager;
+    private final UserService userService;
+//    private final UserService entityManagerFactory;
 
     /**
      * 获取组织架构树
@@ -42,8 +56,9 @@ public class OrganizationService {
     @Cacheable(value = "organizationStructure", key = "#companyId")
     public List<Department> getOrganizationStructure(Long companyId) {
         // 获取公司下所有启用的部门
+
         List<Department> allDepartments = departmentRepository.findByCompanyIdAndStatusTrue(companyId);
-        
+
         // 构建部门树结构
         Map<Long, Department> departmentMap = new HashMap<>();
         List<Department> rootDepartments = new ArrayList<>();
@@ -70,88 +85,111 @@ public class OrganizationService {
         
         return rootDepartments;
     }
+
+    /**
+     * 获取用户当前登录公司的信息
+     * @param user
+     * @return 返回部门Dto
+     */
     public List<DepartmentDTO> getDepartmentDTOs(User user) {
-        return departmentMapper.departmentsToDepartmentDTOs(getOrganizationStructure(user.getCurrentLoginCompanyId()));
+        return departmentMapper.departmentsToDepartmentDTOs(getOrganizationStructure(user.getCurrentCompany().getCompanyId()));
     }
+
+    /**
+     * 获取指定公司的部门信息
+     * @return 返回部门信息
+     */
+    public List<DepartmentDTO> getDepartmentDTOs(Long companyUserId) {
+        // 查询数据
+        String schemaName = companyService.getSchemaNameByCompanyId(companyUserId);
+        return SchemaSwitcher.executeInSchema( schemaName, () ->
+            departmentMapper.departmentsToDepartmentDTOs(getOrganizationStructure(companyUserId))
+        );
+    }
+    
     /**
      * 获取用户的组织架构（仅包含该用户所在公司）
      * @param user 用户
      * @return 组织架构树
      */
     public List<Department> getUserOrganizationStructure(User user) {
-        if (user.getCurrentLoginCompanyId() == null) {
+        if (user.getCurrentCompany() == null) {
             return new ArrayList<>();
         }
         
-        return getOrganizationStructure(user.getCurrentLoginCompanyId());
+        return getOrganizationStructure(user.getCurrentCompany().getCompanyId());
     }
-    
+
     /**
      * 导入部门数据
      * @param file Excel文件
      * @param companyId 公司ID
      */
+    @Transactional
     public void importDepartments(MultipartFile file, Long companyId) throws Exception {
-        try (InputStream inputStream = file.getInputStream();
-             Workbook workbook = new XSSFWorkbook(inputStream)) {
-            
-            Sheet sheet = workbook.getSheetAt(0);
-            
-            // 获取该公司现有的所有部门，用于名称到ID的映射
-            List<Department> existingDepartments = departmentRepository.findByCompanyIdAndStatusTrue(companyId);
-            Map<String, Long> departmentNameToIdMap = existingDepartments.stream()
-                    .collect(Collectors.toMap(Department::getName, Department::getDepartmentId));
-            
-            // 存储新创建的部门，以便后续引用
-            Map<String, Long> newDepartmentNameToIdMap = new HashMap<>();
-            
-            // 从第二行开始读取数据（跳过标题行）
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-                Row row = sheet.getRow(i);
-                if (row == null) continue;
-                
-                String departmentName = getCellValueAsString(row.getCell(0));
-                String parentDepartmentName = getCellValueAsString(row.getCell(1));
-                String description = getCellValueAsString(row.getCell(2));
-                
-                if (departmentName == null || departmentName.trim().isEmpty()) {
-                    continue; // 跳过空行
-                }
-                
-                // 检查部门是否已存在
-                if (departmentNameToIdMap.containsKey(departmentName) || 
-                    newDepartmentNameToIdMap.containsKey(departmentName)) {
-                    // 部门已存在，只记录日志而不抛出异常
-                    log.warn("部门 '{}' 已存在，跳过导入", departmentName);
-                    continue;
-                }
-                
-                Department department = new Department();
-                department.setName(departmentName);
-                department.setDescription(description);
-                department.setCompanyId(companyId);
-                department.setStatus(true);
-                
-                // 设置父部门ID
-                if (parentDepartmentName != null && !parentDepartmentName.trim().isEmpty()) {
-                    Long parentId = departmentNameToIdMap.get(parentDepartmentName);
-                    if (parentId == null) {
-                        parentId = newDepartmentNameToIdMap.get(parentDepartmentName);
+        String schemaName = companyService.getSchemaNameByCompanyId(companyId);
+        SchemaSwitcher.executeWithFreshConnectionInSchema(entityManager, schemaName, em -> {
+            try (InputStream inputStream = file.getInputStream();
+                 Workbook workbook = new XSSFWorkbook(inputStream)) {
+
+                Sheet sheet = workbook.getSheetAt(0);
+
+                // 获取该公司现有的所有部门，用于名称到ID的映射
+                List<Department> existingDepartments = departmentRepository.findByCompanyIdAndStatusTrue(companyId);
+                Map<String, Long> departmentNameToIdMap = existingDepartments.stream()
+                        .collect(Collectors.toMap(Department::getName, Department::getDepartmentId));
+
+                // 存储新创建的部门，以便后续引用
+                Map<String, Long> newDepartmentNameToIdMap = new HashMap<>();
+
+                // 从第二行开始读取数据（跳过标题行）
+                for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                    Row row = sheet.getRow(i);
+                    if (row == null) continue;
+
+                    String departmentName = getCellValueAsString(row.getCell(0));
+                    String parentDepartmentName = getCellValueAsString(row.getCell(1));
+                    String description = getCellValueAsString(row.getCell(2));
+
+                    if (departmentName == null || departmentName.trim().isEmpty()) {
+                        throw new IllegalArgumentException("第" + (i + 1) + "行: 部门名称不能为空");
                     }
-                    
-                    if (parentId == null) {
-                        log.warn("找不到父部门: {}，将创建为顶级部门", parentDepartmentName);
-                        // 如果找不到父部门，将其设置为顶级部门而不是抛出异常
+
+                    // 检查部门是否已存在
+                    if (departmentNameToIdMap.containsKey(departmentName) ||
+                        newDepartmentNameToIdMap.containsKey(departmentName)) {
+                        throw new IllegalArgumentException("第" + (i + 1) + "行: 部门 '" + departmentName + "' 已存在");
                     }
-                    department.setParentId(parentId);
+
+                    Department department = new Department();
+                    department.setName(departmentName);
+                    department.setDescription(description);
+                    department.setCompanyId(companyId);
+                    department.setStatus(true);
+
+                    // 设置父部门ID
+                    if (parentDepartmentName != null && !parentDepartmentName.trim().isEmpty()) {
+                        Long parentId = departmentNameToIdMap.get(parentDepartmentName);
+                        if (parentId == null) {
+                            parentId = newDepartmentNameToIdMap.get(parentDepartmentName);
+                        }
+
+                        if (parentId == null) {
+                            throw new IllegalArgumentException("第" + (i + 1) + "行: 找不到父部门 '" + parentDepartmentName + "'");
+                        }
+                        department.setParentId(parentId);
+                    }
+
+                    // 保存部门并记录ID
+                    Department savedDepartment = departmentRepository.save(department);
+                    newDepartmentNameToIdMap.put(departmentName, savedDepartment.getDepartmentId());
+                    log.info("成功导入部门: {}", departmentName);
                 }
-                
-                // 保存部门并记录ID
-                Department savedDepartment = departmentRepository.save(department);
-                newDepartmentNameToIdMap.put(departmentName, savedDepartment.getDepartmentId());
-                log.info("成功导入部门: {}", departmentName);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
-        }
+            return null;
+        });
     }
 
 
@@ -188,69 +226,90 @@ public class OrganizationService {
      * @param file Excel文件
      * @param companyId 公司ID
      */
+//    @Transactional
     public void importEmployees(MultipartFile file, Long companyId) throws Exception {
+        String schemaName = companyService.getSchemaNameByCompanyId(companyId);
+        
         try (InputStream inputStream = file.getInputStream();
              Workbook workbook = new XSSFWorkbook(inputStream)) {
-            
+
             Sheet sheet = workbook.getSheetAt(0);
-            
-            // 获取该公司现有的所有部门，用于名称到ID的映射
-            List<Department> existingDepartments = departmentRepository.findByCompanyIdAndStatusTrue(companyId);
+
+            // 使用全新的连接在公司schema中获取现有的所有部门，用于名称到ID的映射
+            List<Department> existingDepartments = SchemaSwitcher.executeWithFreshConnectionInSchema(
+                entityManager, schemaName, em -> {
+                    return em.createQuery(
+                        "SELECT d FROM Department d WHERE d.companyId = :companyId AND d.status = true", 
+                        Department.class)
+                        .setParameter("companyId", companyId)
+                        .getResultList();
+                });
+
             Map<String, Long> departmentNameToIdMap = existingDepartments.stream()
                     .collect(Collectors.toMap(Department::getName, Department::getDepartmentId));
-            
-            // 获取公司所有现有用户，用于用户名和邮箱的唯一性校验
-            List<User> existingUsers = userRepository.findByPrimaryCompanyId(companyId);
-            
+
+            // 在public schema中获取公司所有现有用户，用于用户名和邮箱的唯一性校验
+            List<User> existingUsers = SchemaSwitcher.executeInPublicSchema(() -> 
+                entityManager.createQuery(
+                    "SELECT u FROM User u WHERE u.primaryCompanyId = :companyId",
+                    User.class)
+                   .setParameter("companyId", companyId)
+                   .getResultList()
+            );
+
             // 从第二行开始读取数据（跳过标题行）
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
-                
+
                 String username = getCellValueAsString(row.getCell(0));
                 String email = getCellValueAsString(row.getCell(1));
                 String phoneNumber = getCellValueAsString(row.getCell(2));
                 String departmentName = getCellValueAsString(row.getCell(3));
-                
+
                 // 基本验证
                 if (username == null || username.trim().isEmpty()) {
-                    log.warn("第{}行: 用户名不能为空，跳过此行", i+1);
-                    continue;
+                    throw new IllegalArgumentException("第" + (i + 1) + "行: 用户名不能为空");
                 }
-                
+
                 // 检查用户是否已存在
                 boolean userExists = existingUsers.stream()
-                        .anyMatch(u -> username.equals(u.getUsername()) || 
-                                      (email != null && email.equals(u.getEmail())));
-                
+                        .anyMatch(u -> username.equals(u.getUsername()) ||
+                                (email != null && email.equals(u.getEmail())));
+
                 if (userExists) {
-                    log.warn("第{}行: 用户 '{}' 已存在，跳过导入", i+1, username);
+                    // 存在则 跳过 记录日志即可
+                    log.info("用户已存在: {}", username);
                     continue;
+//                    throw new IllegalArgumentException("第" + (i + 1) + "行: 用户 '" + username + "' 已存在");
                 }
-                
-                User user = new User();
-                user.setUsername(username);
-                user.setEmail(email);
-                user.setPhoneNumber(phoneNumber);
-                user.setPrimaryCompanyId(companyId);
-                user.setPasswordHash("$2a$10$abcdefghijklmnopqrstuv"); // 默认密码
-                
-                // 保存用户
-                User savedUser = userRepository.save(user);
-                
-                // 如果指定了部门，则建立用户部门关联
+
+
+
+                // 在public schema中保存用户
+                User savedUser =  userService.createDefaultUser(username, email, phoneNumber, companyId);
+
+                // 添加用户到公司（在company_user表中创建记录）
+                companyUserService.addUserToCompany(savedUser.getUserId(), companyId);
+
+                // 如果指定了部门，则在公司schema中建立用户部门关联
                 if (departmentName != null && !departmentName.trim().isEmpty()) {
                     Long departmentId = departmentNameToIdMap.get(departmentName);
                     if (departmentId == null) {
-                        log.warn("第{}行: 找不到部门 '{}'", i+1, departmentName);
+                        throw new IllegalArgumentException("第" + (i + 1) + "行: 找不到部门 '" + departmentName + "'");
                     } else {
-                        UserDepartment userDepartment = new UserDepartment(savedUser.getUserId(), departmentId);
-                        userDepartmentRepository.save(userDepartment);
+                        SchemaSwitcher.executeWithFreshConnectionInSchema(entityManager, schemaName, em -> {
+                            UserDepartment userDepartment = new UserDepartment(savedUser.getUserId(), departmentId);
+                            em.persist(userDepartment);
+                        });
                     }
                 }
-                
+
                 log.info("成功导入用户: {}", username);
             }
+        } catch (Exception e) {
+            log.error("导入员工数据失败: {}", e.getMessage(), e);
+            throw new RuntimeException("导入员工数据失败: " + e.getMessage(), e);
         }
     }
     

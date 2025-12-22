@@ -4,6 +4,7 @@ import com.github.im.dto.organization.DepartmentDTO;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.server.model.User;
 import com.github.im.server.service.CompanyService;
+import com.github.im.server.service.DepartmentService;
 import com.github.im.server.service.OrganizationService;
 import com.github.im.server.service.UserService;
 import com.github.im.server.web.ApiResponse;
@@ -26,7 +27,8 @@ public class CompanyController {
     private final CompanyService companyService;
     private final OrganizationService organizationService;
     private final UserService userService;
-    
+    private final DepartmentService departmentService;
+
     /**
      * 获取当前用户所在公司的组织架构信息，包含部门及用户
      * 没有部门的员工将放在根节点
@@ -35,9 +37,6 @@ public class CompanyController {
     @GetMapping("/departmentInfo")
     public ResponseEntity<ApiResponse<DepartmentDTO>> getCurrentCompanyOrganization() {
         try {
-
-
-
             // 从SecurityContext获取当前认证用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             if (authentication == null || !authentication.isAuthenticated()) {
@@ -53,7 +52,7 @@ public class CompanyController {
             }
             
             User currentUser = (User) principal;
-            Long companyId = currentUser.getCurrentLoginCompanyId();
+            Long companyId = currentUser.getCurrentCompany().getCompanyId();
             
             if (companyId == null) {
                 return ResponseEntity.status(400)
@@ -61,7 +60,7 @@ public class CompanyController {
             }
 
             // 获取公司组织架构
-            var  departmentDTO = companyService.getCompanyDepartmentDto(companyId);
+            var  departmentDTO = departmentService.getCompanyDepartmentDto(companyId);
 
             return ResponseUtil.success("获取公司组织架构成功", departmentDTO);
         } catch (Exception e) {

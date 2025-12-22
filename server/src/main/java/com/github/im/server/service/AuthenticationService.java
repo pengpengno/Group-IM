@@ -21,6 +21,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -62,23 +63,15 @@ public class AuthenticationService  {
                 .setAuthentication(authResult);
 
         User user = (User) authResult.getPrincipal();
-        
-        // 设置登录公司
-        if (loginRequest.getCompanyId() != null) {
-            user.setCurrentLoginCompanyId(loginRequest.getCompanyId());
-        } else if (loginRequest.getCompanyCode() != null && !loginRequest.getCompanyCode().isEmpty() && !"public".equals(loginRequest.getCompanyCode())) {
-            // 如果指定了公司code且不是默认的public，则查找对应的公司
-            companyService.findBySchemaName(loginRequest.getCompanyCode())
-                    .ifPresent(company -> user.setCurrentLoginCompanyId(company.getCompanyId()));
-        } else if (user.getPrimaryCompanyId() != null) {
-            // 如果没有指定公司，则使用主公司
-            user.setCurrentLoginCompanyId(user.getPrimaryCompanyId());
-        } else if (user.getCompanyIds() != null && !user.getCompanyIds().isEmpty()) {
-            // 如果没有主公司，则使用第一个公司
-            user.setCurrentLoginCompanyId(user.getCompanyIds().get(0));
-        }
+//        final String companyCode = loginRequest.getCompanyCode();
+//        if (companyCode != null && companyCode.equals("public")) {
+//            user.setCurrentCompany(companyService.findBySchemaName(companyCode).get());
+//        } else {
+//            user.setCurrentCompany(companyService.findById(loginRequest.getCompanyId()).get());
+//        }
+        user.setCurrentCompany(companyService.findById(user.getPrimaryCompanyId()).get());
 
-        // 生成Token
+
         val token = jwtUtil.createToken(user);
         val refreshToken = jwtUtil.createRefreshToken(user);
         user.setRefreshToken(refreshToken);

@@ -36,7 +36,7 @@ public class DatabaseSequenceInitializer {
     @PostConstruct
     @Transactional
     public void init() {
-        syncSequences();
+//        syncSequences();
     }
     
     /**

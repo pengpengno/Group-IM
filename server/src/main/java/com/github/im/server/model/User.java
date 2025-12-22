@@ -31,13 +31,13 @@ public class User implements UserDetails {
     // account
     private String username;
 
-    @Column()
+    @Column
     private String email;
 
     @Transient
     private String password;
 
-    @Column()
+    @Column
     private String phoneNumber;
 
     @Column(nullable = false)
@@ -50,7 +50,6 @@ public class User implements UserDetails {
     private String refreshToken;
 
 
-
     @Enumerated(EnumType.STRING)
     private Status userStatus;
 
@@ -60,19 +59,10 @@ public class User implements UserDetails {
     @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean forcePasswordChange = false;
 
-    // 添加公司ID字段
-    @Column(name = "company_ids")
-    private List<Long> companyIds;
 
     // 主公司ID
-    @Column(name = "primary_company_id")
+    @Column(name = "primary_company_id",nullable = false)
     private Long primaryCompanyId;
-    
-    /**
-     * 当前登录的 公司Id 
-     */
-    @Transient
-    private Long currentLoginCompanyId;
     
     /**
      * 用户所属的部门列表
@@ -85,6 +75,22 @@ public class User implements UserDetails {
     )
     private List<Department> departments = new ArrayList<>();
 
+    /**
+     * 用户关联的公司列表
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "company_user",
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "company_id")
+    )
+    private List<Company> companies = new ArrayList<>();
+
+    /**
+     * 当前登录装填的公司
+     */
+    @Transient
+    private Company currentCompany;
 
     private LocalDateTime createdAt ;
     private LocalDateTime updatedAt ;

@@ -1,4 +1,4 @@
-package com.github.im.server.config;
+package com.github.im.server.config.sys;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

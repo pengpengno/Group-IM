@@ -24,14 +24,14 @@ public class LoginRequest implements Serializable {
      */
     private String  refreshToken;
     
-    /**
-     * 登录公司ID
-     */
-    private Long companyId;
-    /**
-     * 登录的公司的 Code
-     * 指代公司的  schema_name
-     */
-    private String companyCode = "public"; // 默认使用public公司
+//    /**
+//     * 登录公司ID
+//     */
+//    private Long companyId;
+//    /**
+//     * 登录的公司的 Code
+//     * 指代公司的  schema_name
+//     */
+//    private String companyCode = "public"; // 默认使用public公司
 
 }

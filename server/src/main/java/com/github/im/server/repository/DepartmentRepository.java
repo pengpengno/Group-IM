@@ -32,8 +32,9 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
      * @param companyId 公司ID
      * @return 部门列表
      */
+    @Query("SELECT d FROM Department d WHERE d.companyId = ?1 AND d.status = true ORDER BY d.orderNum")
     List<Department> findByCompanyIdAndStatusTrue(Long companyId);
-    
+
 
     /**
      * 根据部门ID查找部门及子部门

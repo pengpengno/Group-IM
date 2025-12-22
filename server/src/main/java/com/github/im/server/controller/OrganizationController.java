@@ -2,8 +2,6 @@ package com.github.im.server.controller;
 
 import com.github.im.dto.organization.CompanyDTO;
 import com.github.im.dto.organization.DepartmentDTO;
-import com.github.im.server.mapstruct.CompanyMapper;
-import com.github.im.server.model.Company;
 import com.github.im.server.model.User;
 import com.github.im.server.service.OrganizationService;
 import com.github.im.server.service.CompanyService;
@@ -32,9 +30,6 @@ public class OrganizationController {
     
     @Autowired
     private CompanyService companyService;
-    
-    @Autowired
-    private CompanyMapper companyMapper;
 
     /**
      * 获取组织架构
@@ -47,13 +42,9 @@ public class OrganizationController {
         User currentUser = (User) authentication.getPrincipal();
         
         // 检查用户是否有权访问该公司的组织架构
-        if (!currentUser.getCurrentLoginCompanyId().equals(companyId)) {
-            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error(org.springframework.http.HttpStatus.FORBIDDEN.value(), "无权限访问该公司的组织架构"));
-        }
-        
+
         try {
-            List<DepartmentDTO> departmentDTOs = organizationService.getDepartmentDTOs(currentUser);
+            List<DepartmentDTO> departmentDTOs = organizationService.getDepartmentDTOs(companyId);
             return ResponseUtil.success("获取组织架构成功", departmentDTOs);
         } catch (Exception e) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
@@ -88,6 +79,7 @@ public class OrganizationController {
     @PostMapping("/company/register")
     public ResponseEntity<ApiResponse<CompanyDTO>> registerCompany(@RequestBody CompanyDTO companyDTO) {
         // 只有系统管理员才能注册新公司
+
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
         
@@ -95,17 +87,7 @@ public class OrganizationController {
         // 为简化起见，这里假设所有已登录用户都可以注册公司
         
         try {
-            // 转换DTO到实体
-            Company company = companyMapper.companyDTOToCompany(companyDTO);
-            if (company.getActive() == null) {
-                company.setActive(true);
-            }
-            
-            // 保存公司信息
-            Company savedCompany = companyService.save(company);
-            
-            // 转换实体到DTO
-            CompanyDTO savedCompanyDTO = companyMapper.companyToCompanyDTO(savedCompany);
+            CompanyDTO savedCompanyDTO = companyService.registerCompany(companyDTO);
             return ResponseUtil.success("公司注册成功", savedCompanyDTO);
         } catch (Exception e) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
@@ -121,8 +103,7 @@ public class OrganizationController {
     public ResponseEntity<ApiResponse<List<CompanyDTO>>> getAllCompanies() {
         try {
             // 只有系统管理员才能查看所有公司
-            List<Company> companies = companyService.findAll();
-            List<CompanyDTO> companyDTOs = companyMapper.companiesToCompanyDTOs(companies);
+            List<CompanyDTO> companyDTOs = companyService.getAllCompanies();
             return ResponseUtil.success("获取公司列表成功", companyDTOs);
         } catch (Exception e) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
@@ -142,10 +123,16 @@ public class OrganizationController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
         
-        // 检查用户是否有权导入该公司的部门数据
-        if (!currentUser.getCurrentLoginCompanyId().equals(companyId)) {
+//         检查用户是否有权导入该公司的部门数据
+//        if (!currentUser.getCurrentLoginCompanyId().equals(companyId)) {
+//            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+//                    .body(ApiResponse.error(org.springframework.http.HttpStatus.FORBIDDEN.value(), "无权限导入该公司的部门数据"));
+//        }
+        
+        // 只有admin用户允许导入数据
+        if (!isAdminUser(currentUser)) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error(org.springframework.http.HttpStatus.FORBIDDEN.value(), "无权限导入该公司的部门数据"));
+                    .body(ApiResponse.error(org.springframework.http.HttpStatus.FORBIDDEN.value(), "只有admin用户允许导入数据"));
         }
         
         try {
@@ -179,11 +166,12 @@ public class OrganizationController {
                                                  @RequestParam("companyId") Long companyId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
-        
-        // 检查用户是否有权导入该公司的员工数据
-        if (!currentUser.getCurrentLoginCompanyId().equals(companyId)) {
+
+//
+        // 只有admin用户允许导入数据
+        if (!isAdminUser(currentUser)) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error(org.springframework.http.HttpStatus.FORBIDDEN.value(), "无权限导入该公司的员工数据"));
+                    .body(ApiResponse.error(org.springframework.http.HttpStatus.FORBIDDEN.value(), "只有admin用户允许导入数据"));
         }
         
         try {
@@ -205,5 +193,17 @@ public class OrganizationController {
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=users_template.xlsx");
         
         organizationService.generateEmployeesImportTemplate(response.getOutputStream());
+    }
+    
+    /**
+     * 检查用户是否为admin用户
+     * @param user 用户对象
+     * @return 是否为admin用户
+     */
+    private boolean isAdminUser(User user) {
+        // 这里可以根据实际需求判断用户是否为admin
+        // 例如可以通过用户的角色或者特定属性来判断
+        // 目前简单实现，您可以根据实际情况修改
+        return user.getUsername().equals("admin");
     }
 }

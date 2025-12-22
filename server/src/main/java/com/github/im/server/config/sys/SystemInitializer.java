@@ -1,4 +1,4 @@
-package com.github.im.server.config;
+package com.github.im.server.config.sys;
 
 import com.github.im.server.model.Company;
 import com.github.im.server.model.User;
@@ -8,11 +8,11 @@ import com.github.im.server.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -29,11 +29,28 @@ public class SystemInitializer implements CommandLineRunner {
     private final UserService userService;
     private final UserRepository userRepository;
     private final SystemInitializerProperties properties;
+    private final StringRedisTemplate redisTemplate;
     
     @Override
     public void run(String... args) throws Exception {
+        // 清理缓存以避免序列化问题
+        clearCache();
+        
         // 异步执行初始化任务
         initializeSystem();
+    }
+    
+    /**
+     * 清理Redis缓存
+     */
+    private void clearCache() {
+        try {
+            log.info("Clearing Redis cache...");
+            redisTemplate.getConnectionFactory().getConnection().flushAll();
+            log.info("Redis cache cleared successfully");
+        } catch (Exception e) {
+            log.warn("Failed to clear Redis cache: {}", e.getMessage());
+        }
     }
     
     @Async
@@ -86,7 +103,6 @@ public class SystemInitializer implements CommandLineRunner {
                 user.setPhoneNumber(properties.getAdminUser().getPhoneNumber());
                 user.setPrimaryCompanyId(defaultCompany.getCompanyId());
                 user.setPasswordHash(passwordEncoder.encode(properties.getAdminUser().getPassword()));
-                user.setCompanyIds(List.of(defaultCompany.getCompanyId()));
                 
                 User savedUser = userRepository.save(user);
                 log.info("Created new user account for admin: {}", savedUser);

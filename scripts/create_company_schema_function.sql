@@ -1,5 +1,5 @@
 DROP FUNCTION IF EXISTS create_or_sync_company_schema;
-CREATE OR REPLACE FUNCTION create_or_sync_company_schema(schema_name text)
+CREATE OR REPLACE FUNCTION create_or_sync_company_schema(schema_name text, company_id bigint)
 RETURNS text AS $$
 DECLARE
     table_rec record;
@@ -8,6 +8,8 @@ DECLARE
     index_rec record;
     exists_column boolean;
     exists_constraint boolean;
+    -- 定义全局系统表列表，这些表不应复制到租户schema中
+    system_tables text[] := array['users', 'company', 'company_user'];
 BEGIN
     -- 创建 schema（如果不存在）
     EXECUTE format('CREATE SCHEMA IF NOT EXISTS %I', schema_name);
@@ -18,6 +20,11 @@ BEGIN
     FOR table_rec IN
         SELECT tablename FROM pg_tables WHERE schemaname = 'public'
     LOOP
+        -- 检查是否为系统表，如果是则跳过
+        IF table_rec.tablename = ANY(system_tables) THEN
+            CONTINUE;
+        END IF;
+        
         -- 创建表（如果不存在）
         EXECUTE format(
             'CREATE TABLE IF NOT EXISTS %I.%I (LIKE public.%I INCLUDING ALL)',
@@ -52,8 +59,35 @@ BEGIN
     END LOOP;
 
     ---------------------------------------------------------------------
-    -- 二、复制约束（PK/UK/Check/ForeignKey）
-    -- 注意：唯一和主键的索引无需额外复制，会自动创建
+    -- 二、为系统表创建视图（带数据过滤）
+    ---------------------------------------------------------------------
+    -- 为 company 表创建视图
+    EXECUTE format('DROP VIEW IF EXISTS %I.company', schema_name);
+    EXECUTE format(
+        'CREATE VIEW %I.company AS SELECT * FROM public.company ' ||
+        'WHERE company_id = %L',
+        schema_name, company_id
+    );
+
+    -- 为 company_user 表创建视图
+    EXECUTE format('DROP VIEW IF EXISTS %I.company_user', schema_name);
+    EXECUTE format(
+        'CREATE VIEW %I.company_user AS SELECT * FROM public.company_user ' ||
+        'WHERE company_id = %L',
+        schema_name, company_id
+    );
+
+    -- 为 users 表创建视图（使用当前schema中的company_user视图）
+    EXECUTE format('DROP VIEW IF EXISTS %I.users', schema_name);
+    EXECUTE format(
+        'CREATE VIEW %I.users AS SELECT u.* FROM public.users u ' ||
+        'WHERE EXISTS (SELECT 1 FROM %I.company_user cu ' ||
+        'WHERE cu.user_id = u.user_id)',
+        schema_name, schema_name
+    );
+
+    ---------------------------------------------------------------------
+    -- 三、检查并补充可能缺失的约束
     ---------------------------------------------------------------------
     FOR constraint_rec IN
         SELECT conname,
@@ -63,6 +97,11 @@ BEGIN
         FROM pg_constraint
         WHERE connamespace = 'public'::regnamespace
     LOOP
+        -- 跳过系统表的约束复制
+        IF REPLACE(constraint_rec.tablename::text, '"', '') = ANY(system_tables) THEN
+            CONTINUE;
+        END IF;
+        
         SELECT EXISTS(
             SELECT 1
             FROM pg_constraint
@@ -82,7 +121,7 @@ BEGIN
     END LOOP;
 
     ---------------------------------------------------------------------
-    -- 三、复制普通索引（排除主键和唯一索引）
+    -- 四、检查并补充可能缺失的普通索引
     ---------------------------------------------------------------------
     FOR index_rec IN
         SELECT indexname, indexdef
@@ -91,22 +130,37 @@ BEGIN
           AND indexdef NOT LIKE '%PRIMARY KEY%'
           AND indexdef NOT LIKE '%UNIQUE%'
     LOOP
-        EXECUTE format('DROP INDEX IF EXISTS %I.%I', schema_name, index_rec.indexname);
-
-        EXECUTE replace(
-                    replace(
-                        index_rec.indexdef,
-                        'public.',
-                        schema_name || '.'
-                    ),
-                    ' ON ',
-                    ' ON ' || schema_name || '.'
-                 );
+        -- 检查索引是否属于系统表，如果是则跳过
+        IF (
+            SELECT REPLACE(SUBSTRING(index_rec.indexdef FROM 'ON ([^ \(]+)'), 'public.', '') = ANY(system_tables)
+        ) THEN
+            CONTINUE;
+        END IF;
+        
+        -- 检查索引是否已存在
+        SELECT EXISTS(
+            SELECT 1
+            FROM pg_indexes
+            WHERE schemaname = schema_name
+              AND indexname = index_rec.indexname
+        ) INTO exists_constraint;
+        
+        -- 如果索引不存在，则创建它
+        IF NOT exists_constraint THEN
+            EXECUTE replace(
+                        replace(
+                            index_rec.indexdef,
+                            'public.',
+                            schema_name || '.'
+                        ),
+                        ' ON ',
+                        ' ON ' || schema_name || '.'
+                     );
+        END IF;
     END LOOP;
     RETURN schema_name;
 END;
 $$ LANGUAGE plpgsql;
-
 
 
 

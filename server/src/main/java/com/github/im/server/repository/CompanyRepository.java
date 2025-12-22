@@ -3,6 +3,8 @@ package com.github.im.server.repository;
 import com.github.im.server.model.Company;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -16,13 +18,22 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
      * @return 公司对象
      */
     Optional<Company> findByName(String name);
-    
+
+    /**
+     * 根据公司ID查找公司，并加载其用户信息
+     * @param companyId 公司ID
+     * @return 公司对象
+     */
+    @Query("SELECT c FROM Company c JOIN FETCH c.users WHERE c.companyId = :companyId")
+    Optional<Company> findByIdWithUsers(@Param("companyId") Long companyId);
+
+
     /**
      * 根据schema名称查找公司
      * @param schemaName schema名称
      * @return 公司对象
      */
-    @Cacheable(value = "companiesBySchemaName", key = "'company:' + #schemaName",unless = "#result==null")
+    @Cacheable(value = "companies", key = "'company:schema:' + #schemaName")
     Optional<Company> findBySchemaName(String schemaName);
     
     /**
@@ -31,5 +42,14 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
      * @param active 激活状态
      * @return 公司对象
      */
+    @Cacheable(value = "companies", key = "'company:id:' + #companyId + ':active:' + #active")
     Optional<Company> findByCompanyIdAndActive(Long companyId, Boolean active);
+    
+    /**
+     * 根据公司ID查找公司
+     * @param companyId 公司ID
+     * @return 公司对象
+     */
+    @Cacheable(value = "companies", key = "'company:id:' + #companyId")
+    Optional<Company> findByCompanyId(Long companyId);
 }

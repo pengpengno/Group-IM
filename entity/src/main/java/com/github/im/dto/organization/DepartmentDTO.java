@@ -22,8 +22,8 @@ public class DepartmentDTO implements Serializable {
     private Long parentId;
     private Integer orderNum;
     private Boolean status;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+//    private LocalDateTime createdAt;
+//    private LocalDateTime updatedAt;
     
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<DepartmentDTO> children;

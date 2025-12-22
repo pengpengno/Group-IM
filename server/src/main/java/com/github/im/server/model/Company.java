@@ -7,13 +7,15 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /***
  * 公司实体 这张表 的数据默认放置 在 public schema 下
  *
  */
 @Entity
-@Table(name = "company")
+@Table(name = "company" )
 @Data
 public class Company implements Serializable {
 
@@ -36,6 +38,12 @@ public class Company implements Serializable {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    /**
+     * 关联的用户列表
+     */
+    @ManyToMany(mappedBy = "companies", fetch = FetchType.LAZY)
+    private List<User> users = new ArrayList<>();
 
     public Company() {
     }

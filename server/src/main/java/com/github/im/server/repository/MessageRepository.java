@@ -29,7 +29,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> , JpaSpe
      * 查询指定会话的最大 sequence
      */
     @Query("SELECT COALESCE(MAX(m.sequenceId), 0) FROM Message m WHERE m.conversation.conversationId = :conversationId")
-    Long findMaxSequenceByConversationId(Long conversationId);
+    Long findMaxSequenceByConversationId(@Param("conversationId") Long conversationId);
 
 
     /**

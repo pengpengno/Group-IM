@@ -157,7 +157,25 @@ public class UserService {
         return userRepository.save(newUser);
     }
 
-
+    /**
+     * 创建具有默认密码的用户（用于批量导入等场景）
+     * @param username 用户名
+     * @param email 邮箱
+     * @param phoneNumber 电话号码
+     * @param primaryCompanyId 主公司ID
+     * @return 创建的用户实体
+     */
+    public User createDefaultUser(String username, String email, String phoneNumber, Long primaryCompanyId) {
+        User user = new User();
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setPhoneNumber(phoneNumber);
+        user.setPrimaryCompanyId(primaryCompanyId);
+        // 使用系统配置的默认密码
+        user.setPasswordHash(passwordEncoder.encode(forcePasswordChangeConfig.getDefaultPassword()));
+        user.setForcePasswordChange(forcePasswordChangeConfig.isForcePasswordChangeEnabled());
+        return userRepository.save(user);
+    }
 
     /**
      * 用户登录逻辑，返回用户信息
