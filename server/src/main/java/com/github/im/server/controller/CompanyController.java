@@ -1,19 +1,17 @@
 package com.github.im.server.controller;
 
 import com.github.im.dto.organization.DepartmentDTO;
-import com.github.im.dto.user.UserInfo;
+import com.github.im.dto.user.BatchUserDepartmentRequest;
 import com.github.im.server.model.User;
-import com.github.im.server.service.CompanyService;
-import com.github.im.server.service.DepartmentService;
-import com.github.im.server.service.OrganizationService;
-import com.github.im.server.service.UserService;
+import com.github.im.server.service.*;
 import com.github.im.server.web.ApiResponse;
 import com.github.im.server.web.ResponseUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,6 +26,26 @@ public class CompanyController {
     private final OrganizationService organizationService;
     private final UserService userService;
     private final DepartmentService departmentService;
+    private final CompanyUserService companyUserService;
+
+    /**
+     * 获取当前用户所在公司的组织架构
+     * @return 组织架构树
+     */
+    @GetMapping("/structure")
+    public ResponseEntity<ApiResponse<List<DepartmentDTO>>> getCurrentUserOrganizationStructure(
+            @AuthenticationPrincipal User user
+    ) {
+
+        try {
+            List<DepartmentDTO> departmentDTOs = organizationService.getDepartmentDTOs(user);
+            return ResponseUtil.success("获取组织架构成功", departmentDTOs);
+        } catch (Exception e) {
+            log.error("获取组织架构失败", e);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR.value(), "获取组织架构失败: " + e.getMessage()));
+        }
+    }
 
     /**
      * 创建部门
@@ -35,24 +53,14 @@ public class CompanyController {
      * @return 创建结果
      */
     @PostMapping("/department")
-    public ResponseEntity<ApiResponse<DepartmentDTO>> createDepartment(@RequestBody DepartmentDTO departmentDTO) {
+    public ResponseEntity<ApiResponse<DepartmentDTO>> createDepartment(@RequestBody DepartmentDTO departmentDTO, @AuthenticationPrincipal User user) {
         try {
-            // 从SecurityContext获取当前认证用户
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || !authentication.isAuthenticated()) {
+            if (user == null) {
                 return ResponseEntity.status(401)
                     .body(ApiResponse.error(401, "用户未认证"));
             }
 
-            // 获取当前用户信息
-            Object principal = authentication.getPrincipal();
-            if (!(principal instanceof User)) {
-                return ResponseEntity.status(400)
-                    .body(ApiResponse.error(400, "用户信息无效"));
-            }
-
-            User currentUser = (User) principal;
-            Long companyId = currentUser.getCurrentCompany().getCompanyId();
+            Long companyId = user.getCurrentCompany().getCompanyId();
 
             if (companyId == null) {
                 return ResponseEntity.status(400)
@@ -82,24 +90,14 @@ public class CompanyController {
     @PutMapping("/department/{departmentId}")
     public ResponseEntity<ApiResponse<DepartmentDTO>> updateDepartment(
             @PathVariable Long departmentId, 
-            @RequestBody DepartmentDTO departmentDTO) {
+            @RequestBody DepartmentDTO departmentDTO, @AuthenticationPrincipal User user) {
         try {
-            // 从SecurityContext获取当前认证用户
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || !authentication.isAuthenticated()) {
+            if (user == null) {
                 return ResponseEntity.status(401)
                     .body(ApiResponse.error(401, "用户未认证"));
             }
 
-            // 获取当前用户信息
-            Object principal = authentication.getPrincipal();
-            if (!(principal instanceof User)) {
-                return ResponseEntity.status(400)
-                    .body(ApiResponse.error(400, "用户信息无效"));
-            }
-
-            User currentUser = (User) principal;
-            Long companyId = currentUser.getCurrentCompany().getCompanyId();
+            Long companyId = user.getCurrentCompany().getCompanyId();
 
             if (companyId == null) {
                 return ResponseEntity.status(400)
@@ -113,7 +111,7 @@ public class CompanyController {
         } catch (Exception e) {
             log.error("更新部门失败", e);
             return ResponseEntity.status(500)
-                .body(ApiResponse.error(500, "更新部门失败: " + e.getMessage()));
+                  .body(ApiResponse.error(500, "更新部门失败: " + e.getMessage()));
         }
     }
 
@@ -123,30 +121,8 @@ public class CompanyController {
      * @return 删除结果
      */
     @DeleteMapping("/department/{departmentId}")
-    public ResponseEntity<ApiResponse<Boolean>> deleteDepartment(@PathVariable Long departmentId) {
+    public ResponseEntity<ApiResponse<Boolean>> deleteDepartment(@PathVariable Long departmentId, @AuthenticationPrincipal User user) {
         try {
-            // 从SecurityContext获取当前认证用户
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || !authentication.isAuthenticated()) {
-                return ResponseEntity.status(401)
-                    .body(ApiResponse.error(401, "用户未认证"));
-            }
-
-            // 获取当前用户信息
-            Object principal = authentication.getPrincipal();
-            if (!(principal instanceof User)) {
-                return ResponseEntity.status(400)
-                    .body(ApiResponse.error(400, "用户信息无效"));
-            }
-
-            User currentUser = (User) principal;
-            Long companyId = currentUser.getCurrentCompany().getCompanyId();
-
-            if (companyId == null) {
-                return ResponseEntity.status(400)
-                    .body(ApiResponse.error(400, "用户未选择公司"));
-            }
-
             // 删除部门
             organizationService.deleteDepartment(departmentId);
 
@@ -167,24 +143,14 @@ public class CompanyController {
     @PatchMapping("/department/{departmentId}/move")
     public ResponseEntity<ApiResponse<DepartmentDTO>> moveDepartment(
             @PathVariable Long departmentId, 
-            @RequestParam(required = false) Long newParentId) {
+            @RequestParam(required = false) Long newParentId, @AuthenticationPrincipal User user) {
         try {
-            // 从SecurityContext获取当前认证用户
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || !authentication.isAuthenticated()) {
+            if (user == null) {
                 return ResponseEntity.status(401)
                     .body(ApiResponse.error(401, "用户未认证"));
             }
 
-            // 获取当前用户信息
-            Object principal = authentication.getPrincipal();
-            if (!(principal instanceof User)) {
-                return ResponseEntity.status(400)
-                    .body(ApiResponse.error(400, "用户信息无效"));
-            }
-
-            User currentUser = (User) principal;
-            Long companyId = currentUser.getCurrentCompany().getCompanyId();
+            Long companyId = user.getCurrentCompany().getCompanyId();
 
             if (companyId == null) {
                 return ResponseEntity.status(400)
@@ -209,31 +175,12 @@ public class CompanyController {
      * @return 分配结果
      */
     @PostMapping("/department/{departmentId}/user/{userId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Boolean>> assignUserToDepartment(
             @PathVariable Long userId, 
-            @PathVariable Long departmentId) {
+            @PathVariable Long departmentId, @AuthenticationPrincipal User user) {
         try {
-            // 从SecurityContext获取当前认证用户
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || !authentication.isAuthenticated()) {
-                return ResponseEntity.status(401)
-                    .body(ApiResponse.error(401, "用户未认证"));
-            }
 
-            // 获取当前用户信息
-            Object principal = authentication.getPrincipal();
-            if (!(principal instanceof User)) {
-                return ResponseEntity.status(400)
-                    .body(ApiResponse.error(400, "用户信息无效"));
-            }
-
-            User currentUser = (User) principal;
-            Long companyId = currentUser.getCurrentCompany().getCompanyId();
-
-            if (companyId == null) {
-                return ResponseEntity.status(400)
-                    .body(ApiResponse.error(400, "用户未选择公司"));
-            }
 
             // 分配用户到部门
             organizationService.assignUserToDepartment(userId, departmentId);
@@ -247,6 +194,29 @@ public class CompanyController {
     }
 
     /**
+     * 批量将用户分配到部门
+     * @param request 包含用户ID列表的请求对象
+     * @param departmentId 部门ID
+     * @return 分配结果
+     */
+    @PostMapping("/department/{departmentId}/users")
+    public ResponseEntity<ApiResponse<Boolean>> batchAssignUsersToDepartment(
+            @Valid @RequestBody BatchUserDepartmentRequest request,
+            @PathVariable Long departmentId, @AuthenticationPrincipal User user) {
+        try {
+
+            // 批量分配用户到部门
+            organizationService.batchAssignUsersToDepartment(request.getUserIds(), departmentId);
+
+            return ResponseUtil.success("批量用户分配到部门成功", true);
+        } catch (Exception e) {
+            log.error("批量用户分配到部门失败", e);
+            return ResponseEntity.status(500)
+                .body(ApiResponse.error(500, "批量用户分配到部门失败: " + e.getMessage()));
+        }
+    }
+
+    /**
      * 将用户从部门移除
      * @param userId 用户ID
      * @param departmentId 部门ID
@@ -255,24 +225,14 @@ public class CompanyController {
     @DeleteMapping("/department/{departmentId}/user/{userId}")
     public ResponseEntity<ApiResponse<Boolean>> removeUserFromDepartment(
             @PathVariable Long userId, 
-            @PathVariable Long departmentId) {
+            @PathVariable Long departmentId, @AuthenticationPrincipal User user) {
         try {
-            // 从SecurityContext获取当前认证用户
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || !authentication.isAuthenticated()) {
+            if (user == null) {
                 return ResponseEntity.status(401)
                     .body(ApiResponse.error(401, "用户未认证"));
             }
 
-            // 获取当前用户信息
-            Object principal = authentication.getPrincipal();
-            if (!(principal instanceof User)) {
-                return ResponseEntity.status(400)
-                    .body(ApiResponse.error(400, "用户信息无效"));
-            }
-
-            User currentUser = (User) principal;
-            Long companyId = currentUser.getCurrentCompany().getCompanyId();
+            Long companyId = user.getCurrentCompany().getCompanyId();
 
             if (companyId == null) {
                 return ResponseEntity.status(400)
@@ -296,24 +256,14 @@ public class CompanyController {
      * @return 调整结果
      */
     @PutMapping("/organization")
-    public ResponseEntity<ApiResponse<Boolean>> adjustCompanyOrganization(@RequestBody List<DepartmentDTO> departmentDTOS) {
+    public ResponseEntity<ApiResponse<Boolean>> adjustCompanyOrganization(@RequestBody List<DepartmentDTO> departmentDTOS, @AuthenticationPrincipal User user) {
         try {
-            // 从SecurityContext获取当前认证用户
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || !authentication.isAuthenticated()) {
+            if (user == null) {
                 return ResponseEntity.status(401)
                     .body(ApiResponse.error(401, "用户未认证"));
             }
 
-            // 获取当前用户信息
-            Object principal = authentication.getPrincipal();
-            if (!(principal instanceof User)) {
-                return ResponseEntity.status(400)
-                    .body(ApiResponse.error(400, "用户信息无效"));
-            }
-
-            User currentUser = (User) principal;
-            Long companyId = currentUser.getCurrentCompany().getCompanyId();
+            Long companyId = user.getCurrentCompany().getCompanyId();
 
             if (companyId == null) {
                 return ResponseEntity.status(400)
@@ -337,24 +287,14 @@ public class CompanyController {
      * @return 组织架构信息
      */
     @GetMapping("/departmentInfo")
-    public ResponseEntity<ApiResponse<DepartmentDTO>> getCurrentCompanyOrganization() {
+    public ResponseEntity<ApiResponse<DepartmentDTO>> getCurrentCompanyOrganization(@AuthenticationPrincipal User user) {
         try {
-            // 从SecurityContext获取当前认证用户
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || !authentication.isAuthenticated()) {
+            if (user == null) {
                 return ResponseEntity.status(401)
                     .body(ApiResponse.error(401, "用户未认证"));
             }
             
-            // 获取当前用户信息
-            Object principal = authentication.getPrincipal();
-            if (!(principal instanceof User)) {
-                return ResponseEntity.status(400)
-                    .body(ApiResponse.error(400, "用户信息无效"));
-            }
-            
-            User currentUser = (User) principal;
-            Long companyId = currentUser.getCurrentCompany().getCompanyId();
+            Long companyId = user.getCurrentCompany().getCompanyId();
             
             if (companyId == null) {
                 return ResponseEntity.status(400)

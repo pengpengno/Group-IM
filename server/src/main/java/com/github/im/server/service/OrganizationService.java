@@ -1,29 +1,20 @@
 package com.github.im.server.service;
 
 import com.github.im.dto.organization.DepartmentDTO;
-import com.github.im.dto.user.RegistrationRequest;
-import com.github.im.server.config.ForcePasswordChangeConfig;
-import com.github.im.server.config.mult.SchemaContext;
+import com.github.im.server.exception.BusinessException;
 import com.github.im.server.mapstruct.DepartmentMapper;
 import com.github.im.server.model.Department;
 import com.github.im.server.model.User;
 import com.github.im.server.model.UserDepartment;
-import com.github.im.server.repository.CompanyRepository;
 import com.github.im.server.repository.DepartmentRepository;
 import com.github.im.server.repository.UserDepartmentRepository;
-import com.github.im.server.repository.UserRepository;
-import com.github.im.server.service.impl.security.UserDetailsServiceImpl;
 import com.github.im.server.util.SchemaSwitcher;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityTransaction;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.hibernate.Session;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.jpa.repository.support.SimpleJpaRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,6 +37,7 @@ public class OrganizationService {
     private final CompanyService companyService;
     private final EntityManager entityManager;
     private final UserService userService;
+    private final UserDepartmentRepository userDepartmentRepository;
 
     /**
      * 创建部门
@@ -105,18 +97,16 @@ public class OrganizationService {
      */
     @Transactional
     public void deleteDepartment(Long departmentId) {
-        // 先找到部门所属的公司
+        // 先找到 部门 所属的 公司
         Department department = departmentRepository.findById(departmentId)
-                .orElseThrow(() -> new RuntimeException("部门不存在"));
+                .orElseThrow(() -> new BusinessException("部门不存在!"));
         
-        String schemaName = companyService.getSchemaNameByCompanyId(department.getCompanyId());
-        
-        SchemaSwitcher.executeWithFreshConnectionInSchema(entityManager, schemaName, em -> {
-            // 删除部门及其关联的用户关系
-            deleteUserDepartmentByDepartmentId(em, departmentId);
-            departmentRepository.deleteById(departmentId);
-            return null;
-        });
+
+        var count = userDepartmentRepository.deleteByDepartmentId(departmentId);
+
+        departmentRepository.deleteById(departmentId);
+
+
     }
 
     /**
@@ -131,17 +121,14 @@ public class OrganizationService {
         Department department = departmentRepository.findById(departmentId)
                 .orElseThrow(() -> new RuntimeException("部门不存在"));
         
-        String schemaName = companyService.getSchemaNameByCompanyId(department.getCompanyId());
-        
-        return SchemaSwitcher.executeWithFreshConnectionInSchema(entityManager, schemaName, em -> {
-            department.setParentId(newParentId);
-            Department savedDepartment = departmentRepository.save(department);
-            return departmentMapper.departmentToDepartmentDTO(savedDepartment);
-        });
+        department.setParentId(newParentId);
+        Department savedDepartment = departmentRepository.save(department);
+        return departmentMapper.departmentToDepartmentDTO(savedDepartment);
+
     }
 
     /**
-     * 将用户分配到部门
+     * 将用户分配到部门（移动用户到新部门）
      * @param userId 用户ID
      * @param departmentId 部门ID
      */
@@ -151,13 +138,52 @@ public class OrganizationService {
         Department department = departmentRepository.findById(departmentId)
                 .orElseThrow(() -> new RuntimeException("部门不存在"));
         
-        String schemaName = companyService.getSchemaNameByCompanyId(department.getCompanyId());
+        // 验证用户是否属于当前公司
+        if (!companyUserService.isUserInCompany(userId, department.getCompanyId())) {
+            throw new RuntimeException("用户不属于当前公司");
+        }
+
+        // 先删除用户在当前部门的关联关系
+        userDepartmentRepository.deleteByUserId(userId);
+        userDepartmentRepository.flush(); // 删除了避免 HIB 中对于sql的执行顺序  ，先删除
+
+        userDepartmentRepository.save(new UserDepartment(userId,departmentId));
+
+    }
+
+    /**
+     * 批量将用户分配到部门（移动用户到新部门）
+     * @param userIds 用户ID列表
+     * @param departmentId 部门ID
+     */
+    @Transactional
+    public void batchAssignUsersToDepartment(List<Long> userIds, Long departmentId) {
+        if (userIds == null || userIds.isEmpty()) {
+            return;
+        }
         
-        SchemaSwitcher.executeWithFreshConnectionInSchema(entityManager, schemaName, em -> {
-            UserDepartment userDepartment = new UserDepartment(userId, departmentId);
-            em.persist(userDepartment);
-            return null;
-        });
+        // 先找到部门所属的公司
+        Department department = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new BusinessException("部门不存在"));
+        
+
+        // 验证所有用户是否存在于当前公司中
+        List<Long> validUserIds = companyUserService.getValidUserIdsInCompany(userIds, department.getCompanyId());
+
+        if (validUserIds.size() != userIds.size()) {
+            // 检查哪些用户无效
+            List<Long> invalidUserIds = new ArrayList<>(userIds);
+            invalidUserIds.removeAll(validUserIds);
+            throw new BusinessException("以下用户不属于当前公司: " + invalidUserIds);
+        }
+        userDepartmentRepository.deleteByUserIdIn(userIds);
+        userDepartmentRepository.flush(); // 删除了避免 HIB 中对于sql的执行顺序  ，先删除
+
+        List<UserDepartment> userDepartments = userIds.stream().map(uId -> {
+            return new UserDepartment(uId, departmentId);
+        }).toList();
+        userDepartmentRepository.saveAll(userDepartments);
+
     }
 
     /**
@@ -170,13 +196,8 @@ public class OrganizationService {
         // 先找到部门所属的公司
         Department department = departmentRepository.findById(departmentId)
                 .orElseThrow(() -> new RuntimeException("部门不存在"));
-        
-        String schemaName = companyService.getSchemaNameByCompanyId(department.getCompanyId());
-        
-        SchemaSwitcher.executeWithFreshConnectionInSchema(entityManager, schemaName, em -> {
-            userDepartmentRepository.deleteByUserIdAndDepartmentId(userId, departmentId);
-            return null;
-        });
+
+        userDepartmentRepository.deleteByUserIdAndDepartmentId(userId, departmentId);
     }
 
     /**

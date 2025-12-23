@@ -2,10 +2,12 @@ package com.github.im.server.config;
 
 import com.github.im.server.exception.BusinessException;
 import com.github.im.server.web.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
@@ -43,9 +45,25 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     // 处理认证异常
     @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
     public ResponseEntity<Object> handleAuthenticationException(org.springframework.security.core.AuthenticationException ex, WebRequest request) {
-        return handleExceptionInternal(ex, "认证失败: " + ex.getMessage(), new HttpHeaders(), HttpStatus.UNAUTHORIZED, request);
+        return handleExceptionInternal(ex, "认证失败", new HttpHeaders(), HttpStatus.UNAUTHORIZED, request);
     }
 
+    // 处理参数验证异常
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            org.springframework.web.bind.MethodArgumentNotValidException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
+        
+        StringBuilder errors = new StringBuilder();
+        ex.getBindingResult().getFieldErrors().forEach(error -> {
+            errors.append(error.getField()).append(": ").append(error.getDefaultMessage()).append("; ");
+        });
+        
+        return handleExceptionInternal(ex, "参数验证失败: " + errors.toString(), headers, status, request);
+    }
+    
     // 处理通用异常
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleGeneralException(Exception ex, WebRequest request) {
@@ -63,13 +81,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problemDetail = ProblemDetail.forStatus(statusCode);
         problemDetail.setTitle(getTitleForStatus(statusCode));
         problemDetail.setDetail(body != null ? body.toString() : "服务器内部错误");
-        
         // 添加instance属性
         String requestDescription = request.getDescription(false);
-        if (requestDescription.startsWith("uri=")) {
-            problemDetail.setInstance(URI.create(requestDescription.substring(4)));
+
+        // instance：当前请求 URI（非常重要）
+        if (request instanceof ServletWebRequest servletWebRequest) {
+            HttpServletRequest httpRequest = servletWebRequest.getRequest();
+            String uri = httpRequest.getRequestURI();
+            problemDetail.setInstance(URI.create(uri));
         }
-        
+
         // 添加时间戳和错误代码
         problemDetail.setProperty("timestamp", Instant.now().toEpochMilli());
         

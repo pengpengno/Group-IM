@@ -52,24 +52,7 @@ public class OrganizationController {
         }
     }
     
-    /**
-     * 获取当前用户所在公司的组织架构
-     * @return 组织架构树
-     */
-    @GetMapping("/structure")
-    public ResponseEntity<ApiResponse<List<DepartmentDTO>>> getCurrentUserOrganizationStructure() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        User currentUser = (User) authentication.getPrincipal();
-        
-        try {
-            List<DepartmentDTO> departmentDTOs = organizationService.getDepartmentDTOs(currentUser);
-            return ResponseUtil.success("获取组织架构成功", departmentDTOs);
-        } catch (Exception e) {
-            log.error("获取组织架构失败", e);
-            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR.value(), "获取组织架构失败: " + e.getMessage()));
-        }
-    }
+
     
     /**
      * 注册新公司

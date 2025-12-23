@@ -1,7 +1,6 @@
 package com.github.im.server.config.security;
 
 import com.github.im.server.security.CompanyAccessDeniedHandler;
-import com.github.im.server.security.CompanyOwnershipSecurityExpressionHandler;
 import com.github.im.server.service.AuthenticationService;
 import com.github.im.server.service.impl.security.RefreshAuthenticationProvider;
 import com.github.im.server.service.impl.security.UserDetailsServiceImpl;
@@ -56,9 +55,14 @@ public class SecurityConfig  {
     @Autowired
     private CompanyAccessDeniedHandler companyAccessDeniedHandler;
 
-    @Autowired
-    private CompanyOwnershipSecurityExpressionHandler companyOwnershipSecurityExpressionHandler;
-
+//    @Bean
+//    public CompanyOwnershipSecurityExpressionHandler companyOwnershipSecurityExpressionHandler() {
+//        return new CompanyOwnershipSecurityExpressionHandler();
+//    }
+//    @Bean
+//    public MethodSecurityExpressionHandler methodSecurityExpressionHandler(CompanyOwnershipSecurityExpressionHandler companyOwnershipSecurityExpressionHandler) {
+//        return companyOwnershipSecurityExpressionHandler;
+//    }
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -145,8 +149,4 @@ public class SecurityConfig  {
         return new NimbusJwtEncoder(jwks);
     }
 
-    @Bean
-    public MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
-        return companyOwnershipSecurityExpressionHandler;
-    }
 }

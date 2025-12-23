@@ -1,6 +1,7 @@
 package com.github.im.server.config.security;
 
 import com.github.im.server.config.mult.SchemaContext;
+import com.github.im.server.model.Company;
 import com.github.im.server.model.User;
 import com.github.im.server.repository.UserRepository;
 import com.github.im.server.service.CompanyService;
@@ -41,6 +42,7 @@ public  class JwtToUserAuthenticationConverter implements Converter<Jwt, Abstrac
                 var companyOpt =  companyService.findById(companyId);
                 var company = companyOpt.orElseThrow(()-> new BadCredentialsException("当前公司不存在！"));
                 user.setCurrentCompany(company);
+                List<Company> companies = user.getCompanies(); // 加载 Company 对象
                 SchemaContext.setCurrentTenant(company.getSchemaName());
 
             }

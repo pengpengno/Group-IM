@@ -137,23 +137,27 @@ public class CompanyService {
      * @return 用户列表
      */
     public List<UserInfo> getUsersByCompanyId(Long companyId) {
-        // 先获取公司信息
-        Optional<Company> companyOpt = findById(companyId);
-        if (companyOpt.isEmpty()) {
+        // 通过单个查询获取公司下的所有用户
+        List<User> users = companyRepository.findUsersByCompanyId(companyId);
+        if (users.isEmpty()) {
             return new ArrayList<>();
         }
         
-        // 获取该公司的所有用户ID
-        List<Long> userIds = companyUserRepository.findUserIdsByCompanyId(companyId);
-        if (userIds.isEmpty()) {
-            return new ArrayList<>();
-        }
-        
-        // 批量获取用户信息
-        List<User> users = userRepository.findAllById(userIds);
         return userMapper.usersToUserInfos(users);
     }
 
-
+    /**
+     * 根据公司ID列表获取公司列表
+     * @param companyIds 公司ID列表
+     * @return 公司DTO列表
+     */
+    public List<CompanyDTO> getCompaniesByIds(List<Long> companyIds) {
+        if (companyIds == null || companyIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        List<Company> companies = companyRepository.findAllById(companyIds);
+        return companyMapper.companiesToCompanyDTOs(companies);
+    }
     
 }

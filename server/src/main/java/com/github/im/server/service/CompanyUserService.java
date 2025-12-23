@@ -1,8 +1,15 @@
 package com.github.im.server.service;
 
+import com.github.im.dto.organization.CompanyDTO;
+import com.github.im.server.mapstruct.CompanyMapper;
+import com.github.im.server.model.Company;
 import com.github.im.server.model.CompanyUser;
+import com.github.im.server.repository.CompanyRepository;
 import com.github.im.server.repository.CompanyUserRepository;
+import com.github.im.server.service.CompanyService;
+import com.github.im.server.util.SchemaSwitcher;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +22,29 @@ public class CompanyUserService {
     
     @Autowired
     private CompanyUserRepository companyUserRepository;
+    
+    @Autowired
+    private CompanyService companyService;
+    
+    @Autowired
+    private CompanyRepository companyRepository;
+    
+    @Autowired
+    private CompanyMapper companyMapper;
+
+    /**
+     * 获取用户所属的公司列表
+     * @param userId 用户ID
+     * @return 公司列表
+     */
+//    @Cacheable(value = "companies", key = "'user:companyIds:' + #userId")
+
+    public List<CompanyDTO> getCompanyByUserId(Long userId) {
+        return  SchemaSwitcher.executeInPublicSchema(()-> {
+            List<Company> companies = companyRepository.findCompaniesByUserId(userId);
+            return companyMapper.companiesToCompanyDTOs(companies);
+        });
+    }
     
     /**
      * 获取用户关联的所有公司
@@ -91,6 +121,16 @@ public class CompanyUserService {
         if (companyUser.isPresent()) {
             companyUserRepository.delete(companyUser.get());
         }
+    }
+    
+    /**
+     * 获取在指定公司中有效的用户ID列表
+     * @param userIds 用户ID列表
+     * @param companyId 公司ID
+     * @return 有效的用户ID列表
+     */
+    public List<Long> getValidUserIdsInCompany(List<Long> userIds, Long companyId) {
+        return companyUserRepository.findValidUserIdsInCompany(userIds, companyId);
     }
     
     /**
