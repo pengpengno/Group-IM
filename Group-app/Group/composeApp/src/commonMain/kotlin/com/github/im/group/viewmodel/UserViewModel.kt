@@ -272,6 +272,8 @@ class UserViewModel(
 
                 GlobalCredentialProvider.storage.saveUserInfo(response)
                 GlobalCredentialProvider.currentToken = response.token
+                GlobalCredentialProvider.currentUserId = response.userId
+                GlobalCredentialProvider.companyId = response.currentLoginCompanyId
 
                 _uiState.value = response
 

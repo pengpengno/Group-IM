@@ -1,11 +1,13 @@
 package com.github.im.server.utils;
 
 import cn.hutool.jwt.Claims;
+import com.github.im.server.exception.BusinessException;
 import com.github.im.server.model.User;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.jwt.*;
@@ -82,6 +84,30 @@ public class JwtUtil {
     }
 
     /**
+     * 验证 RefreshToken
+     * 获取 Jwt
+     * @param refreshToken
+     * @return Optional
+     */
+    public Optional<Jwt> getJwt(String refreshToken) throws BadCredentialsException{
+
+        try{
+            var jwt = jwtDecoder.decode(refreshToken);
+            Instant expiration = jwt.getExpiresAt();
+            boolean notExpired = expiration != null && expiration.isAfter(Instant.now());
+            if (notExpired) {
+                return Optional.of(jwt);
+            }else {
+                throw new BadCredentialsException("身份已过期");
+            }
+        }
+        catch (JwtException exception){
+            log.error("Invalid refresh token: {}", exception.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /**
      * 验证 RefreshToken 是否有效
      * 有效则返回 userId
      * 无效 则返回 Optional.empty()
@@ -94,7 +120,6 @@ public class JwtUtil {
             if (notExpired) {
                 return Optional.of(Long.parseLong(jwt.getId()));
             }else {
-                //  TODO  提示凭据 过期
                 return Optional.empty();
             }
         } catch (JwtException e) {

@@ -26,10 +26,6 @@ spring:
 #      group-search-base: ou=groups
 #      # 组搜索过滤器
 #      group-search-filter: (uniqueMember={0})
-
-  webflux:
-    multipart:
-      max-in-memory-size: 100MB   # 超过这个大小的内容将写入磁盘临时文件
   servlet:
     multipart:
       max-file-size: 100MB
@@ -57,12 +53,10 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: update
-    show-sql: true  # 展示 SQL
+#    show-sql: true  # 展示 SQL
     properties:
       hibernate:
         multiTenancy: SCHEMA
-#        tenant_identifier_resolver: com.github.im.server.config.mult.CurrentTenantIdentifierResolverImpl
-#        multi_tenant_connection_provider: com.github.im.server.config.mult.SchemaMultiTenantConnectionProvider
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect  # 确保方言设置正确
 

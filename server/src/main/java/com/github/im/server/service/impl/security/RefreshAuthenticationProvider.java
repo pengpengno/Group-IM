@@ -18,23 +18,19 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class RefreshAuthenticationProvider implements AuthenticationProvider {
 
-    private final UserRepository userRepository;
+    private final UserSecurityService userSecurityService;
     private final JwtUtil jwtUtil;
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
         String refreshToken = (String) authentication.getCredentials();
 
-        Optional<Long> idOpt = jwtUtil.validateRefreshToken(refreshToken);
-        if (idOpt.isEmpty()) {
-            throw new BadCredentialsException("无效或过期的 refresh token");
+        var jwtOpt = jwtUtil.getJwt(refreshToken);
+        if (jwtOpt.isEmpty()) {
+            throw new BadCredentialsException("Invalid refresh token");
         }
-        // 这里你可以从数据库查询 refreshToken 是否有效
-        User user = userRepository.findById(idOpt.get())
-                .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
-
-//        return new RefreshAuthenticationToken(user, user.getAuthorities());
-        // 复用 即可
+        var jwt = jwtOpt.get();
+        User user = userSecurityService.jwt2User(jwt);
         return new UsernamePasswordAuthenticationToken(user,user.getPasswordHash(), user.getAuthorities());
     }
 

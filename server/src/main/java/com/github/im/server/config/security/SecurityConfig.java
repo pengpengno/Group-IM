@@ -32,6 +32,9 @@ import org.springframework.security.ldap.authentication.LdapAuthenticationProvid
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.filter.OncePerRequestFilter;
+
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 
@@ -54,6 +57,9 @@ public class SecurityConfig  {
 
     @Autowired
     private CompanyAccessDeniedHandler companyAccessDeniedHandler;
+
+    @Autowired
+    private ReactiveTokenRefreshFilter reactiveTokenRefreshFilter;
 
 //    @Bean
 //    public CompanyOwnershipSecurityExpressionHandler companyOwnershipSecurityExpressionHandler() {

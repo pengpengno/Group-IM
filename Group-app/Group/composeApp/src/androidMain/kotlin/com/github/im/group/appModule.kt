@@ -29,6 +29,7 @@ import com.github.im.group.sdk.WebRTCManager
 import com.github.im.group.ui.video.VideoCallViewModel
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
+import com.github.im.group.viewmodel.ContactsViewModel
 import com.github.im.group.viewmodel.TCPMessageViewModel
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
@@ -141,5 +142,11 @@ val appmodule = module {
         vm
     }
 
+    // 注册ContactsViewModel
+    viewModel {
+        ContactsViewModel(
+            userRepository = get()
+        )
+    }
 
 }

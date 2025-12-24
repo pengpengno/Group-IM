@@ -1,6 +1,10 @@
 package com.github.im.server.listener;
 
 import com.github.im.server.event.CompanyCreatedEvent;
+import com.github.im.server.model.Company;
+import com.github.im.server.repository.CompanyRepository;
+import com.github.im.server.service.CompanyService;
+import com.github.im.server.web.ApiResponse;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +14,7 @@ import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.event.EventListener;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +27,9 @@ public class CompanyCreatedEventListener  {
 
     private final EntityManager entityManager;
 
+
+    private final CompanyRepository companyRepository;
+    
     // Schema name validation regex - only allow alphanumeric characters and underscores
     private static final String SCHEMA_NAME_PATTERN = "^[a-zA-Z0-9_]+$";
 
@@ -33,21 +41,23 @@ public class CompanyCreatedEventListener  {
         try {
             String schemaName = event.getCompany().getSchemaName();
             
-            // Validate schema name format
+            // Validate schema name format to prevent injection
             if (schemaName == null || !schemaName.matches(SCHEMA_NAME_PATTERN)) {
                 logger.error("Invalid schema name format: {}. Schema name must contain only alphanumeric characters and underscores.", schemaName);
-                return;
+                throw new IllegalArgumentException("Invalid schema name format: " + schemaName);
             }
             
+            Long companyId = event.getCompany().getCompanyId();
+            
             if (entityManager != null) {
-                // 使用字符串拼接的方式调用函数，避免参数类型推断问题
-                String sql = String.format(
-                    "SELECT public.create_or_sync_company_schema('%s', %d)", 
-                    schemaName.replace("'", "''"), // 防止SQL注入
-                    event.getCompany().getCompanyId()
-                );
+                // 使用参数化查询来防止SQL注入
+                String sql = "SELECT public.create_or_sync_company_schema(:schemaName, :companyId)";
                 
-                Object singleResult = entityManager.createNativeQuery(sql).getSingleResult();
+                Object singleResult = entityManager.createNativeQuery(sql)
+                    .setParameter("schemaName", schemaName)
+                    .setParameter("companyId", companyId)
+                    .getSingleResult();
+                
                 logger.info("Successfully created schema for company: {} ,result {} ", event.getCompany().getName(), singleResult);
             }
         } catch (Exception e) {

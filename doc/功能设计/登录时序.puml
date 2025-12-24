@@ -1,0 +1,43 @@
+@startuml
+title IM 系统 Token 流程示意图
+
+actor Client
+participant HTTP_Server as "HTTP API Server"
+participant TCP_Server as "IM/TCP Server"
+participant AuthService as "Token 验证服务"
+
+== 登录流程 ==
+Client -> HTTP_Server : POST /login(username, password)
+HTTP_Server -> AuthService : 验证用户名/密码
+AuthService --> HTTP_Server : 返回 User 信息
+HTTP_Server -> Client : 返回 AccessToken + RefreshToken
+
+== TCP 连接鉴权 ==
+Client -> TCP_Server : 建立 TCP 连接 + AccessToken
+TCP_Server -> AuthService : 验证 AccessToken
+AuthService --> TCP_Server : AccessToken 有效 / 无效
+TCP_Server --> Client : 鉴权成功 / 失败
+
+== AccessToken 使用 ==
+Client -> TCP_Server : 发送消息
+TCP_Server -> AuthService : 验证 AccessToken
+AuthService --> TCP_Server : 有效
+TCP_Server --> Client : 消息处理成功
+
+== AccessToken 过期 ==
+Client -> AuthService : 检查 AccessToken 过期
+AuthService --> Client : 已过期
+
+== RefreshToken 刷新流程 ==
+Client -> HTTP_Server : POST /refreshToken(RefreshToken)
+HTTP_Server -> AuthService : 验证 RefreshToken
+AuthService --> HTTP_Server : 生成新 AccessToken
+HTTP_Server -> Client : 返回新 AccessToken
+
+== TCP 重新连接 ==
+Client -> TCP_Server : 使用新 AccessToken 重连
+TCP_Server -> AuthService : 验证 AccessToken
+AuthService --> TCP_Server : 鉴权成功
+TCP_Server --> Client : 连接建立
+
+@enduml

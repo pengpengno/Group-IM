@@ -93,7 +93,7 @@ public class AuthenticationService  {
     public Optional<UserInfo> loginViaRefreshToken(String refreshToken) {
         var authToken = new RefreshAuthenticationToken(refreshToken);
         Authentication authResult = authenticationManager.authenticate(authToken);
-        SecurityContextHolder.getContext().setAuthentication(authResult);
+//        SecurityContextHolder.getContext().setAuthentication(authResult);
 
         User user = (User) authResult.getPrincipal();
         String accessToken = jwtUtil.createToken(user);

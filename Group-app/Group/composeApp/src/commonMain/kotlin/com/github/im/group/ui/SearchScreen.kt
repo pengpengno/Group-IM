@@ -38,7 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.github.im.group.ui.contacts.ContactItem
+
 import com.github.im.group.model.UserInfo
 import io.github.aakira.napier.Napier
 
@@ -209,6 +209,34 @@ fun SearchScreen(
     }
 }
 
+@Composable
+fun UserSearchResultItem(
+    userInfo: UserInfo,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        UserAvatar(username = userInfo.username, size = 56)
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(
+                text = userInfo.username,
+                style = androidx.compose.material3.MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = userInfo.email,
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = androidx.compose.ui.graphics.Color.Gray
+            )
+        }
+    }
+}
+
 //@Composable
 private fun LazyListScope.showAllResults(
     userResults: List<UserInfo>,
@@ -228,8 +256,8 @@ private fun LazyListScope.showAllResults(
             }
 
             items(userResults) { user ->
-                ContactItem(
-                    friend = user,
+                UserItem(
+                    userInfo = user,
                     onClick = {
                         // 导航到与该用户的聊天界面
                         // navHostController.navigate(ChatRoom(conversationId))
@@ -366,8 +394,8 @@ private fun LazyListScope.showAllResults(
 private fun LazyListScope.showUserResults(userResults: List<UserInfo>) {
     try {
         items(userResults) { user ->
-            ContactItem(
-                friend = user,
+            UserItem(
+                userInfo = user,
                 onClick = {
                     // 导航到与该用户的聊天界面
                     // navHostController.navigate(ChatRoom(conversationId))

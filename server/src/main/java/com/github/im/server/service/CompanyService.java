@@ -4,6 +4,7 @@ import com.github.im.dto.organization.CompanyDTO;
 import com.github.im.dto.organization.DepartmentDTO;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.server.event.CompanyCreatedEvent;
+import com.github.im.server.exception.BusinessException;
 import com.github.im.server.mapstruct.CompanyMapper;
 import com.github.im.server.mapstruct.DepartmentMapper;
 import com.github.im.server.mapstruct.UserMapper;
@@ -12,13 +13,18 @@ import com.github.im.server.model.Department;
 import com.github.im.server.model.User;
 import com.github.im.server.model.UserDepartment;
 import com.github.im.server.repository.*;
+import jakarta.persistence.EntityManager;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,26 +35,22 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Validated
+@Slf4j
 public class CompanyService {
 
     private final CompanyRepository companyRepository;
-    
-    private final DepartmentRepository departmentRepository;
-    
-    private final UserRepository userRepository;
-    
-    private final UserDepartmentRepository userDepartmentRepository;
-    
-    private final CompanyUserRepository companyUserRepository;
-    
+
     private final ApplicationEventPublisher eventPublisher;
     
     private final UserMapper userMapper;
-    
-    private final DepartmentMapper departmentMapper;
-    
-    private final CompanyMapper companyMapper;
 
+    private final CompanyMapper companyMapper;
+    private final EntityManager entityManager;
+
+
+    // Schema name validation regex - only allow alphanumeric characters and underscores
+    private static final String SCHEMA_NAME_PATTERN = "^[a-zA-Z0-9_]+$";
     /**
      * 根据公司ID查找公司
      * @param companyId 公司ID
@@ -86,12 +88,56 @@ public class CompanyService {
      */
     @CacheEvict(value = "companies", allEntries = true)
     @Transactional  // 后面逻辑错误 则会回滚
-    public Company save(Company company) {
-        Company savedCompany = companyRepository.save(company);
-        // 发布公司创建事件，触发schema创建
-        eventPublisher.publishEvent(new CompanyCreatedEvent(savedCompany));
-        
-        return savedCompany;
+    public Company save(@Valid  @NotNull  Company company) {
+        String schemaName = company.getSchemaName();
+        String companyName = company.getName();
+
+        // 一次性查询验证公司名称和schema名称的唯一性
+        var existingCompanyOpt = companyRepository.findByNameAndSchemaName(
+            companyName, 
+            schemaName
+        );
+
+        if (existingCompanyOpt.isPresent()){
+            var existingCompany = existingCompanyOpt.get();
+            if (existingCompany.getName().equals(companyName)) {
+                throw new BusinessException("Company name already exists: " + companyName);
+            }
+            if (schemaName != null && existingCompany.getSchemaName() != null && existingCompany.getSchemaName().equals(schemaName)) {
+                throw new BusinessException("Schema name already exists: " + schemaName);
+            }
+        }
+
+
+        // 验证schema名称格式以防止注入
+        if (schemaName != null && !schemaName.matches(SCHEMA_NAME_PATTERN)) {
+            log.error("Invalid schema name format: {}. Schema name must contain only alphanumeric characters and underscores.", schemaName);
+            throw new BusinessException("Invalid schema name format: " + schemaName);
+        }
+
+        // 调用数据库函数创建schema
+        try {
+            Company saveCompany = companyRepository.save(company);
+
+            Long companyId = saveCompany.getCompanyId();
+
+            if (entityManager != null && schemaName != null) {
+                // 使用参数化查询来防止SQL注入
+                String sql = "SELECT public.create_or_sync_company_schema(:schemaName, :companyId)";
+
+                Object singleResult = entityManager.createNativeQuery(sql)
+                        .setParameter("schemaName", schemaName)
+                        .setParameter("companyId", companyId)
+                        .getSingleResult();
+
+                log.info("Successfully created schema for company: {} ,result {} ", schemaName, singleResult);
+            }
+            return saveCompany;
+        } catch (Exception e) {
+            log.error("Failed to create schema for company: {}", schemaName, e);
+            // 重新抛出异常以触发事务回滚
+            throw new RuntimeException("Failed to create schema for company: " + schemaName, e);
+        }
     }
 
     /**

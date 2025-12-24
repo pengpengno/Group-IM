@@ -26,7 +26,7 @@ public class CurrentTenantIdentifierResolverImpl implements CurrentTenantIdentif
             // 首先尝试从TenantContext中获取租户标识
             String tenantFromContext = SchemaContext.getCurrentTenant();
             if (tenantFromContext != null && !tenantFromContext.isEmpty()) {
-                log.info("从TenantContext获取到租户标识: {}", tenantFromContext);
+                log.debug("从 Context 获取到租户标识: {}", tenantFromContext);
                 return tenantFromContext;
             }
 

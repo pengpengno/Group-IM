@@ -37,8 +37,6 @@ public class CompanyUserService {
      * @param userId 用户ID
      * @return 公司列表
      */
-//    @Cacheable(value = "companies", key = "'user:companyIds:' + #userId")
-
     public List<CompanyDTO> getCompanyByUserId(Long userId) {
         return  SchemaSwitcher.executeInPublicSchema(()-> {
             List<Company> companies = companyRepository.findCompaniesByUserId(userId);

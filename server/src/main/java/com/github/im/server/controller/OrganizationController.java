@@ -2,17 +2,22 @@ package com.github.im.server.controller;
 
 import com.github.im.dto.organization.CompanyDTO;
 import com.github.im.dto.organization.DepartmentDTO;
+import com.github.im.server.exception.BusinessException;
 import com.github.im.server.model.User;
 import com.github.im.server.service.OrganizationService;
 import com.github.im.server.service.CompanyService;
 import com.github.im.server.web.ApiResponse;
 import com.github.im.server.web.ResponseUtil;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,6 +28,7 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/api/organization")
+@Validated
 public class OrganizationController {
 
     @Autowired
@@ -30,28 +36,31 @@ public class OrganizationController {
     
     @Autowired
     private CompanyService companyService;
+//
+//    /**
+//     * 获取组织架构
+//     * @param companyId 公司ID
+//     * @return 组织架构树
+//     */
+//    @GetMapping("/structure/{companyId}")
+//    public ResponseEntity<ApiResponse<List<DepartmentDTO>>> getOrganizationStructure(@PathVariable Long companyId) {
+//        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+//        User currentUser = (User) authentication.getPrincipal();
+//
+//        // 检查用户是否有权访问该公司的组织架构
+//
+//        try {
+//            List<DepartmentDTO> departmentDTOs = organizationService.getDepartmentDTOs(companyId);
+//            return ResponseUtil.success("获取组织架构成功", departmentDTOs);
+//        } catch (Exception e) {
+//            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(ApiResponse.error(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR.value(), "获取组织架构失败: " + e.getMessage()));
+//        }
+//    }
+//
 
-    /**
-     * 获取组织架构
-     * @param companyId 公司ID
-     * @return 组织架构树
-     */
-    @GetMapping("/structure/{companyId}")
-    public ResponseEntity<ApiResponse<List<DepartmentDTO>>> getOrganizationStructure(@PathVariable Long companyId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        User currentUser = (User) authentication.getPrincipal();
-        
-        // 检查用户是否有权访问该公司的组织架构
-
-        try {
-            List<DepartmentDTO> departmentDTOs = organizationService.getDepartmentDTOs(companyId);
-            return ResponseUtil.success("获取组织架构成功", departmentDTOs);
-        } catch (Exception e) {
-            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR.value(), "获取组织架构失败: " + e.getMessage()));
-        }
-    }
-    
+    // Schema name validation regex - only allow alphanumeric characters and underscores
+    private static final String SCHEMA_NAME_PATTERN = "^[a-zA-Z0-9_]+$";
 
     
     /**
@@ -63,6 +72,13 @@ public class OrganizationController {
     public ResponseEntity<ApiResponse<CompanyDTO>> registerCompany(@RequestBody CompanyDTO companyDTO) {
         // 只有系统管理员才能注册新公司
 
+        String schemaName = companyDTO.getCode();
+        // Validate schema name format
+        if (schemaName == null || !schemaName.matches(SCHEMA_NAME_PATTERN)) {
+            log.error("Invalid schema name format: {}. Schema name must contain only alphanumeric characters and underscores.", schemaName);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(org.springframework.http.HttpStatus.BAD_REQUEST.value(), "code 仅允许字母数字"));
+        }
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
 
@@ -76,6 +92,7 @@ public class OrganizationController {
             CompanyDTO savedCompanyDTO = companyService.registerCompany(companyDTO);
             return ResponseUtil.success("公司注册成功", savedCompanyDTO);
         } catch (Exception e) {
+            log.error("公司注册失败", e);
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR.value(), "公司注册失败: " + e.getMessage()));
         }
@@ -86,9 +103,15 @@ public class OrganizationController {
      * @return 公司列表
      */
     @GetMapping("/company")
-    public ResponseEntity<ApiResponse<List<CompanyDTO>>> getAllCompanies() {
+    public ResponseEntity<ApiResponse<List<CompanyDTO>>> getAllCompanies(
+            @AuthenticationPrincipal User user
+    ) {
         try {
             // 只有系统管理员才能查看所有公司
+            if (!isAdminUser(user)) {
+                return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error(org.springframework.http.HttpStatus.FORBIDDEN.value(), "无权限"));
+            }
             List<CompanyDTO> companyDTOs = companyService.getAllCompanies();
             return ResponseUtil.success("获取公司列表成功", companyDTOs);
         } catch (Exception e) {

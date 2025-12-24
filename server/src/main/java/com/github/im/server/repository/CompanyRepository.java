@@ -21,6 +21,9 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
      */
     Optional<Company> findByName(String name);
 
+    Optional<Company> findByNameAndSchemaName(String name,String schemaName);
+
+
     /**
      * 根据公司ID查找公司，并加载其用户信息
      * @param companyId 公司ID

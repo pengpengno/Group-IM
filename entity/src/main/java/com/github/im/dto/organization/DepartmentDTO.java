@@ -1,10 +1,12 @@
 package com.github.im.dto.organization;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.github.im.dto.user.UserBasicInfo;
 import com.github.im.dto.user.UserInfo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.mapstruct.Mapping;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -29,5 +31,5 @@ public class DepartmentDTO implements Serializable {
     private List<DepartmentDTO> children;
     
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    private List<UserInfo> members;
+    private List<UserBasicInfo> members;
 }

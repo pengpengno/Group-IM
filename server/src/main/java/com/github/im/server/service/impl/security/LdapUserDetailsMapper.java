@@ -19,13 +19,17 @@ import java.util.Collection;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class LdapUserDetailsMapper implements UserDetailsContextMapper , ContextMapper<UserDetails> {
+public class
+
+LdapUserDetailsMapper implements UserDetailsContextMapper , ContextMapper<UserDetails> {
 
     private final UserRepository userRepository;
 
 
     @Override
     public UserDetails mapFromContext(Object ctx) throws NamingException {
+
+        //TODO  LDAP 涉及到 用户以及公司 schema 的创建  暂时不动 这一块， 默认也是加在 public 下 不区分 schmea
         if (ctx instanceof DirContextAdapter) {
             DirContextAdapter adapter = (DirContextAdapter) ctx;
             String username = adapter.getStringAttribute("uid");

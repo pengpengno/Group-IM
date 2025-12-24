@@ -1658,33 +1658,106 @@
 			"name": "Company",
 			"item": [
 				{
-					"name": "调整公司组织架构",
+					"name": "获取组织架构",
 					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "[\n  {\n    \"name\": \"人力资源部\",\n    \"description\": \"负责人力资源管理\",\n    \"orderNum\": 1,\n    \"status\": true,\n    \"children\": [\n      {\n        \"name\": \"招聘组\",\n        \"description\": \"负责招聘工作\",\n        \"orderNum\": 1,\n        \"status\": true\n      }\n    ]\n  },\n  {\n    \"name\": \"技术部\",\n    \"description\": \"负责技术研发\",\n    \"orderNum\": 2,\n    \"status\": true,\n    \"children\": [\n      {\n        \"name\": \"前端组\",\n        \"description\": \"负责前端开发\",\n        \"orderNum\": 1,\n        \"status\": true\n      },\n      {\n        \"name\": \"后端组\",\n        \"description\": \"负责后端开发\",\n        \"orderNum\": 2,\n        \"status\": true\n      }\n    ]\n  }\n]"
-						},
+						"method": "GET",
+						"header": [],
 						"url": {
-							"raw": "{{rest-host}}/api/company/organization",
+							"raw": "{{rest-host}}/api/company/structure",
 							"host": [
 								"{{rest-host}}"
 							],
 							"path": [
 								"api",
 								"company",
-								"organization"
+								"structure"
 							]
 						},
-						"description": "调整公司组织架构，会清空原有结构并重建新的组织架构"
+						"description": "获取指定公司的组织架构"
 					},
-					"response": []
+					"response": [
+						{
+							"name": "200 获取组织架构",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{rest-host}}/api/company/structure",
+									"host": [
+										"{{rest-host}}"
+									],
+									"path": [
+										"api",
+										"company",
+										"structure"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": null,
+							"header": [
+								{
+									"key": "Vary",
+									"value": "Origin"
+								},
+								{
+									"key": "Vary",
+									"value": "Access-Control-Request-Method"
+								},
+								{
+									"key": "Vary",
+									"value": "Access-Control-Request-Headers"
+								},
+								{
+									"key": "X-Content-Type-Options",
+									"value": "nosniff"
+								},
+								{
+									"key": "X-XSS-Protection",
+									"value": "0"
+								},
+								{
+									"key": "Cache-Control",
+									"value": "no-cache, no-store, max-age=0, must-revalidate"
+								},
+								{
+									"key": "Pragma",
+									"value": "no-cache"
+								},
+								{
+									"key": "Expires",
+									"value": "0"
+								},
+								{
+									"key": "X-Frame-Options",
+									"value": "DENY"
+								},
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								},
+								{
+									"key": "Transfer-Encoding",
+									"value": "chunked"
+								},
+								{
+									"key": "Date",
+									"value": "Wed, 24 Dec 2025 01:54:26 GMT"
+								},
+								{
+									"key": "Keep-Alive",
+									"value": "timeout=60"
+								},
+								{
+									"key": "Connection",
+									"value": "keep-alive"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"code\": 200,\n    \"message\": \"获取组织架构成功\",\n    \"data\": {\n        \"departmentId\": 14,\n        \"name\": \"技术的\",\n        \"description\": \"公司顶层节点\",\n        \"companyId\": 14,\n        \"children\": [\n            {\n                \"departmentId\": 6,\n                \"name\": \"更新后的部门名称\",\n                \"description\": \"更新后的部门描述\",\n                \"companyId\": 14,\n                \"orderNum\": 2,\n                \"status\": true\n            },\n            {\n                \"departmentId\": 3,\n                \"name\": \"生产部门\",\n                \"companyId\": 14,\n                \"status\": true,\n                \"children\": [\n                    {\n                        \"departmentId\": 5,\n                        \"name\": \"产品部门\",\n                        \"companyId\": 14,\n                        \"parentId\": 3,\n                        \"status\": true\n                    },\n                    {\n                        \"departmentId\": 4,\n                        \"name\": \"研发部门\",\n                        \"companyId\": 14,\n                        \"parentId\": 3,\n                        \"status\": true,\n                        \"members\": [\n                            {\n                                \"userId\": 13,\n                                \"username\": \"shuang.han\",\n                                \"email\": \"shuang.handng@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 14,\n                                \"username\": \"shuang.han1\",\n                                \"email\": \"shuang.handng1@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 15,\n                                \"username\": \"shuang.han2\",\n                                \"email\": \"shuang.handng2@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 16,\n                                \"username\": \"shuang.han3\",\n                                \"email\": \"shuang.handng3@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 17,\n                                \"username\": \"shuang.han4\",\n                                \"email\": \"shuang.handng4@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 18,\n                                \"username\": \"shuang.han5\",\n                                \"email\": \"shuang.handng5@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 19,\n                                \"username\": \"shuang.han6\",\n                                \"email\": \"shuang.handng6@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 20,\n                                \"username\": \"shuang.han7\",\n                                \"email\": \"shuang.handng7@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 21,\n                                \"username\": \"shuang.han8\",\n                                \"email\": \"shuang.handng8@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 22,\n                                \"username\": \"shuang.han9\",\n                                \"email\": \"shuang.handng9@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 23,\n                                \"username\": \"shuang.han10\",\n                                \"email\": \"shuang.handng10@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 24,\n                                \"username\": \"shuang.han11\",\n                                \"email\": \"shuang.handng11@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 25,\n                                \"username\": \"shuang.han12\",\n                                \"email\": \"shuang.handng12@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 26,\n                                \"username\": \"shuang.han13\",\n                                \"email\": \"shuang.handng13@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 27,\n                                \"username\": \"shuang.han14\",\n                                \"email\": \"shuang.handng14@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 28,\n                                \"username\": \"shuang.han15\",\n                                \"email\": \"shuang.handng15@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            }\n                        ]\n                    }\n                ]\n            },\n            {\n                \"departmentId\": 1,\n                \"name\": \"人力资源部\",\n                \"description\": \"负责人力资源管理\",\n                \"companyId\": 14,\n                \"status\": true,\n                \"children\": [\n                    {\n                        \"departmentId\": 2,\n                        \"name\": \"招聘组\",\n                        \"description\": \"负责招聘工作\",\n                        \"companyId\": 14,\n                        \"parentId\": 1,\n                        \"status\": true,\n                        \"children\": [\n                            {\n                                \"departmentId\": 8,\n                                \"name\": \"新部门\",\n                                \"description\": \"部门描述\",\n                                \"companyId\": 14,\n                                \"parentId\": 2,\n                                \"orderNum\": 1,\n                                \"status\": true,\n                                \"members\": [\n                                    {\n                                        \"userId\": 9,\n                                        \"username\": \"san.zhangsdd\",\n                                        \"email\": \"san.zhawng@example.com\",\n                                        \"phoneNumber\": \"13800138001\"\n                                    },\n                                    {\n                                        \"userId\": 38,\n                                        \"username\": \"peng.wang10\",\n                                        \"email\": \"peng.wang10@example.com\",\n                                        \"phoneNumber\": \"13800138001\"\n                                    },\n                                    {\n                                        \"userId\": 35,\n                                        \"username\": \"peng.wang7\",\n                                        \"email\": \"peng.wang7@example.com\",\n                                        \"phoneNumber\": \"13800138001\"\n                                    },\n                                    {\n                                        \"userId\": 39,\n                                        \"username\": \"peng.wang11\",\n                                        \"email\": \"peng.wang11@example.com\",\n                                        \"phoneNumber\": \"13800138001\"\n                                    }\n                                ]\n                            }\n                        ],\n                        \"members\": [\n                            {\n                                \"userId\": 29,\n                                \"username\": \"peng.wang1\",\n                                \"email\": \"peng.wang1@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 30,\n                                \"username\": \"peng.wang2\",\n                                \"email\": \"peng.wang2@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 31,\n                                \"username\": \"peng.wang3\",\n                                \"email\": \"peng.wang3@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 32,\n                                \"username\": \"peng.wang4\",\n                                \"email\": \"peng.wang4@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 33,\n                                \"username\": \"peng.wang5\",\n                                \"email\": \"peng.wang5@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 34,\n                                \"username\": \"peng.wang6\",\n                                \"email\": \"peng.wang6@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 36,\n                                \"username\": \"peng.wang8\",\n                                \"email\": \"peng.wang8@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 37,\n                                \"username\": \"peng.wang9\",\n                                \"email\": \"peng.wang9@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 40,\n                                \"username\": \"peng.wang12\",\n                                \"email\": \"peng.wang12@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            },\n                            {\n                                \"userId\": 41,\n                                \"username\": \"peng.wang13\",\n                                \"email\": \"peng.wang13@example.com\",\n                                \"phoneNumber\": \"13800138001\"\n                            }\n                        ]\n                    }\n                ]\n            }\n        ],\n        \"members\": [\n            {\n                \"userId\": 7,\n                \"username\": \"peng.wang\",\n                \"email\": \"peng.wang@example.com\",\n                \"phoneNumber\": \"17344091145\"\n            },\n            {\n                \"userId\": 8,\n                \"username\": \"san.zhang\",\n                \"email\": \"san.zhang@example.com\",\n                \"phoneNumber\": \"173440911435\"\n            },\n            {\n                \"userId\": 10,\n                \"username\": \"san.zhangsddd\",\n                \"email\": \"san.zhawddng@example.com\",\n                \"phoneNumber\": \"13800138001\"\n            },\n            {\n                \"userId\": 5,\n                \"username\": \"zhangsan\",\n                \"email\": \"zhangsan@example.com\",\n                \"phoneNumber\": \"13800138000\"\n            },\n            {\n                \"userId\": 6,\n                \"username\": \"lisi\",\n                \"email\": \"lisi@example.com\",\n                \"phoneNumber\": \"13800138001\"\n            },\n            {\n                \"userId\": 11,\n                \"username\": \"san.zhangsddddd\",\n                \"email\": \"san.zhawddsddng@example.com\",\n                \"phoneNumber\": \"13800138001\"\n            }\n        ]\n    },\n    \"timestamp\": 1766541266162\n}"
+						}
+					]
 				},
 				{
 					"name": "创建部门",
@@ -2682,108 +2755,6 @@
 						"description": "将指定用户从指定部门移除"
 					},
 					"response": []
-				}
-			]
-		},
-		{
-			"name": "获取当前用户所在公司的组织架构",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{rest-host}}/api/organization/structure",
-					"host": [
-						"{{rest-host}}"
-					],
-					"path": [
-						"api",
-						"organization",
-						"structure"
-					]
-				},
-				"description": "获取当前用户所在公司的组织架构"
-			},
-			"response": [
-				{
-					"name": "200 获取当前用户所在公司的组织架构",
-					"originalRequest": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{rest-host}}/api/company/structure",
-							"host": [
-								"{{rest-host}}"
-							],
-							"path": [
-								"api",
-								"company",
-								"structure"
-							]
-						}
-					},
-					"status": "OK",
-					"code": 200,
-					"_postman_previewlanguage": null,
-					"header": [
-						{
-							"key": "Vary",
-							"value": "Origin"
-						},
-						{
-							"key": "Vary",
-							"value": "Access-Control-Request-Method"
-						},
-						{
-							"key": "Vary",
-							"value": "Access-Control-Request-Headers"
-						},
-						{
-							"key": "X-Content-Type-Options",
-							"value": "nosniff"
-						},
-						{
-							"key": "X-XSS-Protection",
-							"value": "0"
-						},
-						{
-							"key": "Cache-Control",
-							"value": "no-cache, no-store, max-age=0, must-revalidate"
-						},
-						{
-							"key": "Pragma",
-							"value": "no-cache"
-						},
-						{
-							"key": "Expires",
-							"value": "0"
-						},
-						{
-							"key": "X-Frame-Options",
-							"value": "DENY"
-						},
-						{
-							"key": "Content-Type",
-							"value": "application/json"
-						},
-						{
-							"key": "Transfer-Encoding",
-							"value": "chunked"
-						},
-						{
-							"key": "Date",
-							"value": "Tue, 23 Dec 2025 06:19:30 GMT"
-						},
-						{
-							"key": "Keep-Alive",
-							"value": "timeout=60"
-						},
-						{
-							"key": "Connection",
-							"value": "keep-alive"
-						}
-					],
-					"cookie": [],
-					"body": "{\n    \"code\": 200,\n    \"message\": \"获取组织架构成功\",\n    \"data\": [\n        {\n            \"departmentId\": 1,\n            \"name\": \"人力资源部\",\n            \"description\": \"负责人力资源管理\",\n            \"companyId\": 14,\n            \"status\": true,\n            \"children\": [\n                {\n                    \"departmentId\": 2,\n                    \"name\": \"招聘组\",\n                    \"description\": \"负责招聘工作\",\n                    \"companyId\": 14,\n                    \"parentId\": 1,\n                    \"status\": true\n                }\n            ]\n        },\n        {\n            \"departmentId\": 3,\n            \"name\": \"生产部门\",\n            \"companyId\": 14,\n            \"status\": true,\n            \"children\": [\n                {\n                    \"departmentId\": 4,\n                    \"name\": \"研发部门\",\n                    \"companyId\": 14,\n                    \"parentId\": 3,\n                    \"status\": true\n                },\n                {\n                    \"departmentId\": 5,\n                    \"name\": \"产品部门\",\n                    \"companyId\": 14,\n                    \"parentId\": 3,\n                    \"status\": true\n                }\n            ]\n        }\n    ],\n    \"timestamp\": 1766470770710\n}"
 				}
 			]
 		}

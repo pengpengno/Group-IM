@@ -63,7 +63,6 @@
          * @param userId 用户ID
          * @return 添加后的群组成员
          */
-        @Transactional
         public ConversationMember addMemberToGroup(@NotNull(message = "Group ID cannot be null") Long groupId,
                                                    @NotNull(message = "add memberUserid not be null" )Long userId) {
 
@@ -74,7 +73,7 @@
                     .build();
 
 
-            return groupMemberRepository.save(groupMember);
+            return groupMemberRepository.saveAndFlush(groupMember);
         }
 
         /**

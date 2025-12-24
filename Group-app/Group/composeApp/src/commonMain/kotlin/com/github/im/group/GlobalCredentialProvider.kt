@@ -5,6 +5,7 @@ package com.github.im.group
 object GlobalCredentialProvider {
     var storage: CredentialStorage = DefaultCredentialStorage
     var currentToken :String = ""
-
+    var currentUserId: Long = 0L
+    var companyId: Long? = null
 
 }

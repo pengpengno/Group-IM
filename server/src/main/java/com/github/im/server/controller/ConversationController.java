@@ -2,9 +2,11 @@ package com.github.im.server.controller;
 
 import com.github.im.conversation.ConversationRes;
 import com.github.im.conversation.GroupInfo;
+import com.github.im.server.model.User;
 import com.github.im.server.service.ConversationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -59,8 +61,9 @@ public class ConversationController {
      * @return 私聊会话的DTO
      */
     @PostMapping("/private-chat")
-    public ResponseEntity<ConversationRes> createOrGetPrivateChat(@RequestParam Long userId, @RequestParam Long friendId) {
-        //TODO  只能查询 自己的会话
+    public ResponseEntity<ConversationRes> createOrGetPrivateChat(@RequestParam Long userId, @RequestParam Long friendId,
+                                                                  @AuthenticationPrincipal User user) {
+
         ConversationRes conversationRes = conversationService.createOrGetPrivateChat(userId, friendId);
         return ResponseEntity.ok(conversationRes);
     }

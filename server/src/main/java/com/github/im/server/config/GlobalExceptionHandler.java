@@ -33,6 +33,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     // 处理数据库访问异常
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<Object> handleDataAccessException(DataAccessException ex, WebRequest request) {
+        logger.error("数据库访问异常: ", ex);
         return handleExceptionInternal(ex, "数据库访问异常", new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
     }
 
@@ -60,13 +61,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ex.getBindingResult().getFieldErrors().forEach(error -> {
             errors.append(error.getField()).append(": ").append(error.getDefaultMessage()).append("; ");
         });
-        
+
         return handleExceptionInternal(ex, "参数验证失败: " + errors.toString(), headers, status, request);
     }
     
     // 处理通用异常
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleGeneralException(Exception ex, WebRequest request) {
+        logger.error("服务器内部错误",ex);
         return handleExceptionInternal(ex, "服务器内部错误: " + ex.getMessage(), new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
     }
 

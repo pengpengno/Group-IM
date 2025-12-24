@@ -14,65 +14,47 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Pending
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.github.im.group.viewmodel.ContactsViewModel
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.ui.UserAvatar
-import com.github.im.group.model.UserInfo
+import com.github.im.group.model.OrgTreeNode
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.ui.ChatRoom
-import com.github.im.group.ui.AddFriend
+import com.github.im.group.ui.UserItem
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import io.github.aakira.napier.Napier
 
 /**
- * 联系人面板
+ * 联系人面板 - 显示组织架构
  */
 @Composable
 fun ContactsUI (
     navHostController: NavHostController,
 ){
-
+    val contactsViewModel: ContactsViewModel = koinViewModel()
     val userViewModel: UserViewModel = koinViewModel()
     val chatViewModel: ChatViewModel = koinViewModel()
-    val friends by userViewModel.friends.collectAsState()
-    val pendingFriendRequests by userViewModel.pendingFriendRequests.collectAsState()
-    val pendingFriendRequestsCount by userViewModel.pendingFriendRequestsCount.collectAsState()
+    
+    val organizationTree by contactsViewModel.organizationTree.collectAsState()
+    val loading by contactsViewModel.loading.collectAsState()
+    val expandedDepartments by contactsViewModel.expandedDepartments.collectAsState()
+    
     val scope = rememberCoroutineScope()
     var contactSearchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
-        userViewModel.loadFriends()
-        // 加载已发送的好友请求
-        val currentUser = userViewModel.getCurrentUser()
-        if (currentUser.userId != 0L) {
-            userViewModel.loadSentFriendRequests(currentUser.userId)
-            userViewModel.loadReceivedFriendRequests(currentUser.userId)
-        }
-        Napier.d("加载联系人列表")
+        // 加载组织架构
+        contactsViewModel.getOrganizationStructure()
+        Napier.d("加载组织架构")
     }
 
     Column(
@@ -80,7 +62,7 @@ fun ContactsUI (
             .fillMaxSize()
             .padding(8.dp)
     ) {
-        // 联系人搜索框
+        // 组织架构搜索框
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -89,113 +71,59 @@ fun ContactsUI (
             OutlinedTextField(
                 value = contactSearchQuery,
                 onValueChange = { contactSearchQuery = it },
-                label = { Text("搜索联系人") },
+                label = { Text("搜索组织或人员") },
                 modifier = Modifier
                     .weight(1f)
             )
             
-            // 添加好友按钮，带未读好友请求红点
-            BadgedBox(
-                badge = {
-                    if (pendingFriendRequestsCount > 0) {
-                        Badge {
-                            Text(pendingFriendRequestsCount.toString())
-                        }
+            IconButton(
+                onClick = { 
+                    // 刷新组织架构
+                    scope.launch {
+                        contactsViewModel.getOrganizationStructure()
                     }
-                }
+                },
+                modifier = Modifier
+                    .padding(start = 8.dp)
             ) {
-                IconButton(
-                    onClick = { navHostController.navigate(AddFriend) },
-                    modifier = Modifier
-                        .padding(start = 8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PersonAdd,
-                        contentDescription = "添加好友"
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = "刷新"
+                )
             }
         }
         
-        // 按字母排序的联系人列表
-        val filteredAndGroupedFriends = friends
-            .mapNotNull { it.friendUserInfo }
-            .filter { friend ->
-                contactSearchQuery.isBlank() || 
-                friend.username.contains(contactSearchQuery, ignoreCase = true) ||
-                friend.email.contains(contactSearchQuery, ignoreCase = true)
-            }
-            .sortedBy { it.username }
-            .groupBy { it.username.firstOrNull()?.uppercaseChar() ?: '#' }
-            .toSortedMap()
-        
-        if (filteredAndGroupedFriends.isEmpty()) {
+        if (loading) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                if (friends.isEmpty()) {
-                    CircularProgressIndicator()
-                } else {
-                    Text("没有找到联系人")
-                }
+                CircularProgressIndicator()
+            }
+        } else if (organizationTree.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("暂无组织架构数据")
             }
         } else {
             LazyColumn {
-                // 显示待处理的好友请求
-                if (pendingFriendRequests.isNotEmpty()) {
+                organizationTree.forEach { node ->
                     item {
-                        Text(
-                            text = "好友请求",
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFE0E0E0))
-                                .padding(8.dp)
-                        )
-                    }
-                    
-                    items(pendingFriendRequests) { request ->
-                        PendingFriendRequestItem(
-                            request = request,
-                            onAccept = {
-                                request.id?.let { requestId ->
-                                    userViewModel.acceptFriendRequest(requestId)
+                        OrganizationNodeItem(
+                            node = node,
+                            expandedDepartments = expandedDepartments,
+                            onToggleExpand = { nodeId ->
+                                if (node.type == OrgTreeNode.NodeType.DEPARTMENT) {
+                                    contactsViewModel.toggleDepartmentExpanded(nodeId)
                                 }
                             },
-                            onReject = {
-                                request.id?.let { requestId ->
-                                    userViewModel.rejectFriendRequest(requestId)
-                                }
-                            }
-                        )
-                    }
-                }
-                
-                filteredAndGroupedFriends.forEach { (initial, contacts) ->
-                    // 字母标题
-                    item {
-                        Text(
-                            text = initial.toString(),
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFE0E0E0))
-                                .padding(8.dp)
-                        )
-                    }
-                    
-                    // 该字母下的联系人
-                    items(contacts) { friend ->
-                        ContactItem(
-                            friend = friend,
-                            onClick = {
-                                // 直接处理联系人点击事件
-                                Napier.d("用户点击联系人: ${friend.username} (ID: ${friend.userId})")
-                                
+                            onUserClick = { userInfo ->
+                                // 点击用户，创建私聊会话
                                 scope.launch {
                                     try {
-                                        val conversation = chatViewModel.getPrivateChat(friend.userId)
+                                        val conversation = chatViewModel.getPrivateChat(userInfo.userId)
                                         Napier.d("成功获取会话: ${conversation.conversationId}")
                                         navHostController.navigate(ChatRoom(conversation.conversationId))
                                     } catch (e: Exception) {
@@ -212,29 +140,97 @@ fun ContactsUI (
 }
 
 @Composable
-fun ContactItem(
-    friend: UserInfo,
-    onClick: () -> Unit
+fun OrganizationNodeItem(
+    node: OrgTreeNode,
+    expandedDepartments: Set<Long>,
+    onToggleExpand: (Long) -> Unit,
+    onUserClick: (com.github.im.group.model.UserInfo) -> Unit
+) {
+    when (node.type) {
+        OrgTreeNode.NodeType.DEPARTMENT -> {
+            DepartmentNode(
+                node = node,
+                expandedDepartments = expandedDepartments,
+                onToggleExpand = onToggleExpand
+            )
+            // 如果部门已展开，显示其子节点
+            if (expandedDepartments.contains(node.id)) {
+                node.children.forEach { childNode ->
+                    Spacer(modifier = Modifier.padding(start = 24.dp))
+                    OrganizationNodeItem(
+                        node = childNode,
+                        expandedDepartments = expandedDepartments,
+                        onToggleExpand = onToggleExpand,
+                        onUserClick = onUserClick
+                    )
+                }
+            }
+        }
+        OrgTreeNode.NodeType.USER -> {
+            UserNode(
+                node = node,
+                onUserClick = onUserClick
+            )
+        }
+    }
+}
+
+@Composable
+fun DepartmentNode(
+    node: OrgTreeNode,
+    expandedDepartments: Set<Long>,
+    onToggleExpand: (Long) -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable { onToggleExpand(node.id) }
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        UserAvatar(username = friend.username, size = 56)
-        Spacer(Modifier.width(12.dp))
+        Icon(
+            imageVector = if (expandedDepartments.contains(node.id)) {
+                Icons.Default.ExpandMore
+            } else {
+                Icons.Default.ChevronRight
+            },
+            contentDescription = if (expandedDepartments.contains(node.id)) "收起" else "展开",
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Icon(
+            imageVector = Icons.Default.Business,
+            contentDescription = "部门",
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
         Column {
             Text(
-                text = friend.username,
-                style = androidx.compose.material3.MaterialTheme.typography.titleMedium
+                text = node.name,
+                style = MaterialTheme.typography.titleMedium
             )
-            Text(
-                text = friend.email,
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                color = androidx.compose.ui.graphics.Color.Gray
-            )
+            node.departmentInfo?.description?.let { description ->
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
         }
+    }
+}
+
+@Composable
+fun UserNode(
+    node: OrgTreeNode,
+    onUserClick: (com.github.im.group.model.UserInfo) -> Unit
+) {
+    node.userInfo?.let { userInfo ->
+        UserItem(
+            userInfo = userInfo,
+            onClick = { onUserClick(userInfo) },
+            modifier = Modifier
+                .padding(start = 40.dp) // 为用户添加额外的缩进
+        )
     }
 }

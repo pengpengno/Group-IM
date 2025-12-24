@@ -3,17 +3,22 @@ package com.github.im.server.service;
 import com.github.im.conversation.ConversationRes;
 import com.github.im.server.mapstruct.GroupMemberMapper;
 import com.github.im.server.model.Conversation;
+import com.github.im.server.model.ConversationMember;
 import com.github.im.server.model.User;
 import com.github.im.enums.ConversationStatus;
 import com.github.im.enums.ConversationType;
 import com.github.im.server.repository.ConversationRepository;
 import com.github.im.server.mapstruct.ConversationMapper;
 import com.github.im.dto.user.UserInfo;
+import com.github.im.server.repository.GroupMemberRepository;
 import com.github.im.server.repository.UserRepository;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +26,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class ConversationService {
 
     private final ConversationRepository conversationRepository;
@@ -28,7 +34,9 @@ public class ConversationService {
     private final ConversationMapper conversationsMapper;
     private final GroupMemberMapper groupMemberMapper;
     private final GroupMemberService groupMemberService;
+    private final GroupMemberRepository groupMemberRepository;
     private final ConversationSequenceService conversationSequenceService;
+    private final EntityManager entityManager;
 
     /**
      * 创建新群组
@@ -37,14 +45,13 @@ public class ConversationService {
      * @param members 群组成员列表
      * @return 创建后的群组
      */
-    @Transactional
     public ConversationRes createGroup(String groupName, String description, List<UserInfo> members) {
         if (members == null || members.isEmpty()) {
             throw new IllegalArgumentException("Group members cannot be null or empty");
         }
 
         User owner = new User();
-        owner.setUserId(members.get(0).getUserId());
+        owner.setUserId(members.getFirst().getUserId());
 
         Conversation group = Conversation.builder()
                 .groupName(groupName)
@@ -53,24 +60,26 @@ public class ConversationService {
                 .status(ConversationStatus.ACTIVE)
                 .createdBy(owner)
                 .build();
-
         // 保存群组
-        group = conversationRepository.save(group);
+        final var saveGroup = conversationRepository.saveAndFlush(group);
+        Conversation reference = entityManager.getReference(Conversation.class, saveGroup.getConversationId());
+        var groupMembers =  members.stream().map(member -> {
+            User us = userRepository.getReferenceById(member.getUserId());
+            return ConversationMember.builder()
+                    .conversation(reference)
+                    .user(us)
+                    .joinedAt(LocalDateTime.now())
+                    .build();
+        }).toList();
+        List<ConversationMember> conversationMembers = groupMemberRepository.saveAll(groupMembers);
 
-        // 添加群成员
-        for (UserInfo memberInfo : members) {
-            groupMemberService.addMemberToGroup(group.getConversationId(), memberInfo.getUserId());
-        }
-
-        return conversationsMapper.toDTO(group);
+        return conversationsMapper.toDTO(saveGroup);
     }
 
-    @Transactional
     public Long  maxIndex(Long conversationId){
         return conversationSequenceService.getMaxSequence(conversationId);
     }
 
-    @Transactional
     public ConversationRes getConversationById(Long conversationId) {
         Conversation conversation = conversationRepository.findById(conversationId).orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
         return conversationsMapper.toDTO(conversation);
@@ -81,12 +90,9 @@ public class ConversationService {
      * @param userId2 第二个用户ID
      * @return 私聊会话的DTO
      */
-    @Transactional
     public ConversationRes createOrGetPrivateChat(Long userId1, Long userId2) {
         // 查询是否已经存在私聊会话
-        Optional<Conversation> existingConversation = conversationRepository.findPrivateChatBetweenUsers(userId1, userId2
-//                ,ConversationType.PRIVATE_CHAT ,ConversationStatus.ACTIVE
-        )
+        Optional<Conversation> existingConversation = conversationRepository.findPrivateChatBetweenUsers(userId1, userId2        )
                 ;
         if (existingConversation.isPresent()) {
             var conversation = existingConversation.get();
@@ -101,14 +107,24 @@ public class ConversationService {
                     .build();
 
             // 保存会话
-            newConversation = conversationRepository.save(newConversation);
-            var members = newConversation.getMembers();
+//            var members = newConversation.getMembers();
+            Conversation savedConversation = conversationRepository.save(newConversation);
+            newConversation = conversationRepository.findById(savedConversation.getConversationId()).get();
 
+
+            ConversationMember conversationMember1 = ConversationMember.builder()
+                    .conversation(savedConversation)
+                    .user( userRepository.getReferenceById(userId1))
+                    .build();
+            ConversationMember conversationMember2 = ConversationMember.builder()
+                    .conversation(savedConversation)
+                    .user( userRepository.getReferenceById(userId2))
+                    .build();
+            groupMemberRepository.saveAll(List.of(conversationMember1, conversationMember2));
             // 添加成员
-            groupMemberService.addMemberToGroup(newConversation.getConversationId(), userId1);
-            groupMemberService.addMemberToGroup(newConversation.getConversationId(), userId2);
+//            groupMemberService.addMemberToGroup(newConversation.getConversationId(), userId1);
+//            groupMemberService.addMemberToGroup(newConversation.getConversationId(), userId2);
 
-            newConversation = conversationRepository.findById(newConversation.getConversationId()).get();
             /**
              * 这里私聊不会 保存  群组的名称 , 在 客户端 互相使用 对方的名称来展示
              */
@@ -151,7 +167,6 @@ public class ConversationService {
      * 删除群组
      * @param groupId 群组ID
      */
-    @Transactional
     public void deleteGroup(Long groupId) {
         Optional<Conversation> group = conversationRepository.findById(groupId);
         group.ifPresent(conversation -> {
@@ -167,7 +182,6 @@ public class ConversationService {
      * @param userId 用户ID
      * @return 用户正在进行的群组
      */
-    @Transactional
     public List<ConversationRes> getActiveConversationsByUserId(Long userId) {
 //        return conversationRepository.findActiveConversationsByUserId(userId, ConversationStatus.ACTIVE).stream()
         return conversationRepository.findActiveConversationsByUserId(userId).stream()
@@ -183,7 +197,6 @@ public class ConversationService {
      * @param groupId 群组ID，用于标识特定的群组
      * @return 群组成员的 UserInfo 对象列表如果群组不存在或成员为空，则返回空列表
      */
-    @Transactional
     public List<UserInfo> getMembersByGroupId(Long groupId) {
         // 尝试通过群组ID查找群组信息
         Optional<Conversation> group = conversationRepository.findById(groupId);

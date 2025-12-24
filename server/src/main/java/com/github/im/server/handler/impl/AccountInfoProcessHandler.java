@@ -5,7 +5,9 @@ import com.github.im.common.connect.connection.ReactiveConnectionManager;
 import com.github.im.common.connect.connection.server.BindAttr;
 import com.github.im.common.connect.connection.server.ProtoBufProcessHandler;
 import com.github.im.common.connect.model.proto.BaseMessage;
+import com.github.im.server.utils.JwtUtil;
 import jakarta.validation.constraints.NotNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Hooks;
@@ -19,9 +21,10 @@ import java.util.Optional;
  */
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
 
-
+    private final JwtUtil jwtUtil;
 
     @Override
     public BaseMessage.BaseMessagePkg.PayloadCase type() {
@@ -32,14 +35,13 @@ public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
     @Override
     public void process(@NotNull Connection con, BaseMessage.BaseMessagePkg message) {
 
-        Hooks.onOperatorDebug();
 
         var accountInfo = message.getAccountInfo();
 
-
-
         Optional.ofNullable(con).ifPresent(connection -> {
             connection.channel().attr(ConnectionConstants.BING_ACCOUNT_KEY).set(accountInfo);
+//            jwtUtil.getJwt(accountInfo.getRefreshToken())
+//            JwtUtil.COMPANY_ID_FIELD
 
             // 过滤出符合条件的消息，并发送
 //            var chatMessages = ReactiveConnectionManager.getChatMessages(accountInfo);

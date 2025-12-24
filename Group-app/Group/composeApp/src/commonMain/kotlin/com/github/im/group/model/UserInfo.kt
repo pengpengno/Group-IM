@@ -9,5 +9,8 @@ data class UserInfo(
     val username: String = "",
     val email: String = "",
     val token: String = "",
-    val refreshToken: String = ""
+    val refreshToken: String = "",
+    val companyId: Long? = null,
+    val phoneNumber: String? = null,
+    val currentLoginCompanyId: Long? = null
 )

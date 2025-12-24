@@ -75,25 +75,8 @@ fun AndroidFilePickerPanel(
         filePicker.setFilePickerLauncher(filePickerLauncher)
         filePicker.setTakePictureLauncher(takePictureLauncher)
     }
-    
-//    if (displayMediaPicker) {
-//        Dialog(
-//            onDismissRequest = { displayMediaPicker = false },
-//            properties = DialogProperties(usePlatformDefaultWidth = false)
-//        ) {
-//            MediaPickerScreen(
-//                onDismiss = {
-//                    displayMediaPicker = false
-//                },
-//                onMediaSelected = { files ->
-//                    onFileSelected(files)
-//                    displayMediaPicker = false
-//                },
-//                mediaType = "all"
-//            )
-//        }
-//    }
-    
+
+
     Surface(
         color = Color.White,
         tonalElevation = 8.dp,

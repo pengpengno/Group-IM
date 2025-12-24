@@ -6,6 +6,9 @@ import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.db.entities.FriendRequestStatus
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
+import com.github.im.group.model.ApiResponse
+import com.github.im.group.model.DepartmentInfo
+import com.github.im.group.model.OrganizationStructure
 import com.github.im.group.model.UserInfo
 import io.ktor.client.request.header
 import io.ktor.client.request.headers
@@ -435,4 +438,39 @@ data class LoginRequest(
 )
 
 @Serializable
-data class LoginResponse(val token: String, val userId: Long)
+data class LoginResponse(
+    val token: String, 
+    val userId: Long,
+    val username: String? = null,
+    val email: String? = null,
+    val phoneNumber: String? = null,
+    val currentLoginCompanyId: Long? = null
+)
+
+/**
+ * 组织架构 API
+ */
+object OrganizationApi {
+    
+    /**
+     * 获取当前的登录用户公司的组织架构
+     */
+    suspend fun getOrganizationStructure(): ApiResponse<DepartmentInfo> {
+        return ProxyApi.request<Unit, ApiResponse<DepartmentInfo>>(
+            hmethod = HttpMethod.Get,
+            path = "/api/company/structure"
+        )
+    }
+    
+    /**
+     * 获取当前用户的组织架构
+     */
+    suspend fun getCurrentUserOrganizationStructure(): ApiResponse<DepartmentInfo> {
+        // 使用全局凭证中的公司ID，如果不存在则尝试从当前用户信息中获取
+//        val companyId = GlobalCredentialProvider.companyId
+//            ?: GlobalCredentialProvider.storage.getUserInfo()?.currentLoginCompanyId
+//            ?: 1L
+//        return getOrganizationStructure(companyId)
+        return getOrganizationStructure()
+    }
+}

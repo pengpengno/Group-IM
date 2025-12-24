@@ -33,13 +33,14 @@ public class CompanyController {
      * @return 组织架构树
      */
     @GetMapping("/structure")
-    public ResponseEntity<ApiResponse<List<DepartmentDTO>>> getCurrentUserOrganizationStructure(
+    public ResponseEntity<ApiResponse<DepartmentDTO>> getCurrentUserOrganizationStructure(
             @AuthenticationPrincipal User user
     ) {
 
         try {
-            List<DepartmentDTO> departmentDTOs = organizationService.getDepartmentDTOs(user);
-            return ResponseUtil.success("获取组织架构成功", departmentDTOs);
+            Long companyId = user.getCurrentCompany().getCompanyId();
+            DepartmentDTO departmentDTO = departmentService.getCompanyDepartmentDto(companyId);
+            return ResponseUtil.success("获取组织架构成功", departmentDTO);
         } catch (Exception e) {
             log.error("获取组织架构失败", e);
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
@@ -55,23 +56,15 @@ public class CompanyController {
     @PostMapping("/department")
     public ResponseEntity<ApiResponse<DepartmentDTO>> createDepartment(@RequestBody DepartmentDTO departmentDTO, @AuthenticationPrincipal User user) {
         try {
-            if (user == null) {
-                return ResponseEntity.status(401)
-                    .body(ApiResponse.error(401, "用户未认证"));
-            }
 
             Long companyId = user.getCurrentCompany().getCompanyId();
 
-            if (companyId == null) {
-                return ResponseEntity.status(400)
-                    .body(ApiResponse.error(400, "用户未选择公司"));
-            }
 
             // 设置公司ID
             departmentDTO.setCompanyId(companyId);
             
             // 创建部门
-            DepartmentDTO result = organizationService.createDepartment(departmentDTO);
+            DepartmentDTO result = departmentService.createDepartment(departmentDTO);
 
             return ResponseUtil.success("部门创建成功", result);
         } catch (Exception e) {
@@ -105,7 +98,7 @@ public class CompanyController {
             }
 
             // 更新部门
-            DepartmentDTO result = organizationService.updateDepartment(departmentId, departmentDTO);
+            DepartmentDTO result = departmentService.updateDepartment(departmentId, departmentDTO);
 
             return ResponseUtil.success("部门更新成功", result);
         } catch (Exception e) {
@@ -124,7 +117,7 @@ public class CompanyController {
     public ResponseEntity<ApiResponse<Boolean>> deleteDepartment(@PathVariable Long departmentId, @AuthenticationPrincipal User user) {
         try {
             // 删除部门
-            organizationService.deleteDepartment(departmentId);
+            departmentService.deleteDepartment(departmentId);
 
             return ResponseUtil.success("部门删除成功", true);
         } catch (Exception e) {
@@ -158,7 +151,7 @@ public class CompanyController {
             }
 
             // 移动部门
-            DepartmentDTO result = organizationService.moveDepartment(departmentId, newParentId);
+            DepartmentDTO result = departmentService.moveDepartment(departmentId, newParentId);
 
             return ResponseUtil.success("部门移动成功", result);
         } catch (Exception e) {
@@ -183,7 +176,7 @@ public class CompanyController {
 
 
             // 分配用户到部门
-            organizationService.assignUserToDepartment(userId, departmentId);
+            departmentService.assignUserToDepartment(userId, departmentId);
 
             return ResponseUtil.success("用户分配到部门成功", true);
         } catch (Exception e) {
@@ -206,7 +199,7 @@ public class CompanyController {
         try {
 
             // 批量分配用户到部门
-            organizationService.batchAssignUsersToDepartment(request.getUserIds(), departmentId);
+            departmentService.batchAssignUsersToDepartment(request.getUserIds(), departmentId);
 
             return ResponseUtil.success("批量用户分配到部门成功", true);
         } catch (Exception e) {
@@ -240,44 +233,13 @@ public class CompanyController {
             }
 
             // 从部门移除用户
-            organizationService.removeUserFromDepartment(userId, departmentId);
+            departmentService.removeUserFromDepartment(userId, departmentId);
 
             return ResponseUtil.success("从部门移除用户成功", true);
         } catch (Exception e) {
             log.error("从部门移除用户失败", e);
             return ResponseEntity.status(500)
                 .body(ApiResponse.error(500, "从部门移除用户失败: " + e.getMessage()));
-        }
-    }
-
-    /**
-     * 调整公司组织架构
-     * @param departmentDTOS 组织架构信息
-     * @return 调整结果
-     */
-    @PutMapping("/organization")
-    public ResponseEntity<ApiResponse<Boolean>> adjustCompanyOrganization(@RequestBody List<DepartmentDTO> departmentDTOS, @AuthenticationPrincipal User user) {
-        try {
-            if (user == null) {
-                return ResponseEntity.status(401)
-                    .body(ApiResponse.error(401, "用户未认证"));
-            }
-
-            Long companyId = user.getCurrentCompany().getCompanyId();
-
-            if (companyId == null) {
-                return ResponseEntity.status(400)
-                    .body(ApiResponse.error(400, "用户未选择公司"));
-            }
-
-            // 调整组织架构
-            organizationService.adjustOrganizationStructure(companyId, departmentDTOS);
-
-            return ResponseUtil.success("组织架构调整成功", true);
-        } catch (Exception e) {
-            log.error("调整公司组织架构失败", e);
-            return ResponseEntity.status(500)
-                .body(ApiResponse.error(500, "调整公司组织架构失败: " + e.getMessage()));
         }
     }
 
@@ -302,7 +264,7 @@ public class CompanyController {
             }
 
             // 获取公司组织架构
-            var  departmentDTO = departmentService.getCompanyDepartmentDto(companyId);
+            var  departmentDTO = this.departmentService.getCompanyDepartmentDto(companyId);
 
             return ResponseUtil.success("获取公司组织架构成功", departmentDTO);
         } catch (Exception e) {

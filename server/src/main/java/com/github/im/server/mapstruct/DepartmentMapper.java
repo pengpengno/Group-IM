@@ -14,7 +14,13 @@ import java.util.List;
 public interface DepartmentMapper {
 
     DepartmentDTO departmentToDepartmentDTO(Department department);
-    
+
+    /***
+     * 批量转换
+     * @param departments
+     * @return 列表
+     */
     List<DepartmentDTO> departmentsToDepartmentDTOs(List<Department> departments);
+
 
 }

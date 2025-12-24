@@ -4,28 +4,24 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.io.Serializable;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserInfo implements Serializable {
-    private Long userId;
+public class UserInfo extends UserBasicInfo implements Serializable {
+//    private Long userId;
 
-    private String username;
-
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private String avatar;
-
-    private String email;  // 邮箱
-
+//    private String username;
+//
+//    @JsonInclude(JsonInclude.Include.NON_NULL)
+//    private String avatar;
+//
+//    private String email;  // 邮箱
+//
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String token ;  // token
 
-
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private String phoneNumber;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String refreshToken;

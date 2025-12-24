@@ -1,5 +1,10 @@
 
 spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
   datasource:
 #    hikari:
 #      data-source-properties:
@@ -17,12 +22,4 @@ spring:
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:postgres}
 #    driver-class-name: org.postgresql.Driver
-  jpa:
-    open-in-view: false
-    hibernate:
-      ddl-auto: update
-    show-sql: true  # 展示 SQL
-    properties:
-      hibernate:
-        format_sql: true
-#        dialect: org.hibernate.dialect.PostgreSQLDialect  # 确保方言设置正确
+

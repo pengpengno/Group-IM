@@ -1,5 +1,7 @@
 package com.github.im.server.model;
 
+import com.github.im.dto.user.UserBasicInfo;
+import com.github.im.dto.user.UserInfo;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -46,7 +48,7 @@ public class Department {
     private List<Department> children;
 
     @Transient
-    private List<User> members;
+    private List<UserBasicInfo> members;
     
     /**
      * 属于该部门的用户列表
