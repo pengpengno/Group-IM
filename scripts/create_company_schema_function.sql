@@ -8,8 +8,11 @@ DECLARE
     index_rec record;
     exists_column boolean;
     exists_constraint boolean;
+    modified_condef TEXT;
+    is_system_reference BOOLEAN;
+    system_table_name TEXT;
     -- 定义全局系统表列表，这些表不应复制到租户schema中
-    system_tables text[] := array['users', 'company', 'company_user'];
+    system_tables text[] := array[ 'company', 'company_user','users'];
 BEGIN
     -- 创建 schema（如果不存在）
     EXECUTE format('CREATE SCHEMA IF NOT EXISTS %I', schema_name);
@@ -61,24 +64,29 @@ BEGIN
     ---------------------------------------------------------------------
     -- 二、为系统表创建视图（带数据过滤）
     ---------------------------------------------------------------------
-    -- 为 company 表创建视图
-    EXECUTE format('DROP VIEW IF EXISTS %I.company', schema_name);
+    -- 删除系统表视图，使用 CASCADE 确保删除依赖关系
+    -- 由于 users 视图依赖 company_user 视图，使用 CASCADE 可以一次性删除所有依赖
+    EXECUTE format('DROP VIEW IF EXISTS %I.users CASCADE', schema_name);
+    EXECUTE format('DROP VIEW IF EXISTS %I.company_user CASCADE', schema_name);
+    EXECUTE format('DROP VIEW IF EXISTS %I.company CASCADE', schema_name);
+    
+    -- 重新创建系统表视图，按照依赖顺序创建：先创建被依赖的视图，再创建依赖其他视图的视图
+    -- company 视图：过滤属于当前公司的公司数据
     EXECUTE format(
         'CREATE VIEW %I.company AS SELECT * FROM public.company ' ||
         'WHERE company_id = %L',
         schema_name, company_id
     );
-
-    -- 为 company_user 表创建视图
-    EXECUTE format('DROP VIEW IF EXISTS %I.company_user', schema_name);
+    
+    -- company_user 视图：过滤属于当前公司的用户-公司关联数据
     EXECUTE format(
         'CREATE VIEW %I.company_user AS SELECT * FROM public.company_user ' ||
         'WHERE company_id = %L',
         schema_name, company_id
     );
-
-    -- 为 users 表创建视图（使用当前schema中的company_user视图）
-    EXECUTE format('DROP VIEW IF EXISTS %I.users', schema_name);
+    
+    -- users 视图：基于 company_user 视图过滤当前公司可访问的用户
+    -- 使用 EXISTS 子查询确保只返回与当前公司有关联的用户
     EXECUTE format(
         'CREATE VIEW %I.users AS SELECT u.* FROM public.users u ' ||
         'WHERE EXISTS (SELECT 1 FROM %I.company_user cu ' ||
@@ -87,15 +95,18 @@ BEGIN
     );
 
     ---------------------------------------------------------------------
-    -- 三、检查并补充可能缺失的约束
+    -- 三、检查并补充可能缺失的约束（外键约束需要修改引用表为当前schema）
     ---------------------------------------------------------------------
     FOR constraint_rec IN
         SELECT conname,
                contype,
                pg_get_constraintdef(oid) AS condef,
-               conrelid::regclass AS tablename
+               conrelid::regclass AS tablename,
+               -- 获取被引用的表名（对于外键约束）
+               confrelid::regclass::text AS referenced_table
         FROM pg_constraint
         WHERE connamespace = 'public'::regnamespace
+          AND contype = 'f'  -- 只处理外键约束
     LOOP
         -- 跳过系统表的约束复制
         IF REPLACE(constraint_rec.tablename::text, '"', '') = ANY(system_tables) THEN
@@ -110,12 +121,75 @@ BEGIN
         ) INTO exists_constraint;
 
         IF NOT exists_constraint THEN
+            modified_condef := constraint_rec.condef;
+            
+            is_system_reference := false;
+            
+            -- 检查是否引用了系统表
+            FOREACH system_table_name IN ARRAY system_tables
+            LOOP
+                IF constraint_rec.referenced_table = system_table_name THEN
+                    is_system_reference := true;
+                    EXIT; -- 找到匹配项后退出循环
+                END IF;
+            END LOOP;
+            
+            -- 只处理引用租户表（非系统表）的外键约束
+            IF NOT is_system_reference THEN
+                -- 对于非系统表（租户表）的引用，确保引用到当前租户schema
+                -- 检查约束定义中是否已经有schema前缀
+                IF constraint_rec.condef LIKE '%REFERENCES %.%' THEN
+                    -- 如果已经有schema前缀（但不是public，因为is_system_reference为false），需要替换为当前schema
+                    -- 假设现有的schema前缀是public（在实际应用中可能需要更复杂的处理）
+                    modified_condef := replace(
+                        constraint_rec.condef,
+                        'REFERENCES public.' || constraint_rec.referenced_table,
+                        'REFERENCES ' || schema_name || '.' || constraint_rec.referenced_table
+                    );
+                ELSE
+                    -- 如果没有schema前缀，需要添加当前租户schema前缀
+                    -- 按可能的格式顺序尝试替换，一旦成功就停止
+                    modified_condef := replace(
+                        constraint_rec.condef,
+                        ' REFERENCES ' || constraint_rec.referenced_table || '(',
+                        ' REFERENCES ' || schema_name || '.' || constraint_rec.referenced_table || '('
+                    );
+                    
+                    -- 如果上面的替换没有成功，尝试处理带空格的括号格式
+                    IF modified_condef = constraint_rec.condef THEN
+                        modified_condef := replace(
+                            constraint_rec.condef,
+                            ' REFERENCES ' || constraint_rec.referenced_table || ' (',
+                            ' REFERENCES ' || schema_name || '.' || constraint_rec.referenced_table || ' ('
+                        );
+                    END IF;
+                    
+                    -- 如果上面的替换没有成功，尝试处理没有空格的格式
+                    IF modified_condef = constraint_rec.condef THEN
+                        modified_condef := replace(
+                            constraint_rec.condef,
+                            'REFERENCES ' || constraint_rec.referenced_table || '(',
+                            'REFERENCES ' || schema_name || '.' || constraint_rec.referenced_table || '('
+                        );
+                    END IF;
+                    
+                    -- 如果上面的替换没有成功，尝试处理没有空格的格式（带空格的括号）
+                    IF modified_condef = constraint_rec.condef THEN
+                        modified_condef := replace(
+                            constraint_rec.condef,
+                            'REFERENCES ' || constraint_rec.referenced_table || ' (',
+                            'REFERENCES ' || schema_name || '.' || constraint_rec.referenced_table || ' ('
+                        );
+                    END IF;
+                END IF;
+            END IF;
+            
             EXECUTE format(
                 'ALTER TABLE %I.%I ADD CONSTRAINT %I %s',
                 schema_name,
                 constraint_rec.tablename,
                 constraint_rec.conname,
-                constraint_rec.condef
+                modified_condef
             );
         END IF;
     END LOOP;
