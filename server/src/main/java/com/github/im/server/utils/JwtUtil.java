@@ -1,23 +1,14 @@
 package com.github.im.server.utils;
 
-import cn.hutool.jwt.Claims;
-import com.github.im.server.exception.BusinessException;
 import com.github.im.server.model.User;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Component;
-import org.springframework.util.Assert;
 
-import java.net.URL;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
 import java.util.Optional;
 
 @Component
@@ -25,29 +16,31 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class JwtUtil {
 
+    private final JwtEncoder encoder;
 
-    @Autowired
-    public JwtEncoder encoder;
+    private final JwtDecoder jwtDecoder;
 
-    @Autowired
-    private JwtDecoder jwtDecoder;
-
-    private static final long ACCESS_TOKEN_EXPIRY = 3600L; // 1 hour
-    private static final long REFRESH_TOKEN_EXPIRY = 2592000L; // 30 days
-
+    private static final long ACCESS_TOKEN_EXPIRY = 3600L; // 1小时过期
+    private static final long REFRESH_TOKEN_EXPIRY = 2592000L; // 30天过期
 
     public static String USER_NAME_FIELD = "name";
     public static String COMPANY_ID_FIELD = "companyId";
     public static String COMPANY_SCHEMA_FIELD = "companySchema";
 
-    public String createToken(User user) {
+    /**
+     * 创建 JWT
+     * @param user
+     * @return AccessToken
+     */
+    public String createAccessToken(User user) {
         Instant now = Instant.now();
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .id(user.getUserId().toString())
                 .issuer(user.getUserId().toString())
                 .issuedAt(now)
-                .expiresAt(now.plus(ACCESS_TOKEN_EXPIRY, ChronoUnit.SECONDS)) // 设置为1小时过期
+                // jwt 中不设置过期 ， 通过缓存是否存在判断过期
+//                .expiresAt(now.plus(ACCESS_TOKEN_EXPIRY, ChronoUnit.SECONDS)) // 设置为1小时过期
                 .subject(user.getUsername())
                 .claim(USER_NAME_FIELD, user.getUsername())
                 // 当前登录公司 Id
@@ -62,8 +55,9 @@ public class JwtUtil {
 
 
     /**
-     * 生成长期的 RefreshToken
-     * RefreshToken中也包含当前登录公司ID，以便在刷新token时保持公司上下文
+     * 创建 Refresh Token
+     * @param user
+     * @return refreshToken
      */
     public String createRefreshToken(User user) {
         Instant now = Instant.now();
@@ -72,6 +66,7 @@ public class JwtUtil {
                 .id(user.getUserId().toString())
                 .issuer(user.getUserId().toString())
                 .issuedAt(now)
+                // 设置为 30 天过期，每次登录都刷新 
                 .expiresAt(now.plus(REFRESH_TOKEN_EXPIRY, ChronoUnit.SECONDS)) // 设置为30天过期
                 .subject(user.getUsername())
                 .claim(USER_NAME_FIELD, user.getUsername())
@@ -86,77 +81,28 @@ public class JwtUtil {
     /**
      * 验证 RefreshToken
      * 获取 Jwt
-     * @param refreshToken
+     * @param token
      * @return Optional
      */
-    public Optional<Jwt> getJwt(String refreshToken) throws BadCredentialsException{
+    public Optional<Jwt> getJwt(String token) throws BadCredentialsException{
 
         try{
-            var jwt = jwtDecoder.decode(refreshToken);
+            var jwt = jwtDecoder.decode(token);
             Instant expiration = jwt.getExpiresAt();
-            boolean notExpired = expiration != null && expiration.isAfter(Instant.now());
+            if(expiration == null){
+                // 没设置过期时间 那么直接返回即可
+                return Optional.of(jwt);
+            }
+            boolean notExpired = expiration.isAfter(Instant.now());
             if (notExpired) {
                 return Optional.of(jwt);
             }else {
                 throw new BadCredentialsException("身份已过期");
             }
         }
-        catch (JwtException exception){
+        catch (Exception exception){ // 使用通用异常处理
             log.error("Invalid refresh token: {}", exception.getMessage());
             return Optional.empty();
         }
-    }
-
-    /**
-     * 验证 RefreshToken 是否有效
-     * 有效则返回 userId
-     * 无效 则返回 Optional.empty()
-     */
-    public Optional<Long> validateRefreshToken(String refreshToken) {
-        try {
-            var jwt = jwtDecoder.decode(refreshToken);
-            Instant expiration = jwt.getExpiresAt();
-            boolean notExpired = expiration != null && expiration.isAfter(Instant.now());
-            if (notExpired) {
-                return Optional.of(Long.parseLong(jwt.getId()));
-            }else {
-                return Optional.empty();
-            }
-        } catch (JwtException e) {
-            log.error("Invalid refresh token: {}", e.getMessage());
-            return Optional.empty();
-
-        }
-    }
-
-    public String  parseTokenAndGetName(String authToken){
-        Assert.notNull(authToken,"Auth token not be null. ");
-        var jwt = jwtDecoder.decode(authToken);
-
-        var username = jwt.getClaimAsString("name");
-
-        return username;
-    }
-
-
-    public Long parseToken(String authToken){
-        Assert.notNull(authToken,"Auth token not be null. ");
-        var jwt = jwtDecoder.decode(authToken);
-
-        var userId = jwt.getClaimAsString(JwtClaimNames.ISS);
-
-        return Long.parseLong(userId);
-    }
-    
-    /**
-     * 从JWT中解析公司ID
-     * @param authToken JWT令牌
-     * @return 公司ID，如果不存在则返回null
-     */
-    public Long parseCompanyIdFromToken(String authToken) {
-        Assert.notNull(authToken, "Auth token must not be null.");
-        var jwt = jwtDecoder.decode(authToken);
-        var companyId = jwt.getClaimAsString("companyId");
-        return companyId != null ? Long.parseLong(companyId) : null;
     }
 }

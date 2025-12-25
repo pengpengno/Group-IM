@@ -352,6 +352,26 @@ public final class Account {
         getEMailBytes();
 
     /**
+     * <pre>
+     * string refreshToken = 6 ;  // 长期令牌
+     * </pre>
+     *
+     * <code>string accessToken = 6;</code>
+     * @return The accessToken.
+     */
+    java.lang.String getAccessToken();
+    /**
+     * <pre>
+     * string refreshToken = 6 ;  // 长期令牌
+     * </pre>
+     *
+     * <code>string accessToken = 6;</code>
+     * @return The bytes for accessToken.
+     */
+    com.google.protobuf.ByteString
+        getAccessTokenBytes();
+
+    /**
      * <code>.com.github.im.common.connect.model.proto.PlatformType platformType = 5;</code>
      * @return The enum numeric value on the wire for platformType.
      */
@@ -387,6 +407,7 @@ public final class Account {
       account_ = "";
       accountName_ = "";
       eMail_ = "";
+      accessToken_ = "";
       platformType_ = 0;
     }
 
@@ -541,6 +562,53 @@ public final class Account {
       }
     }
 
+    public static final int ACCESSTOKEN_FIELD_NUMBER = 6;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object accessToken_ = "";
+    /**
+     * <pre>
+     * string refreshToken = 6 ;  // 长期令牌
+     * </pre>
+     *
+     * <code>string accessToken = 6;</code>
+     * @return The accessToken.
+     */
+    @java.lang.Override
+    public java.lang.String getAccessToken() {
+      java.lang.Object ref = accessToken_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        accessToken_ = s;
+        return s;
+      }
+    }
+    /**
+     * <pre>
+     * string refreshToken = 6 ;  // 长期令牌
+     * </pre>
+     *
+     * <code>string accessToken = 6;</code>
+     * @return The bytes for accessToken.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getAccessTokenBytes() {
+      java.lang.Object ref = accessToken_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        accessToken_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
     public static final int PLATFORMTYPE_FIELD_NUMBER = 5;
     private int platformType_ = 0;
     /**
@@ -588,6 +656,9 @@ public final class Account {
       if (platformType_ != com.github.im.common.connect.model.proto.Account.PlatformType.WEB.getNumber()) {
         output.writeEnum(5, platformType_);
       }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(accessToken_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 6, accessToken_);
+      }
       getUnknownFields().writeTo(output);
     }
 
@@ -614,6 +685,9 @@ public final class Account {
         size += com.google.protobuf.CodedOutputStream
           .computeEnumSize(5, platformType_);
       }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(accessToken_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(6, accessToken_);
+      }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
       return size;
@@ -637,6 +711,8 @@ public final class Account {
           != other.getUserId()) return false;
       if (!getEMail()
           .equals(other.getEMail())) return false;
+      if (!getAccessToken()
+          .equals(other.getAccessToken())) return false;
       if (platformType_ != other.platformType_) return false;
       if (!getUnknownFields().equals(other.getUnknownFields())) return false;
       return true;
@@ -658,6 +734,8 @@ public final class Account {
           getUserId());
       hash = (37 * hash) + EMAIL_FIELD_NUMBER;
       hash = (53 * hash) + getEMail().hashCode();
+      hash = (37 * hash) + ACCESSTOKEN_FIELD_NUMBER;
+      hash = (53 * hash) + getAccessToken().hashCode();
       hash = (37 * hash) + PLATFORMTYPE_FIELD_NUMBER;
       hash = (53 * hash) + platformType_;
       hash = (29 * hash) + getUnknownFields().hashCode();
@@ -795,6 +873,7 @@ public final class Account {
         accountName_ = "";
         userId_ = 0L;
         eMail_ = "";
+        accessToken_ = "";
         platformType_ = 0;
         return this;
       }
@@ -842,6 +921,9 @@ public final class Account {
           result.eMail_ = eMail_;
         }
         if (((from_bitField0_ & 0x00000010) != 0)) {
+          result.accessToken_ = accessToken_;
+        }
+        if (((from_bitField0_ & 0x00000020) != 0)) {
           result.platformType_ = platformType_;
         }
       }
@@ -874,6 +956,11 @@ public final class Account {
         if (!other.getEMail().isEmpty()) {
           eMail_ = other.eMail_;
           bitField0_ |= 0x00000008;
+          onChanged();
+        }
+        if (!other.getAccessToken().isEmpty()) {
+          accessToken_ = other.accessToken_;
+          bitField0_ |= 0x00000010;
           onChanged();
         }
         if (other.platformType_ != 0) {
@@ -927,9 +1014,14 @@ public final class Account {
               } // case 34
               case 40: {
                 platformType_ = input.readEnum();
-                bitField0_ |= 0x00000010;
+                bitField0_ |= 0x00000020;
                 break;
               } // case 40
+              case 50: {
+                accessToken_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000010;
+                break;
+              } // case 50
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -1220,6 +1312,98 @@ public final class Account {
         return this;
       }
 
+      private java.lang.Object accessToken_ = "";
+      /**
+       * <pre>
+       * string refreshToken = 6 ;  // 长期令牌
+       * </pre>
+       *
+       * <code>string accessToken = 6;</code>
+       * @return The accessToken.
+       */
+      public java.lang.String getAccessToken() {
+        java.lang.Object ref = accessToken_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          accessToken_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <pre>
+       * string refreshToken = 6 ;  // 长期令牌
+       * </pre>
+       *
+       * <code>string accessToken = 6;</code>
+       * @return The bytes for accessToken.
+       */
+      public com.google.protobuf.ByteString
+          getAccessTokenBytes() {
+        java.lang.Object ref = accessToken_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          accessToken_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <pre>
+       * string refreshToken = 6 ;  // 长期令牌
+       * </pre>
+       *
+       * <code>string accessToken = 6;</code>
+       * @param value The accessToken to set.
+       * @return This builder for chaining.
+       */
+      public Builder setAccessToken(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        accessToken_ = value;
+        bitField0_ |= 0x00000010;
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * string refreshToken = 6 ;  // 长期令牌
+       * </pre>
+       *
+       * <code>string accessToken = 6;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearAccessToken() {
+        accessToken_ = getDefaultInstance().getAccessToken();
+        bitField0_ = (bitField0_ & ~0x00000010);
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * string refreshToken = 6 ;  // 长期令牌
+       * </pre>
+       *
+       * <code>string accessToken = 6;</code>
+       * @param value The bytes for accessToken to set.
+       * @return This builder for chaining.
+       */
+      public Builder setAccessTokenBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        accessToken_ = value;
+        bitField0_ |= 0x00000010;
+        onChanged();
+        return this;
+      }
+
       private int platformType_ = 0;
       /**
        * <code>.com.github.im.common.connect.model.proto.PlatformType platformType = 5;</code>
@@ -1235,7 +1419,7 @@ public final class Account {
        */
       public Builder setPlatformTypeValue(int value) {
         platformType_ = value;
-        bitField0_ |= 0x00000010;
+        bitField0_ |= 0x00000020;
         onChanged();
         return this;
       }
@@ -1257,7 +1441,7 @@ public final class Account {
         if (value == null) {
           throw new NullPointerException();
         }
-        bitField0_ |= 0x00000010;
+        bitField0_ |= 0x00000020;
         platformType_ = value.getNumber();
         onChanged();
         return this;
@@ -1267,7 +1451,7 @@ public final class Account {
        * @return This builder for chaining.
        */
       public Builder clearPlatformType() {
-        bitField0_ = (bitField0_ & ~0x00000010);
+        bitField0_ = (bitField0_ & ~0x00000020);
         platformType_ = 0;
         onChanged();
         return this;
@@ -1339,16 +1523,16 @@ public final class Account {
   static {
     java.lang.String[] descriptorData = {
       "\n\rAccount.proto\022(com.github.im.common.co" +
-      "nnect.model.proto\"\240\001\n\013AccountInfo\022\017\n\007acc" +
+      "nnect.model.proto\"\265\001\n\013AccountInfo\022\017\n\007acc" +
       "ount\030\001 \001(\t\022\023\n\013accountName\030\002 \001(\t\022\016\n\006userI" +
-      "d\030\003 \001(\003\022\r\n\005eMail\030\004 \001(\t\022L\n\014platformType\030\005" +
-      " \001(\01626.com.github.im.common.connect.mode" +
-      "l.proto.PlatformType*N\n\014PlatformType\022\007\n\003" +
-      "WEB\020\000\022\013\n\007ANDROID\020\001\022\007\n\003IOS\020\002\022\013\n\007WINDOWS\020\003" +
-      "\022\007\n\003MAC\020\004\022\t\n\005LINUX\020\005*.\n\024AccountOperation" +
-      "Type\022\n\n\006SIGNIN\020\000\022\n\n\006LOGOUT\020\001B3\n(com.gith" +
-      "ub.im.common.connect.model.protoB\007Accoun" +
-      "tb\006proto3"
+      "d\030\003 \001(\003\022\r\n\005eMail\030\004 \001(\t\022\023\n\013accessToken\030\006 " +
+      "\001(\t\022L\n\014platformType\030\005 \001(\01626.com.github.i" +
+      "m.common.connect.model.proto.PlatformTyp" +
+      "e*N\n\014PlatformType\022\007\n\003WEB\020\000\022\013\n\007ANDROID\020\001\022" +
+      "\007\n\003IOS\020\002\022\013\n\007WINDOWS\020\003\022\007\n\003MAC\020\004\022\t\n\005LINUX\020" +
+      "\005*.\n\024AccountOperationType\022\n\n\006SIGNIN\020\000\022\n\n" +
+      "\006LOGOUT\020\001B3\n(com.github.im.common.connec" +
+      "t.model.protoB\007Accountb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -1359,7 +1543,7 @@ public final class Account {
     internal_static_com_github_im_common_connect_model_proto_AccountInfo_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_com_github_im_common_connect_model_proto_AccountInfo_descriptor,
-        new java.lang.String[] { "Account", "AccountName", "UserId", "EMail", "PlatformType", });
+        new java.lang.String[] { "Account", "AccountName", "UserId", "EMail", "AccessToken", "PlatformType", });
     descriptor.resolveAllFeaturesImmutable();
   }
 

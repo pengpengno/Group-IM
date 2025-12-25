@@ -137,6 +137,12 @@ public class User implements UserDetails {
     }
 
 
+    public String getCurrentSchema() {
+        if (getCurrentCompany() == null)
+            return "public";
+        return getCurrentCompany().getSchemaName();
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         List<GrantedAuthority> authorities = new ArrayList<>();

@@ -56,7 +56,6 @@ public class CompanyService {
      * @param companyId 公司ID
      * @return 公司对象
      */
-    @Cacheable(value = "companies", key = "'company:id:' + #companyId")
     public Optional<Company> findById(Long companyId) {
         return companyRepository.findByCompanyId(companyId);
     }
@@ -66,7 +65,6 @@ public class CompanyService {
      * @param companyId
      * @return
      */
-    @Cacheable(value = "companies", key = "'company:withUsers:' + #companyId")
     public Optional<Company> findByIdWithUsers(Long companyId) {
         return companyRepository.findByIdWithUsers(companyId);
     }
@@ -76,7 +74,6 @@ public class CompanyService {
      * @param schemaName schema名称
      * @return 公司对象
      */
-    @Cacheable(value = "companies", key = "'company:schema:' + #schemaName")
     public Optional<Company> findBySchemaName(String schemaName) {
         return companyRepository.findBySchemaName(schemaName);
     }

@@ -1,18 +1,13 @@
 package com.github.im.server.config.security;
 
+import com.github.im.server.config.mult.SchemaContext;
+import com.github.im.server.config.mult.TenantContextFilter;
 import com.github.im.server.security.CompanyAccessDeniedHandler;
 import com.github.im.server.service.AuthenticationService;
 import com.github.im.server.service.impl.security.RefreshAuthenticationProvider;
 import com.github.im.server.service.impl.security.UserDetailsServiceImpl;
-import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.RSAKey;
-import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
-import com.nimbusds.jose.jwk.source.JWKSource;
-import com.nimbusds.jose.proc.SecurityContext;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
@@ -29,28 +24,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.ldap.authentication.LdapAuthenticationProvider;
-import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.filter.OncePerRequestFilter;
-
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig  {
-
-    @Value("${jwt.public.key}")
-    RSAPublicKey key;
-
-    @Value("${jwt.private.key}")
-    RSAPrivateKey priv;
-
-
-
 
     @Autowired
     private JwtToUserAuthenticationConverter jwtToUserAuthenticationConverter;
@@ -59,16 +41,12 @@ public class SecurityConfig  {
     private CompanyAccessDeniedHandler companyAccessDeniedHandler;
 
     @Autowired
-    private ReactiveTokenRefreshFilter reactiveTokenRefreshFilter;
+    private AccessTokenRefreshFilter accessTokenRefreshFilter;
 
-//    @Bean
-//    public CompanyOwnershipSecurityExpressionHandler companyOwnershipSecurityExpressionHandler() {
-//        return new CompanyOwnershipSecurityExpressionHandler();
-//    }
-//    @Bean
-//    public MethodSecurityExpressionHandler methodSecurityExpressionHandler(CompanyOwnershipSecurityExpressionHandler companyOwnershipSecurityExpressionHandler) {
-//        return companyOwnershipSecurityExpressionHandler;
-//    }
+    @Autowired
+    private TenantContextFilter tenantContextFilter;
+
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -119,6 +97,7 @@ public class SecurityConfig  {
                                 "/api/users/import-template",
                                 "/api/users/import",
                                 "/api/users/login",
+                                "/api/auth/logout",
                                 "/static/**",
                                 "/socket.io/**",
                                 "/ws/**"  , // 信令服务器
@@ -130,6 +109,8 @@ public class SecurityConfig  {
                 )
                 .oauth2ResourceServer(oauth2 ->
                         oauth2.jwt(jwt->jwt.jwtAuthenticationConverter(jwtToUserAuthenticationConverter)))
+                .addFilterAfter(tenantContextFilter, BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(accessTokenRefreshFilter, BearerTokenAuthenticationFilter.class)
                 .httpBasic(Customizer.withDefaults())
                 .sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling((exceptions) -> exceptions
@@ -139,20 +120,6 @@ public class SecurityConfig  {
         ;
 
         return http.build();
-    }
-
-
-    @Bean
-    JwtDecoder jwtDecoder() {
-        return NimbusJwtDecoder.withPublicKey(this.key).build();
-    }
-
-
-    @Bean
-    JwtEncoder jwtEncoder() {
-        JWK jwk = new RSAKey.Builder(this.key).privateKey(this.priv).build();
-        JWKSource<SecurityContext> jwks = new ImmutableJWKSet<>(new JWKSet(jwk));
-        return new NimbusJwtEncoder(jwks);
     }
 
 }

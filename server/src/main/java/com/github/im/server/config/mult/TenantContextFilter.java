@@ -1,16 +1,15 @@
 package com.github.im.server.config.mult;
 
+import com.github.im.server.model.User;
 import com.github.im.server.service.CompanyService;
 import com.github.im.server.service.CompanyUserService;
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import jakarta.servlet.*;
 import java.io.IOException;
 
 /**
@@ -43,11 +42,9 @@ public class TenantContextFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         
-        // 在请求处理前设置租户上下文
-//        setTenantContext();
+        setTenantContext();
         
         try {
-            // 继续执行过滤器链
             chain.doFilter(request, response);
         } finally {
             // 请求处理完毕后清除租户上下文，防止内存泄漏
@@ -58,19 +55,18 @@ public class TenantContextFilter implements Filter {
     /**
      * 根据当前认证用户设置租户上下文
      */
-//    private void setTenantContext() {
-//        try {
-//            // 从安全上下文中获取当前认证信息
-//            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-//            if (authentication != null && authentication.getPrincipal() instanceof User user) {
-//                Long userId = user.getUserId();
-//                // 根据公司ID查询对应的schema名称
-//                String schemaName = companyService.getSchemaNameByCompanyId(user.getCurrentLoginCompanyId());
-//                TenantContext.setCurrentTenant(schemaName);
-//                log.debug("设置租户上下文: {}", schemaName);
-//            }
-//        } catch (Exception e) {
-//            log.error("设置租户上下文时发生错误", e);
-//        }
-//    }
+    private void setTenantContext() {
+        try {
+            // 从安全上下文中获取当前认证信息
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.getPrincipal() instanceof User user) {
+                // 根据公司ID查询对应的schema名称
+                String schemaName = user.getCurrentSchema();
+                SchemaContext.setCurrentTenant(schemaName);
+            }
+        } catch (Exception e) {
+            log.warn("无法设置租户上下文: {}", e.getMessage());
+        }
+    }
+
 }

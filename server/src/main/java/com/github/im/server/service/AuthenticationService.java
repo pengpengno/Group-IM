@@ -7,21 +7,17 @@ import com.github.im.server.model.User;
 import com.github.im.server.repository.UserRepository;
 import com.github.im.server.service.impl.security.RefreshAuthenticationToken;
 import com.github.im.server.utils.JwtUtil;
+import com.github.im.server.utils.UserTokenManager;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.val;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -31,6 +27,7 @@ public class AuthenticationService  {
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
+    private final UserTokenManager userTokenManager;
 
     private final CompanyService companyService;
 
@@ -63,17 +60,19 @@ public class AuthenticationService  {
                 .setAuthentication(authResult);
 
         User user = (User) authResult.getPrincipal();
-//        final String companyCode = loginRequest.getCompanyCode();
-//        if (companyCode != null && companyCode.equals("public")) {
-//            user.setCurrentCompany(companyService.findBySchemaName(companyCode).get());
-//        } else {
-//            user.setCurrentCompany(companyService.findById(loginRequest.getCompanyId()).get());
-//        }
-        user.setCurrentCompany(companyService.findById(user.getPrimaryCompanyId()).get());
+        final String companyCode = loginRequest.getCompanyCode();
+        if (companyCode != null && companyCode.equals("public")) {
+            user.setCurrentCompany(companyService.findBySchemaName(companyCode)
+                    .orElseThrow(() -> new BadCredentialsException("当前公司"+ companyCode + "不存在！")));
+        } else {
+            user.setCurrentCompany(companyService.findById(user.getPrimaryCompanyId())
+                    .orElseThrow(() -> new BadCredentialsException("当前公司不存在！")));
+        }
 
+        val token = userTokenManager.createAccessTokenAndCache(user);
 
-        val token = jwtUtil.createToken(user);
-        val refreshToken = jwtUtil.createRefreshToken(user);
+        val refreshToken =  userTokenManager.createRefreshToken(user);
+
         user.setRefreshToken(refreshToken);
         userRepository.save(user);
 
@@ -96,11 +95,15 @@ public class AuthenticationService  {
 //        SecurityContextHolder.getContext().setAuthentication(authResult);
 
         User user = (User) authResult.getPrincipal();
-        String accessToken = jwtUtil.createToken(user);
+
+        val accessToken = userTokenManager.createAccessTokenAndCache(user);
+
+//        val refreshToken =  userTokenManager.createRefreshToken(user);
 
         UserInfo userInfo = UserMapper.INSTANCE.userToUserInfo(user);
         userInfo.setToken(accessToken);
         userInfo.setRefreshToken(user.getRefreshToken());
+        
         return Optional.of(userInfo);
     }
 }

@@ -4,11 +4,16 @@ import com.github.im.common.connect.connection.ConnectionConstants;
 import com.github.im.common.connect.connection.ReactiveConnectionManager;
 import com.github.im.common.connect.connection.server.BindAttr;
 import com.github.im.common.connect.connection.server.ProtoBufProcessHandler;
+import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
+import com.github.im.server.model.User;
 import com.github.im.server.utils.JwtUtil;
+import com.github.im.server.utils.UserTokenManager;
+import io.netty.util.AttributeKey;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
@@ -24,7 +29,10 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
 
-    private final JwtUtil jwtUtil;
+
+    private final UserTokenManager userTokenManager;
+
+    public static AttributeKey<User> BING_USER_KEY = AttributeKey.valueOf("USER");
 
     @Override
     public BaseMessage.BaseMessagePkg.PayloadCase type() {
@@ -40,11 +48,14 @@ public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
 
         Optional.ofNullable(con).ifPresent(connection -> {
             connection.channel().attr(ConnectionConstants.BING_ACCOUNT_KEY).set(accountInfo);
-//            jwtUtil.getJwt(accountInfo.getRefreshToken())
-//            JwtUtil.COMPANY_ID_FIELD
+            String accessToken = accountInfo.getAccessToken();
 
-            // 过滤出符合条件的消息，并发送
-//            var chatMessages = ReactiveConnectionManager.getChatMessages(accountInfo);
+            var user = userTokenManager.jwt2User(accessToken);
+            log.info("用户信息  username: {}",user.getAccount());
+
+            connection.channel().attr(BING_USER_KEY).set(user);
+
+
             // 订阅 信息流
             var account = accountInfo.getAccount();
             var bindAttr = BindAttr.getBindAttr(accountInfo);

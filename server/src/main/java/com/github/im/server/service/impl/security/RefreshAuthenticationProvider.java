@@ -1,8 +1,10 @@
 package com.github.im.server.service.impl.security;
 
+import com.github.im.server.config.mult.SchemaContext;
 import com.github.im.server.model.User;
 import com.github.im.server.repository.UserRepository;
 import com.github.im.server.utils.JwtUtil;
+import com.github.im.server.utils.UserTokenManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -18,19 +20,17 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class RefreshAuthenticationProvider implements AuthenticationProvider {
 
-    private final UserSecurityService userSecurityService;
-    private final JwtUtil jwtUtil;
+    private final UserTokenManager userTokenManager;
+//    private final JwtUtil jwtUtil;
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
         String refreshToken = (String) authentication.getCredentials();
 
-        var jwtOpt = jwtUtil.getJwt(refreshToken);
-        if (jwtOpt.isEmpty()) {
-            throw new BadCredentialsException("Invalid refresh token");
-        }
-        var jwt = jwtOpt.get();
-        User user = userSecurityService.jwt2User(jwt);
+        User user = userTokenManager.jwt2User(refreshToken);
+
+        SchemaContext.setCurrentTenant(user.getCurrentSchema());
+
         return new UsernamePasswordAuthenticationToken(user,user.getPasswordHash(), user.getAuthorities());
     }
 

@@ -53,7 +53,7 @@ class AuthenticationServiceSpec extends Specification {
         result.get().refreshToken == "mockRefreshToken"
 
         1 * userRepository.save(_)
-        1 * jwtUtil.createToken(mockUser) >> "mockAccessToken"
+        1 * jwtUtil.createAccessToken(mockUser) >> "mockAccessToken"
         // 初次登录需要返回
         1 * jwtUtil.createRefreshToken(mockUser) >> "mockRefreshToken"
     }
@@ -66,7 +66,7 @@ class AuthenticationServiceSpec extends Specification {
 
         authentication.getPrincipal() >> mockUser
         authenticationManager.authenticate(_ as Authentication) >> authentication
-        jwtUtil.createToken(mockUser) >> "mockAccessToken"
+        jwtUtil.createAccessToken(mockUser) >> "mockAccessToken"
         mockUser.getRefreshToken() >> "existingRefreshToken"
 
         when: "Perform login with refresh token"
@@ -77,7 +77,7 @@ class AuthenticationServiceSpec extends Specification {
         result.get().token == "mockAccessToken"
         result.get().refreshToken == "existingRefreshToken"
 
-        1 * jwtUtil.createToken(mockUser) >> "mockAccessToken"
+        1 * jwtUtil.createAccessToken(mockUser) >> "mockAccessToken"
         0 * jwtUtil.createRefreshToken(mockUser) >> "existingRefreshToken"
         0 * userRepository.save(_)
     }

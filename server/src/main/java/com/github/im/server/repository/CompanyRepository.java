@@ -21,8 +21,7 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
      */
     Optional<Company> findByName(String name);
 
-    Optional<Company> findByNameAndSchemaName(String name,String schemaName);
-
+    Optional<Company> findByNameAndSchemaName(String name, String schemaName);
 
     /**
      * 根据公司ID查找公司，并加载其用户信息
@@ -38,7 +37,7 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
      * @param schemaName schema名称
      * @return 公司对象
      */
-    @Cacheable(value = "companies", key = "'company:schema:' + #schemaName")
+//    @Cacheable(value = "companies", key = T(com.github.im.server.constants.CacheKeyConstants).Company.COMPANY_BY_SCHEMA_SPEL, unless = "#result == null")
     Optional<Company> findBySchemaName(String schemaName);
     
     /**
@@ -47,7 +46,6 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
      * @param active 激活状态
      * @return 公司对象
      */
-    @Cacheable(value = "companies", key = "'company:id:' + #companyId + ':active:' + #active")
     Optional<Company> findByCompanyIdAndActive(Long companyId, Boolean active);
     
     /**
@@ -55,7 +53,7 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
      * @param companyId 公司ID
      * @return 公司对象
      */
-    @Cacheable(value = "companies", key = "'company:id:' + #companyId")
+    @Cacheable(value = "companies", key = "'company:id' + #companyId", unless = "#result == null")
     Optional<Company> findByCompanyId(Long companyId);
     
 
@@ -64,7 +62,6 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
     List<User> findUsersByCompanyId(@Param("companyId") Long companyId);
     
     @Query("SELECT c FROM Company c JOIN CompanyUser cu ON c.companyId = cu.companyId WHERE cu.userId = :userId")
-    @Cacheable(value = "companies", key = "'user:companyIds:' + #userId")
     List<Company> findCompaniesByUserId(@Param("userId") Long userId);
     
     @Query("SELECT DISTINCT c FROM User u JOIN u.companies c WHERE u.userId = :userId")

@@ -19,6 +19,9 @@ message AccountInfo{
 
   string eMail = 4 ;
 
+//  string refreshToken = 6 ;  // 长期令牌
+  string accessToken = 6 ;
+
   PlatformType platformType = 5 ;
 
 }
