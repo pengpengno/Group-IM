@@ -109,7 +109,7 @@ data class MessageWrapper(
 
     override val time: LocalDateTime =
         when {
-            messageDto?.timestamp != null -> LocalDateTime.parse(messageDto.timestamp)
+            messageDto?.timestamp != null && messageDto.timestamp != "null" -> LocalDateTime.parse(messageDto.timestamp)
             message?.serverTimeStamp != null -> {
                 val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(message.serverTimeStamp)
                 instant.toLocalDateTime(TimeZone.currentSystemDefault())

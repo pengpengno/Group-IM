@@ -6,12 +6,13 @@ import com.github.im.common.connect.connection.server.ProtoBufProcessHandler;
 import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.model.proto.Chat;
+import com.github.im.server.model.User;
 import com.github.im.server.service.ConversationService;
 import com.github.im.server.service.MessageService;
 import com.github.im.server.service.CompanyUserService;
 import com.github.im.server.service.CompanyService;
+import com.github.im.server.util.SchemaSwitcher;
 import com.github.im.server.utils.EnumsTransUtil;
-import com.github.im.server.util.ReactiveSchemaUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
@@ -59,11 +60,11 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
         var userId = fromAccountInfo.getUserId();
         var account = fromAccountInfo.getAccount();
 
-        // 根据用户信息确定schema名称
-        String schemaName = getUserSchemaName(userId, account);
+        User user = con.channel().attr(AccountInfoProcessHandler.BING_USER_KEY).get();
+        var schemaName = user.getCurrentSchema();
 
         // 使用响应式方式处理消息保存和推送
-        ReactiveSchemaUtil.executeInSchemaSync(schemaName, () -> {
+        SchemaSwitcher.executeInSchema(schemaName, () -> {
             // 保存消息
             var saveMessage = messageService.saveMessage(chatMessage);
             var sequenceId = saveMessage.getSequenceId();
@@ -72,6 +73,7 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
             var epochMilli = saveMessage.getTimestamp().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             final var newChatMessage = Chat.ChatMessage.newBuilder(chatMessage)
                     .setSequenceId(sequenceId)
+                    .setFromAccountInfo(Account.AccountInfo.newBuilder(fromAccountInfo).setAccessToken("").build())
                     .setServerTimeStamp(epochMilli)
                     .setMsgId(msgId)
                     .setMessagesStatus(EnumsTransUtil.convertMessageStatus(saveMessage.getStatus()))

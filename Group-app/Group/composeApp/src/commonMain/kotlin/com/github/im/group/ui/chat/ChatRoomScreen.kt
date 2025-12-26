@@ -40,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -108,10 +109,17 @@ fun ChatRoomScreen(
     LaunchedEffect(conversationId) {
         messageViewModel.loadMessages(conversationId)
         messageViewModel.getConversation(conversationId) // 获取会话信息
+        messageViewModel.register(conversationId) // 注册会话，用于接收服务端推送的消息
 
         // 设置远程用户（这里应该是从会话中获取对方用户信息）
         remoteUser = state.conversation.getOtherUser(userInfo)
         Napier.i ("state ${state.conversation}")
+    }
+    
+    DisposableEffect(conversationId) {
+        onDispose {
+            messageViewModel.unregister(conversationId) // 注销会话，避免内存泄漏
+        }
     }
     
     LaunchedEffect(listState) {

@@ -10,7 +10,9 @@ import org.mapstruct.factory.Mappers;
 public interface ConversationMapper {
 
 
-    @Mapping(target ="createAt", source = "createdAt")
+    @Mapping(target ="createdAt", source = "createdAt")
+    @Mapping(target ="createdBy", source = "createdBy")
+    @Mapping(target ="createUserId", source = "createdBy.userId")
     ConversationRes toDTO(Conversation conversation);
 
 }

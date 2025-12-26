@@ -92,7 +92,7 @@ val appmodule = module {
         )
     }
 
-    single { ChatSessionManager(get()) }
+    single { ChatSessionManager(get(),get()) }
     single { TCPMessageViewModel(get()) }
     single { VoiceRecorderFactory.create()}
     single { AndroidSocketClient(get()) } bind SocketClient::class

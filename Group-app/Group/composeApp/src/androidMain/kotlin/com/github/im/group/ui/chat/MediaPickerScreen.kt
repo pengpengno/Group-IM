@@ -260,7 +260,7 @@ fun UnifiedMediaPicker(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(2.dp)
             ) {
-                items(mediaItems) { media ->
+                items(mediaItems, key = { it.id }) { media ->
                     MediaItemView(
                         mediaItem = media,
                         isSelected = selectedItems.contains(media),

@@ -19,6 +19,8 @@ message AccountInfo{
 
   string eMail = 4 ;
 
+  string accessToken = 6 ;
+
   PlatformType platformType = 5 ;
 
 }

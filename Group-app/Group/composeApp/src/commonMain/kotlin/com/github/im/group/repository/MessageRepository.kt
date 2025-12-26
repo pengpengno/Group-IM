@@ -145,9 +145,7 @@ class ChatMessageRepository (
             }
         }
     }
-    
 
-    
     /**
      * 根据 msgId 更新消息
      */
@@ -194,6 +192,8 @@ class ChatMessageRepository (
                 messageDto = MessageDTO(
                     msgId = entity.msg_id,
                     conversationId = entity.conversation_id,
+                    clientMsgId = entity.client_msg_id,
+                    fromAccountId = entity.from_account_id,
                     status = entity.status,
                     content = entity.content,
                     type =  entity.type,
@@ -251,12 +251,12 @@ class ChatMessageRepository (
         return entity?.let {
             MessageWrapper(
                 messageDto = MessageDTO(
-                    msgId = entity.msg_id,
+                    msgId = entity.msg_id,  // 可能为空
                     conversationId = entity.conversation_id,
                     status = entity.status,
                     content = entity.content,
                     type =  entity.type,
-                    timestamp = entity.server_timestamp.toString(),
+                    timestamp = entity.server_timestamp.toString(),  // 可能为空
                     fromAccount = UserInfo(
                         userId = entity.from_account_id,
                         username = entity.username?:"",

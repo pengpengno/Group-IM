@@ -110,7 +110,7 @@ fun ContactsUI (
         } else {
             LazyColumn {
                 organizationTree.forEach { node ->
-                    item {
+                    item(key = node.id) {
                         OrganizationNodeItem(
                             node = node,
                             expandedDepartments = expandedDepartments,

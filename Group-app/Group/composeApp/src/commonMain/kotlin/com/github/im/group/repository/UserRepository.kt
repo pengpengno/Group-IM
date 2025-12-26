@@ -1,8 +1,10 @@
 package com.github.im.group.repository
 
 import com.github.im.group.GlobalCredentialProvider
+import com.github.im.group.Platform
 import com.github.im.group.db.AppDatabase
 import com.github.im.group.db.entities.UserStatus
+import com.github.im.group.getPlatform
 import com.github.im.group.model.UserInfo
 import com.github.im.group.model.proto.AccountInfo
 import com.github.im.group.model.proto.PlatformType
@@ -71,7 +73,8 @@ class UserRepository (
             accountName = user.username,
             userId = user.userId,
             eMail = user.email,
-            platformType = PlatformType.ANDROID,
+            accessToken = user.token,
+            platformType = PlatformType.valueOf(getPlatform().name),
         )
         _userState.value = UserState.LoggedIn(CurrentUserInfoContainer(user, accountInfo))
         addOrUpdateUser(user)

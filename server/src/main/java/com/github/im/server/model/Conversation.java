@@ -4,6 +4,8 @@ import com.github.im.enums.ConversationType;
 import com.github.im.enums.ConversationStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,10 +38,9 @@ public class Conversation {
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
 
-
-
+    @CreationTimestamp
     private LocalDateTime createdAt;
-
+    @UpdateTimestamp
     private LocalDateTime updatedAt;
 
     @Enumerated(EnumType.STRING)

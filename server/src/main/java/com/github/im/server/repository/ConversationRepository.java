@@ -2,9 +2,9 @@ package com.github.im.server.repository;
 
 import com.github.im.server.model.Conversation;
 import com.github.im.enums.ConversationStatus;
-import com.github.im.enums.ConversationType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -33,10 +33,7 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
     Optional<Conversation> findPrivateChatBetweenUsers(Long userId1, Long userId2);
 //    Optional<Conversation> findPrivateChatBetweenUsers(Long userId1, Long userId2, ConversationType conversationType, ConversationStatus status);
 
-
-
-
-
-
-
+    // 查询会话并预加载创建者信息
+    @Query("SELECT c FROM Conversation c LEFT JOIN FETCH c.createdBy WHERE c.conversationId = :conversationId")
+    Optional<Conversation> findByIdWithCreatedBy(@Param("conversationId") Long conversationId);
 }

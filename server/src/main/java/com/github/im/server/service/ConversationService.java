@@ -81,8 +81,11 @@ public class ConversationService {
     }
 
     public ConversationRes getConversationById(Long conversationId) {
-        Conversation conversation = conversationRepository.findById(conversationId).orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
-        return conversationsMapper.toDTO(conversation);
+        Conversation conversation = conversationRepository.findByIdWithCreatedBy(conversationId)
+                .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
+        ConversationRes dto = conversationsMapper.toDTO(conversation);
+        dto.setCreateUserId(conversation.getCreatedBy().getUserId());
+        return dto;
     }
     /**
      * 创建或获取私聊会话
@@ -109,7 +112,8 @@ public class ConversationService {
             // 保存会话
 //            var members = newConversation.getMembers();
             Conversation savedConversation = conversationRepository.save(newConversation);
-            newConversation = conversationRepository.findById(savedConversation.getConversationId()).get();
+//            newConversation = conversationRepository.findById(savedConversation.getConversationId()).get();
+            newConversation = conversationRepository.findByIdWithCreatedBy(savedConversation.getConversationId()).get();
 
 
             ConversationMember conversationMember1 = ConversationMember.builder()

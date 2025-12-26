@@ -381,7 +381,8 @@ data class GroupInfo(
 @Serializable
 data class ConversationRes(
     val conversationId: Long = -1,
-    val createBy :Long = -1,
+    val createdBy : UserInfo = UserInfo(),
+    val createUserId : Long = -1 ,
     val createAt : String = "",
     val groupName: String = "",
     val description: String? = "",

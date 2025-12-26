@@ -275,7 +275,7 @@ private fun LazyListScope.showAllResults(
                 )
             }
 
-            items(chatResults) { chat ->
+            items(chatResults, key = { chat -> chat.hashCode() }) { chat ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -303,7 +303,7 @@ private fun LazyListScope.showAllResults(
                 )
             }
 
-            items(groupResults) { group ->
+            items(groupResults, key = { group -> group.hashCode() }) { group ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -331,7 +331,7 @@ private fun LazyListScope.showAllResults(
                 )
             }
 
-            items(linkResults) { link ->
+            items(linkResults, key = { link -> link.hashCode() }) { link ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -359,7 +359,7 @@ private fun LazyListScope.showAllResults(
                 )
             }
 
-            items(videoResults) { video ->
+            items(videoResults, key = { video -> video.hashCode() }) { video ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -393,7 +393,7 @@ private fun LazyListScope.showAllResults(
 //@Composable
 private fun LazyListScope.showUserResults(userResults: List<UserInfo>) {
     try {
-        items(userResults) { user ->
+        items(userResults, key = { user -> user.userId }) { user ->
             UserItem(
                 userInfo = user,
                 onClick = {
@@ -417,7 +417,7 @@ private fun LazyListScope.showUserResults(userResults: List<UserInfo>) {
 
 private fun LazyListScope.showChatResults(chatResults: List<String>) {
     try {
-        items(chatResults) { chat ->
+        items(chatResults, key = { chat -> chat.hashCode() }) { chat ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -449,7 +449,7 @@ private fun LazyListScope.showChatResults(chatResults: List<String>) {
 
 private fun LazyListScope.showGroupResults(groupResults: List<String>) {
     try {
-        items(groupResults) { group ->
+        items(groupResults, key = { group -> group.hashCode() }) { group ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -482,7 +482,7 @@ private fun LazyListScope.showGroupResults(groupResults: List<String>) {
 //@Composable
 private fun LazyListScope.showLinkResults(linkResults: List<String>) {
     try {
-        items(linkResults) { link ->
+        items(linkResults, key = { link -> link.hashCode() }) { link ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -514,7 +514,7 @@ private fun LazyListScope.showLinkResults(linkResults: List<String>) {
 
 private fun LazyListScope.showVideoResults(videoResults: List<String>) {
     try {
-        items(videoResults) { video ->
+        items(videoResults, key = { video -> video.hashCode() }) { video ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

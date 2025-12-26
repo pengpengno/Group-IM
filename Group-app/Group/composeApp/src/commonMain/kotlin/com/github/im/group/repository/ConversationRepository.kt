@@ -5,6 +5,7 @@ import com.github.im.group.api.ConversationRes
 import com.github.im.group.api.ConversationStatus
 import com.github.im.group.db.AppDatabase
 import io.github.aakira.napier.Napier
+import kotlinx.datetime.toLocalDateTime
 
 class ConversationRepository(
     private val db: AppDatabase
@@ -46,7 +47,8 @@ class ConversationRepository(
                     conversationId = entity.conversationId,
                     groupName = entity.groupName ?: "",
                     description = entity.description,
-                    createBy = entity.createdBy,
+//                    createdBy = ,
+                    createUserId = entity.createdBy,
                     createAt = entity.createdAt.toString(),
                     status = ConversationStatus.valueOf(entity.status.name)
 
@@ -70,8 +72,9 @@ class ConversationRepository(
                 conversationId = conversation.conversationId,
                 groupName = conversation.groupName,
                 description = conversation.description,
-                createdBy = conversation.createBy,
-                createdAt = kotlinx.datetime.LocalDateTime.parse(conversation.createAt),
+//                createdBy = conversation.createdBy,
+                createdBy = conversation.createUserId,
+                createdAt = kotlinx.datetime.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()),
                 status = com.github.im.group.db.entities.ConversationStatus.valueOf(conversation.status.name)
             )
         } catch (e: Exception) {

@@ -121,7 +121,7 @@ fun AddFriendScreen(
                 LazyColumn(
                     modifier = Modifier.weight(1f)
                 ) {
-                    items(searchResults) { user ->
+                    items(searchResults, key = { user -> user.userId }) { user ->
                         // 检查是否已经是好友
                         val isFriend = friends.any { it.friendUserInfo?.userId == user.userId }
                         

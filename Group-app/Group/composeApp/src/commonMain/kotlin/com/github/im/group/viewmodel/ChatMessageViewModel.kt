@@ -106,6 +106,7 @@ class ChatMessageViewModel(
      */
     fun onReceiveMessage(message: MessageItem){
         Napier.d("收到消息 $message")
+
         addNewMessage( message)
     }
 
@@ -125,12 +126,6 @@ class ChatMessageViewModel(
         val ackLocalDateTime: LocalDateTime =
             Instant.fromEpochMilliseconds(ackTimeStamp)
                 .toLocalDateTime(TimeZone.currentSystemDefault())
-//        chatMessageRepository.getMessageByClientMsgId(clientMsgId)?.let {}.
-//        db.messageQueries
-//            .updateMessageByClientMsgId(MessageStatus.SENT,
-//                ackLocalDateTime,
-//                it.serverMsgId, it.serverMsgId,
-//                client_msg_id = it.clientMsgId)
     }
     fun updateMessage(clientMsgId: String?) {
         if (clientMsgId == null) return
@@ -235,6 +230,7 @@ class ChatMessageViewModel(
                 // 然后再加载本地消息
                 val messages = chatMessageRepository.getMessagesByConversation(conversationId,limit)
                 Napier.d("读取到  ${messages.size} 条消息")
+                Napier.d("读取到  ${messages} ")
 
                 _uiState.update {
                     val messageList = mutableListOf<MessageItem>()
@@ -375,7 +371,7 @@ class ChatMessageViewModel(
             // 新来的消息，添加到列表开头
             // clientMsgId  建立索引
             val isExisted =  messageIndex.containsKey(message.clientMsgId)
-            Napier.d("addNewMessage: isExisted $isExisted")
+            Napier.d("addNewMessage: isExisted $isExisted  clientMsgId  ${message.clientMsgId}")
             if(isExisted){
                 //  如果已经存在 那么就 更新掉原始的版本
                 val idx = messageIndex[message.clientMsgId]!!

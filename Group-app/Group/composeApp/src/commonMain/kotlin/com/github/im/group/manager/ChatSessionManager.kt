@@ -6,6 +6,7 @@ import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.proto.BaseMessagePkg
 import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.viewmodel.ChatMessageViewModel
+import io.github.aakira.napier.Napier
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -15,8 +16,11 @@ import kotlinx.datetime.toLocalDateTime
 /**
  * 客户端 会话的管理
  */
+import com.github.im.group.repository.ChatMessageRepository
+
 class ChatSessionManager  (
-    private val db: AppDatabase
+    private val db: AppDatabase,
+    private val chatMessageRepository: ChatMessageRepository
 ){
 
     // 已初始化的 VM
@@ -48,6 +52,8 @@ class ChatSessionManager  (
      */
 
     fun routeMessage(pkg: BaseMessagePkg) {
+        Napier.i ( "Received message: $pkg")
+
         pkg.ack ?.let {
 
             // 回执 ACK 消息 更新 本地数据库 ，更新对应消息状态
@@ -60,20 +66,26 @@ class ChatSessionManager  (
                 }
                 vm.updateMessage(it.clientMsgId)
             } else {
-
             }
             // 更新对应信息的 ui 状态
         }
-
 
         pkg.message ?.let {
 
             val targetId = it.conversationId
             val vm = sessionMap[targetId]
             if (vm != null) {
+                Napier.i ( "route to conversation : $targetId")
+
                 vm.onReceiveMessage(MessageWrapper(it))
             } else {
-                // VM 不存在，先缓存在内存中
+                // VM 不存在，先缓存在内存中，同时更新数据库
+                Napier.i ( "route to conversation : $targetId")
+                
+                // 即使没有注册的ViewModel，也要将消息存储到数据库中
+                chatMessageRepository.insertOrUpdateMessage(MessageWrapper(it))
+                
+                // 同时缓存到内存中，以便后续注册时使用
                 messageBuffer.getOrPut(targetId) { mutableListOf() }.add(it)
             }
         }

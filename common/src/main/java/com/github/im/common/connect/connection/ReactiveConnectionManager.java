@@ -88,6 +88,7 @@ public class ReactiveConnectionManager {
             /**如果在线就推送**/
             getAllSubscribeAttr(ATTR).forEach(
                     bindAttr -> {
+                        log.info("推送消息 {} 到 {} ",baseMessagePkg,bindAttr.getKey());
                         BASE_MESSAGE_SINKS.get(bindAttr).tryEmitNext(baseMessagePkg).orThrow();
                     }
             );

@@ -1,9 +1,11 @@
 package com.github.im.conversation;
 
+import com.github.im.dto.user.UserBasicInfo;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.enums.ConversationType;
 import lombok.Data;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -16,9 +18,11 @@ public class ConversationRes {
     private List<UserInfo> members;
 
 //    private Long createBy;
-    private UserInfo createBy;
+//    private UserBasicInfo createBy;
+    private UserBasicInfo createdBy;
+    private Long createUserId;
 
-    private String createAt;
+    private LocalDateTime createdAt;
 
     /**
      * {@link com.github.im.enums.ConversationStatus}

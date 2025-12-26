@@ -62,26 +62,26 @@ public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
 
             var baseMessageMany = ReactiveConnectionManager.registerSinkFlow(bindAttr).asFlux();
             baseMessageMany
-                .doOnNext(baseMessage -> {
-                    // 可以在此进行日志记录等操作
-                    log.debug("Sending chat message to: {}", account);
-                })
-                .flatMap(baseMessagePkg -> {
+            .doOnNext(baseMessage -> {
+                // 可以在此进行日志记录等操作
+                log.debug("Sending chat message to: {}", account);
+            })
+            .flatMap(baseMessagePkg -> {
 //                        // 返回消息流给 connection.outbound() 进行发送
-                    return connection.outbound().sendByteArray(Mono.just(baseMessagePkg.toByteArray()));
-                }).checkpoint()
-                .doOnTerminate(() -> {
-                    // 可以在流终止时执行清理操作
-                    log.debug("Chat message stream completed.");
-                })
-                .doOnError(ex -> {
-                    log.error("Error occurred while sending chat message to: {}", account, ex);
-                })
-                .subscribe(
-                        // 订阅并处理流
-                        null,  // 这里可以传入一个处理成功的回调函数
-                        error -> log.error("Error occurred while processing chat message stream")  // 错误处理
-                );
+                return connection.outbound().sendByteArray(Mono.just(baseMessagePkg.toByteArray()));
+            }).checkpoint()
+            .doOnTerminate(() -> {
+                // 可以在流终止时执行清理操作
+                log.debug("Chat message stream completed.");
+            })
+            .doOnError(ex -> {
+                log.error("Error occurred while sending chat message to: {}", account, ex);
+            })
+            .subscribe(
+                    // 订阅并处理流
+                    null,  // 这里可以传入一个处理成功的回调函数
+                    error -> log.error("Error occurred while processing chat message stream")  // 错误处理
+            );
 
             // 监听连接关闭事件，当连接被关闭时取消订阅
             con.onDispose()
