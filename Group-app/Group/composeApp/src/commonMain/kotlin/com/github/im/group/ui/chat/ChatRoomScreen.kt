@@ -119,6 +119,7 @@ fun ChatRoomScreen(
     DisposableEffect(conversationId) {
         onDispose {
             messageViewModel.unregister(conversationId) // 注销会话，避免内存泄漏
+            voiceViewModel.reset() // 重置
         }
     }
     
@@ -287,7 +288,9 @@ fun ChatRoomScreen(
                                     // 这里简化处理，总是发送
                                     voiceViewModel.audioPlayer.stop()
                                 }
-                                else -> {}
+                                else -> {
+
+                                }
                             }
                         },
                         onFileSelected = { files ->

@@ -354,120 +354,112 @@ fun VoiceRecordButton(
         }
     }
 
+    var isRecording by remember { mutableStateOf(false) }
+    var isCancelRecording by remember { mutableStateOf(false) }
+    
     Surface(
         tonalElevation = 1.dp,
         modifier = Modifier
             .background(Color.White)
-            .pointerInput( Unit){
-                while(true){
-                    var lastHapticDirection: SlideDirection? = null
-                    var slideDirection = SlideDirection.Start
-                    var isStillPressed = true
-                    Napier.d("isStillPressed: $isStillPressed")
-                    awaitPointerEventScope {
-
-                        while (isStillPressed) {
-                            Napier.d("isStillPressed: $isStillPressed")
-                            val event = awaitPointerEvent()
-                            Napier.d("event: $event")
-                            val change = event.changes.firstOrNull() ?: continue
-                            val position = change.position
-
-                            // 判断滑动方向
-                            val currentDirection = when {
-                                position.x < size.width / 4 -> SlideDirection.Left
-                                position.x > size.width * 3 / 4 -> SlideDirection.Right
-                                else -> SlideDirection.Start
-                            }
-
-                            if (currentDirection != lastHapticDirection &&
-                                (currentDirection == SlideDirection.Left || currentDirection == SlideDirection.Right) &&
-                                voiceRecordingState is RecorderUiState.Recording
-                            ) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                lastHapticDirection = currentDirection
-                            }
-
-                            slideDirection = currentDirection
-
-                            // 手指抬起或取消 → 结束循环
-                            if (!change.pressed || change.changedToUp()) {
-                                isStillPressed = false
-                            }
-                        }
-
-                        onRelease(slideDirection)
-
-                    }
-                }
-
-            }
             .pointerInput(Unit) {
                 detectTapGestures(
-                    onTap = {
-
+                    onPress = { offset ->
+                        // 开始按压，开始录音
+                        if (!permissionRequested) {
+                            permissionRequested = true
+                        }
+                        
+                        if (hasPermission) {
+                            onPress()
+                            isRecording = true
+                        }
+                        
+                        // 等待手指抬起
+                        awaitPointerEventScope {
+                            var currentOffset = offset
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                
+                                // 检查手指是否还在录音区域内
+                                if (event.changes.any { change ->
+                                        change.position.x < 0 || change.position.x > size.width ||
+                                        change.position.y < 0 || change.position.y > size.height
+                                    }) {
+                                    // 手指移出区域，设置取消状态
+                                    isCancelRecording = true
+                                } else {
+                                    // 手指在区域内，重置取消状态
+                                    isCancelRecording = false
+                                }
+                                
+                                // 检查是否有手指抬起
+                                if (event.changes.any { it.changedToUp() }) {
+                                    break
+                                }
+                                
+                                currentOffset = event.changes.firstOrNull()?.position ?: currentOffset
+                            }
+                        }
+                        
+                        // 手指抬起后，根据状态决定发送还是取消
+                        if (isRecording && !isCancelRecording) {
+                            // 松开发送
+                            voiceViewModel.stopRecording()
+                            
+                            // 显示预览对话框
+                            voiceViewModel.getVoiceData()?.let {
+                                // 显示语音预览对话框
+                            }
+                        } else if (isRecording && isCancelRecording) {
+                            // 取消录音
+                            voiceViewModel.cancel()
+                        }
+                        
+                        // 重置状态
+                        isRecording = false
+                        isCancelRecording = false
                     },
-                    onLongPress = {offset ->
-                        // 首次请求权限
+                    onLongPress = { offset ->
+                        // 长按逻辑，用于请求权限等
                         if (!permissionRequested) {
                             permissionRequested = true
                         }
                         
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        // 获取到权限后执行按压
-                        if (hasPermission){
+                        
+                        if (hasPermission) {
                             onPress()
+                            isRecording = true
                         }
-                        // 注意：这里拿到的 offset 是触发长按那一刻的位置
-                        Napier.d("LongPress triggered at $offset")
-
                     }
                 )
             }
-
     ) {
-        // 三个功能区域：取消 | 松开发送 | 回放 (4/1 : 2/1 : 4/1 的比例)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp)
+                .height(40.dp)
 //                .clip(RoundedCornerShape(30.dp))
                 .background(Color.White),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-
-            if (voiceRecordingState is RecorderUiState.Recording){
-                // 左侧取消区域 (1/4)
-                Text(
-                    text = "取消",
-                    color = Color.Red,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier
-                        .weight(2f)
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-
-                )
-                // 分割线
-                Divider(
-                    color = Color.LightGray,
-                    modifier = Modifier
-                        .width(1.dp)
-                        .fillMaxHeight()
-                )
-            }
-
             Text(
-                text = if (voiceRecordingState is RecorderUiState.Recording) "松开发送..." else "按住说话",
+                text = when {
+                    isCancelRecording -> "松开手指，取消录音"
+                    isRecording -> "松开发送，上滑取消"
+                    else -> "按住说话"
+                },
                 textAlign = TextAlign.Center,
-                color = if (voiceRecordingState is RecorderUiState.Recording) Color.Black else Color.Black,
+                color = when {
+                    isCancelRecording -> Color.Red
+                    else -> Color.Black
+                },
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-//                modifier =  if (voiceRecordingState is RecorderUiState.Recording) Modifier.weight(2f)
-                modifier =  if (voiceRecordingState is RecorderUiState.Recording) Modifier.weight(2f)
-                            else  Modifier.fillMaxWidth()
-
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
             )
 //
 //            if (voiceRecordingState is RecorderUiState.Recording) {

@@ -39,7 +39,7 @@ fun VideoCallUI(
 
     Dialog(onDismissRequest = { onMinimizeCall() },
         properties = DialogProperties(
-            usePlatformDefaultWidth = false // ✅ 关键：禁用默认宽度限制
+            usePlatformDefaultWidth = false
         )
         ) {
         Box(
