@@ -38,10 +38,74 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.MultiplePermissionsState
 import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 import io.github.aakira.napier.Napier
+
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+fun TryGetMultiplePermissions(
+    permissions: List<String>,
+    onAllGranted: () -> Unit,
+    onRequest: () -> Unit = {},
+    onAnyDenied: () -> Unit = {}
+) {
+    val multiplePermissionsState = rememberMultiplePermissionsState(permissions)
+    var showPermissionScreen by remember { mutableStateOf(false) }
+
+    LaunchedEffect(multiplePermissionsState.permissions) {
+        val allGranted = multiplePermissionsState.permissions.all { it.status.isGranted }
+        if (allGranted) {
+            showPermissionScreen = false
+            onAllGranted()
+        } else {
+            val anyPermanentlyDenied = multiplePermissionsState.permissions.any { !it.status.isGranted && !it.status.shouldShowRationale }
+            if (anyPermanentlyDenied) {
+                showPermissionScreen = true
+                onRequest()
+            } else {
+                showPermissionScreen = true
+                onRequest()
+            }
+        }
+    }
+    
+    LaunchedEffect(Unit) {
+        // 初始时请求权限
+        if (!multiplePermissionsState.permissions.all { it.status.isGranted }) {
+            multiplePermissionsState.launchMultiplePermissionRequest()
+        } else {
+            onAllGranted()
+        }
+    }
+    
+    // 如果有任何权限被拒绝，显示权限请求界面
+    val anyDenied = multiplePermissionsState.permissions.any { !it.status.isGranted }
+    if (showPermissionScreen && anyDenied) {
+        MultiplePermissionRequestScreen(
+            permissions = permissions,
+            onPermissionResult = { granted ->
+                if (granted) {
+                    val allGranted = multiplePermissionsState.permissions.all { it.status.isGranted }
+                    if (allGranted) {
+                        showPermissionScreen = false
+                        onAllGranted()
+                    } else {
+                        // 仍然有权限未被授予，继续显示
+                        showPermissionScreen = true
+                    }
+                } else {
+                    // 保持显示权限请求屏幕
+                    showPermissionScreen = true
+                    onAnyDenied()
+                }
+            }
+        )
+    }
+}
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -51,7 +115,6 @@ actual fun TryGetPermission(
     onRequest: () -> Unit,
     onDenied: () -> Unit
 ) {
-    val context = LocalContext.current
     val recordPermissionState = rememberPermissionState(permission)
     var showPermissionScreen by remember { mutableStateOf(false) }
 
@@ -107,6 +170,9 @@ actual fun TryGetPermission(
     }
 }
 
+/**
+ * 权限申请页面
+ */
 @Composable
 fun PermissionRequestScreen(
     permission: String,
@@ -160,6 +226,87 @@ fun PermissionRequestScreen(
 
             Text(
                 text = needPermissionText,
+                style = MaterialTheme.typography.headlineSmall
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = infoMessage,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = {
+                    // 引导用户到应用设置页面
+                    val intent = Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.fromParts("package", context.packageName, null)
+                    )
+                    context.startActivity(intent)
+                    onPermissionResult(false)
+                }
+            ) {
+                Icon(imageVector = Icons.Default.Settings, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("去设置")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "提示：您需要在设置中手动授予权限才能继续使用此功能。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/**
+ * 多权限申请页面
+ */
+@Composable
+fun MultiplePermissionRequestScreen(
+    permissions: List<String>,
+    onPermissionResult: (Boolean) -> Unit
+) {
+    val context = LocalContext.current
+    Napier.d("多权限申请页面")
+
+    val permissionsText = if (permissions.any { it.contains("MEDIA") }) "需要相册权限" else "需要权限"
+    val infoMessage = if (permissions.any { it.contains("MEDIA") }) {
+        "请允许访问相册以选择图片和视频"
+    } else if (permissions.contains(Manifest.permission.RECORD_AUDIO)) {
+        "请允许访问麦克风以录制语音消息"
+    } else {
+        "请允许权限以继续使用功能"
+    }
+
+    Dialog(onDismissRequest = { onPermissionResult(false) }
+        , properties = DialogProperties( usePlatformDefaultWidth = false )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Image,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(64.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = permissionsText,
                 style = MaterialTheme.typography.headlineSmall
             )
 
