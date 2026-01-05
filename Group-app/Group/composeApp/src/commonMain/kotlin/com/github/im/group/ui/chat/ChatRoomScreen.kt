@@ -289,8 +289,6 @@ fun ChatRoomScreen(
                         },
                         onRelease = {
 
-                            // 停止录音 后直接发送即可
-                            log { "stop message recoder " }
                             //  停止后直接发送
                             voiceViewModel.getVoiceData()?.let {
                                     messageViewModel.sendVoiceMessage(conversationId,

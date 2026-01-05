@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayArrow
@@ -204,7 +206,15 @@ fun UnifiedMediaPicker(
                 MediaPreviewDialog(
                     items = mediaItems,
                     currentItem = item,
-                    onDismiss = { previewItem = null }  // 点击关闭时置空状态
+                    onDismiss = { previewItem = null },  // 点击关闭时置空状态
+                    onMediaSelected = { selectedMedia ->
+                        // 预览界面中选择文件后直接返回
+                        val pickedFiles = selectedMedia.map { media ->
+                            PickedFile(media.name, media.uri.toString(), media.mimeType, media.size)
+                        }
+                        onMediaSelected(pickedFiles)
+                        onDismiss()
+                    }
                 )
             }
             // 3. 发送按钮
@@ -233,9 +243,11 @@ fun UnifiedMediaPicker(
 fun MediaPreviewDialog(
     items: List<MediaItem>,
     currentItem: MediaItem,
-    onDismiss: () -> Unit = {}
+    onDismiss: () -> Unit = {},
+    onMediaSelected: ((List<MediaItem>) -> Unit)? = null
 ) {
     var currentIndex by remember { mutableIntStateOf(items.indexOf(currentItem)) }
+    var selectedItems by remember { mutableStateOf<Set<MediaItem>>(setOf(currentItem)) } // 默认选中当前项
 
     Dialog(onDismissRequest = onDismiss
     , properties = DialogProperties(dismissOnBackPress = true, usePlatformDefaultWidth = false ,dismissOnClickOutside = true)
@@ -255,21 +267,129 @@ fun MediaPreviewDialog(
                 CrossPlatformVideo(media.uri.toString(), Modifier.fillMaxSize(), size = 200.dp)
             }
 
-            // 左右切换
+            // 显示选中状态 - 在右上角
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+            ) {
+                val isSelected = selectedItems.contains(media)
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clickable { 
+                            selectedItems = if (isSelected) {
+                                selectedItems - media
+                            } else {
+                                selectedItems + media
+                            }
+                        }
+                        .background(
+                            if (isSelected) Color(0xFF0088CC) else Color.Black.copy(alpha = 0.5f), 
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = if (isSelected) "取消选择" else "选择",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            // 显示当前索引和总数
+            Text(
+                text = "${currentIndex + 1}/${items.size}",
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 16.dp)
+            )
+
+            // 左右切换按钮
             Row(
                 modifier = Modifier.fillMaxSize(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // 左箭头（上一个）
                 if (currentIndex > 0) {
-                    Box(modifier = Modifier
-                        .size(48.dp)
-                        .clickable { currentIndex-- })
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clickable { 
+                                currentIndex--
+                            }
+                            .background(Color.Black.copy(alpha = 0.5f), shape = CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ChevronLeft, // 使用左箭头图标
+                            contentDescription = "上一个",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                } else {
+                    // 如果是第一项，显示一个透明的占位符
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                    )
                 }
+                
+                // 右箭头（下一个）
                 if (currentIndex < items.size - 1) {
-                    Box(modifier = Modifier
-                        .size(48.dp)
-                        .clickable { currentIndex++ })
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clickable { 
+                                currentIndex++
+                            }
+                            .background(Color.Black.copy(alpha = 0.5f), shape = CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight, // 使用右箭头图标
+                            contentDescription = "下一个",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                } else {
+                    // 如果是最后一项，显示一个透明的占位符
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                    )
+                }
+            }
+
+            // 底部选择按钮
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                TextButton(
+                    onClick = onDismiss
+                ) {
+                    Text("取消", color = Color.White)
+                }
+
+                Button(
+                    onClick = {
+                        onMediaSelected?.invoke(selectedItems.toList())
+                        onDismiss()
+                    }
+                ) {
+                    Text("确定 (${selectedItems.size})")
                 }
             }
         }
@@ -334,20 +454,23 @@ fun MediaItemView(
             }
         }
 
-        // 多选选中状态
-        if (isSelected) {
+        // 多选选中状态 - 显示在右上角
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(4.dp)
+        ) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(4.dp),
-                contentAlignment = Alignment.TopEnd
+                    .size(24.dp)
+                    .clickable { onSelected(!isSelected) }
+                    .background(
+                        if (isSelected) Color(0xFF0088CC) else Color.Black.copy(alpha = 0.5f), 
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .background(Color(0xFF0088CC), shape = CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
+                if (isSelected) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "已选择",
