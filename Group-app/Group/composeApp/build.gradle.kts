@@ -201,6 +201,7 @@ sqldelight {
             schemaOutputDirectory.set(file("src/commonMain/sqldelight/db/migration"))
             verifyMigrations.set(true)
 //            packageName.set("db")
+
         }
     }
 }
@@ -257,76 +258,3 @@ compose.desktop {
         }
     }
 }
-//
-//// 自动生成 SQLDelight 文件的 Gradle Task
-//tasks.register("generateSqlDelight") {
-//    //TODO 等待 自动生成任务
-//
-//    group = "sqldelight"
-//    description = "Generate .sq files from Kotlin data classes"
-//    dependsOn("compileKotlinMetadata") // 先编译 commonMain
-//
-//    doLast {
-//        // 1. Kotlin 数据类包路径
-//        val entityPackage = "com.github.im.group.db.entities" // 你的实体包
-//
-//        // 2. 输出路径
-//        val outputDir =
-//            File(layout.buildDirectory.get().asFile, "sqldelight/com/github/im/group/db")
-//        outputDir.mkdirs()
-//
-//        // 3. 反射扫描实体类
-//        val classLoader = Thread.currentThread().contextClassLoader
-//        val classes = Class.forName(entityPackage + "", true, classLoader).kotlin // 可扩展扫描多个类
-//
-//        // ✅ 手动维护实体列表
-//        val entities: List<KClass<*>> = listOf(
-////            com.github.im.group.db.entities.ChatMessage::class,
-////            com.github.im.group.db.entities.Conversation::class,
-////            com.github.im.group.db.entities.User::class
-//        )
-//
-//        entities.forEach { kClass ->
-//            val tableName = kClass.simpleName!!.replaceFirstChar { it.lowercase() }
-//            fun generateSql(kClass: KClass<*>): String {
-//                val tableName = kClass.simpleName!!.replaceFirstChar { it.lowercase() }
-//
-//                val columns = kClass.memberProperties.joinToString(",\n") { prop ->
-//                    val sqlType = when (prop.returnType.toString()) {
-//                        "kotlin.Long", "kotlin.Long?" -> "INTEGER"
-//                        "kotlin.Int", "kotlin.Int?" -> "INTEGER"
-//                        "kotlin.String", "kotlin.String?" -> "TEXT"
-//                        "kotlin.Boolean", "kotlin.Boolean?" -> "INTEGER"
-//                        else -> "TEXT"
-//                    }
-//                    val primaryKey = if (prop.name == "msgId") " PRIMARY KEY AUTOINCREMENT" else ""
-//                    "${prop.name} $sqlType$primaryKey"
-//                }
-//
-//                val columnNames = kClass.memberProperties.joinToString(", ") { it.name }
-//                val columnParams = kClass.memberProperties.joinToString(", ") { "?" }
-//
-//                return """
-//                CREATE TABLE $tableName (
-//                    $columns
-//                );
-//
-//                selectAll:
-//                SELECT * FROM $tableName;
-//
-//                insert:
-//                INSERT INTO $tableName($columnNames) VALUES ($columnParams);
-//
-//                deleteById:
-//                DELETE FROM $tableName WHERE msgId = ?;
-//            """.trimIndent()
-//            }
-//
-//            // 生成 SQL 文件
-//            val sqlFile = File(outputDir, "${classes.simpleName}.sq")
-//            sqlFile.writeText(generateSql(classes))
-//
-//            Napier.d("Generated SQLDelight file: ${sqlFile.absolutePath}")
-//        }
-//    }
-//}

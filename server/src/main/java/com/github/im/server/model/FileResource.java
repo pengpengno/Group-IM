@@ -14,7 +14,6 @@ import java.util.UUID;
 public class FileResource {
 
     @Id
-    @GeneratedValue
     private UUID id;
 
     private String originalName;

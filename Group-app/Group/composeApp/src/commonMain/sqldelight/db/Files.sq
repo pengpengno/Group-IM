@@ -6,13 +6,15 @@ CREATE TABLE FileResource (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT ,         --自增
   originalName TEXT NOT NULL ,
   contentType TEXT NOT NULL ,
-  serverId TEXT ,    -- 服务端文件uuId
+  serverId TEXT ,                                        -- 服务端文件uuId
   size INTEGER NOT NULL,
   storagePath TEXT NOT NULL,   -- 在 本地的存储路径
   hash TEXT NOT NULL,
   uploadTime INTEGER AS LocalDateTime,                   -- Instant 存为 epoch millis 文件上传完毕得时间
-  clientId TEXT NOT NULL,                      -- 客户端生成得 UUID
-  status TEXT AS FileStatus NOT NULL DEFAULT 'NORMAL'     -- FileStatus 枚举 → TEXT
+  clientId TEXT NOT NULL,                                -- 客户端生成得 UUID
+  status TEXT AS FileStatus NOT NULL DEFAULT 'NORMAL',    -- FileStatus 枚举 → TEXT
+  thumbnail TEXT,                                       -- 缩略图
+  duration INTEGER NOT NULL DEFAULT 0                   -- 时长（毫秒）
 );
 
 selectFileById:
@@ -24,22 +26,35 @@ selectFileByClientId:
 SELECT * FROM FileResource
 WHERE clientId = ?;
 
+
+-- 根据服务端 ID 查询文件
+selectFileByServerId:
+SELECT * FROM FileResource
+WHERE serverId = ?;
+
 -- 根据最后访问时间查询文件
 selectFilesBeforeAccessTime:
 SELECT * FROM FileResource
 WHERE uploadTime < ?;
 
+-- 插入文件信息
 insertFile:
 INSERT INTO FileResource (
   originalName,
   contentType,
+  serverId,
   size,
   storagePath,
   hash,
   uploadTime,
   clientId,
-  status
+  status,
+  thumbnail,
+  duration
 ) VALUES (
+  ?,
+  ?,
+  ?,
   ?,
   ?,
   ?,
@@ -54,7 +69,7 @@ INSERT INTO FileResource (
 deleteFile:
 DELETE FROM FileResource WHERE id = ?;
 
-
+-- 根据客户端生成的 ID 更新文件
 updateFileByClientId:
 UPDATE FileResource
 SET
@@ -65,5 +80,31 @@ SET
   hash = ?,
   uploadTime = ?,
   clientId = ?,
-  status = ?
+  status = ?,
+  thumbnail = ?,
+  duration = ?
 WHERE clientId = ?;
+
+-- 根据客户端生成的 ID 更新文件
+updateFileByServerId:
+UPDATE FileResource
+SET
+  originalName = ?,
+  contentType = ?,
+  size = ?,
+  storagePath = ?,
+  hash = ?,
+  uploadTime = ?,
+  status = ?,
+  thumbnail = ?,
+  duration = ?
+WHERE serverId = ?;
+
+-- 根据客户端生成的 ID 更新文件的存储路径
+updateFileStoragePathByServerId:
+UPDATE FileResource
+SET
+  storagePath = ?,
+  thumbnail = ?,
+  duration = ?
+WHERE serverId = ?;

@@ -58,6 +58,7 @@ val appmodule = module {
     single { MessageSyncRepository(get(), get(), get(),get()) }
 
     single { ConversationRepository(get()) }
+
     single {
         FileStorageManager(
             filesRepository = get(),
@@ -84,8 +85,8 @@ val appmodule = module {
             chatSessionManager = get(),
             chatMessageRepository = get(),
             messageSyncRepository = get(),
-            conversationRepository = get(),
             filesRepository = get(), // 添加文件仓库依赖
+            conversationRepository = get(),
             senderSdk = get(),
             filePicker = get() ,
             fileStorageManager = get()
@@ -99,16 +100,13 @@ val appmodule = module {
     viewModel {
         VoiceViewModel(
             voiceRecorder = get(),
-            audioPlayer = get()
+            audioPlayer = get(),
+//            filesRepository = get()
         )
     }
 
     single { SenderSdk(get(),get()) }
     // 登录状态管理器和相关监听器
-//    // 可以继续添加其他LoginStateListener实现
-//    single<LoginStateListener> { UserDataSyncListener(get()) }
-//    single<LoginStateListener> { ConnectionLoginListener(get()) }
-//    single<LoginStateListener> { WebRTCLoginListener(get()) }
 
     single<List<LoginStateListener>> {
         listOf(

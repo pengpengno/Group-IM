@@ -58,7 +58,7 @@ spring:
       hibernate:
         multiTenancy: SCHEMA
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect  # 确保方言设置正确
+#        dialect: org.hibernate.dialect.PostgreSQLDialect  # 确保方言设置正确
 
 # 默认系统初始化配置
 system:
@@ -74,13 +74,17 @@ system:
       phone-number: ${ADMIN_PHONE_NUMBER:1234567890}
       password: ${ADMIN_PASSWORD:12345}
 
-sequence:
-  mode: redis # memory 或 redis 或 database
 
-file:
-  upload:
-    chunk-temp-path: /tmp/chunk-storage   # 绝对路径
-    base-path:  uploads                    # 相对路径
+group:
+  storage:
+    type: local
+    path: /tmp/group-storage
+  file:
+    upload:
+      chunk-temp-path: /tmp/chunk-storage   # 绝对路径
+      base-path:  uploads                    # 相对路径   带有/uploads 则绝对路径 默认 放在 user.dir 目录下
+  sequence:
+    mode: redis # memory 或 redis 或 database
 server:
   port: 8080
   address: 0.0.0.0

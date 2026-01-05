@@ -17,8 +17,6 @@ public class ConversationRes {
     private String description;
     private List<UserInfo> members;
 
-//    private Long createBy;
-//    private UserBasicInfo createBy;
     private UserBasicInfo createdBy;
     private Long createUserId;
 
@@ -29,11 +27,9 @@ public class ConversationRes {
      */
     private String status;
 
-
     /**
      * {@link ConversationType}
      */
-//    private ConversationType conversationType;
     private String conversationType;
 
 

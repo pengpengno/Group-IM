@@ -5,13 +5,19 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,7 +25,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,28 +40,34 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.CrossPlatformImage
 import com.github.im.group.sdk.CrossPlatformVideo
+import com.github.im.group.viewmodel.VoiceViewModel
 import io.github.aakira.napier.Napier
+import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
+import kotlin.math.abs
+import kotlin.math.sin
+import kotlin.random.Random
 
 sealed class MessageContent {
     data class Text(val text: String) : MessageContent()
     data class Image(val imageId: String) : MessageContent()
-    data class Voice(val audioUrl: String, val duration: Int) : MessageContent()
+
+    /**
+     * @param audioPath 音频文件路径
+     * @param duration 音频时长 ms 展示的需要转化为秒
+     */
+    data class Voice(val audioPath: String, val duration: Int) : MessageContent()
     data class File(val fileName: String, val fileSize: String, val fileUrl: String) : MessageContent()
     data class Video(val videoId: String) : MessageContent()
 }
@@ -90,21 +106,170 @@ fun ImageMessage(content: MessageContent.Image) {
  * 语音消息
  */
 @Composable
-fun VoiceMessage(content: MessageContent.Voice) {
+fun VoiceMessage(
+    content: MessageContent.Voice, 
+) {
+
+    val audioPlayer: AudioPlayer = koinInject<AudioPlayer>()
+
+    var isPlaying by remember { mutableStateOf(false) }
+    var playbackPosition by remember { mutableStateOf(0f) }
+    val audioPath = content.audioPath
+    val bubbleWidth = (60 + content.duration / 1000 * 3).dp.coerceAtMost(200.dp) // 修正宽度计算，使用秒为单位
+
     Row(
         modifier = Modifier
-            .padding(12.dp)
-            .clickable { /* TODO: 播放语音 */ },
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .width(bubbleWidth)
+            ,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Icon(
-            imageVector = Icons.Default.Mic,
-            contentDescription = "语音",
-            tint = Color.Black,
-            modifier = Modifier.size(24.dp)
+        IconButton(
+            onClick = {
+                if (!isPlaying) {
+                    // 开始播放
+                    audioPlayer.play(audioPath)
+                } else {
+                    // 暂停播放
+                    audioPlayer.pause()
+                }
+            },
+            modifier = Modifier.size(32.dp)
+        ) {
+            Icon(
+                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = if (isPlaying) "暂停" else "播放",
+                tint = Color(0xFF0088CC),
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .height(36.dp)
+        ) {
+            VoiceWaveform(
+                duration = content.duration.toLong(),
+                isPlaying = isPlaying,
+                playbackPosition = playbackPosition,
+                onSeek = { position ->
+                    playbackPosition = position
+                    // 根据波形位置计算实际播放位置
+                    if (audioPlayer.duration > 0) {
+                        val seekPosition = (position * audioPlayer.duration).toLong()
+                        audioPlayer.seekTo(seekPosition)
+                    }
+                }
+            )
+        }
+
+        Text(
+            text = "${content.duration / 1000}s",
+            color = Color.Gray,
+            fontSize = 12.sp,
+            modifier = Modifier.padding(end = 4.dp)
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text("${content.duration}\"", color = Color.Black)
+    }
+    
+    // 监听音频播放状态变化
+    androidx.compose.runtime.LaunchedEffect(audioPath, audioPlayer.isPlaying) {
+        // 检查当前播放器是否正在播放当前音频
+        val isCurrentPlaying = isCurrentlyPlaying(audioPlayer, audioPath)
+        isPlaying = isCurrentPlaying
+    }
+    
+    // 每100毫秒更新一次播放位置
+    androidx.compose.runtime.LaunchedEffect(audioPath) {
+        while (true) {
+            val isCurrentPlaying = isCurrentlyPlaying(audioPlayer, audioPath)
+            
+            if (isCurrentPlaying) {
+                val currentPosition = audioPlayer.currentPosition
+                val duration = audioPlayer.duration
+                if (duration > 0) {
+                    playbackPosition = (currentPosition.toFloat() / duration).coerceIn(0f, 1f)
+                }
+            }
+            kotlinx.coroutines.delay(100) // 每100毫秒更新一次
+        }
+    }
+}
+
+/**
+ * 语音波形图
+ */
+@Composable
+fun VoiceWaveform(
+    duration: Long,
+    isPlaying: Boolean,
+    playbackPosition: Float,
+    onSeek: (Float) -> Unit
+) {
+    var currentPlaybackPosition by remember { mutableStateOf(playbackPosition) }
+
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(36.dp)
+            .pointerInput(Unit) {
+                detectDragGestures { change, dragAmount ->
+                    val xPosition = change.position.x
+                    val width = size.width
+                    if (width > 0) {
+                        val newPosition = (xPosition / width).coerceIn(0f, 1f)
+                        currentPlaybackPosition = newPosition
+                        onSeek(newPosition)
+                    }
+                }
+            }
+    ) {
+        val width = size.width
+        val height = size.height
+        val barCount = 20
+        val barWidth = width / barCount
+        val centerY = height / 2
+
+        // 根据时长生成更自然的波形模式
+        for (i in 0 until barCount) {
+            // 使用sin函数生成更自然的波形，根据索引和时长计算波形高度
+            val progressRatio = i.toFloat() / barCount
+            val sinValue = abs(sin(progressRatio * 2 * kotlin.math.PI.toFloat()))
+            
+            val barHeight = if (isPlaying && i < barCount * currentPlaybackPosition) {
+                // 播放时的波形高度，使用更自然的波形模式
+                (height * 0.7f) * (0.3f + 0.7f * sinValue)
+            } else {
+                // 静止时的波形高度，使用更自然的波形模式
+                (height * 0.4f) * (0.3f + 0.7f * sinValue)
+            }
+
+            val x = i * barWidth + barWidth / 2
+            val barColor = if (isPlaying && i < barCount * currentPlaybackPosition) {
+                Color(0xFF0088CC) // 播放部分为蓝色
+            } else {
+                Color.Gray // 未播放部分为灰色
+            }
+
+            drawLine(
+                color = barColor,
+                start = androidx.compose.ui.geometry.Offset(x, centerY - barHeight / 2),
+                end = androidx.compose.ui.geometry.Offset(x, centerY + barHeight / 2),
+                strokeWidth = barWidth * 0.6f
+            )
+        }
+
+        // 绘制播放头
+        if (isPlaying) {
+            val playheadX = width * currentPlaybackPosition
+            drawLine(
+                color = Color.Red,
+                start = androidx.compose.ui.geometry.Offset(playheadX, 0f),
+                end = androidx.compose.ui.geometry.Offset(playheadX, height),
+                strokeWidth = 2f
+            )
+        }
     }
 }
 
@@ -186,54 +351,6 @@ fun FileMessage(content: MessageContent.File) {
         Column {
             Text(content.fileName, color = Color.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(content.fileSize, color = Color.Gray, fontSize = 12.sp)
-        }
-    }
-}
-
-@Composable
-fun VoiceMessage(content: MessageContent.Voice, onclick: () -> Unit) {
-    var showDialog by remember { mutableStateOf(false) }
-    
-    Row(
-        modifier = Modifier
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-            .clickable { showDialog = true }
-            .width((60 + content.duration * 5).dp.coerceAtMost(200.dp))
-            .height(40.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Icon(
-            imageVector = Icons.Default.Mic,
-            contentDescription = "语音",
-            tint = Color.Black,
-            modifier = Modifier.size(24.dp)
-        )
-        Text("${content.duration}\"", color = Color.Gray, fontSize = 12.sp)
-    }
-    
-    // 点击后显示播放器
-    if (showDialog) {
-        Dialog(onDismissRequest = { showDialog = false }) {
-            Box(
-                modifier = Modifier
-                    .background(Color.White)
-                    .padding(16.dp)
-            ) {
-                VoicePlayer(
-                    duration = content.duration.toLong(),
-                    onPlay = {
-                        // 开始播放音频
-                        onclick()
-                    },
-                    onPause = {
-                        // 暂停播放音频
-                    },
-                    onSeek = { position ->
-                        // 跳转到指定位置
-                    }
-                )
-            }
         }
     }
 }
@@ -335,3 +452,8 @@ fun FullScreenVideoPlayer(videoUrl: String, onClose: () -> Unit) {
 //        }
     }
 }
+
+/**
+ * 检查音频播放器是否正在播放指定的音频文件
+ */
+expect fun isCurrentlyPlaying(audioPlayer: AudioPlayer, audioPath: String): Boolean

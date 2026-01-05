@@ -11,8 +11,6 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-//@JsonDeserialize(using = MessageDTODeserializer.class)
-
 public class MessageDTO<T extends MessagePayLoad> {
 
     private Long msgId;

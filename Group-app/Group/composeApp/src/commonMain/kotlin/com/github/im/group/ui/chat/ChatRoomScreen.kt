@@ -55,6 +55,8 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.github.im.group.model.UserInfo
 import com.github.im.group.ui.UserAvatar
+import com.github.im.group.ui.chat.ChatInputArea
+import com.github.im.group.ui.chat.VoiceControlOverlayWithRipple
 import com.github.im.group.ui.video.VideoCallUI
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
@@ -73,6 +75,7 @@ import androidx.navigation.compose.rememberNavController
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
+import io.github.aakira.napier.log
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
@@ -140,11 +143,10 @@ fun ChatRoomScreen(
     if (showVideoCall) {
         VideoCallUI(
             remoteUser = remoteUser,
-            localMediaStream = null, // 让VideoCallUI内部自己获取
-//            navHostController = navHostController,
+            localMediaStream = null,
             onEndCall = { 
                 showVideoCall = false
-                // TODO: 结束通话逻辑
+
             },
             onToggleCamera = { videoCallViewModel.toggleCamera() },
             onToggleMicrophone = { videoCallViewModel.toggleMicrophone() },
@@ -166,7 +168,6 @@ fun ChatRoomScreen(
                             UserAvatar(
                                 username = otherUser.username,
                                 size = 32,
-//                                fontSize = 14.sp
                             )
                             
                             Spacer(modifier = Modifier.width(8.dp))
@@ -186,7 +187,7 @@ fun ChatRoomScreen(
                             }
                         } ?: run {
                             // 如果没有获取到对方用户信息，显示群组名称
-                            Text(state.conversation.groupName ?: "未知会话")
+                            Text(state.conversation.groupName)
                         }
                         
                         Spacer(modifier = Modifier.weight(1f))
@@ -267,6 +268,15 @@ fun ChatRoomScreen(
                     state = pullRefreshState,
                     modifier = Modifier.align(Alignment.TopCenter)
                 )
+
+                val am  = voiceViewModel.amplitude.collectAsState()
+                // 录音遮罩
+                if (uiState is RecorderUiState.Recording) {
+
+                    VoiceControlOverlayWithRipple(
+                        amplitude = am.value,
+                    )
+                }
                 
                 // 输入区域
                 Box(
@@ -281,17 +291,15 @@ fun ChatRoomScreen(
                             }
                         },
                         onRelease = {
-                            // 处理录音释放事件
-                            when (uiState) {
-                                is RecorderUiState.Stop -> {
-                                    // 根据滑动方向决定是发送还是取消
-                                    // 这里简化处理，总是发送
-                                    voiceViewModel.audioPlayer.stop()
-                                }
-                                else -> {
 
-                                }
+                            // 停止录音 后直接发送即可
+                            log { "stop message recoder " }
+                            //  停止后直接发送
+                            voiceViewModel.getVoiceData()?.let {
+                                    messageViewModel.sendVoiceMessage(conversationId,
+                                        it.bytes, it.name, it.durationMillis)
                             }
+
                         },
                         onFileSelected = { files ->
                             files.forEach { file ->
@@ -403,18 +411,50 @@ fun MessageBubble(
                         MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content))
 
                         MessageType.VOICE -> {
-                            // TODO TCP 推送的数据缺失了 FileMeta 信息 考虑下是否需要 TCP 将其都传入过来,保持 一致性
-                            /***
-                             *
-                             * 目前通过  {@see com.github.im.group.viewmodel.ChatMessageViewModel
-                             * .getFileMessageMeta(com.github.im.group.model.MessageItem) 获取文件元数据 }
-                             * 来处理
-                             */
+                            // 异步加载语音消息的持续时间
+                            var duration by remember { mutableStateOf<Int>(0) }
+                            var audioPath by remember { mutableStateOf<String?>(null) }
+                            val fileId = msg.content
+                            LaunchedEffect(msg) {
+                                // 异步获取文件元数据，
 
+                                var meta = messageViewModel.getFileMessageMetaAsync(msg)
+                                meta?.let {
 
-                            val duration = messageViewModel.getFileMessageMeta(msg)?.duration ?: 1
-                            VoiceMessage(MessageContent.Voice(msg.content, duration)) {
-                                onVoiceMessageClick(MessageContent.Voice(msg.content, duration))
+                                    var fileExists = messageViewModel.isFileExists(fileId)
+                                    if (!fileExists){
+                                        // 不存在则下载
+                                        messageViewModel.downloadFileMessage(it.fileId)
+
+                                    }
+                                    audioPath =  messageViewModel.getLocalFilePath(fileId).toString()
+
+                                    duration = it.duration
+
+                                }
+
+                            }
+
+                            // 使用当前已获取到的持续时间，如果没有则显示加载状态
+                            if (duration > 0 && audioPath != null) {
+                                audioPath?.let {
+                                    log { "audioPath: $it" }
+                                    VoiceMessage(
+                                        content = MessageContent.Voice(
+                                            audioPath = it,
+                                            duration = duration
+                                        )
+                                    )
+                                }
+
+                            } else {
+                                // 显示加载状态
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .padding(4.dp),
+                                    strokeWidth = 2.dp
+                                )
                             }
                         }
                         MessageType.IMAGE -> ImageMessage(MessageContent.Image(msg.content))
@@ -452,14 +492,23 @@ fun FileMessageBubble(msg: MessageItem, onClick: (MessageItem) -> Unit) {
     var showDialog by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
 
-    // 显示文件消息
-    val fileSize = messageViewModel.getFileMessageMeta(msg)?.size ?: 0
-    val displaySize = if (fileSize > 1024 * 1024) {
-        "${fileSize / 1024 / 1024}MB"
-    } else if (fileSize > 1024) {
-        "${fileSize / 1024}KB"
-    } else {
-        "${fileSize}B"
+    // 异步加载文件大小信息
+    var fileSize by remember { mutableStateOf<Long?>(null) }
+
+    LaunchedEffect(msg) {
+        val meta = messageViewModel.getFileMessageMetaAsync(msg)
+        fileSize = meta?.size
+    }
+
+    val displaySize = when (val size = fileSize) {
+        null -> "加载中..."
+        else -> if (size > 1024 * 1024) {
+            "${size / 1024 / 1024}MB"
+        } else if (size > 1024) {
+            "${size / 1024}KB"
+        } else {
+            "${size}B"
+        }
     }
 
     Column(

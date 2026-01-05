@@ -68,12 +68,13 @@ import androidx.compose.ui.window.Dialog
 import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.VoiceViewModel
 import io.github.aakira.napier.Napier
+import io.github.aakira.napier.log
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun ChatInputArea(
     onSendText: (String) -> Unit,
-    onRelease: (SlideDirection) -> Unit = {},
+    onRelease: () -> Unit = {},
     onFileSelected: (List<PickedFile>) -> Unit
 ) {
     var messageText by remember { mutableStateOf("") }
@@ -173,6 +174,9 @@ fun ChatInputArea(
 }
 
 
+/***
+ * 录音回放
+ */
 @Composable
 fun VoiceReplay(
     onSend: () -> Unit,
@@ -247,10 +251,13 @@ fun VoiceReplay(
         }
     }
 }
+
+/**
+ * 录音遮罩 ui
+ */
 @Composable
 fun VoiceControlOverlayWithRipple(
     amplitude: Int = 50,
-    onFinish: (SlideDirection) -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
     var currentDirection by remember { mutableStateOf(SlideDirection.Start) }
@@ -327,7 +334,7 @@ fun VoiceControlOverlayWithRipple(
 @Composable
 fun VoiceRecordButton(
     onPress: () -> Unit,
-    onRelease: (SlideDirection) -> Unit
+    onRelease: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
 
@@ -353,8 +360,9 @@ fun VoiceRecordButton(
             hasPermission = false
         }
     }
-
+    // 是否正在录音
     var isRecording by remember { mutableStateOf(false) }
+    // 是否取消录音
     var isCancelRecording by remember { mutableStateOf(false) }
     
     Surface(
@@ -405,16 +413,15 @@ fun VoiceRecordButton(
                         if (isRecording && !isCancelRecording) {
                             // 松开发送
                             voiceViewModel.stopRecording()
-                            
-                            // 显示预览对话框
-                            voiceViewModel.getVoiceData()?.let {
-                                // 显示语音预览对话框
-                            }
-                        } else if (isRecording && isCancelRecording) {
+                            log { "停止录音 执行后续 " }
+                            onRelease()
+
+                        } else if (isRecording) {
                             // 取消录音
                             voiceViewModel.cancel()
                         }
-                        
+
+                        log { "isRecording: $isRecording, isCancelRecording: $isCancelRecording $voiceRecordingState" }
                         // 重置状态
                         isRecording = false
                         isCancelRecording = false

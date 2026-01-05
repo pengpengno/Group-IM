@@ -7,6 +7,7 @@ import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.VoiceRecorder
 import com.github.im.group.sdk.VoiceRecordingResult
 import io.github.aakira.napier.Napier
+import io.github.aakira.napier.log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,12 +19,12 @@ sealed class RecorderUiState {
     object Recording : RecorderUiState() // 正在录音
 
     /**
-     * 录音停止 , 需要停止后的状态
-     * Start 为直接发送录音
-     * Left 为取消录音
-     * Right 为回放
+     * 录音停止
      */
-    data class Stop(val slideDirection: SlideDirection = SlideDirection.Start ) : RecorderUiState()
+    object Stop : RecorderUiState()
+
+    object Cancel : RecorderUiState() // 取消
+
 //    object STOP : RecorderUiState() //  停止录音
     data class Playback(
         val filePath: String,
@@ -65,7 +66,7 @@ class VoiceViewModel(
                     _amplitude.value = voiceRecorder.getAmplitude()
                 } catch (e: Exception) {
                     _amplitude.value = 0
-                    Napier.d( "录音异常 ${e.stackTrace.toString()}")
+                    Napier.d( "录音异常 ${e.stackTrace}")
                     stopRecording()
                 }
                 delay(100)
@@ -78,37 +79,23 @@ class VoiceViewModel(
     }
 
 
-    fun stopRecording(direction: SlideDirection = SlideDirection.Left) {
+    /**
+     * 停止录音
+     *
+     */
+    fun stopRecording() {
         val result = voiceRecorder.stopRecording()
-
         if (result != null) {
-
             lastFilePath = voiceRecorder.getOutputFile()
             lastDuration = result.durationMillis
-            _uiState.value = RecorderUiState.Playback(
-                filePath = lastFilePath ?: "",
-                duration = lastDuration
-            )
+            _uiState.value = RecorderUiState.Stop
+            log { "停止录音 ${_uiState.value}" }
 
-            if (direction == SlideDirection.Right){
-                _uiState.value = RecorderUiState.Playback(
-                    filePath = lastFilePath ?: "",
-                    duration = lastDuration
-                )
-            }else{
-                // 录音 状态下 停止 才会保存方向 进入停止态
-                if (_uiState.value is RecorderUiState.Recording){
-                    _uiState.value = RecorderUiState.Stop(direction)
-                }
-            }
         } else {
             _uiState.value = RecorderUiState.Idle
         }
     }
 
-    fun release(){
-        cancel()
-    }
 
     /**
      * 重置为初始状态
@@ -130,6 +117,7 @@ class VoiceViewModel(
      */
     fun cancel() {
         val result = voiceRecorder.stopRecording()
+        _uiState.value = RecorderUiState.Cancel
         _uiState.value = RecorderUiState.Idle
     }
 

@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * 单节点状态 没有引入 redis 的时候用这个
  */
 @Service
-@ConditionalOnProperty(name = "sequence.mode", havingValue = "memory")
+@ConditionalOnProperty(name = "group.sequence.mode", havingValue = "memory")
 @RequiredArgsConstructor
 public class InMemoryConversationSequenceService implements ConversationSequenceService {
 

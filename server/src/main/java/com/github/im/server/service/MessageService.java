@@ -31,6 +31,7 @@ import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -43,6 +44,7 @@ public class MessageService {
     private final MessageMapper messageMapper;
 
     private final FileStorageService fileStorageService;
+
 
     private final ConversationSequenceService conversationSequenceService;
 
@@ -162,13 +164,8 @@ public class MessageService {
                     return dto;
                 case VOICE:
                 case FILE:
-                    var fileResourceById = fileStorageService.getFileResourceById(message.getContent());
-                    var fileMeta = FileMeta.builder()
-                            .filename(fileResourceById.getOriginalName())
-                            .fileSize(fileResourceById.getSize())
-                            .contentType(fileResourceById.getContentType())
-                            .hash(fileResourceById.getHash())
-                            .build();
+                    final UUID fileID = UUID.fromString(message.getContent());
+                    FileMeta fileMeta = fileStorageService.getFileMeta(fileID);
                     dto.setPayload(fileMeta);
                     return dto;
                 default:

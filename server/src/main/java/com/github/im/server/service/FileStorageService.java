@@ -6,9 +6,13 @@ import com.github.im.dto.session.FileMeta;
 import com.github.im.server.config.FileUploadProperties;
 import com.github.im.server.mapstruct.FileMapper;
 import com.github.im.server.model.FileResource;
+import com.github.im.server.model.MediaFileResource;
 import com.github.im.server.model.enums.FileStatus;
-import com.github.im.server.model.enums.StorageType;
 import com.github.im.server.repository.FileResourceRepository;
+import com.github.im.server.repository.MediaFileResourceRepository;
+import com.github.im.server.service.storage.LocalStorageStrategy;
+import com.github.im.server.service.storage.StorageStrategy;
+import com.github.im.server.service.storage.StorageStrategyFactory;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -39,9 +43,12 @@ import java.util.stream.StreamSupport;
 public class FileStorageService {
 
     private final FileUploadProperties properties;
+    private final StorageStrategy storageStrategy;
     private final FileResourceRepository repository;
+    private final MediaFileResourceRepository mediaFileResourceRepository;
 
     private final FileMapper fileMapper;
+    private final StorageStrategyFactory storageStrategyFactory;
 
     private Path baseDir;
     private Path chunkTempDir;
@@ -55,6 +62,7 @@ public class FileStorageService {
         // 创建根目录
         Files.createDirectories(baseDir);
         Files.createDirectories(chunkTempDir);
+
     }
 
 
@@ -82,10 +90,22 @@ public class FileStorageService {
      */
 
     public FileMeta getFileMeta(UUID fileID ) throws FileNotFoundException {
-         return repository.findById(fileID)
-                .map(fileMapper::toMeta)
-                .orElseThrow(()->new FileNotFoundException("File not found : "+fileID))
-                ;
+        FileResource fileResource = repository.findById(fileID)
+                .orElseThrow(()->new FileNotFoundException("File not found : "+fileID));
+        
+        // 获取媒体资源信息（如果存在）
+        MediaFileResource mediaResource = mediaFileResourceRepository.findByFileId(fileID);
+        
+        // 如果媒体资源存在且文件的duration为null，使用媒体资源的duration
+        if (mediaResource != null && fileResource.getDuration() == null) {
+            fileResource.setDuration(mediaResource.getDuration() != null ? mediaResource.getDuration().longValue() : null);
+        }
+        FileMeta meta = fileMapper.toMeta(fileResource);
+
+        if (mediaResource != null){
+            meta.setThumbnail(mediaResource.getThumbnail());
+        }
+        return meta;
     }
 
 
@@ -94,43 +114,15 @@ public class FileStorageService {
      * 存储单文件（小文件直传）
      */
     public FileUploadResponse storeFile(MultipartFile file, UUID uploaderId,Long duration) throws IOException {
-        String originalName = file.getOriginalFilename();
-        String ext = FileNameUtil.extName(originalName);
-        String contentType = file.getContentType();
-        if(StringUtils.isEmpty(contentType)){
-            contentType = MediaTypeFactory.getMediaType(originalName).orElse(MediaType.APPLICATION_OCTET_STREAM).toString();
-        }
-
-        long size = file.getSize();
-        String hash;
-        try (InputStream is = file.getInputStream()) {
-            hash = DigestUtils.md5DigestAsHex(is);
-        }
-
-        // 构建相对存储路径：yyyy/MM/dd/uuid.ext
-        String relative = DateTimeFormatter.ofPattern("yyyy/MM/dd")
-                .format(LocalDate.now())
-                + "/" + UUID.randomUUID() + "." + ext;
-
-        Path target = baseDir.resolve(relative).normalize();
-        Files.createDirectories(target.getParent());
-        file.transferTo(target);
-
-        FileResource info = new FileResource();
-        info.setOriginalName(originalName);
-        info.setExtension(ext);
-        info.setContentType(contentType);
-        info.setSize(size);
-        info.setStoragePath(relative);
-        info.setStorageType(StorageType.LOCAL);
-        info.setHash(hash);
-        info.setUploadTime(Instant.now());
-        info.setClientId(uploaderId);
-        info.setStatus(FileStatus.NORMAL);
-        info.setDuration(duration);
-
-        var save = repository.save(info);
-        return fileMapper.toDTO(save);
+        // 使用注入的存储策略存储文件
+        FileResource resource = storageStrategy.store(file, uploaderId, duration);
+        
+        FileResource savedResource = repository.save(resource);
+        
+        // 如果是媒体文件，创建对应的媒体资源记录
+        MediaFileResource mediaResource = createMediaResourceIfNeeded(savedResource, duration);
+        
+        return fileMapper.toDTO(savedResource);
     }
 
     /**
@@ -220,54 +212,17 @@ public class FileStorageService {
      * 合并所有分片并保存为最终文件
      * 所有的分片文件会存放在临时目录文件下
      */
-    public FileUploadResponse mergeChunks(String fileHash, String originalName, UUID clientId) throws IOException {
-        String ext = FileNameUtil.extName(originalName);
-        String contentType = Files.probeContentType(Paths.get(originalName));
-        String relative = DateTimeFormatter.ofPattern("yyyy/MM/dd")
-                .format(LocalDate.now())
-                + "/" + UUID.randomUUID() + "." + ext;
-
-        Path finalPath = baseDir.resolve(relative).normalize();
-        Files.createDirectories(finalPath.getParent());
-
-        Path sessionDir = chunkTempDir.resolve(fileHash).normalize();
-        try (var out = Files.newOutputStream(finalPath, StandardOpenOption.CREATE)) {
-            Files.list(sessionDir)
-                    .filter(p -> p.getFileName().toString().endsWith(".part"))
-                    .sorted()
-                    .forEach(p -> {
-                        try {
-                            Files.copy(p, out);
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                    });
-        }
-
-        long size = Files.size(finalPath);
-        String hash;
-        try (InputStream is = Files.newInputStream(finalPath)) {
-            hash = DigestUtils.md5DigestAsHex(is);
-        }
-
-        // 清理临时分片
-        FileSystemUtils.deleteRecursively(sessionDir);
-
-        FileResource info = new FileResource();
-        info.setOriginalName(originalName);
-        info.setExtension(ext);
-        info.setContentType(contentType);
-        info.setSize(size);
-        info.setStoragePath(relative);
-        info.setStorageType(StorageType.LOCAL);
-        info.setHash(hash);
-        info.setUploadTime(Instant.now());
-        info.setClientId(clientId);
-        info.setStatus(FileStatus.NORMAL);
-
-
-        var save = repository.save(info);
-        return fileMapper.toDTO(save);    }
+    public FileUploadResponse mergeChunks(String fileHash, String originalName, UUID clientId, Long duration) throws IOException {
+        // 使用存储策略的分片合并方法
+        FileResource resource = storageStrategy.storeMergedFile(fileHash, originalName, clientId, duration, chunkTempDir);
+        
+        FileResource savedResource = repository.save(resource);
+        
+        // 如果是媒体文件，创建对应的媒体资源记录
+        MediaFileResource mediaResource = createMediaResourceIfNeeded(savedResource, duration);
+        
+        return fileMapper.toDTO(savedResource);    
+    }
 
     /**
      * 将配置路径解析为绝对路径：如果已是绝对，则原样；否则以 user.dir 为基准
@@ -278,5 +233,70 @@ public class FileStorageService {
             p = Paths.get(System.getProperty("user.dir")).resolve(p);
         }
         return p.normalize();
+    }
+    
+    /**
+     * 计算文件哈希值
+     */
+    private String calculateFileHash(MultipartFile file) {
+        try (InputStream is = file.getInputStream()) {
+            return DigestUtils.md5DigestAsHex(is);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to calculate file hash", e);
+        }
+    }
+    
+    /**
+     * 根据文件信息创建媒体资源记录（如果需要）
+     */
+    private MediaFileResource createMediaResourceIfNeeded(FileResource fileResource, Long duration) {
+        if (isMediaFile(fileResource.getExtension())) {
+            MediaFileResource mediaResource = new MediaFileResource();
+            mediaResource.setFile(fileResource);
+            
+            // 设置时长，如果传入的时长为null，则使用文件的时长
+            Float mediaDuration = duration != null ? duration.floatValue() : fileResource.getDuration() != null ? fileResource.getDuration().floatValue() : 0.0f;
+            mediaResource.setDuration(mediaDuration);
+            
+            // 如果文件资源的duration为null，但提供了duration参数，则更新文件资源
+            if (fileResource.getDuration() == null && duration != null) {
+                fileResource.setDuration(duration);
+                repository.save(fileResource); // 更新文件资源
+            }
+            
+            // TODO: 生成缩略图的逻辑
+            // 如果是图片文件，生成缩略图
+            if (isImageFile(fileResource.getExtension())) {
+                // 这里可以调用图片处理服务生成缩略图
+                // mediaResource.setThumbnail(generateThumbnail(fileResource));
+            }
+            
+            return mediaFileResourceRepository.save(mediaResource);
+        }
+        return null;
+    }
+
+    /**
+     * 检查是否为媒体文件
+     */
+    private boolean isMediaFile(String extension) {
+        if (extension == null) return false;
+        
+        String ext = extension.toLowerCase();
+        return ext.equals("mp4") || ext.equals("avi") || ext.equals("mov") || ext.equals("wmv") ||
+               ext.equals("mp3") || ext.equals("wav") || ext.equals("flac") || ext.equals("aac") ||
+               ext.equals("jpg") || ext.equals("jpeg") || ext.equals("png") || ext.equals("gif") ||
+               ext.equals("webp") || ext.equals("bmp");
+    }
+    
+    /**
+     * 检查是否为图片文件
+     */
+    private boolean isImageFile(String extension) {
+        if (extension == null) return false;
+        
+        String ext = extension.toLowerCase();
+        return ext.equals("jpg") || ext.equals("jpeg") || ext.equals("png") || ext.equals("gif") ||
+               ext.equals("webp") || ext.equals("bmp");
     }
 }

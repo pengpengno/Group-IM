@@ -28,9 +28,26 @@ class FileStorageManager(
      */
     suspend fun getFileContent(fileId: String): ByteArray {
         Napier.d("获取文件内容: $fileId")
+        val file = filesRepository.getFile(fileId)
+        /**
+         * a) 如果文件记录为空那么 从远程下载即可 包括记录 以及文件
+         * b) 如果文件不为空那么 检查本地是否存在记录 ,存在则返回本地文件内容
+         *    b1) 如果记录存在但是文件在 相应的位置不存在 指定文件 , 那么重新下载 , 并且更新文件记录
+         */
         
         try {
-            // 1. 检查本地是否存在该文件
+            // 情况 a) 文件记录为空，从远程下载
+            if (file == null) {
+                Napier.d("文件记录不存在，从服务器下载文件: $fileId")
+                val fileContent = FileApi.downloadFile(fileId)
+                
+                // 保存到本地
+                saveFileLocally(fileId, fileContent)
+                
+                return fileContent
+            }
+            
+            // 情况 b) 文件记录存在，检查本地文件是否存在
             val localFilePath = getLocalFilePath(fileId)
             if (localFilePath != null && fileSystem.exists(localFilePath)) {
                 Napier.d("从本地获取文件: $fileId")
@@ -40,11 +57,11 @@ class FileStorageManager(
                 }
             }
             
-            // 2. 本地不存在，从服务器下载
-            Napier.d("从服务器下载文件: $fileId")
+            // 情况 b1) 记录存在但本地文件不存在，重新下载
+            Napier.d("本地文件不存在，从服务器重新下载: $fileId")
             val fileContent = FileApi.downloadFile(fileId)
             
-            // 3. 保存到本地
+            // 保存到本地
             saveFileLocally(fileId, fileContent)
             
             return fileContent
@@ -63,9 +80,11 @@ class FileStorageManager(
         try {
             val fileRecord = filesRepository.getFile(fileId)
             if (fileRecord != null) {
-                val fullPath = baseDirectory / fileRecord.storagePath
-                if (fileSystem.exists(fullPath)) {
-                    return fullPath
+                if (fileRecord.storagePath.isNotEmpty()){
+                    val fullPath = baseDirectory / fileRecord.storagePath
+                    if (fileSystem.exists(fullPath) && !fileSystem.metadata(fullPath).isDirectory) {
+                        return fullPath
+                    }
                 }
             }
             return null
@@ -84,14 +103,20 @@ class FileStorageManager(
         try {
             val fileRecord = filesRepository.getFile(fileId)
             if (fileRecord != null) {
-                val filePath = baseDirectory / fileRecord.storagePath
+                // 使用当前日期创建子目录
+                val yearMonthPath = generateFilePath()
+                val directoryPath = baseDirectory / yearMonthPath
                 
                 // 确保目录存在
-                filePath.parent?.let { parent ->
-                    if (!fileSystem.exists(parent)) {
-                        fileSystem.createDirectories(parent)
-                    }
+                if (!fileSystem.exists(directoryPath)) {
+                    fileSystem.createDirectories(directoryPath)
                 }
+                
+                // 使用文件记录中的原始文件名，而不是文件ID
+                val fileName = fileRecord.originalName
+
+                var uniqueFileName = generateUniqueFileName(directoryPath, fileName)
+                val filePath = directoryPath / uniqueFileName
                 
                 // 写入文件
                 fileSystem.write(filePath) {
@@ -99,7 +124,7 @@ class FileStorageManager(
                 }
                 
                 // 更新数据库中的存储路径
-                filesRepository.updateStoragePath(fileId, fileRecord.storagePath)
+                filesRepository.updateStoragePath(fileId, (yearMonthPath / uniqueFileName).toString())
                 // 更新最后访问时间
                 filesRepository.updateLastAccessTime(fileId)
                 Napier.d("文件已保存到本地: $filePath")
@@ -126,6 +151,7 @@ class FileStorageManager(
             Napier.d("找到 ${expiredFiles.size} 个过期文件")
             
             expiredFiles.forEach { file ->
+                // 从数据库存储路径重建完整路径
                 val filePath = baseDirectory / file.storagePath
                 if (fileSystem.exists(filePath)) {
                     fileSystem.delete(filePath)
@@ -164,14 +190,69 @@ class FileStorageManager(
     }
     
     /**
-     * 删除指定文件（本地文件和数据库记录）
-     * @param fileId 文件ID
-     * @return 删除是否成功
+     * 生成文件目录 
+     * 使用当前日期创建子目录 如 2023-07
      */
+    private fun generateFilePath(): okio.Path {
+        // 使用当前日期创建子目录 (年-月格式)，避免单个目录下文件过多
+        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        val yearMonth = "${now.year}-${now.monthNumber.toString().padStart(2, '0')}"
+        
+        return yearMonth.toPath()
+    }
+    
+    /**
+     * 生成安全且唯一的文件名
+     * @param directoryPath 目录路径
+     * @param originalFileName 原始文件名
+     * @return 安全且唯一的文件名
+     */
+    private fun generateUniqueFileName(directoryPath: okio.Path, originalFileName: String): String {
+        // 确保文件名安全，替换可能引起问题的字符
+        val safeFileName = originalFileName
+            .replace("/", "_")
+            .replace("\\", "_")
+            .replace(":", "_")
+            .replace("*", "_")
+            .replace("?", "_")
+            .replace("\"", "_")
+            .replace("<", "_")
+            .replace(">", "_")
+            .replace("|", "_")
+        
+        // 确保文件名唯一性，避免覆盖已存在的文件
+        var uniqueFileName = safeFileName
+        var counter = 1
+        val fileExtension = safeFileName.substringAfterLast(".", "")
+        val fileNameWithoutExtension = if (fileExtension.isNotEmpty()) {
+            safeFileName.substringBeforeLast(".")
+        } else {
+            safeFileName
+        }
+        
+        while (true) {
+            val testFilePath = directoryPath / uniqueFileName
+            if (!fileSystem.exists(testFilePath)) {
+                break // 文件名唯一，可以使用
+            }
+            
+            // 创建带编号的新文件名
+            if (fileExtension.isNotEmpty()) {
+                uniqueFileName = "${fileNameWithoutExtension}_$counter.$fileExtension"
+            } else {
+                uniqueFileName = "${safeFileName}_$counter"
+            }
+            counter++
+        }
+        
+        return uniqueFileName
+    }
+    
     fun deleteFile(fileId: String): Boolean {
         return try {
             val fileRecord = filesRepository.getFile(fileId)
             if (fileRecord != null) {
+                // 从数据库存储路径重建完整路径
                 val filePath = baseDirectory / fileRecord.storagePath
                 // 删除本地文件
                 if (fileSystem.exists(filePath)) {

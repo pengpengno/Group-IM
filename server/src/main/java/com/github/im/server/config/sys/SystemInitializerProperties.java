@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 @Data
 @Component
-@ConfigurationProperties(prefix = "system.initializer")
+@ConfigurationProperties(prefix = "group.system.initializer")
 public class SystemInitializerProperties {
     
     /**

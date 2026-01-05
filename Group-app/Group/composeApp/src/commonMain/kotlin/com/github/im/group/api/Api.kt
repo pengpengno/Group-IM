@@ -290,10 +290,12 @@ data class PageResult<T>(
 @Serializable
 //sealed interface MessagePayLoad
 sealed interface MessagePayLoad
+
 @Serializable
 data class FileMetaPayload(
     val fileMeta: FileMeta
 ) : MessagePayLoad
+
 @Serializable
 @SerialName("TEXT")
 data class DefaultMessagePayLoad(
@@ -310,6 +312,10 @@ data class FileUploadResponse(
 @SerialName("FILE")
 //Kotlinx Serialization 默认会使用 "type" 字段 进行多态
 data class FileMeta(
+
+    @SerialName("fileId")
+    val fileId : String,
+
     @SerialName("filename")
     val fileName: String,
 
@@ -321,14 +327,17 @@ data class FileMeta(
     val hash: String,
 
     val type: String,
-    val duration  :Int ?
+
+    val duration  : Int =0,  // 媒体资源才会又时长 单位 是 毫秒，需要展示的时候 换算成秒 默认0 即可
+
+    val thumbnail :String? = null  // 缩略图的  fileId
 
 ) : MessagePayLoad
 
 @Serializable
 data class FriendshipDTO(
     val id: Long? = null,  // 关系ID
-    val userInfo: UserInfo? = null, // 当前用户的用户信息，仅返回用户ID和用户名 /TODO 这个可以省略
+    val userInfo: UserInfo? = null, // 当前用户的用户信息，仅返回用户ID和用户名
     val friendUserInfo: UserInfo? = null, // 好友的用户信息
     val status: FriendRequestStatus? = null,
     val conversationId: Long? = null  //与好友当前存在的会话

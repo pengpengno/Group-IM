@@ -39,6 +39,9 @@ public class MediaFileResource {
     private Message message;
 
 
+    /**
+     * 缩略图
+     */
     private String thumbnail;
 
     /**

@@ -67,8 +67,9 @@ public class FileUploadController {
     @PostMapping("/upload/merge")
     public ResponseEntity<FileUploadResponse> merge(@RequestParam("fileHash") String fileHash,
                                                     @RequestParam("fileName") String fileName,
-                                                    @RequestParam("clientId") UUID clientId) throws IOException {
-        var file = fileStorageService.mergeChunks(fileHash, fileName, clientId);
+                                                    @RequestParam("clientId") UUID clientId,
+                                                    @RequestParam(value = "duration", required = false) Long duration) throws IOException {
+        var file = fileStorageService.mergeChunks(fileHash, fileName, clientId, duration);
         return ResponseEntity.ok(file);
     }
 

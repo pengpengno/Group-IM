@@ -1,5 +1,6 @@
 package com.github.im.group.viewmodel
 
+import androidx.compose.runtime.snapshots.toLong
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.im.group.api.ConversationApi
@@ -560,10 +561,14 @@ class ChatMessageViewModel(
          return FileApi.getFileMeta(fileId)
     }
 
+
+    
     /**
-     * 获取文件元信息（本地优先）
+     * 异步获取文件元信息（本地优先）
+     * @param messageItem 消息项
+     * @return 文件元数据的Flow
      */
-    fun getFileMessageMeta(messageItem: MessageItem): FileMeta? {
+    suspend fun getFileMessageMetaAsync(messageItem: MessageItem): FileMeta? {
         if(messageItem.type.isFile()){
             messageItem.fileMeta?.let {
                 return it
@@ -573,16 +578,14 @@ class ChatMessageViewModel(
                 return it
             }
             // 如果本地没有，通过API获取并存储到本地
-            runBlocking {
-                try {
-                    val fileMeta = getFileMessageMeta(messageItem.content)
-                    // 将文件元数据存储到本地数据库
-                    filesRepository.addFile(fileMeta)
-                    return@runBlocking fileMeta
-                } catch (e: Exception) {
-                    Napier.e("获取文件元信息失败", e)
-                    null
-                }
+            try {
+                val fileMeta = getFileMessageMeta(messageItem.content)
+                // 将文件元数据存储到本地数据库
+                filesRepository.addFile(fileMeta)
+                return fileMeta
+            } catch (e: Exception) {
+                Napier.e("获取文件元信息失败", e)
+                return null
             }
         }
         return null
@@ -645,10 +648,9 @@ class ChatMessageViewModel(
                         fileId = fileId,
                         isDownloading = false,
                         isSuccess = true,
-//                        fileContent = fileContent
                     ))
                 }
-                
+
                 Napier.d("文件下载成功: $fileId")
             } catch (e: Exception) {
                 Napier.e("文件下载失败", e)
@@ -699,6 +701,15 @@ class ChatMessageViewModel(
                 // 保存文件信息到本地数据库
                 // 这里只是框架代码，实际实现将在后续添加
                 sendMessage(conversationId, response.id, type, response.fileMeta)
+                
+                // 保存媒体资源信息
+                if (type == MessageType.VOICE || type == MessageType.VIDEO || type == MessageType.IMAGE) {
+                    filesRepository.updateMediaResourceInfo(
+                        fileId = response.id, // 使用上传后返回的文件ID
+                        duration = duration, // 以毫秒为单位存储
+                        thumbnail = response.fileMeta?.thumbnail // 如果有缩略图信息则保存
+                    )
+                }
             } catch (e: Exception) {
                 // 处理上传失败的情况
                 Napier.e("发送文件消息失败", e)
