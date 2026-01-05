@@ -119,9 +119,9 @@ data class MessageWrapper(
 
     override val seqId: Long = message?.sequenceId ?: messageDto?.sequenceId ?: 0L
 
-    override val type: com.github.im.group.db.entities.MessageType
+    override val type: MessageType
         get() = when{
-        message?.type != null -> com.github.im.group.db.entities.MessageType.valueOf(message.type.name)
+        message?.type != null -> MessageType.valueOf(message.type.name)
         messageDto?.type != null -> messageDto.type
 //        messageDto?.content?.startsWith("http") == true -> MessageType.FILE
         else -> MessageType.TEXT

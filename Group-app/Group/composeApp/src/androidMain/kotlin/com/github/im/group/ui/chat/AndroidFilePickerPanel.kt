@@ -1,11 +1,7 @@
 package com.github.im.group.ui.chat
 
 import android.Manifest
-import android.content.pm.PackageManager
-import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,7 +13,6 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,9 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.core.content.ContextCompat
 import com.github.im.group.sdk.AndroidFilePicker
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.PickedFile
@@ -46,6 +38,7 @@ import com.github.im.group.sdk.rememberTakePictureLauncher
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -88,15 +81,17 @@ fun AndroidFilePickerPanel(
     ) {
     if (displayMediaPicker) {
 
-            UnifiedMediaPicker (
-                onDismiss = {
-                    displayMediaPicker = false
-                },
-                onMediaSelected = { files ->
-                    onFileSelected(files)
-                    displayMediaPicker = false
-                },
-            )
+        MediaPickerScreen(onDismiss, onFileSelected)
+
+//            UnifiedMediaPicker (
+//                onDismiss = {
+//                    displayMediaPicker = false
+//                },
+//                onMediaSelected = { files ->
+//                    onFileSelected(files)
+//                    displayMediaPicker = false
+//                },
+//            )
         }else{
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -142,7 +137,7 @@ private suspend fun takePhotoAndHandleResult(
         }
         onDismiss()
     } catch (e: Exception) {
-        e.printStackTrace()
+        Napier.e { "拍照失败: ${e.message}" }
         throw e
     }
 }

@@ -36,6 +36,17 @@ interface AudioPlayer {
     val duration: Long
     val currentPosition: Long
     val isPlaying: Boolean
+    
+    /**
+     * 检查是否正在播放指定路径的音频
+     * @param filePath 音频文件路径，如果为null则检查是否有任何音频在播放
+     */
+    fun isCurrentlyPlaying(filePath: String? = null): Boolean
+
+    /**
+     * 获取当前播放的文件路径
+     */
+    fun getCurrentFilePath(): String?
 
 }
 

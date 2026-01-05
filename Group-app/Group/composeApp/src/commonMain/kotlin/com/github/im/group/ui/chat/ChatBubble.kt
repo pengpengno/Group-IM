@@ -17,21 +17,27 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,24 +46,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.github.im.group.api.FileMeta
+import com.github.im.group.model.MessageItem
 import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.CrossPlatformImage
 import com.github.im.group.sdk.CrossPlatformVideo
-import com.github.im.group.viewmodel.VoiceViewModel
+import com.github.im.group.viewmodel.ChatMessageViewModel
 import io.github.aakira.napier.Napier
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.math.abs
 import kotlin.math.sin
-import kotlin.random.Random
 
 sealed class MessageContent {
     data class Text(val text: String) : MessageContent()
@@ -68,7 +75,7 @@ sealed class MessageContent {
      * @param duration 音频时长 ms 展示的需要转化为秒
      */
     data class Voice(val audioPath: String, val duration: Int) : MessageContent()
-    data class File(val fileName: String, val fileSize: String, val fileUrl: String) : MessageContent()
+    data class File(val fileId: String) : MessageContent()
     data class Video(val videoId: String) : MessageContent()
 }
 
@@ -176,14 +183,14 @@ fun VoiceMessage(
     // 监听音频播放状态变化
     androidx.compose.runtime.LaunchedEffect(audioPath, audioPlayer.isPlaying) {
         // 检查当前播放器是否正在播放当前音频
-        val isCurrentPlaying = isCurrentlyPlaying(audioPlayer, audioPath)
+        val isCurrentPlaying = audioPlayer.isCurrentlyPlaying( audioPath)
         isPlaying = isCurrentPlaying
     }
     
-    // 每100毫秒更新一次播放位置
+    // 每100毫秒更新一次播放位置 - 优化更新频率
     androidx.compose.runtime.LaunchedEffect(audioPath) {
         while (true) {
-            val isCurrentPlaying = isCurrentlyPlaying(audioPlayer, audioPath)
+            val isCurrentPlaying = audioPlayer.isCurrentlyPlaying( audioPath)
             
             if (isCurrentPlaying) {
                 val currentPosition = audioPlayer.currentPosition
@@ -192,7 +199,7 @@ fun VoiceMessage(
                     playbackPosition = (currentPosition.toFloat() / duration).coerceIn(0f, 1f)
                 }
             }
-            kotlinx.coroutines.delay(100) // 每100毫秒更新一次
+            kotlinx.coroutines.delay(50) // 提高更新频率到每50毫秒更新一次
         }
     }
 }
@@ -208,68 +215,77 @@ fun VoiceWaveform(
     onSeek: (Float) -> Unit
 ) {
     var currentPlaybackPosition by remember { mutableStateOf(playbackPosition) }
+    var selectedPlaybackPosition by remember { mutableStateOf(playbackPosition) }
 
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
-            .height(36.dp)
+            .height(40.dp) // 增加高度
             .pointerInput(Unit) {
-                detectDragGestures { change, dragAmount ->
-                    val xPosition = change.position.x
-                    val width = size.width
-                    if (width > 0) {
-                        val newPosition = (xPosition / width).coerceIn(0f, 1f)
-                        currentPlaybackPosition = newPosition
-                        onSeek(newPosition)
+                detectDragGestures(
+                    onDrag = { change, dragAmount ->
+                        val xPosition = change.position.x
+                        val width = size.width
+                        if (width > 0) {
+                            val newPosition = (xPosition / width).coerceIn(0f, 1f)
+                            selectedPlaybackPosition = newPosition
+                            onSeek(newPosition)
+                        }
+                    },
+                    onDragEnd = {
+                        // 拖动结束后更新当前播放位置
+                        currentPlaybackPosition = selectedPlaybackPosition
                     }
-                }
+                )
             }
     ) {
         val width = size.width
         val height = size.height
-        val barCount = 20
+        val barCount = 48 // 增加波形条数以获得更好的视觉效果
         val barWidth = width / barCount
         val centerY = height / 2
 
-        // 根据时长生成更自然的波形模式
+        // 生成更自然的波形，增强视觉效果
         for (i in 0 until barCount) {
-            // 使用sin函数生成更自然的波形，根据索引和时长计算波形高度
+            // 使用更复杂的波形算法，模拟真实音频波形
             val progressRatio = i.toFloat() / barCount
-            val sinValue = abs(sin(progressRatio * 2 * kotlin.math.PI.toFloat()))
+            val baseWave = abs(sin(progressRatio * 5 * kotlin.math.PI.toFloat()))
+            val secondWave = abs(sin(progressRatio * 9 * kotlin.math.PI.toFloat())) * 0.4f
+            val thirdWave = abs(sin(progressRatio * 13 * kotlin.math.PI.toFloat())) * 0.2f
+            val waveValue = (baseWave + secondWave + thirdWave) / 2f // 组合多个波形
             
-            val barHeight = if (isPlaying && i < barCount * currentPlaybackPosition) {
-                // 播放时的波形高度，使用更自然的波形模式
-                (height * 0.7f) * (0.3f + 0.7f * sinValue)
+            // 增强波形高度对比，使其更明显
+            val baseHeight = if (isPlaying && i < barCount * currentPlaybackPosition) {
+                // 播放时的波形高度，使用组合波形，增强高度对比
+                height * 0.9f * (0.1f + 0.9f * waveValue)
             } else {
-                // 静止时的波形高度，使用更自然的波形模式
-                (height * 0.4f) * (0.3f + 0.7f * sinValue)
+                // 静止时的波形高度，使用组合波形，增强高度对比
+                height * 0.6f * (0.1f + 0.7f * waveValue)
             }
 
             val x = i * barWidth + barWidth / 2
             val barColor = if (isPlaying && i < barCount * currentPlaybackPosition) {
                 Color(0xFF0088CC) // 播放部分为蓝色
             } else {
-                Color.Gray // 未播放部分为灰色
+                Color(0xFF888888) // 未播放部分为深灰色，更明显
             }
 
             drawLine(
                 color = barColor,
-                start = androidx.compose.ui.geometry.Offset(x, centerY - barHeight / 2),
-                end = androidx.compose.ui.geometry.Offset(x, centerY + barHeight / 2),
-                strokeWidth = barWidth * 0.6f
+                start = androidx.compose.ui.geometry.Offset(x, centerY - baseHeight / 2),
+                end = androidx.compose.ui.geometry.Offset(x, centerY + baseHeight / 2),
+                strokeWidth = barWidth * 0.7f // 调整线宽以增强视觉效果
             )
         }
 
         // 绘制播放头
-        if (isPlaying) {
-            val playheadX = width * currentPlaybackPosition
-            drawLine(
-                color = Color.Red,
-                start = androidx.compose.ui.geometry.Offset(playheadX, 0f),
-                end = androidx.compose.ui.geometry.Offset(playheadX, height),
-                strokeWidth = 2f
-            )
-        }
+        val playheadX = width * currentPlaybackPosition
+        drawLine(
+            color = Color.Red,
+            start = androidx.compose.ui.geometry.Offset(playheadX, 0f),
+            end = androidx.compose.ui.geometry.Offset(playheadX, height),
+            strokeWidth = 2f
+        )
     }
 }
 
@@ -325,32 +341,213 @@ fun TextMessage(content: MessageContent.Text) {
 }
 
 /**
- * 文件消息
+ * 文件类型气泡
  */
 @Composable
-fun FileMessage(content: MessageContent.File) {
-    Row(
+fun FileMessageBubble(msg: MessageItem) {
+    val messageViewModel: ChatMessageViewModel = koinViewModel()
+
+    var showDialog by remember { mutableStateOf(false) }
+    var isDownloading by remember { mutableStateOf(false) }
+
+    // 异步加载文件大小信息
+    var fileSize by remember { mutableStateOf<Long?>(null) }
+
+    var meta by remember { mutableStateOf<FileMeta?>(null) }
+
+    LaunchedEffect(msg) {
+         meta = messageViewModel.getFileMessageMetaAsync(msg)
+        fileSize = meta?.size
+    }
+
+    val displaySize = when (val size = fileSize) {
+        null -> "加载中..."
+        else -> if (size > 1024 * 1024) {
+            "${size / 1024 / 1024}MB"
+        } else if (size > 1024) {
+            "${size / 1024}KB"
+        } else {
+            "${size}B"
+        }
+    }
+
+    fun downloadFile() {
+        meta?.let {
+            messageViewModel.downloadFileMessage(it.fileId)
+        }
+    }
+
+    Column(
         modifier = Modifier
-            .padding(12.dp)
-            .clickable { 
-                // TODO:
-                // 文件在本地数据库中不存在   -》 下载
-                // 文件在本地数据库中存在 且 路径正确 -》 打开
-                // 文件在本地数据库中存在 且 路径错误 -》 提示不存在 ，重新下载
-                Napier.d("点击文件消息: ${content.fileName}")
-            },
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .clickable {
+                downloadFile()
+            }
+            .width(200.dp)
     ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.InsertDriveFile,
-            contentDescription = "文件",
-            tint = Color.Black,
-            modifier = Modifier.size(24.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 文件图标
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color(0xFFE3F2FD), shape = RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FileDownload,
+                    contentDescription = "文件",
+                    tint = Color(0xFF1976D2),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // 文件信息
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = msg.content,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
+                )
+                Text(
+                    text = displaySize,
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // 操作按钮
+        Button(
+            onClick = { showDialog = true },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF1976D2),
+                contentColor = Color.White
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("查看文件")
+        }
+    }
+
+    // 点击后显示文件操作对话框
+    if (showDialog) {
+        FileActionDialog(
+            fileName = msg.content,
+            fileSize = displaySize,
+            onDismiss = { showDialog = false },
+            onView = {
+                showDialog = false
+                // 实际查看文件的逻辑
+                // 可以打开浏览器下载或者在应用内查看
+//                onClick(msg) TODO
+            },
+            onDownload = {
+                isDownloading = true
+                downloadFile()
+                isDownloading = false
+            }
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        Column {
-            Text(content.fileName, color = Color.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(content.fileSize, color = Color.Gray, fontSize = 12.sp)
+    }
+
+    // 下载进度指示器
+    if (isDownloading) {
+        Dialog(onDismissRequest = { /* 不允许取消 */ }) {
+            Box(
+                modifier = Modifier
+                    .background(Color.White, shape = RoundedCornerShape(8.dp))
+                    .padding(16.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("文件下载中...")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 文件操作对话框
+ */
+@Composable
+fun FileActionDialog(
+    fileName: String,
+    fileSize: String,
+    onDismiss: () -> Unit,
+    onView: () -> Unit,
+    onDownload: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = fileName,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = fileSize,
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = onView,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF1976D2),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("在线查看")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = onDownload,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF4CAF50),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("下载文件")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.LightGray,
+                        contentColor = Color.Black
+                    )
+                ) {
+                    Text("取消")
+                }
+            }
         }
     }
 }
@@ -386,8 +583,9 @@ fun SendingSpinner(modifier: Modifier = Modifier, color: Color = Color.Gray) {
 @Composable
 fun VideoBubble(content: MessageContent.Video) {
     var showPreview by remember { mutableStateOf(false) }
-    
-    val videoUrl = "http://${ProxyConfig.host}:${ProxyConfig.port}/api/files/download/${content.videoId}"
+    val messageViewModel: ChatMessageViewModel = koinViewModel()
+    val videoUrl = messageViewModel.getLocalFilePath(content.videoId).toString()
+//    val videoUrl = "http://${ProxyConfig.host}:${ProxyConfig.port}/api/files/download/${content.videoId}"
 
     Box(
         modifier = Modifier
@@ -452,8 +650,3 @@ fun FullScreenVideoPlayer(videoUrl: String, onClose: () -> Unit) {
 //        }
     }
 }
-
-/**
- * 检查音频播放器是否正在播放指定的音频文件
- */
-expect fun isCurrentlyPlaying(audioPlayer: AudioPlayer, audioPath: String): Boolean

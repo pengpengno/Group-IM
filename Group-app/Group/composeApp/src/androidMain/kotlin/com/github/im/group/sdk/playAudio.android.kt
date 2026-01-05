@@ -1,8 +1,9 @@
 package com.github.im.group.sdk
 
 import android.content.Context
-import android.media.MediaPlayer
-import android.net.Uri
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import io.github.aakira.napier.Napier
 
 actual fun playAudio(bytes: ByteArray) {
@@ -11,69 +12,94 @@ actual fun playAudio(bytes: ByteArray) {
 
 /**
  * Android平台音频播放器实现
- * 集成播放控制和状态管理功能
+ * 使用ExoPlayer替代MediaPlayer以获得更好的性能和控制
  */
 class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
     
     companion object {
         // 全局播放器实例，确保同一时间只有一个音频在播放
         @Volatile
-        private var currentPlayer: MediaPlayer? = null
+        private var currentPlayer: ExoPlayer? = null
         private var currentFilePath: String? = null
         private var isPlayingState = false
     }
     
     override val duration: Long
-        get() = currentPlayer?.duration?.toLong() ?: 0L
+        get() = currentPlayer?.duration ?: 0L
 
     override val currentPosition: Long
-        get() = currentPlayer?.currentPosition?.toLong() ?: 0L
+        get() = currentPlayer?.currentPosition ?: 0L
 
     override val isPlaying: Boolean
         get() = isPlayingState
         
-    fun isCurrentlyPlaying(filePath: String? = null): Boolean {
+    override fun isCurrentlyPlaying(filePath: String?): Boolean {
         return if (filePath != null) {
             isPlayingState && currentFilePath == filePath
         } else {
-            isPlayingState
+            isPlayingState && currentPlayer?.playWhenReady == true
         }
     }
+    
+    override fun getCurrentFilePath(): String? = currentFilePath
+        
+
     
     override fun play(filePath: String) {
         synchronized(AndroidAudioPlayer::class.java) {
             try {
                 // 如果正在播放相同的文件，则不执行任何操作
-                if (currentFilePath == filePath && currentPlayer?.isPlaying == true) {
+                if (currentFilePath == filePath && currentPlayer?.playWhenReady == true) {
+                    return
+                }
+
+                // 如果是同一个文件但暂停状态，则继续播放
+                if (currentFilePath == filePath && currentPlayer != null) {
+                    currentPlayer?.play()
+                    isPlayingState = true
                     return
                 }
 
                 // 停止当前播放的音频
                 stop()
 
-                // 创建新的MediaPlayer实例
-                val mediaPlayer = MediaPlayer().apply {
-                    setDataSource(context, Uri.fromFile(java.io.File(filePath)))
-                    prepare()
-                    setOnCompletionListener { mp ->
-                        isPlayingState = false
-                        currentFilePath = null
-                        // 播放完成后回到开头
-                        try {
-                            mp.seekTo(0)
-                        } catch (e: Exception) {
-                            Napier.e("重置播放位置失败", e)
+                // 创建新的ExoPlayer实例
+                val exoPlayer = ExoPlayer.Builder(context).build().apply {
+                    addListener(object : Player.Listener {
+                        override fun onPlaybackStateChanged(playbackState: Int) {
+                            if (playbackState == Player.STATE_ENDED) {
+                                // 播放完成
+                                isPlayingState = false
+                                currentFilePath = null
+                                // 播放完成后回到开头
+                                try {
+                                    seekTo(0)
+                                } catch (e: Exception) {
+                                    Napier.e("重置播放位置失败", e)
+                                }
+                            } else if (playbackState == Player.STATE_READY) {
+                                isPlayingState = playWhenReady
+                            }
                         }
-                    }
+                        
+                        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                            isPlayingState = playWhenReady
+                        }
+                    })
                 }
 
+                // 设置媒体源
+                val mediaItem = MediaItem.fromUri(android.net.Uri.fromFile(java.io.File(filePath)))
+                exoPlayer.setMediaItem(mediaItem)
+                exoPlayer.prepare()
+                
+                // 开始播放
+                exoPlayer.play()
+
                 // 更新状态
-                currentPlayer = mediaPlayer
+                currentPlayer = exoPlayer
                 currentFilePath = filePath
                 isPlayingState = true
-
-                // 开始播放
-                mediaPlayer.start()
             } catch (e: Exception) {
                 isPlayingState = false
                 currentFilePath = null
@@ -86,12 +112,8 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
     override fun pause() {
         synchronized(AndroidAudioPlayer::class.java) {
             try {
-                currentPlayer?.let { player ->
-                    if (player.isPlaying) {
-                        player.pause()
-                        isPlayingState = false
-                    }
-                }
+                currentPlayer?.pause()
+                isPlayingState = false
             } catch (e: Exception) {
                 Napier.e("暂停音频失败", e)
             }
@@ -102,10 +124,7 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
         synchronized(AndroidAudioPlayer::class.java) {
             try {
                 currentPlayer?.let { player ->
-                    if (player.isPlaying) {
-                        player.stop()
-                    }
-                    player.reset()
+                    player.stop()
                     player.release()
                 }
             } catch (e: Exception) {
@@ -121,12 +140,11 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
     override fun seekTo(positionMillis: Long) {
         synchronized(AndroidAudioPlayer::class.java) {
             try {
-                currentPlayer?.seekTo(positionMillis.toInt())
+                currentPlayer?.seekTo(positionMillis)
             } catch (e: Exception) {
                 Napier.e("跳转音频位置失败", e)
             }
         }
     }
     
-    fun getCurrentFilePath(): String? = currentFilePath
 }

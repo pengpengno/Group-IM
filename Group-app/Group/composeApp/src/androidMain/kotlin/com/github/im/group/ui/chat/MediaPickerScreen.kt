@@ -36,7 +36,9 @@ import androidx.media3.common.util.UnstableApi
 import coil3.compose.AsyncImage
 import com.github.im.group.sdk.*
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.MultiplePermissionsState
 import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 import io.github.aakira.napier.Napier
@@ -60,111 +62,38 @@ actual fun MediaPickerScreen(
     onMediaSelected: (List<PickedFile>) -> Unit
 ) {
     var permissionCheck by remember { mutableStateOf(false) }
-    val cameraPermissionState = rememberPermissionState(
-        Manifest.permission.CAMERA
-    )
-    TryGetPermission(
-        permission = Manifest.permission.CAMERA,
-        onGranted = {
+    
+    // 根据Android版本确定需要请求的权限
+    val permissionsToRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        // Android 13+ 需要同时请求图片和视频权限
+        listOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
+    } else {
+        // Android 12及以下只需请求存储权限
+        listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+    
+    TryGetMultiplePermissions(
+        permissions = permissionsToRequest,
+        onAllGranted = {
             permissionCheck = true
         },
         onRequest = {
-            permissionCheck = true
+            // 权限请求中，可以保持当前状态或更新UI
         },
-        onDenied = {
-//            permissionCheck = false
+        onAnyDenied = {
+            // 权限被拒绝的处理
         }
     )
-    if(
-        permissionCheck
-    ){
+    
+    if(permissionCheck) {
         UnifiedMediaPicker(
             onDismiss = onDismiss,
             onMediaSelected = onMediaSelected
         )
     }
-
 }
 
 
-@OptIn(ExperimentalPermissionsApi::class)
-@Composable
-fun MediaGridWithCamera(
-    cameraPermissionState: com.google.accompanist.permissions.PermissionState,
-    mediaItems: List<MediaItem>,
-    selectedItems: Set<MediaItem>,
-    onCameraClick: () -> Unit,
-    onSelectionChanged: (Set<MediaItem>) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    // 检查是否有媒体项或显示空状态
-    if (mediaItems.isEmpty()) {
-        Box(
-            modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Image,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(64.dp)
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Text(
-                    text = "暂无媒体文件",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    text = "请确保已授予存储权限并有媒体文件",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    } else {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            modifier = modifier,
-            contentPadding = PaddingValues(4.dp)
-        ) {
-            // 添加拍照选项作为第一个项
-            item {
-                CameraItem(
-                    cameraPermissionState = cameraPermissionState,
-                    onClick = onCameraClick
-                )
-            }
-            
-            // 显示媒体项
-            items(mediaItems) { mediaItem ->
-                MediaItemView(
-                    mediaItem = mediaItem,
-                    isSelected = selectedItems.contains(mediaItem),
-                    onSelected = { selected ->
-                        val newSelectedItems = if (selected) {
-                            selectedItems + mediaItem
-                        } else {
-                            selectedItems - mediaItem
-                        }
-                        onSelectionChanged(newSelectedItems)
-                    },
-                    onClickPreview = {
-
-                    }
-                )
-            }
-        }
-    }
-}
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun UnifiedMediaPicker(
@@ -181,60 +110,24 @@ fun UnifiedMediaPicker(
     var mediaItems by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
     var selectedItems by remember { mutableStateOf<Set<MediaItem>>(emptySet()) }
 
-    // 权限（统一读取图片和视频）
-    val mediaPermission = rememberPermissionState(
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-            Manifest.permission.READ_MEDIA_IMAGES
-        else Manifest.permission.READ_EXTERNAL_STORAGE
-    )
-    Napier.d("mediaPermission ${mediaPermission.permission} status: ${mediaPermission.status}")
+    // 添加媒体类型选择状态
+    var selectedMediaType by remember { mutableStateOf("all") } // "all", "image", "video"
+
     // 加载媒体
     fun loadMedia() {
         scope.launch {
-            when {
-                mediaPermission.status.isGranted -> {
-//                    showPermissionScreen.value = false
-//                    onGranted()
-                }
-                !mediaPermission.status.isGranted && !mediaPermission.status.shouldShowRationale -> {
-                    // 权限被永久拒绝
-                    // 如果需要 ， 引导用户去设置页面授权
-
-                    val intent = Intent(
-                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.fromParts("package", context.packageName, null)
-                    )
-                    context.startActivity(intent)
-                    return@launch
-                }
-                else -> {
-
-                }
-            }
-
-            if (mediaPermission.status.shouldShowRationale) {
-
-            }
-            if (!mediaPermission.status.isGranted) {
-                Napier.d("loadMedia permission request !")
-                mediaPermission.launchPermissionRequest()
-                return@launch
-            }
             Napier.d("loadMedia permission check success !")
 
-            loadMediaItems(context, "all") { items ->
+            loadMediaItems(context, selectedMediaType) { items ->
                 Napier.d("loadMediaItems success !")
                 mediaItems = items
             }
-
         }
     }
 
-    LaunchedEffect(Unit) {
-
+    LaunchedEffect(selectedMediaType) {
+        loadMedia()
     }
-
-
 
     // BottomSheet
     ModalBottomSheet(
@@ -247,12 +140,43 @@ fun UnifiedMediaPicker(
                 .fillMaxHeight(0.8f)
                 .padding(4.dp)
         ) {
-            // 1. 标题
-            Text(
-                text = "相册",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(8.dp)
-            )
+            // 1. 标题和媒体类型选择
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                Text(
+                    text = "相册",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                
+                // 媒体类型选择标签
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    val mediaTypes = listOf(
+                        Pair("all", "全部"),
+                        Pair("image", "图片"),
+                        Pair("video", "视频")
+                    )
+                    
+                    mediaTypes.forEach { (type, label) ->
+                        FilterChip(
+                            selected = selectedMediaType == type,
+                            onClick = {
+                                selectedMediaType = type
+                            },
+                            label = {
+                                Text(label)
+                            }
+                        )
+                    }
+                }
+            }
 
             // 2. 媒体网格
             LazyVerticalGrid(
@@ -565,7 +489,7 @@ private suspend fun loadMediaItems(
                     )
             }
         }
-        
+
         android.util.Log.d("MediaPickerScreen", "查询条件: selection=$selection, selectionArgs=${selectionArgs?.contentToString()}")
         
         val sortOrder = "${android.provider.MediaStore.MediaColumns.DATE_TAKEN} DESC"

@@ -255,9 +255,6 @@ fun ChatRoomScreen(
                         MessageBubble(
                             isOwnMessage = isMyMessage,
                             msg = message,
-                            onFileMessageClick = { 
-                                messageViewModel.downloadFileMessage(it.content)
-                            }
                         )
                     }
                 }
@@ -349,8 +346,6 @@ fun MessageBubble(
     isOwnMessage: Boolean,
     msg: MessageItem,
     showAvatar: Boolean = true,
-    onVoiceMessageClick: (MessageContent.Voice) -> Unit = {},
-    onFileMessageClick: (MessageItem) -> Unit = {}
 ) {
     val messageViewModel: ChatMessageViewModel = koinViewModel()
     
@@ -459,7 +454,7 @@ fun MessageBubble(
                         }
                         MessageType.IMAGE -> ImageMessage(MessageContent.Image(msg.content))
                         MessageType.VIDEO -> VideoBubble(MessageContent.Video(msg.content))
-                        MessageType.FILE -> FileMessageBubble(msg, onFileMessageClick)
+                        MessageType.FILE -> FileMessageBubble(msg)
                         else -> TextMessage(MessageContent.Text(msg.content))
                     }
                 }
@@ -477,209 +472,6 @@ fun MessageBubble(
             } else {
                 // 不显示头像时保留占位空间
                 Spacer(modifier = Modifier.width(48.dp))
-            }
-        }
-    }
-}
-
-/**
- * 文件类型气泡
- */
-@Composable
-fun FileMessageBubble(msg: MessageItem, onClick: (MessageItem) -> Unit) {
-    val messageViewModel: ChatMessageViewModel = koinViewModel()
-    
-    var showDialog by remember { mutableStateOf(false) }
-    var isDownloading by remember { mutableStateOf(false) }
-
-    // 异步加载文件大小信息
-    var fileSize by remember { mutableStateOf<Long?>(null) }
-
-    LaunchedEffect(msg) {
-        val meta = messageViewModel.getFileMessageMetaAsync(msg)
-        fileSize = meta?.size
-    }
-
-    val displaySize = when (val size = fileSize) {
-        null -> "加载中..."
-        else -> if (size > 1024 * 1024) {
-            "${size / 1024 / 1024}MB"
-        } else if (size > 1024) {
-            "${size / 1024}KB"
-        } else {
-            "${size}B"
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-            .clickable { onClick(msg) }
-            .width(200.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 文件图标
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(Color(0xFFE3F2FD), shape = RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.FileDownload,
-                    contentDescription = "文件",
-                    tint = Color(0xFF1976D2),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(8.dp))
-            
-            // 文件信息
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = msg.content,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1
-                )
-                Text(
-                    text = displaySize,
-                    color = Color.Gray,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        // 操作按钮
-        Button(
-            onClick = { showDialog = true },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF1976D2),
-                contentColor = Color.White
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("查看文件")
-        }
-    }
-    
-    // 点击后显示文件操作对话框
-    if (showDialog) {
-        FileActionDialog(
-            fileName = msg.content,
-            fileSize = displaySize,
-            onDismiss = { showDialog = false },
-            onView = {
-                showDialog = false
-                // 实际查看文件的逻辑
-                // 可以打开浏览器下载或者在应用内查看
-                onClick(msg)
-            },
-            onDownload = {
-                isDownloading = true
-                // 实际下载文件的逻辑
-                // 这里应该调用文件下载服务
-                isDownloading = false
-            }
-        )
-    }
-    
-    // 下载进度指示器
-    if (isDownloading) {
-        Dialog(onDismissRequest = { /* 不允许取消 */ }) {
-            Box(
-                modifier = Modifier
-                    .background(Color.White, shape = RoundedCornerShape(8.dp))
-                    .padding(16.dp)
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    CircularProgressIndicator()
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("文件下载中...")
-                }
-            }
-        }
-    }
-}
-
-/**
- * 文件操作对话框
- */
-@Composable
-fun FileActionDialog(
-    fileName: String,
-    fileSize: String,
-    onDismiss: () -> Unit,
-    onView: () -> Unit,
-    onDownload: () -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = Color.White
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = fileName,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                Text(
-                    text = fileSize,
-                    color = Color.Gray,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Button(
-                    onClick = onView,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF1976D2),
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("在线查看")
-                }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Button(
-                    onClick = onDownload,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50),
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("下载文件")
-                }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.LightGray,
-                        contentColor = Color.Black
-                    )
-                ) {
-                    Text("取消")
-                }
             }
         }
     }
