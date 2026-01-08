@@ -3,8 +3,8 @@ package com.github.im.group.repository
 import com.github.im.group.api.FileMeta
 import com.github.im.group.db.AppDatabase
 import com.github.im.group.db.entities.FileStatus
-import com.github.im.group.sdk.PickedFile
 import db.FileResource
+import io.github.aakira.napier.Napier
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -50,35 +50,6 @@ class FilesRepository(
         )
     }
     /**
-     * 添加待上传的文件记录
-     * 在文件上传前 获取到 uploaderId - fileId 后
-     * 必要参数
-     * fileName 文件名
-     * fileId 服务端给的 uploaderId
-     * duration 时长
-     * status 文件状态 这个时候为  {@link FileStatus.UPLOADING}
-     *
-     * @param fileId 文件ID
-     * @param fileName 文件名
-     * @param duration 文件时长 媒体文件需要添加时长
-     */
-    fun addPendingFileRecord(fileId: String, pickedFile: PickedFile, duration: Long = 0) {
-
-        db.filesQueries.insertFile(
-            originalName = pickedFile.name,
-            contentType = pickedFile.mimeType ?: "",
-            size = pickedFile.size,
-            serverId = fileId,
-            storagePath = pickedFile.path,
-            hash ="",
-            uploadTime = Clock.System.now().toLocalDateTime(TimeZone.UTC),
-            status = FileStatus.UPLOADING,
-            thumbnail = null,
-            duration = duration
-        )
-
-    }
-    /**
      * 添加/更新文件记录到数据库
      * 如果文件已存在，则更新信息
      * @param metaFileMeta
@@ -86,7 +57,6 @@ class FilesRepository(
     fun addOrUpdateFile(metaFileMeta : FileMeta){
         // 检查文件是否已存在
         val existingFile = db.filesQueries.selectFileByServerId(metaFileMeta.fileId).executeAsOneOrNull()
-        
         if (existingFile == null) {
             // 如果文件不存在，则插入新记录
             db.filesQueries.insertFile(
@@ -103,6 +73,9 @@ class FilesRepository(
                 duration = metaFileMeta.duration.toLong()
             )
         } else {
+
+            Napier.d { "文件是否存在 ： $existingFile " }
+
             db.filesQueries.updateFileByServerId(
                 originalName = metaFileMeta.fileName,
                 contentType = metaFileMeta.contentType,
@@ -131,49 +104,11 @@ class FilesRepository(
         
         db.transaction {
             fileMetas.forEach { fileMeta ->
-                addFileInTransaction(fileMeta)
+                addOrUpdateFile(fileMeta)
             }
         }
     }
-    
-    /**
-     * 在事务中添加单个文件记录
-     * @param fileMeta 文件元数据
-     */
-    private fun addFileInTransaction(fileMeta: FileMeta) {
-        // 检查文件是否已存在
-        val existingFile = db.filesQueries.selectFileByServerId(fileMeta.fileId).executeAsOneOrNull()
-        
-        if (existingFile == null) {
-            // 如果文件不存在，则插入新记录
-            db.filesQueries.insertFile(
-                originalName = fileMeta.fileName,
-                contentType = fileMeta.contentType,
-                serverId = fileMeta.fileId,
-                size = fileMeta.size,
-                storagePath = "$STORE_PATH/${fileMeta.hash}",
-                hash = fileMeta.hash,
-                uploadTime = Clock.System.now().toLocalDateTime(TimeZone.UTC),
-                status = FileStatus.NORMAL,
-                thumbnail = fileMeta.thumbnail,
-                duration = fileMeta.duration.toLong()
-            )
-        } else {
 
-            db.filesQueries.updateFileByServerId(
-                originalName = existingFile.originalName,
-                contentType = existingFile.contentType,
-                size = existingFile.size,
-                storagePath = existingFile.storagePath,
-                hash = existingFile.hash,
-                uploadTime = existingFile.uploadTime,
-                status = existingFile.status,
-                thumbnail = existingFile.thumbnail,
-                duration = existingFile.duration,
-                serverId =  existingFile.serverId
-            )
-        }
-    }
 
     /**
      * 获取文件记录

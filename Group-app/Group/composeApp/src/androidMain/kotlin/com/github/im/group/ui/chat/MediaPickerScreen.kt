@@ -2,12 +2,10 @@ package com.github.im.group.ui.chat
 
 import android.Manifest
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
-import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,7 +18,6 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
@@ -38,11 +35,7 @@ import androidx.media3.common.util.UnstableApi
 import coil3.compose.AsyncImage
 import com.github.im.group.sdk.*
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.MultiplePermissionsState
 import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberMultiplePermissionsState
-import com.google.accompanist.permissions.rememberPermissionState
-import com.google.accompanist.permissions.shouldShowRationale
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -55,13 +48,23 @@ data class MediaItem(
     val mimeType: String,
     val size: Long,
     val dateTaken: Long
-)
+) {
+    fun toPickedFile(): File {
+        return File(
+            name = this.name,
+            path = this.uri.toString(),
+            mimeType = this.mimeType,
+            size = this.size,
+            data = FileData.Uri(this.uri.toString())
+        )
+    }
+}
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 actual fun MediaPickerScreen(
     onDismiss: () -> Unit,
-    onMediaSelected: (List<PickedFile>) -> Unit
+    onMediaSelected: (List<File>) -> Unit
 ) {
     var permissionCheck by remember { mutableStateOf(false) }
     
@@ -81,9 +84,11 @@ actual fun MediaPickerScreen(
         },
         onRequest = {
             // 权限请求中，可以保持当前状态或更新UI
+            Napier.d("permission request")
         },
         onAnyDenied = {
             // 权限被拒绝的处理
+            Napier.d("permission denied")
         }
     )
     
@@ -100,7 +105,7 @@ actual fun MediaPickerScreen(
 @Composable
 fun UnifiedMediaPicker(
     onDismiss: () -> Unit,
-    onMediaSelected: (List<PickedFile>) -> Unit
+    onMediaSelected: (List<File>) -> Unit
 ) {
 
     Napier.d("link start")
@@ -209,10 +214,10 @@ fun UnifiedMediaPicker(
                     onDismiss = { previewItem = null },  // 点击关闭时置空状态
                     onMediaSelected = { selectedMedia ->
                         // 预览界面中选择文件后直接返回
-                        val pickedFiles = selectedMedia.map { media ->
-                            PickedFile(media.name, media.uri.toString(), media.mimeType, media.size, FileData.Uri(media.uri.toString()))
+                        val files = selectedMedia.map { media ->
+                            File(media.name, media.uri.toString(), media.mimeType, media.size, FileData.Uri(media.uri.toString()))
                         }
-                        onMediaSelected(pickedFiles)
+                        onMediaSelected(files)
                         onDismiss()
                     }
                 )
@@ -221,10 +226,10 @@ fun UnifiedMediaPicker(
             if (selectedItems.isNotEmpty()) {
                 Button(
                     onClick = {
-                        val pickedFiles = selectedItems.map { media ->
-                            PickedFile(media.name, media.uri.toString(), media.mimeType, media.size,FileData.Path(media.uri.toString()))
+                        val files = selectedItems.map { media ->
+                            File(media.name, media.uri.toString(), media.mimeType, media.size, FileData.Uri(media.uri.toString()))
                         }
-                        onMediaSelected(pickedFiles)
+                        onMediaSelected(files)
                         onDismiss()
                     },
                     modifier = Modifier
@@ -264,7 +269,7 @@ fun MediaPreviewDialog(
             } else if (media.mimeType.startsWith("video/")) {
                 // 使用AndroidView和ExoPlayer直接播放视频
                 Napier.d("play video ${media.uri}")
-                CrossPlatformVideo(media.uri.toString(), Modifier.fillMaxSize(), size = 200.dp)
+                CrossPlatformVideo(media.toPickedFile(), Modifier.fillMaxSize(), size = 200.dp)
             }
 
             // 显示选中状态 - 在右上角
@@ -731,4 +736,3 @@ private fun extractVideoFrame(uri: Uri): Bitmap? {
         null
     }
 }
-

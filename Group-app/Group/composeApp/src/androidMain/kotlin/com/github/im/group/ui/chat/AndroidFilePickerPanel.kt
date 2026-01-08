@@ -32,8 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.github.im.group.sdk.AndroidFilePicker
 import com.github.im.group.sdk.FilePicker
-import com.github.im.group.sdk.PickedFile
-import com.github.im.group.sdk.TryGetPermission
+import com.github.im.group.sdk.File
 import com.github.im.group.sdk.getPlatformFilePicker
 import com.github.im.group.sdk.rememberFilePickerLauncher
 import com.github.im.group.sdk.rememberTakePictureLauncher
@@ -47,7 +46,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun AndroidFilePickerPanel(
     onDismiss: () -> Unit,
-    onFileSelected: (List<PickedFile>) -> Unit
+    onFileSelected: (List<File>) -> Unit
 ) {
     val filePickerLauncher = rememberFilePickerLauncher()
     val scope = rememberCoroutineScope()
@@ -128,7 +127,7 @@ fun AndroidFilePickerPanel(
 
 private suspend fun takePhotoAndHandleResult(
     filePicker: FilePicker,
-    onFileSelected: (List<PickedFile>) -> Unit,
+    onFileSelected: (List<File>) -> Unit,
     onDismiss: () -> Unit
 ) {
     try {

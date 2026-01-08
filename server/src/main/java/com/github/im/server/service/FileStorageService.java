@@ -15,6 +15,7 @@ import com.github.im.server.service.storage.StorageStrategy;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -29,6 +30,7 @@ import java.io.*;
 import java.net.MalformedURLException;
 import java.nio.file.*;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -37,6 +39,7 @@ import java.util.stream.StreamSupport;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FileStorageService {
 
     private final FileUploadProperties properties;
@@ -106,21 +109,24 @@ public class FileStorageService {
      * 存储单文件（小文件直传）
      */
     @Transactional
-    public FileUploadResponse storeFile(MultipartFile file, UUID uploaderId,Long duration) throws IOException {
-        // 根据uploaderId（预分配的文件ID）查询已存在的文件记录
-        FileResource existingResource = repository.findById(uploaderId)
-            .orElseThrow(() -> new FileNotFoundException("File record not found for ID: " + uploaderId));
+    public FileUploadResponse storeFile(MultipartFile file, UUID fileId,Long duration) throws IOException {
+//        // 根据fileId（预分配的文件ID）查询已存在的文件记录
+        FileResource existingResource = repository.findById(fileId)
+            .orElseThrow(() -> new FileNotFoundException("File record not found for ID: " + fileId));
         
         // 使用现有的文件记录信息，更新文件存储
-        FileResource updatedResource = storageStrategy.store(file, uploaderId, duration);
+        FileResource updatedResource = storageStrategy.store(file, fileId, duration);
         
         // 保留预分配记录的关键信息
-        updatedResource.setId(existingResource.getId());
-        updatedResource.setUploadTime(existingResource.getUploadTime()); // 保留原有的上传时间
-        updatedResource.setStatus(FileStatus.NORMAL); // 更新状态为正常
-        
+        existingResource.setUploadTime(LocalDateTime.now()); // 保留原有的上传时间
+        existingResource.setStatus(FileStatus.NORMAL); // 更新状态为正常
+        existingResource.setStoragePath(updatedResource.getStoragePath());
+        existingResource.setStorageType(updatedResource.getStorageType());
+        existingResource.setHash(updatedResource.getHash());
+        existingResource.setSize(updatedResource.getSize());
+
         // 保存更新后的文件记录
-        FileResource savedResource = repository.saveAndFlush(updatedResource);
+        FileResource savedResource = repository.saveAndFlush(existingResource);
         
         // 如果是媒体文件，创建或更新对应的媒体资源记录
         MediaFileResource mediaResource = createMediaResourceIfNeeded(savedResource, duration);
@@ -139,11 +145,11 @@ public class FileStorageService {
      * @param fileHash 文件 hash
      * @param chunkIndex 当前分片索引
      * @param totalChunks 总分片数
-     * @param uploaderId 预分配的文件ID
+     * @param fileId 预分配的文件ID
      */
     public void uploadChunk(MultipartFile file, String fileHash, int chunkIndex,
-                            int totalChunks, UUID uploaderId) throws IOException {
-        Path sessionDir = chunkTempDir.resolve(uploaderId.toString()).normalize();
+                            int totalChunks, UUID fileId) throws IOException {
+        Path sessionDir = chunkTempDir.resolve(fileId.toString()).normalize();
         Files.createDirectories(sessionDir);
 
         // 分片文件名：00001.part
@@ -220,13 +226,13 @@ public class FileStorageService {
      * 合并所有分片并保存为最终文件
      * 所有的分片文件会存放在临时目录文件下
      */
-    public FileUploadResponse mergeChunks(String fileHash, String originalName, UUID uploaderId, Long duration) throws IOException {
-        // 根据uploaderId（预分配的文件ID）查询已存在的文件记录
-        FileResource existingResource = repository.findById(uploaderId)
-            .orElseThrow(() -> new FileNotFoundException("File record not found for ID: " + uploaderId));
+    public FileUploadResponse mergeChunks(String fileHash, String originalName, UUID fileId, Long duration) throws IOException {
+        // 根据fileId（预分配的文件ID）查询已存在的文件记录
+        FileResource existingResource = repository.findById(fileId)
+            .orElseThrow(() -> new FileNotFoundException("File record not found for ID: " + fileId));
         
         // 使用存储策略的分片合并方法
-        FileResource updatedResource = storageStrategy.storeMergedFile(fileHash, originalName, uploaderId, duration, chunkTempDir);
+        FileResource updatedResource = storageStrategy.storeMergedFile(fileHash, originalName, fileId, duration, chunkTempDir);
         
         // 保留预分配记录的关键信息
         updatedResource.setId(existingResource.getId());
@@ -286,7 +292,6 @@ public class FileStorageService {
         Optional<MediaType> mediaType = MediaTypeFactory.getMediaType(request.getFileName());
         mediaType.ifPresent(mt -> fileResource.setContentType(mt.toString()));
         fileResource.setOriginalName(request.getFileName());
-        fileResource.setContentType(request.getFileName());
         fileResource.setSize(request.getSize());
         fileResource.setExtension(FileNameUtil.extName(request.getFileName()));
         
@@ -294,51 +299,58 @@ public class FileStorageService {
         
         // 设置初始状态
         fileResource.setStatus(FileStatus.UPLOADING);
-        fileResource.setUploadTime(Instant.now());
+        fileResource.setUploadTime(LocalDateTime.now());
         
         // 保存到数据库
         FileResource savedResource = repository.save(fileResource);
-        
-        // 如果是媒体文件，创建对应的媒体资源记录
-        MediaFileResource mediaResource = createMediaResourceIfNeeded(savedResource, request.getDuration());
-        
+//
+//        // 如果是媒体文件，创建对应的媒体资源记录
+//        MediaFileResource mediaResource = createMediaResourceIfNeeded(savedResource, request.getDuration());
+//
         // 如果存在媒体资源，使用包含媒体信息的DTO方法
-        if (mediaResource != null) {
-            return fileMapper.toDTOMedia(savedResource, mediaResource);
-        } else {
+//        if (mediaResource != null) {
+//            return fileMapper.toDTOMedia(savedResource, mediaResource);
+//        } else {
             return fileMapper.toDTO(savedResource);
-        }
+//        }
     }
     
     /**
      * 根据文件信息创建媒体资源记录（如果需要）
      */
     private MediaFileResource createMediaResourceIfNeeded(FileResource fileResource, Long duration) {
-        if (isMediaFile(fileResource.getExtension())) {
-            MediaFileResource mediaResource = new MediaFileResource();
-            mediaResource.setFile(fileResource);
-            
-            // 设置时长，使用传入的时长参数
-            Float mediaDuration = duration != null ? duration.floatValue() : 0.0f;
-            mediaResource.setDuration(mediaDuration);
-            
-            // 注意：不再更新 FileResource 的 duration 字段，因为媒体相关数据应存储在 MediaFileResource 中
-            // 如果文件资源的duration为null，但提供了duration参数，只更新媒体资源
-            
-            // 如果是图片文件，生成缩略图
-            if (isImageFile(fileResource.getExtension())) {
-                // 这里可以调用图片处理服务生成缩略图 TODO
 
-                /**
-                 * 1. 创建一条缩略图的 FileResource 记录
-                 * 2. 生成缩略图文件
-                 * 3. 保存缩略图文件
-                 * 4. 更新 FileResource  并且存入数据库
-                 */
-                // mediaResource.setThumbnail(generateThumbnail(fileResource));
+        try{
+            if (isMediaFile(fileResource.getExtension())) {
+                // 先检查是否已存在对应的媒体资源记录
+                var mediaResource = Optional.ofNullable(mediaFileResourceRepository.findByFileId(fileResource.getId())).orElseGet(()->{
+                    MediaFileResource mediaFileResource = new MediaFileResource();
+                    mediaFileResource.setFile(fileResource);
+                    return  mediaFileResource;
+                });
+                Float mediaDuration = duration != null ? duration.floatValue() : 0.0f;
+                mediaResource.setDuration(mediaDuration);
+                // 如果是图片文件，生成缩略图
+                if (isImageFile(fileResource.getExtension())) {
+                    // 这里可以调用图片处理服务生成缩略图 TODO
+
+                    /**
+                     * 1. 创建一条缩略图的 FileResource 记录
+                     * 2. 生成缩略图文件
+                     * 3. 保存缩略图文件
+                     * 4. 更新 FileResource  并且存入数据库
+                     */
+                }
+
+
+
+                return mediaFileResourceRepository.save(mediaResource);
             }
-            
-            return mediaFileResourceRepository.saveAndFlush(mediaResource);
+
+
+        }catch (Exception e){
+            log.error("创建媒体资源失败", e);
+            throw  new RuntimeException("创建媒体资源失败");
         }
         return null;
     }
@@ -350,10 +362,23 @@ public class FileStorageService {
         if (extension == null) return false;
         
         String ext = extension.toLowerCase();
-        return ext.equals("mp4") || ext.equals("avi") || ext.equals("mov") || ext.equals("wmv") ||
-               ext.equals("mp3") || ext.equals("wav") || ext.equals("flac") || ext.equals("aac") ||
-               ext.equals("jpg") || ext.equals("jpeg") || ext.equals("png") || ext.equals("gif") ||
-               ext.equals("webp") || ext.equals("bmp");
+        // 视频格式
+        boolean isVideo = ext.equals("mp4") || ext.equals("avi") || ext.equals("mov") || 
+                       ext.equals("wmv") || ext.equals("mkv") || ext.equals("flv") || 
+                       ext.equals("webm") || ext.equals("m4v") || ext.equals("3gp");
+        
+        // 音频格式
+        boolean isAudio = ext.equals("mp3") || ext.equals("wav") || ext.equals("flac") || 
+                       ext.equals("aac") || ext.equals("ogg") || ext.equals("m4a") || 
+                       ext.equals("wma") || ext.equals("opus");
+        
+        // 图片格式
+        boolean isImage = ext.equals("jpg") || ext.equals("jpeg") || ext.equals("png") || 
+                       ext.equals("gif") || ext.equals("webp") || ext.equals("bmp") ||
+                       ext.equals("svg") || ext.equals("tiff") || ext.equals("ico") ||
+                       ext.equals("heic") || ext.equals("heif");
+        
+        return isVideo || isAudio || isImage;
     }
     
     /**

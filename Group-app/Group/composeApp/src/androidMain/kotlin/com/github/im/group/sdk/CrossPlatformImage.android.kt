@@ -1,120 +1,153 @@
 package com.github.im.group.sdk
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import android.content.ContentResolver
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.Dp
-
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
-import coil3.network.NetworkHeaders
-import coil3.network.httpHeaders
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.github.im.group.GlobalCredentialProvider
-import com.github.im.group.ui.chat.MediaItem
-import io.github.aakira.napier.Napier
+import java.io.InputStream
 
+/**
+ * 跨平台图像组件
+ */
 @Composable
 actual fun CrossPlatformImage(
-    url: String,
+    file: File,
     modifier: Modifier,
-    size: Dp,
-    token: String?
+    size: Int
 ) {
-    /**
-     * 小图查看
-     */
-    @Composable
-    fun CoilImageComposable() {
-        val context = LocalContext.current
-        val token = GlobalCredentialProvider.currentToken
-        val headers = NetworkHeaders.Builder()
-
-            .set("Authorization", "Bearer $token")
-            .build()
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(url)
-                .httpHeaders( headers)
-                .crossfade(true)
-                .build(),
-            contentDescription = null,
-            modifier = modifier
-//                .size(size)
-                .padding(PaddingValues(3.dp,12.dp))
-        )
-
-    }
-
-    /**
-     *  点击后的大图查看
-     */
-    @Composable
-    fun ImagePreView(
-        items: List<MediaItem>,
-        currentItem: MediaItem,
-        onDismiss: () -> Unit
-    ) {
-        var currentIndex by remember { mutableIntStateOf(items.indexOf(currentItem)) }
-
-        Dialog(onDismissRequest = onDismiss
-            , properties = DialogProperties(dismissOnBackPress = true, usePlatformDefaultWidth = false ,dismissOnClickOutside = true)
-        ) {
-            Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-                val media = items[currentIndex]
-                if (media.mimeType.startsWith("image/")) {
+    val context = LocalContext.current
+    val token = GlobalCredentialProvider.currentToken
+    
+    // 根据 PickedFile.data 的类型来决定如何加载图片
+    when (val data = file.data) {
+        is FileData.Bytes -> {
+            // 使用字节数组加载
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(data.data)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                modifier = modifier
+                    .padding(PaddingValues(3.dp, 12.dp))
+            )
+        }
+        is FileData.Path -> {
+            // 检查路径是否为Content URI
+            if (data.path.startsWith("content://")) {
+                // 处理Content URI
+                val inputStream: InputStream? = try {
+                    context.contentResolver.openInputStream(Uri.parse(data.path))
+                } catch (e: Exception) {
+                    null
+                }
+                
+                if (inputStream != null) {
+                    // 使用Coil加载Content URI
                     AsyncImage(
-                        model = media.uri,
-                        contentDescription = media.name,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize()
+                        model = ImageRequest.Builder(context)
+                            .data(inputStream)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        modifier = modifier
+                            .padding(PaddingValues(3.dp, 12.dp))
                     )
-                } else if (media.mimeType.startsWith("video/")) {
-                    // 使用AndroidView和ExoPlayer直接播放视频
-                    Napier.d("play video ${media.uri}")
-                    CrossPlatformVideo(media.uri.toString(), Modifier.fillMaxSize(), size = 200.dp)
+                } else {
+                    // 如果无法加载，显示错误占位符
+                    Image(
+                        painter = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_report_image),
+                        contentDescription = "无法加载图片",
+                        modifier = modifier
+                            .padding(PaddingValues(3.dp, 12.dp))
+                    )
                 }
-
-                // 左右切换
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (currentIndex > 0) {
-                        Box(modifier = Modifier
-                            .size(48.dp)
-                            .clickable { currentIndex-- })
-                    }
-                    if (currentIndex < items.size - 1) {
-                        Box(modifier = Modifier
-                            .size(48.dp)
-                            .clickable { currentIndex++ })
-                    }
-                }
+            } else {
+                // 普通文件路径
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(data.path)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = modifier
+                        .padding(PaddingValues(3.dp, 12.dp))
+                )
             }
         }
+        is FileData.Uri -> {
+            // 处理URI
+            val inputStream: InputStream? = try {
+                context.contentResolver.openInputStream(Uri.parse(data.uri))
+            } catch (e: Exception) {
+                null
+            }
+            
+            if (inputStream != null) {
+                // 使用Coil加载Content URI
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(inputStream)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = modifier
+                        .padding(PaddingValues(3.dp, 12.dp))
+                )
+            } else {
+                // 如果无法加载，显示错误占位符
+                Image(
+                    painter = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_report_image),
+                    contentDescription = "无法加载图片",
+                    modifier = modifier
+                        .padding(PaddingValues(3.dp, 12.dp))
+                )
+            }
+        }
+        FileData.None -> {
+            // 如果没有数据，显示错误占位符
+            Image(
+                painter = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_report_image),
+                contentDescription = "无图片数据",
+                modifier = modifier
+                    .padding(PaddingValues(3.dp, 12.dp))
+            )
+        }
     }
+}
 
-    CoilImageComposable()
+/**
+ * 获取Content URI的文件信息
+ */
+fun Context.getContentUriFileInfo(uri: String): Pair<String, Long>? {
+    val contentUri = Uri.parse(uri)
+    return try {
+        val resolver: ContentResolver = this.contentResolver
+        var name = "unknown"
+        var size: Long = -1
+        
+        resolver.query(contentUri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+            if (cursor.moveToFirst()) {
+                name = cursor.getString(nameIndex) ?: "unknown"
+                size = cursor.getLong(sizeIndex)
+            }
+        }
+        
+        Pair(name, size)
+    } catch (e: Exception) {
+        null
+    }
 }

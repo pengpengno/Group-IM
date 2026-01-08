@@ -7,7 +7,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 expect fun CrossPlatformVideo(
-    url: String,
+    file: File,
     modifier: Modifier = Modifier,
     size: Dp = 200.dp,
     onClose: (() -> Unit)? = null

@@ -23,9 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
@@ -37,7 +35,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,18 +46,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.github.im.group.api.FileMeta
-import com.github.im.group.model.MessageItem
 import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.CrossPlatformImage
 import com.github.im.group.sdk.CrossPlatformVideo
+import com.github.im.group.sdk.File
 import com.github.im.group.viewmodel.ChatMessageViewModel
-import io.github.aakira.napier.Napier
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.math.abs
@@ -68,7 +63,7 @@ import kotlin.math.sin
 
 sealed class MessageContent {
     data class Text(val text: String) : MessageContent()
-    data class Image(val imageId: String) : MessageContent()
+    data class Image(val file: com.github.im.group.sdk.File) : MessageContent()
 
     /**
      * @param audioPath 音频文件路径
@@ -81,7 +76,7 @@ sealed class MessageContent {
      * @param fileMeta 文件元信息
      */
     data class File(val fileMeta: FileMeta) : MessageContent()
-    data class Video(val videoId: String) : MessageContent()
+    data class Video(val file: com.github.im.group.sdk.File) : MessageContent()
 }
 
 
@@ -93,22 +88,22 @@ fun ImageMessage(content: MessageContent.Image) {
     var showPreview by remember { mutableStateOf(false) }
 
     CrossPlatformImage(
-        url = content.imageId,
+        file = content.file,
         modifier = Modifier
             .size(200.dp)
             .clip(RoundedCornerShape(8.dp))
             .clickable { showPreview = true },
-        size = 200.dp
+        size = 200
     )
 
     if (showPreview) {
         Dialog(onDismissRequest = { showPreview = false }) {
             CrossPlatformImage(
-                url = content.imageId,
+                file = content.file,
                 modifier = Modifier
                     .size(300.dp)
                     .clip(RoundedCornerShape(8.dp)),
-                size = 300.dp
+                size = 300
             )
         }
     }
@@ -324,7 +319,7 @@ fun VideoMessage(content: MessageContent.Video) {
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             CrossPlatformVideo(
-                url = content.videoId,
+                file = content.file,
                 modifier = Modifier.fillMaxSize(),
                 size = 300.dp,
                 onClose = { showPreview = false }
@@ -583,8 +578,6 @@ fun SendingSpinner(modifier: Modifier = Modifier, color: Color = Color.Gray) {
 @Composable
 fun VideoBubble(content: MessageContent.Video) {
     var showPreview by remember { mutableStateOf(false) }
-    val messageViewModel: ChatMessageViewModel = koinViewModel()
-    val videoUrl = messageViewModel.getLocalFilePath(content.videoId).toString()
 
     Box(
         modifier = Modifier
@@ -609,7 +602,7 @@ fun VideoBubble(content: MessageContent.Video) {
     // 点击后全屏预览
     if (showPreview) {
         FullScreenVideoPlayer(
-            videoUrl = videoUrl,
+            file = content.file,
             onClose = { showPreview = false }
         )
     }
@@ -619,7 +612,7 @@ fun VideoBubble(content: MessageContent.Video) {
  * 全屏放大 视频播放
  */
 @Composable
-fun FullScreenVideoPlayer(videoUrl: String, onClose: () -> Unit) {
+fun FullScreenVideoPlayer(file: File, onClose: () -> Unit) {
     Dialog(
         onDismissRequest = onClose,
         properties = DialogProperties(
@@ -627,7 +620,7 @@ fun FullScreenVideoPlayer(videoUrl: String, onClose: () -> Unit) {
         )
     ) {
         CrossPlatformVideo(
-            url = videoUrl,
+            file = file,
             modifier = Modifier.fillMaxSize(),
             size = 200.dp,
             onClose = onClose

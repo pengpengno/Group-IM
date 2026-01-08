@@ -1,23 +1,14 @@
 package com.github.im.group.manager
 
 import com.github.im.group.api.FileApi
-import com.github.im.group.api.FileMeta
 import com.github.im.group.api.FileUploadResponse
-import com.github.im.group.api.UploadFileRequest
-import com.github.im.group.model.MessageWrapper
-import com.github.im.group.model.proto.ChatMessage
-import com.github.im.group.model.proto.MessageType
-import com.github.im.group.model.proto.MessagesStatus
+import com.github.im.group.db.entities.FileStatus
 import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.FilesRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.FilePicker
-import com.github.im.group.sdk.PickedFile
 import io.github.aakira.napier.Napier
-import kotlinx.datetime.Clock
-import kotlin.math.log
 import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 /**
  * 文件上传服务
@@ -47,20 +38,19 @@ class FileUploadService(
             uploadResponse.fileMeta?.let {
                 filesRepository.addOrUpdateFile(it)
             }
+            Napier.i { "上传后的文件 $uploadResponse " }
             return uploadResponse
         }catch (e: Exception){
             Napier.e{"上传文件失败 $e"}
-        }finally {
             //TODO  更新文件为 失败状态
+            filesRepository.updateFileStatus(serverFileId, FileStatus.FAILED)
 
         }
-
-        val uploadResponse = FileUploadResponse(
+        return FileUploadResponse(
             id = serverFileId,
             fileMeta = filesRepository.getFileMeta(serverFileId),
-            fileStatus = MessagesStatus.FAILED.name
+            fileStatus = FileStatus.FAILED.name,
         )
-        return uploadResponse
     }
 
 }

@@ -27,33 +27,38 @@ interface FilePicker {
     /**
      * 选择图像
      */
-    suspend fun pickImage(): List<PickedFile>
+    suspend fun pickImage(): List<File>
 
     /**
      * 选择视频
      */
-    suspend fun pickVideo(): List<PickedFile>
+    suspend fun pickVideo(): List<File>
 
     /**
      * 选取文件
      */
-    suspend fun pickFile(): List<PickedFile>
+    suspend fun pickFile(): List<File>
 
     /**
      * 拍照
      * 需要返回 图片的字段内容
      */
-    suspend fun takePhoto(): PickedFile?
+    suspend fun takePhoto(): File?
     
 
 
     /**
      * 从 PickedFile 读取文件内容为字节数组
      */
-    suspend fun readFileBytes(pickedFile: PickedFile): ByteArray
+    suspend fun readFileBytes(file: File): ByteArray
 }
 
-data class PickedFile(
+/**
+ * 文件信息
+ * 包含文件名、路径、MIME 类型、大小等信息
+ *用于 处理本地存在的文件 会包括 路径与数据
+ */
+data class File(
     val name: String,
     val path: String,
     val mimeType: String?,

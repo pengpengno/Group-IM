@@ -63,7 +63,7 @@ object ProxyApi
             url = baseUrl + "/api/files/upload",
             formData = formData {
 
-                append("uploaderId", fileId)
+                append("fileId", fileId)
                 if (duration > 0){
                     append("duration", duration)
                 }
@@ -131,7 +131,7 @@ object ProxyApi
             url = baseUrl + "/api/files/upload",
             formData = formData {
 
-                append("uploaderId", clientId)
+                append("fileId", clientId)
                 if (duration > 0){
                     append("duration", duration)
                 }

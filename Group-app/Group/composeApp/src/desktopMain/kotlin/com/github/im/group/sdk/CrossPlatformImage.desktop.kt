@@ -11,46 +11,62 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.DefaultAlpha
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.loadImageBitmap
-import com.github.im.group.GlobalCredentialProvider
-import io.ktor.client.request.header
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import java.net.URL
-import javax.imageio.ImageIO
 
 @Composable
 actual fun CrossPlatformImage(
-    url: String,
+    file: File,
     modifier: Modifier,
-    size: Dp,
-    token: String?
+    size: Int
 ) {
     var imageBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
-    LaunchedEffect(url) {
+    LaunchedEffect(file.path) {
         try {
-            URL(url).openStream().use { stream ->
-                imageBitmap = loadImageBitmap(stream)
+            when (val data = file.data) {
+                is FileData.Path -> {
+                    // 桌面平台使用文件路径
+                    val file = java.io.File(data.path)
+                    if (file.exists()) {
+                        file.inputStream().use { stream ->
+                            imageBitmap = loadImageBitmap(stream)
+                        }
+                    }
+                }
+                is FileData.Uri -> {
+                    // 对于URI，尝试作为URL加载
+                    URL(data.uri).openStream().use { stream ->
+                        imageBitmap = loadImageBitmap(stream)
+                    }
+                }
+                is FileData.Bytes -> {
+                    // 直接使用字节数组
+                    java.io.ByteArrayInputStream(data.data).use { stream ->
+                        imageBitmap = loadImageBitmap(stream)
+                    }
+                }
+                else -> {
+                    // 尝试使用 pickedFile.path 作为 URL
+                    URL(file.path).openStream().use { stream ->
+                        imageBitmap = loadImageBitmap(stream)
+                    }
+                }
             }
         } catch (_: Exception) {
             imageBitmap = null
         }
     }
 
-    Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
+    Box(modifier = modifier.size(size.dp), contentAlignment = Alignment.Center) {
         if (imageBitmap != null) {
             Image(
                 bitmap = imageBitmap!!,
                 contentDescription = null,
-                modifier = Modifier.size(size)
+                modifier = Modifier.size(size.dp)
             )
         } else {
             CircularProgressIndicator(modifier = Modifier.size(24.dp))

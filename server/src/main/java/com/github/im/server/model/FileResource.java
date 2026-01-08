@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -31,7 +32,7 @@ public class FileResource {
 
     private String hash;
 
-    private Instant uploadTime;
+    private LocalDateTime uploadTime;
 
     @Enumerated(EnumType.STRING)
     private FileStatus status;

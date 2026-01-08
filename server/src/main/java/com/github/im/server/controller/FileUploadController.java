@@ -49,10 +49,10 @@ public class FileUploadController {
      */
     @PostMapping("/upload")
     public ResponseEntity<FileUploadResponse> upload(@RequestParam("file") MultipartFile file,
-                                                     @RequestParam("uploaderId") UUID uploaderId,
-                                                     @RequestParam() Long duration   // 音频时长（媒体相关数据信息将存储在 MediaFileResource 中）
+                                                     @RequestParam("fileId") UUID fileId,
+                                                     @RequestParam(required = false) Long duration   // 音频时长（媒体相关数据信息将存储在 MediaFileResource 中）
     ) throws IOException {
-        var fileInfo = fileStorageService.storeFile(file, uploaderId,duration);
+        var fileInfo = fileStorageService.storeFile(file, fileId,duration);
         log.info("文件上传成功：{}", fileInfo);
         return ResponseEntity.ok(fileInfo);
     }
@@ -65,8 +65,8 @@ public class FileUploadController {
                                             @RequestParam("fileHash") String fileHash,
                                             @RequestParam("chunkIndex") Integer chunkIndex,
                                             @RequestParam("totalChunks") Integer totalChunks,
-                                            @RequestParam("uploaderId") UUID uploaderId) throws IOException {
-        fileStorageService.uploadChunk(file, fileHash, chunkIndex, totalChunks, uploaderId);
+                                            @RequestParam("fileId") UUID fileId) throws IOException {
+        fileStorageService.uploadChunk(file, fileHash, chunkIndex, totalChunks, fileId);
         return ResponseEntity.ok().build();
     }
 
@@ -76,10 +76,10 @@ public class FileUploadController {
     @PostMapping("/upload/merge")
     public ResponseEntity<FileUploadResponse> merge(@RequestParam("fileHash") String fileHash,
                                                     @RequestParam("fileName") String fileName,
-                                                    @RequestParam("uploaderId") UUID uploaderId,
+                                                    @RequestParam("fileId") UUID fileId,
                                                     @RequestParam(value = "duration", required = false) Long duration // 音频时长（媒体相关数据信息将存储在 MediaFileResource 中）
     ) throws IOException {
-        var file = fileStorageService.mergeChunks(fileHash, fileName, uploaderId, duration);
+        var file = fileStorageService.mergeChunks(fileHash, fileName, fileId, duration);
         return ResponseEntity.ok(file);
     }
 

@@ -1,11 +1,7 @@
 package com.github.im.group.sdk
 
-import android.view.ViewGroup
-import android.widget.FrameLayout
+import android.net.Uri
 import androidx.annotation.OptIn
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -31,7 +27,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
-import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
@@ -45,47 +40,89 @@ import com.github.im.group.config.VideoCache
 @Composable
 @OptIn(UnstableApi::class)
 actual fun CrossPlatformVideo(
-    url: String,
+    file: File,
     modifier: Modifier,
-    size: Dp ,
+    size: Dp,
     onClose: (() -> Unit)?
 ) {
     val context = LocalContext.current
 
-
-//    TODO exoPlayer  绑定生命周期至 独立的 chatViewModel
     val cache = remember { VideoCache.getInstance(context) }
 
-//    val dataSourceFactory = remember {
-        val httpFactory = DefaultHttpDataSource.Factory()
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(15000)
-            .setReadTimeoutMs(15000)
-            .setDefaultRequestProperties(
-                mapOf(
-                    "Authorization" to "Bearer ${GlobalCredentialProvider.currentToken}",
-                    "User-Agent" to "MyAppPlayer/1.0"
-                )
-            )
-
-// 用 DefaultDataSource 包裹，让本地URI也能复用同一工厂
-        val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
-
-//        val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
-//            .createMediaSource(MediaItem.fromUri(url.toUri()))
-
-//        CacheDataSource.Factory()
-//            .setCache(cache)
-//            .setUpstreamDataSourceFactory(dataSourceFactory)
-//            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-//    }
-
-    val exoPlayer = remember(url) {
-        ExoPlayer.Builder(context)
-//            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
-            .setMediaSourceFactory(ProgressiveMediaSource.Factory(dataSourceFactory))
+    val exoPlayer = remember(file.path) {
+        val exoPlayerBuilder = ExoPlayer.Builder(context)
+        
+        // 根据 PickedFile.data 的类型来决定如何加载视频
+        val mediaSourceFactory = when (val data = file.data) {
+            is FileData.Path -> {
+                if (data.path.startsWith("content://")) {
+                    // Content URI 使用默认数据源
+                    DefaultMediaSourceFactory(context)
+                } else {
+                    // HTTP URL 或本地文件路径使用带认证的数据源
+                    val httpFactory = DefaultHttpDataSource.Factory()
+                        .setAllowCrossProtocolRedirects(true)
+                        .setConnectTimeoutMs(15000)
+                        .setReadTimeoutMs(15000)
+                        .setDefaultRequestProperties(
+                            mapOf(
+                                "Authorization" to "Bearer ${GlobalCredentialProvider.currentToken}",
+                                "User-Agent" to "MyAppPlayer/1.0"
+                            )
+                        )
+                    val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
+                    ProgressiveMediaSource.Factory(dataSourceFactory)
+                }
+            }
+            is FileData.Uri -> {
+                // Content URI 使用默认数据源
+                DefaultMediaSourceFactory(context)
+            }
+            else -> {
+                // 对于其他类型（Bytes, None），尝试使用 pickedFile.path
+                if (file.path.startsWith("content://")) {
+                    DefaultMediaSourceFactory(context)
+                } else {
+                    val httpFactory = DefaultHttpDataSource.Factory()
+                        .setAllowCrossProtocolRedirects(true)
+                        .setConnectTimeoutMs(15000)
+                        .setReadTimeoutMs(15000)
+                        .setDefaultRequestProperties(
+                            mapOf(
+                                "Authorization" to "Bearer ${GlobalCredentialProvider.currentToken}",
+                                "User-Agent" to "MyAppPlayer/1.0"
+                            )
+                        )
+                    val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
+                    ProgressiveMediaSource.Factory(dataSourceFactory)
+                }
+            }
+        }
+        
+        exoPlayerBuilder.setMediaSourceFactory(mediaSourceFactory)
             .build().apply {
-                setMediaItem(MediaItem.fromUri(url.toUri()))
+                // 根据 PickedFile.data 类型设置 MediaItem
+                val mediaItem = when (val data = file.data) {
+                    is FileData.Path -> {
+                        if (data.path.startsWith("content://")) {
+                            MediaItem.fromUri(Uri.parse(data.path))
+                        } else {
+                            MediaItem.fromUri(data.path.toUri())
+                        }
+                    }
+                    is FileData.Uri -> {
+                        MediaItem.fromUri(Uri.parse(data.uri))
+                    }
+                    else -> {
+                        // 对于其他类型，尝试使用 pickedFile.path
+                        if (file.path.startsWith("content://")) {
+                            MediaItem.fromUri(Uri.parse(file.path))
+                        } else {
+                            MediaItem.fromUri(file.path.toUri())
+                        }
+                    }
+                }
+                setMediaItem(mediaItem)
                 prepare()
                 playWhenReady = true
             }
@@ -239,4 +276,3 @@ actual fun CrossPlatformVideo(
         }
     }
 }
-

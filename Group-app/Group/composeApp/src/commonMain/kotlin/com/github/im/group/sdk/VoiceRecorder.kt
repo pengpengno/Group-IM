@@ -36,7 +36,7 @@ interface VoiceRecorder {
 data class VoiceRecordingResult(
     val bytes: ByteArray,
     val durationMillis: Long,
-    val pickedFile: PickedFile,
+    val file: File,
     val name: String,
     val filePath: String? = null  // 添加文件路径信息
 ) {

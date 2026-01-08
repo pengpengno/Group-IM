@@ -62,8 +62,10 @@ import androidx.navigation.compose.rememberNavController
 import com.github.im.group.api.FileMeta
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
+import com.github.im.group.manager.toFile
 import com.github.im.group.model.MessageItem
-import com.github.im.group.sdk.PickedFile
+import com.github.im.group.sdk.File
+
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
@@ -396,10 +398,10 @@ fun MessageBubble(
                                 msg = msg,
                                 messageViewModel = messageViewModel,
                                 maxDownloadSize = 50 * 1024 * 1024, // 50MB 限制
-                                onContentReady = { fileUrl, meta ->
+                                onContentReady = { pickedFile, meta ->
                                     VoiceMessage(
                                         content = MessageContent.Voice(
-                                            audioPath = fileUrl,
+                                            audioPath = pickedFile.path,
                                             duration = meta.duration
                                         )
                                     )
@@ -422,8 +424,8 @@ fun MessageBubble(
                                 msg = msg,
                                 messageViewModel = messageViewModel,
                                 maxDownloadSize = 10 * 1024 * 1024, // 10MB 限制
-                                onContentReady = { fileUrl, meta ->
-                                    ImageMessage(MessageContent.Image(fileUrl))
+                                onContentReady = { pickedFile, meta ->
+                                    ImageMessage(MessageContent.Image(pickedFile))
                                 },
                                 onLoading = {
                                     CircularProgressIndicator(
@@ -443,8 +445,8 @@ fun MessageBubble(
                                 msg = msg,
                                 messageViewModel = messageViewModel,
                                 maxDownloadSize = 100 * 1024 * 1024, // 100MB 限制
-                                onContentReady = { fileUrl, meta ->
-                                    VideoBubble(MessageContent.Video(fileUrl))
+                                onContentReady = { pickedFile, meta ->
+                                    VideoBubble(MessageContent.Video(pickedFile))
                                 },
                                 onLoading = {
                                     CircularProgressIndicator(
@@ -464,8 +466,7 @@ fun MessageBubble(
                                 msg = msg,
                                 messageViewModel = messageViewModel,
                                 maxDownloadSize = 50 * 1024 * 1024, // 50MB 限制
-                                onContentReady = { fileUrl, meta ->
-                                    var fileId = meta.fileId
+                                onContentReady = { pickedFile, meta ->
                                     FileMessageBubble(meta)
                                 },
                                 onLoading = {
@@ -517,7 +518,7 @@ fun FileMessageLoader(
     msg: MessageItem,
     messageViewModel: ChatMessageViewModel,
     maxDownloadSize: Long = 50 * 1024 * 1024, // 默认50MB
-    onContentReady: @Composable (String, FileMeta) -> Unit,
+    onContentReady: @Composable (File, FileMeta) -> Unit,
     onLoading: @Composable () -> Unit,
     onError: @Composable (() -> Unit)? = null
 ) {
@@ -545,12 +546,15 @@ fun FileMessageLoader(
                 val fileExists = messageViewModel.isFileExists(fileId)
                 if (!fileExists) {
                     // 不存在则下载
+                    Napier.d { "文件不存在，开始下载文件：$fileId" }
                     messageViewModel.downloadFileMessage(fileMeta.fileId)
                 }
 
                 // 获取本地文件路径
                 val localPath = messageViewModel.getLocalFilePath(fileId)
-                fileUrl = localPath.toString()
+                fileUrl = localPath?.toString()
+
+                Napier.d { "下载的本地路径为：$fileUrl" }
             }
 
             isLoading = false
@@ -569,7 +573,8 @@ fun FileMessageLoader(
             onLoading()
         }
         fileUrl != null && fileMeta != null -> {
-            onContentReady(fileUrl!!, fileMeta!!)
+            val pickedFile = fileMeta!!.toFile(fileUrl!!)
+            onContentReady(pickedFile, fileMeta!!)
         }
         else -> {
             onLoading()

@@ -9,7 +9,6 @@ import com.github.im.group.api.FileMeta
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
-import com.github.im.group.model.proto.MessageType
 import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.ConversationRepository
 import com.github.im.group.repository.MessageSyncRepository
@@ -18,9 +17,10 @@ import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.manager.FileStorageManager
 import com.github.im.group.manager.FileUploadService
+import com.github.im.group.manager.getLocalFilePath
+import com.github.im.group.manager.isFileExists
 import com.github.im.group.model.proto.ChatMessage
-import com.github.im.group.sdk.PickedFile
-import com.github.im.group.sdk.FileData
+import com.github.im.group.sdk.File
 import com.github.im.group.sdk.SenderSdk
 import com.github.im.group.sdk.VoiceRecordingResult
 import io.github.aakira.napier.Napier
@@ -36,6 +36,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import okio.Path
+import okio.Path.Companion.toPath
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 
@@ -454,7 +455,7 @@ class ChatMessageViewModel(
                          voice  : VoiceRecordingResult
                          ) {
         log { "sendVoiceMessage " }
-        sendFileMessage(conversationId,voice.pickedFile,voice.durationMillis,)
+        sendFileMessage(conversationId,voice.file,voice.durationMillis,)
     }
 
     /**
@@ -466,7 +467,7 @@ class ChatMessageViewModel(
      * @param file 选择的文件
      */
     @OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
-    fun sendFileMessage(conversationId: Long, file: PickedFile,duration: Long=0) {
+    fun sendFileMessage(conversationId: Long, file: File, duration: Long=0) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 log{"picked file name  : $file"}
@@ -693,7 +694,7 @@ class ChatMessageViewModel(
      * @return 本地文件路径
      */
     fun getLocalFilePath(fileId: String): Path? {
-        return fileStorageManager.getLocalFilePath(fileId)
+        return fileStorageManager.getLocalFilePath(fileId)?.toPath()
     }
 
 

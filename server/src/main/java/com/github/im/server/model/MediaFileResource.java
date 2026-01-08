@@ -34,11 +34,6 @@ public class MediaFileResource {
     private FileResource  file;
 
 
-    @ManyToOne
-    @JoinColumn(name = "message_id")
-    private Message message;
-
-
     /**
      * 缩略图
      */

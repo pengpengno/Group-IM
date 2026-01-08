@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -53,7 +52,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.github.im.group.sdk.PickedFile
+import com.github.im.group.sdk.File
 import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draw.shadow
@@ -73,7 +72,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun ChatInputArea(
     onSendText: (String) -> Unit,
     onRelease: () -> Unit = {},
-    onFileSelected: (List<PickedFile>) -> Unit
+    onFileSelected: (List<File>) -> Unit
 ) {
     var messageText by remember { mutableStateOf("") }
     var isVoiceMode by remember { mutableStateOf(false) }

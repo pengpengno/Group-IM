@@ -14,6 +14,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import java.util.function.Function;
@@ -32,7 +33,9 @@ public class LocalStorageStrategy implements StorageStrategy {
     }
     
     @Override
-    public FileResource store(MultipartFile file, UUID uploaderId, Long duration) throws IOException {
+    public FileResource store(MultipartFile file, UUID fileId, Long duration) throws IOException {
+
+
         String originalName = file.getOriginalFilename();
         String ext = FileNameUtil.extName(originalName);
         String contentType = file.getContentType();
@@ -48,7 +51,7 @@ public class LocalStorageStrategy implements StorageStrategy {
         file.transferTo(target);
         
         FileResource info = new FileResource();
-        info.setId(uploaderId); // 设置预先生成的ID
+        info.setId(fileId); //
         info.setOriginalName(originalName);
         info.setExtension(ext);
         info.setContentType(contentType);
@@ -56,7 +59,7 @@ public class LocalStorageStrategy implements StorageStrategy {
         info.setStoragePath(relative);
         info.setStorageType(StorageType.LOCAL);
         info.setHash(hash);
-        info.setUploadTime(Instant.now());
+        info.setUploadTime(LocalDateTime.now());
         info.setStatus(FileStatus.NORMAL);
 
         return info;
@@ -105,7 +108,7 @@ public class LocalStorageStrategy implements StorageStrategy {
         info.setStoragePath(relative);
         info.setStorageType(StorageType.LOCAL);
         info.setHash(hash);
-        info.setUploadTime(Instant.now());
+        info.setUploadTime(LocalDateTime.now());
         info.setStatus(FileStatus.NORMAL);
         // 已废弃：媒体相关数据信息应存储在 MediaFileResource 中，而不是 FileResource
         // info.setDuration(duration);

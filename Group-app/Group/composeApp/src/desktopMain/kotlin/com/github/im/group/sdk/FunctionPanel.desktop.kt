@@ -25,15 +25,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.github.im.group.sdk.FilePicker
-import com.github.im.group.sdk.PickedFile
+import com.github.im.group.sdk.File
 import com.github.im.group.sdk.getPlatformFilePicker
 import kotlinx.coroutines.launch
 
 @Composable
 actual fun PlatformFilePickerPanel(
     onDismiss: () -> Unit,
-    onFileSelected: (List<PickedFile>) -> Unit
+    onFileSelected: (List<File>) -> Unit
 ) {
 
     val scope = rememberCoroutineScope()

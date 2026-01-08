@@ -1,17 +1,12 @@
 package com.github.im.group.sdk
 
 
-import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Uri
-import android.provider.MediaStore
 import android.provider.OpenableColumns
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.view.LifecycleCameraController
@@ -34,7 +29,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -113,28 +107,28 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
         this.takePictureLauncher = launcher
     }
 
-    override suspend fun pickImage(): List<PickedFile> {
+    override suspend fun pickImage(): List<com.github.im.group.sdk.File> {
         val uris = filePickerLauncher?.pick("image/*") ?: emptyList()
         return uris.map { uriToPickedFile(it) }
     }
 
-    override suspend fun pickVideo(): List<PickedFile> {
+    override suspend fun pickVideo(): List<com.github.im.group.sdk.File> {
         val uris = filePickerLauncher?.pick("video/*") ?: emptyList()
         return uris.map { uriToPickedFile(it) }
     }
 
 
-    suspend fun  pickMedia() : List<PickedFile> {
+    suspend fun  pickMedia() : List<com.github.im.group.sdk.File> {
         val uris = filePickerLauncher?.pick("image/*, video/*") ?: emptyList()
         return uris.map { uriToPickedFile(it) }
      }
 
-    override suspend fun pickFile(): List<PickedFile> {
+    override suspend fun pickFile(): List<com.github.im.group.sdk.File> {
         val uris = filePickerLauncher?.pick("*/*") ?: emptyList()
         return uris.map { uriToPickedFile(it) }
     }
 
-    override suspend fun takePhoto(): PickedFile? {
+    override suspend fun takePhoto(): com.github.im.group.sdk.File? {
         val takePictureLauncher = this.takePictureLauncher ?: return null
         
         return try {
@@ -159,7 +153,7 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
                 val fileBytes = photoFile.readBytes()
                 
                 // 返回 PickedFile 对象
-                PickedFile(
+                File(
                     name = photoFile.name,
                     path = currentPhotoUri.toString(), // 仍然返回Content URI
                     mimeType = "image/jpeg",
@@ -206,7 +200,7 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
     /**
      * 从 PickedFile 读取文件内容为字节数组
      */
-    override suspend fun readFileBytes(file: PickedFile): ByteArray = withContext(Dispatchers.IO) {
+    override suspend fun readFileBytes(file: com.github.im.group.sdk.File): ByteArray = withContext(Dispatchers.IO) {
         return@withContext when (file.data) {
             is FileData.Bytes -> file.data.data
             is FileData.Path -> {
@@ -237,7 +231,7 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
         }
     }
 
-    private suspend fun uriToPickedFile(uri: Uri): PickedFile = withContext(Dispatchers.IO) {
+    private suspend fun uriToPickedFile(uri: Uri): com.github.im.group.sdk.File = withContext(Dispatchers.IO) {
         val resolver = context.contentResolver
         var name = "unknown"
         var size: Long = -1
@@ -260,7 +254,7 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
         } catch (e: Exception) {
             throw e
         }
-        PickedFile(name, path, mime, size ,data)
+        File(name, path, mime, size ,data)
     }
 }
 

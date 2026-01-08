@@ -60,9 +60,6 @@ public class Message {
     private MessageStatus status;  // 消息状态
 
 
-    @OneToMany(mappedBy = "message", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<MediaFileResource> mediaList = new ArrayList<>();
-
 
     private LocalDateTime clientTimestamp;  // 客户端发送时间
 

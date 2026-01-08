@@ -4,7 +4,6 @@ import android.media.MediaRecorder
 import android.os.Build
 import androidx.annotation.RequiresApi
 import com.github.im.group.manager.VoiceFileManager
-import com.github.im.group.sdk.FileData
 import io.github.aakira.napier.Napier
 import io.github.aakira.napier.log
 import kotlinx.coroutines.CoroutineScope
@@ -84,7 +83,7 @@ class AndroidVoiceRecorder(
             recorder.release()
             val bytes = outputFile?.readBytes() ?: return null
             duration = System.currentTimeMillis() - startTime
-            val pickedFile = PickedFile(
+            val file = File(
                 name = outputFile!!.name,
                 path = outputFile!!.absolutePath,
                 mimeType = "audio/mp4",
@@ -94,7 +93,7 @@ class AndroidVoiceRecorder(
             voiceRecordingResult = VoiceRecordingResult(
                 bytes = bytes,
                 durationMillis = duration,
-                pickedFile = pickedFile,
+                file = file,
                 name = outputFile!!.name,
                 filePath = outputFile?.absolutePath
             )

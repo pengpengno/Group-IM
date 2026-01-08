@@ -1,27 +1,48 @@
 package com.github.im.group.manager
 
-import com.github.im.group.api.FileApi
-import com.github.im.group.db.entities.FileStatus
-import com.github.im.group.model.proto.MessageType
 import com.github.im.group.repository.FilesRepository
-import com.github.im.group.sdk.FileData
-import com.github.im.group.sdk.FilePicker
-import com.github.im.group.sdk.PickedFile
 import io.github.aakira.napier.Napier
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import okio.FileSystem
-import okio.Path
+import okio.*
+import com.github.im.group.api.FileApi
+import com.github.im.group.api.FileMeta
+import com.github.im.group.db.entities.FileStatus
+import com.github.im.group.model.proto.MessageType
+import com.github.im.group.sdk.File
+import com.github.im.group.sdk.FileData
 import okio.Path.Companion.toPath
+import okio.Path
+
+/***
+ * 判断文件是否存在
+ * Android 端 存在 content 有android 管理其封装过的路径 需要特殊处理
+ */
+expect fun FileStorageManager.isFileExists(fileId: String): Boolean
+
+expect fun FileStorageManager.getLocalFilePath(fileId: String): String?
+
+expect fun FileStorageManager.getFile(fileId: String): File?
 
 /**
- * 文件存储管理器
- * 实现本地优先策略，管理文件的存储、检索和清理
+ * 将FileMeta对象转换为File对象
+ * @param path 本地文件路径
+ * @return File对象
  */
+fun FileMeta.toFile(path: String): File {
+    return File(
+        name = this.fileName,
+        path = path,
+        mimeType = this.contentType,
+        size = this.size,
+        data = FileData.Path(path)
+    )
+}
+
 class FileStorageManager(
-    private val filesRepository: FilesRepository,
-    private val fileSystem: FileSystem,
+    val filesRepository: FilesRepository,
+    val fileSystem: FileSystem,
     private val baseDirectory: Path
 ) {
 
@@ -52,12 +73,15 @@ class FileStorageManager(
             }
 
             // 情况 b) 文件记录存在，检查本地文件是否存在
-            val localFilePath = getLocalFilePath(fileId)
-            if (localFilePath != null && fileSystem.exists(localFilePath)) {
-                Napier.d("从本地获取文件: $fileId")
-                // 本地存在，直接返回本地文件内容
-                return fileSystem.read(localFilePath) {
-                    readByteArray()
+            val localFilePathStr = getLocalFilePath(fileId)
+            if (localFilePathStr != null) {
+                val localFilePath = localFilePathStr.toPath()
+                if (fileSystem.exists(localFilePath)) {
+                    Napier.d("从本地获取文件: $fileId")
+                    // 本地存在，直接返回本地文件内容
+                    return fileSystem.read(localFilePath) {
+                        readByteArray()
+                    }
                 }
             }
 
@@ -93,28 +117,6 @@ class FileStorageManager(
             Napier.e("添加待上传文件记录失败: $fileId", e)
         }
     }
-    /**
-     * 获取本地文件路径
-     * @param fileId 文件ID
-     * @return 本地文件路径，如果不存在则返回null
-     */
-    fun getLocalFilePath(fileId: String): Path? {
-        try {
-            val fileRecord = filesRepository.getFile(fileId)
-            if (fileRecord != null) {
-                if (fileRecord.storagePath.isNotEmpty()){
-                    val fullPath = baseDirectory / fileRecord.storagePath
-                    if (fileSystem.exists(fullPath) && !fileSystem.metadata(fullPath).isDirectory) {
-                        return fullPath
-                    }
-                }
-            }
-            return null
-        } catch (e: Exception) {
-            Napier.e("获取本地文件路径失败: $fileId", e)
-            return null
-        }
-    }
 
     /**
      * 将文件保存到本地
@@ -125,32 +127,34 @@ class FileStorageManager(
         try {
             val fileRecord = filesRepository.getFile(fileId)
             if (fileRecord != null) {
-                // 根据文件类型确定存储目录
-                val fileCategoryPath = getFileCategoryPath(fileRecord.contentType, fileRecord.originalName)
-                val yearMonthPath = generateFilePath()
-                val directoryPath = baseDirectory / fileCategoryPath / yearMonthPath
-
-                // 确保目录存在
-                if (!fileSystem.exists(directoryPath)) {
-                    fileSystem.createDirectories(directoryPath)
+                // 使用公共方法生成相对文件路径
+                val relativeFilePath = generateFilePathWithFileName(fileRecord.contentType, fileRecord.originalName, fileRecord.originalName)
+                
+                // 确保目录存在 - 处理 parent 可能为 null 的情况
+                val parentPath = relativeFilePath.parent
+                if (parentPath != null) {
+                    val directoryPath = baseDirectory / parentPath
+                    if (!fileSystem.exists(directoryPath)) {
+                        fileSystem.createDirectories(directoryPath)
+                    }
+                } else {
+                    // 如果没有父路径，说明是根目录，通常不需要创建
+                    if (!fileSystem.exists(baseDirectory)) {
+                        fileSystem.createDirectories(baseDirectory)
+                    }
                 }
 
-                // 使用文件记录中的原始文件名，而不是文件ID
-                val fileName = fileRecord.originalName
-
-                var uniqueFileName = generateUniqueFileName(directoryPath, fileName)
-                val filePath = directoryPath / uniqueFileName
-
                 // 写入文件
-                fileSystem.write(filePath) {
+                val fullPath = baseDirectory / relativeFilePath
+                fileSystem.write(fullPath) {
                     write(fileContent)
                 }
 
-                // 更新数据库中的存储路径
-                filesRepository.updateStoragePath(fileId, (fileCategoryPath / yearMonthPath / uniqueFileName).toString())
+                // 更新数据库中的存储路径 - 存储相对路径，便于跨设备使用
+                filesRepository.updateStoragePath(fileId, relativeFilePath.toString())
                 // 更新最后访问时间
                 filesRepository.updateLastAccessTime(fileId)
-                Napier.d("文件已保存到本地: $filePath")
+                Napier.d("文件已保存到本地: $fullPath")
             }
         } catch (e: Exception) {
             Napier.e("保存文件到本地失败", e)
@@ -170,6 +174,23 @@ class FileStorageManager(
             FileTypeDetector.isVideoFile(contentType, fileName) -> "videos".toPath()
             else -> "files".toPath()
         }
+    }
+
+    /**
+     * 生成文件路径 - 公共方法，遵循项目规范
+     * 文件存储路径应按年-月创建日期目录，文件命名必须使用原始文件名（originalName）
+     * @param contentType MIME类型
+     * @param originalFileName 原始文件名
+     * @param fileName 文件名
+     * @return 完整的文件路径
+     */
+    fun generateFilePathWithFileName(contentType: String, originalFileName: String, fileName: String): Path {
+        val fileCategoryPath = getFileCategoryPath(contentType, fileName)
+        val yearMonthPath = generateFilePath()
+        val directoryPath = fileCategoryPath / yearMonthPath
+        
+        // 使用原始文件名
+        return directoryPath / originalFileName
     }
 
     /**
@@ -205,27 +226,15 @@ class FileStorageManager(
 //            Napier.e("清理过期文件失败", e)
 //        }
     }
-
-    /**
-     * 检查文件是否存在（本地优先）
-     * @param fileId 文件ID
-     * @return 文件是否存在
-     */
-    fun isFileExists(fileId: String): Boolean {
-        try {
-            // 检查本地是否存在
-            val localFilePath = getLocalFilePath(fileId)
-            if (localFilePath != null && fileSystem.exists(localFilePath)) {
-                return true
-            }
-
-            // 检查数据库中是否存在记录
-            return filesRepository.getFile(fileId) != null
-        } catch (e: Exception) {
-            Napier.e("检查文件是否存在时发生错误: $fileId", e)
-            return false
-        }
-    }
+//
+//    /**
+//     * 检查文件是否存在（本地优先）
+//     * @param fileId 文件ID
+//     * @return 文件是否存在
+//     */
+//     fun isFileExists(fileId: String): Boolean {
+//        FileStorageManager.isFileExists(fileId)
+//     }
 
     /**
      * 生成文件目录
@@ -291,8 +300,8 @@ class FileStorageManager(
         return try {
             val fileRecord = filesRepository.getFile(fileId)
             if (fileRecord != null) {
-                // 从数据库存储路径重建完整路径
-                val filePath = baseDirectory / fileRecord.storagePath
+                // 现在存储的是全路径，直接使用
+                val filePath = fileRecord.storagePath.toPath()
                 // 删除本地文件
                 if (fileSystem.exists(filePath)) {
                     fileSystem.delete(filePath)
@@ -375,7 +384,6 @@ object FileTypeDetector {
         }
     }
 }
-
 
 
 
