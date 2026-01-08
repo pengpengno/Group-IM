@@ -29,7 +29,7 @@ public class MediaFileResource {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
     @JoinColumn(name = "file_id", referencedColumnName = "id", nullable = false, unique = true)
     private FileResource  file;
 

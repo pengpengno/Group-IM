@@ -35,8 +35,10 @@ interface VoiceRecorder {
  */
 data class VoiceRecordingResult(
     val bytes: ByteArray,
-    val durationMillis: Long ,
-    val name: String
+    val durationMillis: Long,
+    val pickedFile: PickedFile,
+    val name: String,
+    val filePath: String? = null  // 添加文件路径信息
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -47,6 +49,7 @@ data class VoiceRecordingResult(
         if (durationMillis != other.durationMillis) return false
         if (!bytes.contentEquals(other.bytes)) return false
         if (name != other.name) return false
+        if (filePath != other.filePath) return false
 
         return true
     }
@@ -55,10 +58,8 @@ data class VoiceRecordingResult(
         var result = durationMillis.hashCode()
         result = 31 * result + bytes.contentHashCode()
         result = 31 * result + name.hashCode()
+        result = 31 * result + (filePath?.hashCode() ?: 0)
         return result
     }
 }
 
-expect object VoiceRecorderFactory {
-    fun create(): VoiceRecorder
-}

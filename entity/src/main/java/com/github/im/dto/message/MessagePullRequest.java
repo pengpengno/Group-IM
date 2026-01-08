@@ -1,4 +1,4 @@
-package com.github.im.dto.session;
+package com.github.im.dto.message;
 
 import lombok.Data;
 

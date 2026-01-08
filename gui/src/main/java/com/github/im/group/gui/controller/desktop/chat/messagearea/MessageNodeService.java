@@ -1,20 +1,15 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea;
 
-import com.fasterxml.jackson.databind.node.TextNode;
 import com.github.im.common.connect.model.proto.Chat;
-import com.github.im.dto.session.FileMeta;
-import com.github.im.dto.session.MessageDTO;
+import com.github.im.dto.message.FileMeta;
 import com.github.im.enums.MessageType;
 import com.github.im.group.gui.controller.desktop.MessageWrapper;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.MessageNode;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.FileNode;
-import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.RemoteFileInfo;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.RemoteFileService;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.image.StreamImage;
 import com.github.im.group.gui.util.ImageUtil;
 import com.github.im.group.gui.util.PathFileUtil;
-import com.google.protobuf.Message;
-import javafx.scene.Node;
 import javafx.scene.image.Image;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +18,6 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
-import java.util.Optional;
 
 /**
  * Description:

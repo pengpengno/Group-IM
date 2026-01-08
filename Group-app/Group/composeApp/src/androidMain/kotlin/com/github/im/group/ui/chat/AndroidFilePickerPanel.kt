@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import com.github.im.group.sdk.AndroidFilePicker
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.PickedFile
+import com.github.im.group.sdk.TryGetPermission
+import com.github.im.group.sdk.getPlatformFilePicker
 import com.github.im.group.sdk.rememberFilePickerLauncher
 import com.github.im.group.sdk.rememberTakePictureLauncher
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -44,7 +46,6 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun AndroidFilePickerPanel(
-    filePicker: FilePicker,
     onDismiss: () -> Unit,
     onFileSelected: (List<PickedFile>) -> Unit
 ) {
@@ -54,7 +55,8 @@ fun AndroidFilePickerPanel(
     var displayMediaPicker by remember { mutableStateOf(false) }
     // 使用 Accompanist 权限库请求相机权限
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
-    
+    val filePicker = remember { getPlatformFilePicker() }
+
     // 创建拍照启动器
     val takePictureLauncher = rememberTakePictureLauncher { success ->
         // 处理拍照结果
@@ -79,7 +81,7 @@ fun AndroidFilePickerPanel(
             .wrapContentHeight()
             .padding(8.dp)
     ) {
-    if (displayMediaPicker) {
+        if (displayMediaPicker) {
 
         MediaPickerScreen(onDismiss, onFileSelected)
 
@@ -115,7 +117,6 @@ fun AndroidFilePickerPanel(
                             }
                         }
                     } else {
-                        // 请求相机权限
                         cameraPermissionState.launchPermissionRequest()
                     }
                 })

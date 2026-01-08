@@ -1,10 +1,10 @@
 package com.github.im.group.gui.api;
 
 import com.github.im.dto.PageResult;
-import com.github.im.dto.session.MessageDTO;
-import com.github.im.dto.session.MessagePayLoad;
-import com.github.im.dto.session.MessagePullRequest;
-import com.github.im.dto.session.MessageSearchRequest;
+import com.github.im.dto.message.MessageDTO;
+import com.github.im.dto.message.MessagePayLoad;
+import com.github.im.dto.message.MessagePullRequest;
+import com.github.im.dto.message.MessageSearchRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;

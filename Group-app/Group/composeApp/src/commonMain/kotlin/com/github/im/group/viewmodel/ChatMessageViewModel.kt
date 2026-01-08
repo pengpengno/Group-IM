@@ -1,46 +1,43 @@
 package com.github.im.group.viewmodel
 
-import androidx.compose.runtime.snapshots.toLong
+import ChatMessageBuilder
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.FileMeta
-import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
-import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.model.proto.MessageType
-import com.github.im.group.model.proto.MessagesStatus
 import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.ConversationRepository
 import com.github.im.group.repository.MessageSyncRepository
 import com.github.im.group.repository.FilesRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.FilePicker
-import com.github.im.group.sdk.FileStorageManager
+import com.github.im.group.manager.FileStorageManager
+import com.github.im.group.manager.FileUploadService
+import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.sdk.PickedFile
+import com.github.im.group.sdk.FileData
 import com.github.im.group.sdk.SenderSdk
+import com.github.im.group.sdk.VoiceRecordingResult
 import io.github.aakira.napier.Napier
+import io.github.aakira.napier.log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import okio.Path
-import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 
 /**
@@ -73,9 +70,11 @@ class ChatMessageViewModel(
     val messageSyncRepository: MessageSyncRepository,
     val filesRepository: FilesRepository, // 添加文件仓库依赖
     val conversationRepository: ConversationRepository, // 添加会话仓库依赖
-    val senderSdk: SenderSdk,
     val filePicker: FilePicker,  // 通过构造函数注入FilePicker
-    val fileStorageManager: FileStorageManager // 文件存储管理器
+    val fileStorageManager: FileStorageManager, // 文件存储管理器
+    val senderSdk: SenderSdk,
+    val chatMessageBuilder: ChatMessageBuilder,
+    val fileUploadService: FileUploadService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -90,6 +89,7 @@ class ChatMessageViewModel(
     
     // 多文件下载状态管理
     private val _fileDownloadStates = MutableStateFlow<Map<String, FileDownloadState>>(emptyMap())
+
     val fileDownloadStates: StateFlow<Map<String, FileDownloadState>> = _fileDownloadStates.asStateFlow()
 
     private val _loading = MutableStateFlow(false)
@@ -361,10 +361,13 @@ class ChatMessageViewModel(
 
     /**
      * 接收/ 更新 服务端发送的新的新的消息
+     * 当消息是客户端上报发送的新消息时 ： 在 会话的消息list 中直接插入一条新的消息
+     * 当消息是服务端发送的消息时  a) 如果是客户端发送的回传ACK ： 更新消息状态为已收到， 更新ui上的消息状态
+     *                        b) 如果是别的用户发送的消息（即clientId）在本地不存在 ，则插入一条新的消息
+     * 索引 index 0 则为 最新的消息
      *
      */
     private fun addNewMessage(message: MessageItem){
-//        val message = MessageWrapper(chatMessage)
         chatMessageRepository.insertOrUpdateMessage(message)
         _uiState.update {
             // 更新消息列表
@@ -388,8 +391,8 @@ class ChatMessageViewModel(
                     }
                 }
             }
+            // seqId 不为0 的消息，添加到索引
             if(message.seqId != 0L ){
-                //  因为
                 messageSequenceIdIndex[message.seqId] = 0 // 新消息在索引0位置
             }
             it.copy(messages = updatedMessages)
@@ -448,111 +451,115 @@ class ChatMessageViewModel(
      * @param url 语音文件的URL地址
      */
     fun sendVoiceMessage(conversationId: Long,
-                         data: ByteArray,
-                         fileName:String,
-                         duration:Long
+                         voice  : VoiceRecordingResult
                          ) {
+        log { "sendVoiceMessage " }
+        sendFileMessage(conversationId,voice.pickedFile,voice.durationMillis,)
+    }
 
-        sendFileMessage(conversationId,data,fileName,duration,MessageType.VOICE)
+    /**
+     * 发送文件消息
+     * 1. 预创建文件记录，获取服务端返回的fileId
+     * 2. 上传文件
+     * 3. 创建并发送消息（使用fileId作为content）
+     * @param conversationId 会话ID
+     * @param file 选择的文件
+     */
+    @OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
+    fun sendFileMessage(conversationId: Long, file: PickedFile,duration: Long=0) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                log{"picked file name  : $file"}
+
+                val fileData = try {
+                    filePicker.readFileBytes(file)
+                } catch (e: Exception) {
+                    Napier.e("获取文件数据失败", e)
+                    // 直接返回即可
+                    return@launch
+                }
+                sendFileMessage(conversationId, fileData, file.name, file.size,file.path,duration)
+
+
+
+            } catch (e: Exception) {
+                // 处理上传失败的情况
+                Napier.e("发送文件消息失败", e)
+            }
+        }
+    }
+
+
+
+    /**
+     * 发送消息
+     *
+     * 1. 记录消息到本地数据库
+     * 2. 通过长连接 发送消息到 服务器
+     *
+     * @param conversationId 会话
+     * @param message 消息
+     */
+    @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
+    fun sendChatMessage(chatMessage: ChatMessage){
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // 添加到本地消息列表
+                addNewMessage(MessageWrapper(message = chatMessage))
+                // 发送消息
+                senderSdk.sendMessage(chatMessage)
+
+
+            } catch (e: Exception) {
+                Napier.e("发送消息失败", e)
+            }
+        }
+    }
+
+    /**
+     * 发送 文本消息
+     *
+     * @param conversationId 会话
+     * @param message 消息
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    fun sendTextMessage(conversationId:Long, message:String){
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val textMessage = chatMessageBuilder.textMessage(conversationId, message)
+                sendChatMessage(textMessage)
+            } catch (e: Exception) {
+                Napier.e("发送消息失败", e)
+            }
+        }
     }
 
     /**
      * 发送文件消息
      * @param conversationId 会话ID
-     * @param file 选择的文件
+     * @param data 文件数据
+     * @param fileName 文件名
+     * @param duration 时长（用于语音消息）
+     * @param type 消息类型
      */
-    fun sendFileMessage(conversationId: Long, file: PickedFile) {
-        // TODO 发送 存在延迟
-        //  优化项
-          /**
-         * 1. 发送带有 clientId 的消息体
-         * 2. 服务端接受 返回 ACK 消息
-         * 。。。 没想好
-          */
-
-        viewModelScope.launch(Dispatchers.IO) {
+    private fun sendFileMessage(conversationId: Long, data: ByteArray, fileName: String, fileSize:Long, filePath:String,duration: Long = 0) {
+        viewModelScope.launch {
             try {
 
-                fun isImageFile(mimeType: String? = null, filename: String? = null): Boolean {
-                    mimeType?.let {
-                        if (it.startsWith("image/")) return true
-                    }
-                    filename?.let {
-                        val lower = it.lowercase()
-                        return lower.endsWith(".jpg") ||
-                                lower.endsWith(".jpeg") ||
-                                lower.endsWith(".png") ||
-                                lower.endsWith(".gif") ||
-                                lower.endsWith(".bmp") ||
-                                lower.endsWith(".webp") ||
-                                lower.endsWith(".heic")
-                    }
-                    return false
-                }
+                val chatMessage = chatMessageBuilder.fileMessage(conversationId, fileName,fileSize, duration)
 
-                fun isAudioFile(mimeType: String? = null, filename: String? = null): Boolean {
-                    mimeType?.let {
-                        if (it.startsWith("audio/")) return true
-                    }
-                    filename?.let {
-                        val lower = it.lowercase()
-                        return lower.endsWith(".mp3") ||
-                                lower.endsWith(".wav") ||
-                                lower.endsWith(".aac") ||
-                                lower.endsWith(".flac") ||
-                                lower.endsWith(".ogg") ||
-                                lower.endsWith(".m4a")
-                    }
-                    return false
-                }
+                val fileId = chatMessage.content
+                // 添加上传中的文件记录到数据库
+                fileStorageManager.addPendingFile(fileId, fileName, duration,filePath)
 
-                fun isVideoFile(mimeType: String? = null, filename: String? = null): Boolean {
-                    mimeType?.let {
-                        if (it.startsWith("video/")) return true
-                    }
-                    filename?.let {
-                        val lower = it.lowercase()
-                        return lower.endsWith(".mp4") ||
-                                lower.endsWith(".mov") ||
-                                lower.endsWith(".avi") ||
-                                lower.endsWith(".mkv") ||
-                                lower.endsWith(".flv") ||
-                                lower.endsWith(".webm")
-                    }
-                    return false
-                }
+                sendChatMessage(chatMessage)
 
-                val isImageMimeType = isImageFile(file.mimeType, file.name)
-                val isAudioMimeType = isAudioFile(file.mimeType, file.name)
-                val isVideoMimeType = isVideoFile(file.mimeType, file.name)
-                // 封装下 返回 messageType
+                val uploadFileData = fileUploadService.uploadFileData(fileId, data, fileName, duration)
 
-                val messageType = when {
-                    isImageMimeType -> MessageType.IMAGE
-                    isAudioMimeType -> MessageType.VOICE
-                    isVideoMimeType -> MessageType.VIDEO
-                    else -> {
-                        MessageType.FILE
-                    }
-                }
 
-                // 先读取文件字节数据
-                val fileBytes = filePicker.readFileBytes(file)
-                if (fileBytes != null) {
-                    // 在后台线程中上传文件并发送消息
-                    val response = withContext(Dispatchers.IO) {
-                        FileApi.uploadFile(fileBytes, file.name, 0)
-                    }
-                    sendMessage(conversationId, response.id, messageType, response.fileMeta)
-                } else {
-                    // 如果无法读取文件，发送文件名作为消息
-                    sendMessage(conversationId, "文件: ${file.name}", MessageType.FILE)
-                }
             } catch (e: Exception) {
                 // 处理上传失败的情况
                 Napier.e("发送文件消息失败", e)
-                // 即使上传失败，也发送文件名作为消息
-                sendMessage(conversationId, "文件: ${file.name}", MessageType.FILE)
             }
         }
     }
@@ -573,6 +580,7 @@ class ChatMessageViewModel(
             messageItem.fileMeta?.let {
                 return it
             }
+            log { "messageItem : $messageItem" }
             // 优先从本地数据库获取文件元数据
             filesRepository.getFileMeta(messageItem.content)?.let { 
                 return it
@@ -581,7 +589,7 @@ class ChatMessageViewModel(
             try {
                 val fileMeta = getFileMessageMeta(messageItem.content)
                 // 将文件元数据存储到本地数据库
-                filesRepository.addFile(fileMeta)
+                filesRepository.addOrUpdateFile(fileMeta)
                 return fileMeta
             } catch (e: Exception) {
                 Napier.e("获取文件元信息失败", e)
@@ -599,7 +607,7 @@ class ChatMessageViewModel(
     fun isFileExists(fileId: String): Boolean {
         return fileStorageManager.isFileExists(fileId)
     }
-    
+
     /**
      * 删除指定文件（本地和数据库记录）
      * @param fileId 文件ID
@@ -608,7 +616,7 @@ class ChatMessageViewModel(
     fun deleteFile(fileId: String): Boolean {
         return fileStorageManager.deleteFile(fileId)
     }
-    
+
     /**
      * 清理过期文件
      */
@@ -618,6 +626,8 @@ class ChatMessageViewModel(
     
     /**
      * 下载文件消息内容（实现本地优先策略）
+     * 如果已经存在 就读取并且返回
+     * 不存在那么就从远程下载
      * @param fileId 文件ID
      */
     fun downloadFileMessage(fileId: String) {
@@ -686,69 +696,6 @@ class ChatMessageViewModel(
         return fileStorageManager.getLocalFilePath(fileId)
     }
 
-    /**
-     * 发送文件消息
-     * @param conversationId 会话ID
-     * @param data 文件数据
-     * @param fileName 文件名
-     * @param duration 时长（用于语音消息）
-     * @param type 消息类型
-     */
-    fun sendFileMessage(conversationId: Long, data: ByteArray, fileName: String, duration: Long = 0, type: MessageType = MessageType.FILE) {
-        viewModelScope.launch {
-            try {
-                val response = FileApi.uploadFile(data, fileName, duration)
-                // 保存文件信息到本地数据库
-                // 这里只是框架代码，实际实现将在后续添加
-                sendMessage(conversationId, response.id, type, response.fileMeta)
-                
-                // 保存媒体资源信息
-                if (type == MessageType.VOICE || type == MessageType.VIDEO || type == MessageType.IMAGE) {
-                    filesRepository.updateMediaResourceInfo(
-                        fileId = response.id, // 使用上传后返回的文件ID
-                        duration = duration, // 以毫秒为单位存储
-                        thumbnail = response.fileMeta?.thumbnail // 如果有缩略图信息则保存
-                    )
-                }
-            } catch (e: Exception) {
-                // 处理上传失败的情况
-                Napier.e("发送文件消息失败", e)
-            }
-        }
-    }
 
-    /**
-     * 发送消息
-     * @param conversationId 会话
-     * @param message 消息
-     */
-    @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
-    fun sendMessage(conversationId:Long, message:String, type: MessageType = MessageType.TEXT, fileMeta: FileMeta? = null){
-        // 发送的 数据需要 再本地先保存
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-
-                val accountInfo = userRepository.withLoggedInUser { it.accountInfo }
-                if(message.isNotBlank()){
-                    val chatMessage = ChatMessage(
-                        content = message,
-                        conversationId = conversationId,
-                        fromAccountInfo = accountInfo,
-                        type = type,
-                        messagesStatus = MessagesStatus.SENDING,
-                        clientTimeStamp = Clock.System.now().toEpochMilliseconds(),
-                        clientMsgId =  Uuid.random().toString()
-                    )
-                    senderSdk.sendMessage(chatMessage)
-
-                    addNewMessage(MessageWrapper(chatMessage))
-                }
-
-            } catch (e: Exception) {
-                Napier.e("发送消息失败", e)
-            }
-        }
-
-    }
 
 }

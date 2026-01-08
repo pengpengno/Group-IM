@@ -1,4 +1,4 @@
-package com.github.im.dto.session;
+package com.github.im.dto.message;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

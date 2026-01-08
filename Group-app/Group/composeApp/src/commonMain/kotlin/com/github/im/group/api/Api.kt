@@ -3,12 +3,12 @@ package com.github.im.group.api
 import ProxyApi
 import ProxyConfig
 import com.github.im.group.GlobalCredentialProvider
+import com.github.im.group.db.entities.FileStatus
 import com.github.im.group.db.entities.FriendRequestStatus
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.ApiResponse
 import com.github.im.group.model.DepartmentInfo
-import com.github.im.group.model.OrganizationStructure
 import com.github.im.group.model.UserInfo
 import io.ktor.client.request.header
 import io.ktor.client.request.headers
@@ -19,6 +19,8 @@ import io.ktor.http.HttpMethod
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 
 object LoginApi {
@@ -110,15 +112,27 @@ object ConversationApi{
  */
 object FileApi {
     /**
-     * 上传文件
-     * 不
+     * 预创建文件记录接口，获取文件ID
+     */
+    suspend fun createFilePlaceholder(request: UploadFileRequest): FileUploadResponse {
+        return ProxyApi.request<UploadFileRequest, FileUploadResponse>(
+            hmethod = HttpMethod.Post,
+            path = "/api/files/uploadId",
+            body = request
+        )
+    }
+    
+    /**
+     * 上传文件（新的上传流程）
      * @param file 文件
      * @param fileName 文件名
-     * @param duration 文件时长 多余 音视频文件，非音视频文件 传 0 即可
+     * @param duration 文件时长 适用于音视频文件，非音视频文件传 0 即可
      */
-    suspend fun uploadFile(file: ByteArray,fileName:String,duration:Long): FileUploadResponse {
-        return ProxyApi.uploadFile(file, fileName,duration)
+    suspend fun uploadFile(fileId : String ,file: ByteArray, fileName: String, duration: Long = 0): FileUploadResponse {
+        
+        return ProxyApi.uploadFile(fileId,file, fileName, duration, )
     }
+    
 
     /**
      * 下载文件
@@ -161,6 +175,24 @@ object FileApi {
             path = "/api/files/meta",
             requestParams = mapOf("fileId" to fileId)
         )
+    }
+    
+    /**
+     * 通过客户端ID查询上传状态
+     * 用于断点续传功能
+     * @param clientId 客户端生成的UUID
+     */
+    suspend fun getUploadStatusByClientId(clientId: String): FileUploadResponse? {
+        return try {
+            ProxyApi.request<String, FileUploadResponse>(
+                hmethod = HttpMethod.Get,
+                path = "/api/files/upload-status",
+                requestParams = mapOf("clientId" to clientId)
+            )
+        } catch (e: Exception) {
+            // 如果服务端没有找到对应的上传状态，返回null
+            null
+        }
     }
 }
 /**
@@ -303,10 +335,36 @@ data class DefaultMessagePayLoad(
 ) : MessagePayLoad
 
 @Serializable
-data class FileUploadResponse(
-    val id: String    ,
+data class UploadFileRequest(
+    /**
+     * 文件大小
+     */
+    val size: Long?,
 
-    val fileMeta: FileMeta ,
+    /**
+     * 文件名
+     */
+    val fileName: String?,
+
+    /**
+     * 文件时长（媒体文件）
+     */
+    val duration: Long?,
+)
+
+@Serializable
+data class FileUploadResponse(
+    // 必须返回
+    val id: String,
+    // 文件上传后 必须返回  不可为空
+    // 在上传前获取文件 id 的时候 不会返回信息
+    val fileMeta: FileMeta?,
+
+    /**
+     * 文件的状态
+     *
+     */
+    val fileStatus: String?,
 )
 @Serializable
 @SerialName("FILE")
@@ -324,13 +382,16 @@ data class FileMeta(
 
     val contentType: String,
 
-    val hash: String,
+    val hash: String = "",
 
-    val type: String,
+    @SerialName("type")
+    val type: String = "FILE",
 
     val duration  : Int =0,  // 媒体资源才会又时长 单位 是 毫秒，需要展示的时候 换算成秒 默认0 即可
 
-    val thumbnail :String? = null  // 缩略图的  fileId
+    val thumbnail :String? = null , // 缩略图的  fileId
+
+    val fileStatus: FileStatus   // 文件状态
 
 ) : MessagePayLoad
 
@@ -477,10 +538,6 @@ object OrganizationApi {
      */
     suspend fun getCurrentUserOrganizationStructure(): ApiResponse<DepartmentInfo> {
         // 使用全局凭证中的公司ID，如果不存在则尝试从当前用户信息中获取
-//        val companyId = GlobalCredentialProvider.companyId
-//            ?: GlobalCredentialProvider.storage.getUserInfo()?.currentLoginCompanyId
-//            ?: 1L
-//        return getOrganizationStructure(companyId)
         return getOrganizationStructure()
     }
 }

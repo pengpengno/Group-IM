@@ -1,7 +1,7 @@
 package com.github.im.server
 
 import com.github.im.common.connect.model.proto.Chat
-import com.github.im.dto.session.*
+import com.github.im.dto.message.*
 import com.github.im.enums.MessageStatus
 import com.github.im.enums.MessageType
 import com.github.im.server.mapstruct.MessageMapper

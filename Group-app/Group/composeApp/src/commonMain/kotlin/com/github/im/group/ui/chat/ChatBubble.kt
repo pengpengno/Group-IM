@@ -75,7 +75,12 @@ sealed class MessageContent {
      * @param duration 音频时长 ms 展示的需要转化为秒
      */
     data class Voice(val audioPath: String, val duration: Int) : MessageContent()
-    data class File(val fileId: String) : MessageContent()
+
+    /**
+     * 文件信息
+     * @param fileMeta 文件元信息
+     */
+    data class File(val fileMeta: FileMeta) : MessageContent()
     data class Video(val videoId: String) : MessageContent()
 }
 
@@ -344,7 +349,7 @@ fun TextMessage(content: MessageContent.Text) {
  * 文件类型气泡
  */
 @Composable
-fun FileMessageBubble(msg: MessageItem) {
+fun FileMessageBubble(meta: FileMeta) {
     val messageViewModel: ChatMessageViewModel = koinViewModel()
 
     var showDialog by remember { mutableStateOf(false) }
@@ -352,13 +357,8 @@ fun FileMessageBubble(msg: MessageItem) {
 
     // 异步加载文件大小信息
     var fileSize by remember { mutableStateOf<Long?>(null) }
+    var fileName by remember { mutableStateOf<String>(meta.fileName) }
 
-    var meta by remember { mutableStateOf<FileMeta?>(null) }
-
-    LaunchedEffect(msg) {
-         meta = messageViewModel.getFileMessageMetaAsync(msg)
-        fileSize = meta?.size
-    }
 
     val displaySize = when (val size = fileSize) {
         null -> "加载中..."
@@ -409,7 +409,7 @@ fun FileMessageBubble(msg: MessageItem) {
             // 文件信息
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = msg.content,
+                    text = fileName,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1
                 )
@@ -439,7 +439,7 @@ fun FileMessageBubble(msg: MessageItem) {
     // 点击后显示文件操作对话框
     if (showDialog) {
         FileActionDialog(
-            fileName = msg.content,
+            fileName = fileName,
             fileSize = displaySize,
             onDismiss = { showDialog = false },
             onView = {
@@ -585,7 +585,6 @@ fun VideoBubble(content: MessageContent.Video) {
     var showPreview by remember { mutableStateOf(false) }
     val messageViewModel: ChatMessageViewModel = koinViewModel()
     val videoUrl = messageViewModel.getLocalFilePath(content.videoId).toString()
-//    val videoUrl = "http://${ProxyConfig.host}:${ProxyConfig.port}/api/files/download/${content.videoId}"
 
     Box(
         modifier = Modifier

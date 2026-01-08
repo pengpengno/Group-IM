@@ -3,6 +3,7 @@ package com.github.im.group.repository
 import com.github.im.group.api.FileMeta
 import com.github.im.group.db.AppDatabase
 import com.github.im.group.db.entities.FileStatus
+import com.github.im.group.sdk.PickedFile
 import db.FileResource
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDateTime
@@ -20,11 +21,69 @@ class FilesRepository(
     private val STORE_PATH : String = "files"
 
 
+
     /**
-     * 添加文件记录到数据库
+     * 添加待上传的文件记录
+     * 在文件上传前 获取到 uploaderId - fileId 后
+     * 必要参数
+     * fileName 文件名
+     * fileId 服务端给的 uploaderId
+     * duration 时长
+     * status 文件状态 这个时候为  {@link FileStatus.UPLOADING}
+     *
+     * @param fileId 文件ID
+     * @param fileName 文件名
+     * @param duration 文件时长 媒体文件需要添加时长
+     */
+    fun addPendingFileRecord(fileId: String, fileName: String, duration: Long = 0,filePath: String) {
+        db.filesQueries.insertFile(
+            originalName = fileName,
+            contentType = "",
+            size = 0,  // 服务端计算后返回
+            serverId = fileId,
+            storagePath = filePath,
+            hash = "", // 使用fileId作为hash
+            uploadTime = Clock.System.now().toLocalDateTime(TimeZone.UTC),
+            status = FileStatus.UPLOADING,
+            thumbnail = null,
+            duration = duration
+        )
+    }
+    /**
+     * 添加待上传的文件记录
+     * 在文件上传前 获取到 uploaderId - fileId 后
+     * 必要参数
+     * fileName 文件名
+     * fileId 服务端给的 uploaderId
+     * duration 时长
+     * status 文件状态 这个时候为  {@link FileStatus.UPLOADING}
+     *
+     * @param fileId 文件ID
+     * @param fileName 文件名
+     * @param duration 文件时长 媒体文件需要添加时长
+     */
+    fun addPendingFileRecord(fileId: String, pickedFile: PickedFile, duration: Long = 0) {
+
+        db.filesQueries.insertFile(
+            originalName = pickedFile.name,
+            contentType = pickedFile.mimeType ?: "",
+            size = pickedFile.size,
+            serverId = fileId,
+            storagePath = pickedFile.path,
+            hash ="",
+            uploadTime = Clock.System.now().toLocalDateTime(TimeZone.UTC),
+            status = FileStatus.UPLOADING,
+            thumbnail = null,
+            duration = duration
+        )
+
+    }
+    /**
+     * 添加/更新文件记录到数据库
+     * 如果文件已存在，则更新信息
      * @param metaFileMeta
      */
-    fun addFile(metaFileMeta : FileMeta){
+    fun addOrUpdateFile(metaFileMeta : FileMeta){
         // 检查文件是否已存在
         val existingFile = db.filesQueries.selectFileByServerId(metaFileMeta.fileId).executeAsOneOrNull()
         
@@ -39,14 +98,25 @@ class FilesRepository(
                 storagePath = "",
                 hash = metaFileMeta.hash,
                 uploadTime = Clock.System.now().toLocalDateTime(TimeZone.UTC),
-                clientId = metaFileMeta.hash,
                 status = FileStatus.NORMAL,
                 thumbnail = metaFileMeta.thumbnail,
                 duration = metaFileMeta.duration.toLong()
             )
         } else {
-            // 如果文件已存在，更新最后访问时间
-            updateLastAccessTime(metaFileMeta.hash)
+            db.filesQueries.updateFileByServerId(
+                originalName = metaFileMeta.fileName,
+                contentType = metaFileMeta.contentType,
+                size = metaFileMeta.size,
+                serverId = metaFileMeta.fileId,
+//                storagePath = "$STORE_PATH/${metaFileMeta.hash}",
+                storagePath =existingFile.storagePath,
+                hash = metaFileMeta.hash,
+                uploadTime =existingFile.uploadTime,
+                status = metaFileMeta.fileStatus,
+                thumbnail = metaFileMeta.thumbnail,
+                duration = metaFileMeta.duration.toLong()
+
+            )
         }
     }
     
@@ -72,7 +142,7 @@ class FilesRepository(
      */
     private fun addFileInTransaction(fileMeta: FileMeta) {
         // 检查文件是否已存在
-        val existingFile = db.filesQueries.selectFileByClientId(fileMeta.hash).executeAsOneOrNull()
+        val existingFile = db.filesQueries.selectFileByServerId(fileMeta.fileId).executeAsOneOrNull()
         
         if (existingFile == null) {
             // 如果文件不存在，则插入新记录
@@ -84,35 +154,23 @@ class FilesRepository(
                 storagePath = "$STORE_PATH/${fileMeta.hash}",
                 hash = fileMeta.hash,
                 uploadTime = Clock.System.now().toLocalDateTime(TimeZone.UTC),
-                clientId = fileMeta.hash,
                 status = FileStatus.NORMAL,
                 thumbnail = fileMeta.thumbnail,
                 duration = fileMeta.duration.toLong()
             )
         } else {
-            // 如果文件已存在，更新最后访问时间
-            updateLastAccessTimeInTransaction(fileMeta.hash)
-        }
-    }
-    
-    /**
-     * 在事务中更新文件最后访问时间
-     */
-    private fun updateLastAccessTimeInTransaction(fileId: String) {
-        val file = db.filesQueries.selectFileByClientId(fileId).executeAsOneOrNull()
-        if (file != null) {
-            db.filesQueries.updateFileByClientId(
-                originalName = file.originalName,
-                contentType = file.contentType,
-                size = file.size,
-                storagePath = file.storagePath,
-                hash = file.hash,
-                uploadTime = Clock.System.now().toLocalDateTime(TimeZone.UTC),
-                clientId = file.clientId,
-                status = file.status,
-                thumbnail = file.thumbnail,
-                duration = file.duration,
-                clientId_ = fileId
+
+            db.filesQueries.updateFileByServerId(
+                originalName = existingFile.originalName,
+                contentType = existingFile.contentType,
+                size = existingFile.size,
+                storagePath = existingFile.storagePath,
+                hash = existingFile.hash,
+                uploadTime = existingFile.uploadTime,
+                status = existingFile.status,
+                thumbnail = existingFile.thumbnail,
+                duration = existingFile.duration,
+                serverId =  existingFile.serverId
             )
         }
     }
@@ -155,18 +213,17 @@ class FilesRepository(
     fun updateLastAccessTime(fileId: String) {
         val file = getFile(fileId)
         if (file != null) {
-            db.filesQueries.updateFileByClientId(
+            db.filesQueries.updateFileByServerId(
                 originalName = file.originalName,
                 contentType = file.contentType,
                 size = file.size,
                 storagePath = file.storagePath,
                 hash = file.hash,
                 uploadTime = Clock.System.now().toLocalDateTime(TimeZone.UTC),
-                clientId = file.clientId,
                 status = file.status,
                 thumbnail = file.thumbnail,
                 duration = file.duration,
-                clientId_ = fileId
+                serverId = fileId
             )
         }
     }
@@ -177,18 +234,17 @@ class FilesRepository(
     fun updateFileStatus(fileId: String, status: FileStatus) {
         val file = getFile(fileId)
         if (file != null) {
-            db.filesQueries.updateFileByClientId(
+            db.filesQueries.updateFileByServerId(
                 originalName = file.originalName,
                 contentType = file.contentType,
                 size = file.size,
                 storagePath = file.storagePath,
                 hash = file.hash,
                 uploadTime = file.uploadTime,
-                clientId = file.clientId,
                 status = status,
                 thumbnail = file.thumbnail,
                 duration = file.duration,
-                clientId_ = fileId
+                serverId = fileId
             )
         }
     }
@@ -199,18 +255,17 @@ class FilesRepository(
     fun updateMediaResourceInfo(fileId: String, thumbnail: String? = null, duration: Long? = null) {
         val file = getFile(fileId)
         if (file != null) {
-            db.filesQueries.updateFileByClientId(
+            db.filesQueries.updateFileByServerId(
                 originalName = file.originalName,
                 contentType = file.contentType,
                 size = file.size,
                 storagePath = file.storagePath,
                 hash = file.hash,
                 uploadTime = file.uploadTime,
-                clientId = file.clientId,
                 status = file.status,
                 thumbnail = thumbnail ?: file.thumbnail,
                 duration = duration ?: file.duration,
-                clientId_ = fileId
+                serverId = fileId
             )
         }
     }
@@ -243,10 +298,11 @@ class FilesRepository(
                 fileName = it.originalName,
                 size = it.size,
                 contentType = it.contentType,
-                hash = it.clientId,
-                type = it.contentType,
+                hash = it.hash,
                 duration = if (it.duration > 0) it.duration.toInt() else 0, // 如果时长为0则返回null
-                thumbnail = it.thumbnail
+                thumbnail = it.thumbnail,
+                fileStatus = it.status
+
             )
         }
     }

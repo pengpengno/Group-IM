@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,16 +27,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.PickedFile
+import com.github.im.group.sdk.getPlatformFilePicker
 import kotlinx.coroutines.launch
 
 @Composable
 actual fun PlatformFilePickerPanel(
-    filePicker: FilePicker,
     onDismiss: () -> Unit,
     onFileSelected: (List<PickedFile>) -> Unit
 ) {
 
     val scope = rememberCoroutineScope()
+
+    val filePicker = remember { getPlatformFilePicker() }
 
     Surface(
         color = Color.White,

@@ -50,8 +50,75 @@ object ProxyApi
      * @param fileName 文件名
      * @param duration 文件时长 适用于音频/ 视频文件
      */
-    @OptIn(ExperimentalUuidApi::class)
-    suspend fun uploadFile(file: ByteArray, fileName: String , duration: Long=0):FileUploadResponse {
+    suspend fun uploadFile(fileId:String ,file: ByteArray, fileName: String , duration: Long=0):FileUploadResponse {
+
+        val baseUrl = if (ProxyConfig.enableProxy) {
+            "http://${ProxyConfig.host}:${ProxyConfig.port}"
+        } else {
+            "http://${ProxyConfig.host}:${ProxyConfig.port}"
+        }
+
+
+        val response =  client.submitFormWithBinaryData(
+            url = baseUrl + "/api/files/upload",
+            formData = formData {
+
+                append("uploaderId", fileId)
+                if (duration > 0){
+                    append("duration", duration)
+                }
+                append("file", file, Headers.build {
+                append(HttpHeaders.ContentDisposition, "filename*=UTF-8''${java.net.URLEncoder.encode(fileName, "UTF-8")}")
+                })
+            },
+
+        ){
+            method = HttpMethod.Post
+            headers {
+                val token = GlobalCredentialProvider.currentToken
+                if (token.isNotEmpty()) {
+                    header("Authorization", "Bearer $token")
+                    header("Proxy-Authorization", "Bearer $token")
+                }
+            }
+
+        }
+
+        Napier.d("ProxyApi Upload response: ${response.bodyAsText()}")
+        return when (response.status.value) {
+            in 200..299 -> {
+                val responseBody = response.body<FileUploadResponse>()
+                return responseBody
+            }
+
+            401 -> {
+                val errorText = response.bodyAsText()
+                throw UnauthorizedException("认证失败，请重新登录：${response.status}，内容: $errorText")
+            }
+            in 400..499 -> {
+                val errorText = response.bodyAsText()
+//                logger("ProxyApi", "ProxyApi error: $errorText")
+                throw ClientRequestException("客户端请求错误：${response.status}，内容: $errorText")
+            }
+            in 500..599 -> {
+                val errorText = response.bodyAsText()
+                throw ServerException("服务器错误：${response.status}，内容: $errorText")
+            }
+            else -> {
+                val errorText = response.bodyAsText()
+                throw UnknownResponseException("未知响应状态：${response.status}，内容: $errorText")
+            }
+        }
+    }
+    
+    /**
+     * 文件上传（带客户端ID）
+     * @param file  文件
+     * @param fileName 文件名
+     * @param duration 文件时长 适用于音频/ 视频文件
+     * @param clientId 客户端生成的UUID
+     */
+    suspend fun uploadFileWithClientId(file: ByteArray, fileName: String, duration: Long, clientId: String): FileUploadResponse {
 
         val baseUrl = if (ProxyConfig.enableProxy) {
             "http://${ProxyConfig.host}:${ProxyConfig.port}"
@@ -64,8 +131,10 @@ object ProxyApi
             url = baseUrl + "/api/files/upload",
             formData = formData {
 
-                append("clientId", Uuid.random().toString())
-                append("duration", duration)
+                append("uploaderId", clientId)
+                if (duration > 0){
+                    append("duration", duration)
+                }
                 append("file", file, Headers.build {
                 append(HttpHeaders.ContentDisposition, "filename*=UTF-8''${java.net.URLEncoder.encode(fileName, "UTF-8")}")
                 })

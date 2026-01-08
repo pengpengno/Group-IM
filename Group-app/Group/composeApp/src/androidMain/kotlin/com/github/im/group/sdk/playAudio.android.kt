@@ -6,9 +6,6 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import io.github.aakira.napier.Napier
 
-actual fun playAudio(bytes: ByteArray) {
-    val context = VoiceRecorderFactory.context
-}
 
 /**
  * Android平台音频播放器实现

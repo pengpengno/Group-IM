@@ -1,7 +1,5 @@
 package com.github.im.group.ui.chat
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,14 +8,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -25,8 +21,6 @@ import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,7 +33,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,8 +48,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.github.im.group.model.UserInfo
 import com.github.im.group.ui.UserAvatar
-import com.github.im.group.ui.chat.ChatInputArea
-import com.github.im.group.ui.chat.VoiceControlOverlayWithRipple
 import com.github.im.group.ui.video.VideoCallUI
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
@@ -67,15 +58,12 @@ import com.github.im.group.ui.video.VideoCallViewModel
 import io.github.aakira.napier.Napier
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.ui.window.Dialog
 import androidx.navigation.compose.rememberNavController
+import com.github.im.group.api.FileMeta
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
-import io.github.aakira.napier.log
+import com.github.im.group.sdk.PickedFile
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
@@ -178,12 +166,13 @@ fun ChatRoomScreen(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp
                                 )
-                                // TODO: 显示在线状态
-                                Text(
-                                    text = "在线",
-                                    color = Color.Green,
-                                    fontSize = 12.sp
-                                )
+                                //TODO  获取在线状态接口
+//
+//                                Text(
+//                                    text = "在线",
+//                                    color = Color.Green,
+//                                    fontSize = 12.sp
+//                                )
                             }
                         } ?: run {
                             // 如果没有获取到对方用户信息，显示群组名称
@@ -284,15 +273,14 @@ fun ChatRoomScreen(
                     ChatInputArea(
                         onSendText = { text ->
                             if (text.isNotBlank()) {
-                                messageViewModel.sendMessage(conversationId, text)
+                                messageViewModel.sendTextMessage(conversationId, text)
                             }
                         },
                         onRelease = {
-
                             //  停止后直接发送
                             voiceViewModel.getVoiceData()?.let {
                                     messageViewModel.sendVoiceMessage(conversationId,
-                                        it.bytes, it.name, it.durationMillis)
+                                    it)
                             }
 
                         },
@@ -404,55 +392,95 @@ fun MessageBubble(
                         MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content))
 
                         MessageType.VOICE -> {
-                            // 异步加载语音消息的持续时间
-                            var duration by remember { mutableStateOf<Int>(0) }
-                            var audioPath by remember { mutableStateOf<String?>(null) }
-                            val fileId = msg.content
-                            LaunchedEffect(msg) {
-                                // 异步获取文件元数据，
-
-                                var meta = messageViewModel.getFileMessageMetaAsync(msg)
-                                meta?.let {
-
-                                    var fileExists = messageViewModel.isFileExists(fileId)
-                                    if (!fileExists){
-                                        // 不存在则下载
-                                        messageViewModel.downloadFileMessage(it.fileId)
-
-                                    }
-                                    audioPath =  messageViewModel.getLocalFilePath(fileId).toString()
-
-                                    duration = it.duration
-
-                                }
-
-                            }
-
-                            // 使用当前已获取到的持续时间，如果没有则显示加载状态
-                            if (duration > 0 && audioPath != null) {
-                                audioPath?.let {
-                                    log { "audioPath: $it" }
+                            FileMessageLoader(
+                                msg = msg,
+                                messageViewModel = messageViewModel,
+                                maxDownloadSize = 50 * 1024 * 1024, // 50MB 限制
+                                onContentReady = { fileUrl, meta ->
                                     VoiceMessage(
                                         content = MessageContent.Voice(
-                                            audioPath = it,
-                                            duration = duration
+                                            audioPath = fileUrl,
+                                            duration = meta.duration
                                         )
                                     )
+                                },
+                                onLoading = {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .padding(4.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                },
+                                onError = {
+                                    Text("语音文件过大或加载失败")
                                 }
-
-                            } else {
-                                // 显示加载状态
-                                CircularProgressIndicator(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .padding(4.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            }
+                            )
                         }
-                        MessageType.IMAGE -> ImageMessage(MessageContent.Image(msg.content))
-                        MessageType.VIDEO -> VideoBubble(MessageContent.Video(msg.content))
-                        MessageType.FILE -> FileMessageBubble(msg)
+                        MessageType.IMAGE -> {
+                            FileMessageLoader(
+                                msg = msg,
+                                messageViewModel = messageViewModel,
+                                maxDownloadSize = 10 * 1024 * 1024, // 10MB 限制
+                                onContentReady = { fileUrl, meta ->
+                                    ImageMessage(MessageContent.Image(fileUrl))
+                                },
+                                onLoading = {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .padding(4.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                },
+                                onError = {
+                                    Text("图片文件过大或加载失败")
+                                }
+                            )
+                        }
+                        MessageType.VIDEO -> {
+                            FileMessageLoader(
+                                msg = msg,
+                                messageViewModel = messageViewModel,
+                                maxDownloadSize = 100 * 1024 * 1024, // 100MB 限制
+                                onContentReady = { fileUrl, meta ->
+                                    VideoBubble(MessageContent.Video(fileUrl))
+                                },
+                                onLoading = {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .padding(4.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                },
+                                onError = {
+                                    Text("视频文件过大或加载失败")
+                                }
+                            )
+                        }
+                        MessageType.FILE -> {
+                            FileMessageLoader(
+                                msg = msg,
+                                messageViewModel = messageViewModel,
+                                maxDownloadSize = 50 * 1024 * 1024, // 50MB 限制
+                                onContentReady = { fileUrl, meta ->
+                                    var fileId = meta.fileId
+                                    FileMessageBubble(meta)
+                                },
+                                onLoading = {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .padding(4.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                },
+                                onError = {
+                                    Text("文件过大或加载失败")
+                                }
+                            )
+                        }
                         else -> TextMessage(MessageContent.Text(msg.content))
                     }
                 }
@@ -476,17 +504,75 @@ fun MessageBubble(
 }
 
 /**
- * 定期清理过期文件
+ * 通用文件消息加载组件
+ * @param msg 消息对象
+ * @param messageViewModel 消息视图模型
+ * @param maxDownloadSize 最大下载大小限制（字节），默认为50MB
+ * @param onContentReady 内容准备就绪回调
+ * @param onLoading 加载中状态
+ * @param onError 错误状态（可选）
  */
-fun scheduleFileCleanup() {
-    // 可以通过协程定期执行文件清理任务
-    // 示例：每隔一天清理一次过期文件
-    /*
-    viewModelScope.launch {
-        while (true) {
-            delay(24 * 60 * 60 * 1000) // 24小时
-            messageViewModel.cleanupExpiredFiles()
+@Composable
+fun FileMessageLoader(
+    msg: MessageItem,
+    messageViewModel: ChatMessageViewModel,
+    maxDownloadSize: Long = 50 * 1024 * 1024, // 默认50MB
+    onContentReady: @Composable (String, FileMeta) -> Unit,
+    onLoading: @Composable () -> Unit,
+    onError: @Composable (() -> Unit)? = null
+) {
+    var fileUrl by remember { mutableStateOf<String?>(null) }
+    var fileMeta by remember { mutableStateOf<FileMeta?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var hasError by remember { mutableStateOf(false) }
+    val fileId = msg.content
+
+    LaunchedEffect(msg) {
+        try {
+            // 异步获取文件元数据（这是所有文件类型都需要的步骤）
+            val meta = messageViewModel.getFileMessageMetaAsync(msg)
+            fileMeta = meta
+
+            meta?.let { fileMeta ->
+                // 检查文件大小是否超过限制
+                if (fileMeta.size > maxDownloadSize) {
+                    hasError = true
+                    isLoading = false
+                    return@LaunchedEffect
+                }
+
+                // 检查文件是否存在，如果不存在则下载
+                val fileExists = messageViewModel.isFileExists(fileId)
+                if (!fileExists) {
+                    // 不存在则下载
+                    messageViewModel.downloadFileMessage(fileMeta.fileId)
+                }
+
+                // 获取本地文件路径
+                val localPath = messageViewModel.getLocalFilePath(fileId)
+                fileUrl = localPath.toString()
+            }
+
+            isLoading = false
+        } catch (e: Exception) {
+            hasError = true
+            isLoading = false
+            Napier.e("加载文件消息失败", e)
         }
     }
-    */
+
+    when {
+        hasError -> {
+            onError?.invoke() ?: Text("文件过大或加载失败")
+        }
+        isLoading -> {
+            onLoading()
+        }
+        fileUrl != null && fileMeta != null -> {
+            onContentReady(fileUrl!!, fileMeta!!)
+        }
+        else -> {
+            onLoading()
+        }
+    }
 }

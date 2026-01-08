@@ -1,4 +1,4 @@
-package com.github.im.dto.session;/**
+package com.github.im.dto.message;/**
  * Description: [描述方法或类的作用和功能]
  * <p>
  * </p>

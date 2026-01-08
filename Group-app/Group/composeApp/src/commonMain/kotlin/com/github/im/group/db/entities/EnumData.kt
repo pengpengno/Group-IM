@@ -32,6 +32,7 @@ enum class ConversationStatus {
 @Serializable
 
 enum class FileStatus {
+    UPLOADING, // 分块上传中
     NORMAL,
     DELETED,
     EXPIRED,

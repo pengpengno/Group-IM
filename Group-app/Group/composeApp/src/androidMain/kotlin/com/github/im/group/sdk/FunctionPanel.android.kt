@@ -7,14 +7,12 @@ import com.github.im.group.sdk.PickedFile
 
 @Composable
 actual fun PlatformFilePickerPanel(
-    filePicker: FilePicker,
     onDismiss: () -> Unit,
     onFileSelected: (List<PickedFile>) -> Unit
 ) {
 
 
     AndroidFilePickerPanel(
-        filePicker = filePicker,
         onDismiss = onDismiss,
         onFileSelected = onFileSelected
     )

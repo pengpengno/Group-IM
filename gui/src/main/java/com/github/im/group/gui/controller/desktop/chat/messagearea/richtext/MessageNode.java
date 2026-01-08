@@ -1,8 +1,7 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.im.common.connect.model.proto.Chat;
-import com.github.im.dto.session.FileMeta;
+import com.github.im.dto.message.FileMeta;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.FileNode;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.FileInfo;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.LocalFileInfo;

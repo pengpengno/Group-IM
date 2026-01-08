@@ -1,8 +1,5 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file;
 
-import cn.hutool.core.io.FileUtil;
-import com.github.im.dto.session.MessageDTO;
-import com.github.im.group.gui.controller.desktop.MessageWrapper;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.MessageNode;
 import com.github.im.group.gui.util.FileIconUtil;
 import com.github.im.group.gui.util.PathFileUtil;
@@ -16,13 +13,9 @@ import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.Dragboard;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import lombok.Getter;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;

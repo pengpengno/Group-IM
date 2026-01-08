@@ -1,7 +1,6 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file;
 
-import com.github.im.dto.session.FileMeta;
-import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file.FileInfo;
+import com.github.im.dto.message.FileMeta;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.core.io.Resource;

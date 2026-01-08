@@ -1,6 +1,5 @@
-package com.github.im.dto.session;
+package com.github.im.dto.message;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,9 +21,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FileMeta implements MessagePayLoad{
 
-    private String fileId;   // 服务端生成的文件Id  uuid
-
-    private String clientId; // 客户端上传时生成的文件Id
+    private String fileId;   // 服务端生成的文件Id uuid
 
     private String filename;
 
@@ -36,7 +33,7 @@ public class FileMeta implements MessagePayLoad{
 
     /**
      * 文件时长 单位 mills
-     * 适用于 视频音频文件
+     * 适用于 视频音频文件，来源于 MediaFileResource
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private Long duration;
@@ -47,6 +44,9 @@ public class FileMeta implements MessagePayLoad{
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String  thumbnail; // 缩略图的  fileId
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String fileStatus;
 
 
 }

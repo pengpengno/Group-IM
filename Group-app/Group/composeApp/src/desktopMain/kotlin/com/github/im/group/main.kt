@@ -3,8 +3,6 @@ package com.github.im.group
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import com.github.im.group.config.SocketClient
-import com.github.im.group.connect.MessageClient
 import com.github.im.group.db.DatabaseDriverFactory
 import com.github.im.group.listener.ConnectionLoginListener
 import com.github.im.group.listener.WebRTCLoginListener
@@ -18,14 +16,11 @@ import com.github.im.group.repository.FilesRepository
 import com.github.im.group.repository.FriendRequestRepository
 import com.github.im.group.repository.MessageSyncRepository
 import com.github.im.group.repository.UserRepository
-import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.DesktopFilePicker
 import com.github.im.group.sdk.FilePicker
-import com.github.im.group.sdk.FileStorageManager
+import com.github.im.group.manager.FileStorageManager
+import com.github.im.group.sdk.DesktopVoiceRecorder
 import com.github.im.group.sdk.SenderSdk
-import com.github.im.group.sdk.VoiceRecorderFactory
-import com.github.im.group.sdk.VoiceRecorder
-import com.github.im.group.sdk.WebRTCManager
 import com.github.im.group.ui.video.VideoCallViewModel
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
@@ -38,7 +33,6 @@ import okio.Path.Companion.toPath
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import org.koin.core.module.dsl.viewModel
-import org.koin.core.module.dsl.viewModelOf
 
 fun main() = application {
     startKoin {
@@ -101,13 +95,15 @@ val desktopModule = module {
             conversationRepository = get(),
             senderSdk = get(),
             filePicker = get(),
-            fileStorageManager = get()
+            fileStorageManager = get(),
+            fileUploadService = get(),
+            chatMessageBuilder = get(),
         )
     }
 
     single { ChatSessionManager(get(), get()) }
     single { TCPMessageViewModel(get()) }
-    single { VoiceRecorderFactory.create() }
+    single { DesktopVoiceRecorder() }
 //    single { MessageClient(get()) } bind SocketClient::class
     viewModel {
         VoiceViewModel(

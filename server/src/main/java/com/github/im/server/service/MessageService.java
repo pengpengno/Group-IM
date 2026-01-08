@@ -1,12 +1,10 @@
 package com.github.im.server.service;
 
 import com.github.im.common.connect.model.proto.Chat;
-import com.github.im.dto.session.*;
+import com.github.im.dto.message.*;
 import com.github.im.enums.MessageStatus;
-import com.github.im.enums.MessageType;
 import com.github.im.server.mapstruct.MessageMapper;
 import com.github.im.server.model.Conversation;
-import com.github.im.server.model.FileResource;
 import com.github.im.server.model.Message;
 import com.github.im.server.model.User;
 import com.github.im.server.repository.MessageRepository;
@@ -27,12 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -114,7 +110,7 @@ public class MessageService {
         });
     }
 
-//    @Transactional
+    @Transactional
     public Message saveMessage(Chat.ChatMessage chatMessage) {
         var message = new Message();
         var proxy = entityManager.getReference(Conversation.class, chatMessage.getConversationId());
@@ -136,7 +132,7 @@ public class MessageService {
             clientTimeStamp = System.currentTimeMillis();
         }
         // 时间戳转为日期
-        message.setClientTimestamp(LocalDateTime.ofInstant(Instant.ofEpochSecond(clientTimeStamp), ZoneId.systemDefault()));
+        message.setClientTimestamp(LocalDateTime.ofInstant(Instant.ofEpochMilli(clientTimeStamp), ZoneId.systemDefault()));
         message.setTimestamp(LocalDateTime.now());
         return messageRepository.save(message);
     }
@@ -163,6 +159,9 @@ public class MessageService {
                     dto.setPayload(new DefaultMessagePayLoad(message.getContent()));
                     return dto;
                 case VOICE:
+                case IMAGE:
+                case VIDEO:
+                case MEDIA:
                 case FILE:
                     final UUID fileID = UUID.fromString(message.getContent());
                     FileMeta fileMeta = fileStorageService.getFileMeta(fileID);

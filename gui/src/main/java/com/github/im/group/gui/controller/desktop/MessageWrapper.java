@@ -1,9 +1,9 @@
 package com.github.im.group.gui.controller.desktop;
 
 import com.github.im.common.connect.model.proto.Chat;
-import com.github.im.dto.session.FileMeta;
-import com.github.im.dto.session.MessageDTO;
-import com.github.im.dto.session.MessagePayLoad;
+import com.github.im.dto.message.FileMeta;
+import com.github.im.dto.message.MessageDTO;
+import com.github.im.dto.message.MessagePayLoad;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.enums.MessageType;
 import com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.MessageNode;

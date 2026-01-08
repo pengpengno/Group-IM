@@ -1,6 +1,6 @@
 package com.github.im.group.gui.controller.desktop.chat.messagearea.richtext.file;
 
-import com.github.im.dto.session.FileMeta;
+import com.github.im.dto.message.FileMeta;
 import com.github.im.group.gui.api.MessageEndpoint;
 import com.github.im.group.gui.controller.desktop.MessageWrapper;
 import jakarta.annotation.Resource;

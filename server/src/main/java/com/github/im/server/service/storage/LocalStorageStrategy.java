@@ -48,7 +48,7 @@ public class LocalStorageStrategy implements StorageStrategy {
         file.transferTo(target);
         
         FileResource info = new FileResource();
-        info.setId(UUID.randomUUID()); // 设置预先生成的ID
+        info.setId(uploaderId); // 设置预先生成的ID
         info.setOriginalName(originalName);
         info.setExtension(ext);
         info.setContentType(contentType);
@@ -57,10 +57,8 @@ public class LocalStorageStrategy implements StorageStrategy {
         info.setStorageType(StorageType.LOCAL);
         info.setHash(hash);
         info.setUploadTime(Instant.now());
-        info.setClientId(uploaderId);
         info.setStatus(FileStatus.NORMAL);
-        info.setDuration(duration);
-        
+
         return info;
     }
     
@@ -108,9 +106,9 @@ public class LocalStorageStrategy implements StorageStrategy {
         info.setStorageType(StorageType.LOCAL);
         info.setHash(hash);
         info.setUploadTime(Instant.now());
-        info.setClientId(clientId);
         info.setStatus(FileStatus.NORMAL);
-        info.setDuration(duration);
+        // 已废弃：媒体相关数据信息应存储在 MediaFileResource 中，而不是 FileResource
+        // info.setDuration(duration);
 
         return info;
     }

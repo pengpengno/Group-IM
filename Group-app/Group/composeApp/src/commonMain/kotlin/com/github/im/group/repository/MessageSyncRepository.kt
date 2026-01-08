@@ -8,7 +8,7 @@ import com.github.im.group.api.extraAs
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
-import com.github.im.group.sdk.FileStorageManager
+import com.github.im.group.manager.FileStorageManager
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

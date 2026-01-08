@@ -161,6 +161,16 @@
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
         </dependency>
+<!--        -->
+<!--        &lt;!&ndash; Flyway for database migrations &ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>org.flywaydb</groupId>-->
+<!--            <artifactId>flyway-core</artifactId>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>org.flywaydb</groupId>-->
+<!--            <artifactId>flyway-database-postgresql</artifactId>-->
+<!--        </dependency>-->
 
     </dependencies>
 

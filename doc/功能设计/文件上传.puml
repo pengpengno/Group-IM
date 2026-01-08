@@ -1,0 +1,13 @@
+@startuml
+participant "客户端" as U
+participant "服务端" as S
+
+
+U->>S: 请求上传文件 /api/file/uploadId
+S->>U: 返回文件的 serverId (UUID)
+
+U->>S: 上传文件 /api/file/upload
+S->>FSM: 更新文件上传记录
+S ->> U : 返回文件更新的记录
+
+@enduml

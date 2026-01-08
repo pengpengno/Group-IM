@@ -2,7 +2,6 @@ package com.github.im.group.ui.chat
 
 import androidx.compose.animation.core.LinearEasing
 import com.github.im.group.sdk.TryGetPermission
-import com.github.im.group.sdk.getPlatformFilePicker
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -55,9 +54,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.im.group.sdk.PickedFile
-import com.github.im.group.ui.FunctionPanel
 import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
-import androidx.compose.material.Divider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -65,6 +62,7 @@ import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.window.Dialog
+import com.github.im.group.ui.PlatformFilePickerPanel
 import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.VoiceViewModel
 import io.github.aakira.napier.Napier
@@ -81,7 +79,6 @@ fun ChatInputArea(
     var isVoiceMode by remember { mutableStateOf(false) }
     var showMorePanel by remember { mutableStateOf(false) }
     var showEmojiPanel by remember { mutableStateOf(false) }
-    val filePicker = remember { getPlatformFilePicker() }
 
     val voiceViewModel : VoiceViewModel = koinViewModel()
 
@@ -161,9 +158,8 @@ fun ChatInputArea(
                 }
 
                 if (showMorePanel) {
-                    // 展示  文件 拍照
-                    FunctionPanel(
-                        filePicker = filePicker,
+
+                    PlatformFilePickerPanel(
                         onDismiss = { showMorePanel = false },
                         onFileSelected = onFileSelected
                     )

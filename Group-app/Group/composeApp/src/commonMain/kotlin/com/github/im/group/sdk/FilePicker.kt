@@ -10,6 +10,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
+ * 文件数据类型枚举，用于支持多种数据类型
+ */
+sealed class FileData {
+    data class Bytes(val data: ByteArray) : FileData()
+    data class Path(val path: String) : FileData()
+    data class Uri(val uri: String) : FileData()
+    object None : FileData()
+}
+
+
+/**
  * 文件选择器 用于移动端
  */
 interface FilePicker {
@@ -30,20 +41,24 @@ interface FilePicker {
 
     /**
      * 拍照
+     * 需要返回 图片的字段内容
      */
     suspend fun takePhoto(): PickedFile?
     
+
+
     /**
-     * 读取文件内容为字节数组
+     * 从 PickedFile 读取文件内容为字节数组
      */
-    suspend fun readFileBytes(file: PickedFile): ByteArray?
+    suspend fun readFileBytes(pickedFile: PickedFile): ByteArray
 }
 
 data class PickedFile(
     val name: String,
     val path: String,
     val mimeType: String?,
-    val size: Long
+    val size: Long,
+    val data : FileData = FileData.None  // 使用FileData类型以支持多种数据类型并确保类型安全
 )
 
 

@@ -1,6 +1,9 @@
 package com.github.im.group
 
+import ChatMessageBuilder
+import ChatMessageBuilderImpl
 import android.content.Context
+import android.os.Environment
 import com.github.im.group.api.LoginApi
 import com.github.im.group.config.SocketClient
 import com.github.im.group.connect.AndroidSocketClient
@@ -22,9 +25,12 @@ import com.github.im.group.sdk.AndroidFilePicker
 import com.github.im.group.sdk.AndroidWebRTCManager
 import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.FilePicker
-import com.github.im.group.sdk.FileStorageManager
+import com.github.im.group.manager.FileStorageManager
+import com.github.im.group.manager.FileUploadService
 import com.github.im.group.sdk.SenderSdk
-import com.github.im.group.sdk.VoiceRecorderFactory
+import com.github.im.group.manager.VoiceFileManager
+import com.github.im.group.sdk.AndroidVoiceRecorder
+import com.github.im.group.sdk.VoiceRecorder
 import com.github.im.group.sdk.WebRTCManager
 import com.github.im.group.ui.video.VideoCallViewModel
 import com.github.im.group.viewmodel.ChatMessageViewModel
@@ -44,13 +50,13 @@ import org.koin.dsl.module
 val appmodule = module {
 
 
-
     single { AndroidDatabaseDriverFactory(get<Context>()) }  // 注册工厂
     single { get<AndroidDatabaseDriverFactory>().createDatabase() }  // 注册 AppDatabase 单例
 
     single<FilePicker> { AndroidFilePicker(androidContext()) }
     single<AudioPlayer> { AndroidAudioPlayer(androidContext()) }
     single<WebRTCManager> { AndroidWebRTCManager(androidContext()) }
+
     single { UserRepository(get()) }
     single { ChatMessageRepository(get(),get()) }
     single { FilesRepository(get()) }
@@ -60,11 +66,27 @@ val appmodule = module {
     single { ConversationRepository(get()) }
 
     single {
+        val context = androidContext()
+
         FileStorageManager(
             filesRepository = get(),
             fileSystem = FileSystem.SYSTEM,
-            baseDirectory = androidContext().filesDir.absolutePath.toPath()
+            baseDirectory = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.absolutePath?.toPath()
+                ?: context.filesDir.absolutePath.toPath(),
         )
+    }
+    
+    single {
+        val context = androidContext()
+        val baseDirectory = context.filesDir.absolutePath.toPath()
+        
+        // 创建语音文件管理器
+        val voiceFileManager = VoiceFileManager(
+            fileSystem = FileSystem.SYSTEM,
+            baseDirectory = baseDirectory
+        )
+
+        voiceFileManager
     }
 
     // 为ChatViewModel添加所有必需的依赖项
@@ -88,14 +110,34 @@ val appmodule = module {
             filesRepository = get(), // 添加文件仓库依赖
             conversationRepository = get(),
             senderSdk = get(),
-            filePicker = get() ,
-            fileStorageManager = get()
+            filePicker = get(),
+            fileStorageManager = get(),
+            chatMessageBuilder = get(),
+            fileUploadService = get()
         )
     }
 
+
+    single { FileUploadService(
+        filePicker = get(),
+        userRepository = get(),
+        filesRepository = get(),
+        chatMessageRepository = get(),
+        fileStorageManager = get()
+    ) }
+    factory<ChatMessageBuilder> { ChatMessageBuilderImpl(
+        userRepository = get(),
+    ) }
+
     single { ChatSessionManager(get(),get()) }
     single { TCPMessageViewModel(get()) }
-    single { VoiceRecorderFactory.create()}
+    single {
+        AndroidVoiceRecorder(
+            androidContext(),
+            get(),
+        )
+    } bind VoiceRecorder::class
+
     single { AndroidSocketClient(get()) } bind SocketClient::class
     viewModel {
         VoiceViewModel(

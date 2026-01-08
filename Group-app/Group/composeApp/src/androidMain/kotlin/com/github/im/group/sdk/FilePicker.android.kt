@@ -25,6 +25,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.github.im.group.androidContext
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -151,24 +153,29 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
             
             // 等待拍照结果
             val success = photoResult?.await() ?: false
-            
+
             if (success && photoFile.exists() && photoFile.length() > 0) {
+                // 直接读取文件内容
+                val fileBytes = photoFile.readBytes()
+                
                 // 返回 PickedFile 对象
                 PickedFile(
                     name = photoFile.name,
-                    path = currentPhotoUri.toString(),
+                    path = currentPhotoUri.toString(), // 仍然返回Content URI
                     mimeType = "image/jpeg",
-                    size = photoFile.length()
+                    size = photoFile.length(),
+                    data = FileData.Bytes(fileBytes),
                 )
             } else {
                 null
             }
         } catch (e: SecurityException) {
             // 处理权限异常
-            e.printStackTrace()
+            Napier.e("FilePicker Permission denied: ${e.message}")
             throw e
         } catch (e: Exception) {
-            e.printStackTrace()
+            Napier.e("FilePicker Permission denied: ${e.message}")
+
             null
         } finally {
             photoResult = null
@@ -194,25 +201,39 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
         )
     }
     
+
+    
     /**
-     * 读取文件内容为字节数组
+     * 从 PickedFile 读取文件内容为字节数组
      */
-    override suspend fun readFileBytes(file: PickedFile): ByteArray? = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val uri = Uri.parse(file.path)
-            val inputStream = context.contentResolver.openInputStream(uri)
-            inputStream?.use { stream ->
-                val buffer = ByteArrayOutputStream()
-                val data = ByteArray(1024)
-                var nRead: Int
-                while (stream.read(data).also { nRead = it } != -1) {
-                    buffer.write(data, 0, nRead)
+    override suspend fun readFileBytes(file: PickedFile): ByteArray = withContext(Dispatchers.IO) {
+        return@withContext when (file.data) {
+            is FileData.Bytes -> file.data.data
+            is FileData.Path -> {
+                try {
+                    val uri = Uri.parse(file.data.path)
+                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        inputStream.readBytes()
+                    } ?: throw Exception("无法打开文件输入流: ${'$'}{file.data.path}")
+                } catch (e: Exception) {
+                    Napier.e { "读取文件失败 $file" }
+                    throw e
                 }
-                buffer.toByteArray()
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
+            is FileData.Uri -> {
+                try {
+                    val uri = Uri.parse(file.data.uri)
+                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        inputStream.readBytes()
+                    } ?: throw Exception("无法打开 URI 输入流: ${'$'}{file.data.uri}")
+                } catch (e: Exception) {
+                    Napier.e { "读取 URI 文件失败 $file" }
+                    throw e
+                }
+            }
+            FileData.None -> {
+                throw Exception("PickedFile 中没有数据")
+            }
         }
     }
 
@@ -232,19 +253,18 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
         val mime = resolver.getType(uri)
         val path = uri.toString()
 
-        PickedFile(name, path, mime, size)
+        val data = try {
+            val inputStream = resolver.openInputStream(uri)
+            val bytes = inputStream?.readBytes()
+            if (bytes != null) FileData.Bytes(bytes) else FileData.None
+        } catch (e: Exception) {
+            throw e
+        }
+        PickedFile(name, path, mime, size ,data)
     }
 }
 
-@SuppressLint("StaticFieldLeak")
-lateinit var androidContext: Context
 
-/**
- * 初始化 安卓 上下文
- */
-fun initAndroidContext(ctx: Context) {
-    androidContext = ctx
-}
 
 /**
  * 音视频预览

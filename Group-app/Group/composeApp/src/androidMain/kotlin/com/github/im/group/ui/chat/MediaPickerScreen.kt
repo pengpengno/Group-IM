@@ -51,7 +51,7 @@ import kotlinx.coroutines.withContext
 data class MediaItem(
     val id: Long,
     val name: String,
-    val uri: android.net.Uri,
+    val uri: Uri,
     val mimeType: String,
     val size: Long,
     val dateTaken: Long
@@ -210,7 +210,7 @@ fun UnifiedMediaPicker(
                     onMediaSelected = { selectedMedia ->
                         // 预览界面中选择文件后直接返回
                         val pickedFiles = selectedMedia.map { media ->
-                            PickedFile(media.name, media.uri.toString(), media.mimeType, media.size)
+                            PickedFile(media.name, media.uri.toString(), media.mimeType, media.size, FileData.Uri(media.uri.toString()))
                         }
                         onMediaSelected(pickedFiles)
                         onDismiss()
@@ -222,7 +222,7 @@ fun UnifiedMediaPicker(
                 Button(
                     onClick = {
                         val pickedFiles = selectedItems.map { media ->
-                            PickedFile(media.name, media.uri.toString(), media.mimeType, media.size)
+                            PickedFile(media.name, media.uri.toString(), media.mimeType, media.size,FileData.Path(media.uri.toString()))
                         }
                         onMediaSelected(pickedFiles)
                         onDismiss()

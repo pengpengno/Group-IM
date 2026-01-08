@@ -74,6 +74,9 @@ class ChatViewModel (
                 // Token失效，通知登出
                 Napier.e("Token失效，需要重新登录", e)
                 loginStateManager.setLoggedOut()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // 协程被取消，通常是页面跳转导致的正常取消，不记录为错误
+                Napier.d("加载会话列表被取消")
             } catch (e: Exception) {
                 Napier.e("加载会话列表失败", e)
             } finally {

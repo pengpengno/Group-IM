@@ -8,15 +8,11 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.github.im.group.sdk.VoiceRecorderFactory
-import com.github.im.group.sdk.initAndroidContext
-import com.shepeliev.webrtckmp.WebRtc
 import kotlinx.coroutines.CoroutineExceptionHandler
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.compose.KoinContext
 import org.koin.core.context.startKoin
-import org.webrtc.Logging
 
 
 /**
@@ -27,10 +23,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        GlobalCredentialProvider.storage = AndroidCredentialStorage(applicationContext)
-        VoiceRecorderFactory.context = applicationContext
-
         initAndroidContext(applicationContext)
+
+        GlobalCredentialProvider.storage = AndroidCredentialStorage(applicationContext)
+
 
         val globalHandler = CoroutineExceptionHandler { _, throwable ->
             if (throwable is IllegalStateException && throwable.message == "用户未登录") {
@@ -45,7 +41,7 @@ class MainActivity : ComponentActivity() {
         startKoin {
             androidLogger()
             androidContext(this@MainActivity)
-            modules(commonModule,appmodule, )
+            modules(appmodule,commonModule )
 
         }
         

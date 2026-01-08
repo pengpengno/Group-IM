@@ -6,8 +6,26 @@ import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import javax.swing.text.html.ImageView
 
-actual object VoiceRecorderFactory {
-    actual fun create(): VoiceRecorder {
+class DesktopVoiceRecorder (): VoiceRecorder {
+
+
+    override fun startRecording() {
+        TODO("Not yet implemented")
+    }
+
+    override fun stopRecording(): VoiceRecordingResult? {
+        TODO("Not yet implemented")
+    }
+
+    override fun getAmplitude(): Int {
+        TODO("Not yet implemented")
+    }
+
+    override fun getOutputFile(): String? {
+        TODO("Not yet implemented")
+    }
+
+    override fun getVoiceData(): VoiceRecordingResult? {
         TODO("Not yet implemented")
     }
 }

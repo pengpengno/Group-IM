@@ -25,12 +25,12 @@ public interface StorageStrategy {
      * 存储分片合并后的文件
      * @param fileHash 文件哈希
      * @param originalName 原始文件名
-     * @param clientId 客户端ID
+     * @param uploaderId 预分配的文件ID
      * @param duration 文件时长
      * @param chunkTempDir 分片临时目录
      * @return 存储后的文件资源信息
      */
-    FileResource storeMergedFile(String fileHash, String originalName, UUID clientId, Long duration, Path chunkTempDir) throws IOException;
+    FileResource storeMergedFile(String fileHash, String originalName, UUID uploaderId, Long duration, Path chunkTempDir) throws IOException;
     
     /**
      * 获取文件访问路径
