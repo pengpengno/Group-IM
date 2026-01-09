@@ -533,8 +533,9 @@ fun FileMessageLoader(
             // 异步获取文件元数据（这是所有文件类型都需要的步骤）
             val meta = messageViewModel.getFileMessageMetaAsync(msg)
             fileMeta = meta
+            Napier.d { "查询文件的 元数据：$meta" }
 
-            meta?.let { fileMeta ->
+            fileMeta?.let { fileMeta ->
                 // 检查文件大小是否超过限制
                 if (fileMeta.size > maxDownloadSize) {
                     hasError = true
@@ -552,9 +553,9 @@ fun FileMessageLoader(
 
                 // 获取本地文件路径
                 val localPath = messageViewModel.getLocalFilePath(fileId)
-                fileUrl = localPath?.toString()
+                fileUrl = localPath
 
-                Napier.d { "下载的本地路径为：$fileUrl" }
+                Napier.d { "${fileMeta.fileId } 下载的本地路径为：$fileUrl" }
             }
 
             isLoading = false

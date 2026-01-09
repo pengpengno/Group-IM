@@ -286,6 +286,7 @@ class ChatMessageRepository (
         return entities.map { entity ->
             MessageWrapper(
                 messageDto = MessageDTO(
+                    clientMsgId = entity.client_msg_id,
                     msgId = entity.msg_id,
                     conversationId = entity.conversation_id,
                     status = entity.status,
@@ -315,6 +316,7 @@ class ChatMessageRepository (
                 messageDto = MessageDTO(
                     msgId = entity.msg_id,
                     conversationId = entity.conversation_id,
+                    clientMsgId = entity.client_msg_id,
                     status = entity.status,
                     content = entity.content,
                     type =  entity.type,

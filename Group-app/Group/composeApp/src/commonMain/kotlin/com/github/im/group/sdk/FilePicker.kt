@@ -15,7 +15,6 @@ import kotlinx.coroutines.launch
 sealed class FileData {
     data class Bytes(val data: ByteArray) : FileData()
     data class Path(val path: String) : FileData()
-    data class Uri(val uri: String) : FileData()
     object None : FileData()
 }
 

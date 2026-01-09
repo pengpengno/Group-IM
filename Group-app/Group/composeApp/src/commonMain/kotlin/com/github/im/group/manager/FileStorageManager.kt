@@ -14,6 +14,7 @@ import com.github.im.group.sdk.File
 import com.github.im.group.sdk.FileData
 import okio.Path.Companion.toPath
 import okio.Path
+import java.io.FileNotFoundException
 
 /***
  * 判断文件是否存在
@@ -24,6 +25,40 @@ expect fun FileStorageManager.isFileExists(fileId: String): Boolean
 expect fun FileStorageManager.getLocalFilePath(fileId: String): String?
 
 expect fun FileStorageManager.getFile(fileId: String): File?
+
+
+/**
+ * 读取文件内容，支持大文件（如视频文件）
+ * 使用流式处理以有效处理大文件，避免内存溢出
+ * @param file 要读取的文件对象
+ * @return 文件的字节数组内容
+ */
+fun readFile(file: File): ByteArray {
+    return when (file.data) {
+        is FileData.Path -> {
+            val path = file.data.path
+            val fileSystem = FileSystem.SYSTEM
+            
+            // 检查文件是否存在
+            if (!fileSystem.exists(path.toPath())) {
+                throw FileNotFoundException("文件不存在: $path")
+            }
+            
+            // 使用Okio读取文件内容
+            fileSystem.read(path.toPath()) {
+                readByteArray()
+            }
+        }
+        is FileData.Bytes -> {
+            // 如果文件数据已经以字节数组形式存在，直接返回
+            file.data.data
+        }
+      
+        FileData.None -> {
+            throw IllegalStateException("文件数据为空")
+        }
+    }
+}
 
 /**
  * 将FileMeta对象转换为File对象
@@ -384,6 +419,8 @@ object FileTypeDetector {
         }
     }
 }
+
+
 
 
 

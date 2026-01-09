@@ -15,6 +15,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.github.im.group.GlobalCredentialProvider
+import io.github.aakira.napier.Napier
 import java.io.InputStream
 
 /**
@@ -27,8 +28,8 @@ actual fun CrossPlatformImage(
     size: Int
 ) {
     val context = LocalContext.current
-    val token = GlobalCredentialProvider.currentToken
-    
+    Napier.d("CrossPlatformVideo: file.path = ${file.path}")
+
     // 根据 PickedFile.data 的类型来决定如何加载图片
     when (val data = file.data) {
         is FileData.Bytes -> {
@@ -86,35 +87,7 @@ actual fun CrossPlatformImage(
                 )
             }
         }
-        is FileData.Uri -> {
-            // 处理URI
-            val inputStream: InputStream? = try {
-                context.contentResolver.openInputStream(Uri.parse(data.uri))
-            } catch (e: Exception) {
-                null
-            }
-            
-            if (inputStream != null) {
-                // 使用Coil加载Content URI
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(inputStream)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    modifier = modifier
-                        .padding(PaddingValues(3.dp, 12.dp))
-                )
-            } else {
-                // 如果无法加载，显示错误占位符
-                Image(
-                    painter = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_report_image),
-                    contentDescription = "无法加载图片",
-                    modifier = modifier
-                        .padding(PaddingValues(3.dp, 12.dp))
-                )
-            }
-        }
+
         FileData.None -> {
             // 如果没有数据，显示错误占位符
             Image(

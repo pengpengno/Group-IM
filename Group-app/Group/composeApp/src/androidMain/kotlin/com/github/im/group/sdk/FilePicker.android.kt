@@ -214,17 +214,7 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
                     throw e
                 }
             }
-            is FileData.Uri -> {
-                try {
-                    val uri = Uri.parse(file.data.uri)
-                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        inputStream.readBytes()
-                    } ?: throw Exception("无法打开 URI 输入流: ${'$'}{file.data.uri}")
-                } catch (e: Exception) {
-                    Napier.e { "读取 URI 文件失败 $file" }
-                    throw e
-                }
-            }
+
             FileData.None -> {
                 throw Exception("PickedFile 中没有数据")
             }

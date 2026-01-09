@@ -289,44 +289,6 @@ fun VoiceWaveform(
     }
 }
 
-/**
- * 视频消息
- */
-@Composable
-fun VideoMessage(content: MessageContent.Video) {
-    var showPreview by remember { mutableStateOf(false) }
-
-    Box(
-        modifier = Modifier
-            .size(200.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .clickable { showPreview = true }
-            .background(Color.Gray)
-    ) {
-        Icon(
-            imageVector = Icons.Default.PlayCircle,
-            contentDescription = "播放视频",
-            tint = Color.White,
-            modifier = Modifier
-                .size(48.dp)
-                .align(Alignment.Center)
-        )
-    }
-
-    if (showPreview) {
-        Dialog(
-            onDismissRequest = { showPreview = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            CrossPlatformVideo(
-                file = content.file,
-                modifier = Modifier.fillMaxSize(),
-                size = 300.dp,
-                onClose = { showPreview = false }
-            )
-        }
-    }
-}
 
 /**
  * 文本消息气泡

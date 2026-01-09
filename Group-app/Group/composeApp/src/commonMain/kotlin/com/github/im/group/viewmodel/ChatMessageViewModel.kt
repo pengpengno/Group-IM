@@ -693,8 +693,8 @@ class ChatMessageViewModel(
      * @param fileId 文件ID
      * @return 本地文件路径
      */
-    fun getLocalFilePath(fileId: String): Path? {
-        return fileStorageManager.getLocalFilePath(fileId)?.toPath()
+    fun getLocalFilePath(fileId: String): String? {
+        return fileStorageManager.getLocalFilePath(fileId)
     }
 
 

@@ -55,7 +55,7 @@ data class MediaItem(
             path = this.uri.toString(),
             mimeType = this.mimeType,
             size = this.size,
-            data = FileData.Uri(this.uri.toString())
+            data = FileData.Path(this.uri.toString())
         )
     }
 }
@@ -215,7 +215,7 @@ fun UnifiedMediaPicker(
                     onMediaSelected = { selectedMedia ->
                         // 预览界面中选择文件后直接返回
                         val files = selectedMedia.map { media ->
-                            File(media.name, media.uri.toString(), media.mimeType, media.size, FileData.Uri(media.uri.toString()))
+                            File(media.name, media.uri.toString(), media.mimeType, media.size, FileData.Path(media.uri.toString()))
                         }
                         onMediaSelected(files)
                         onDismiss()
@@ -227,7 +227,7 @@ fun UnifiedMediaPicker(
                 Button(
                     onClick = {
                         val files = selectedItems.map { media ->
-                            File(media.name, media.uri.toString(), media.mimeType, media.size, FileData.Uri(media.uri.toString()))
+                            File(media.name, media.uri.toString(), media.mimeType, media.size, FileData.Path(media.uri.toString()))
                         }
                         onMediaSelected(files)
                         onDismiss()
@@ -402,6 +402,9 @@ fun MediaPreviewDialog(
 }
 
 
+/**
+ * 图片 视频展示
+ */
 @Composable
 fun MediaItemView(
     mediaItem: MediaItem,

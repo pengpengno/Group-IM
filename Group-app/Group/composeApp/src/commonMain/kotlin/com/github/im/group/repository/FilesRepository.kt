@@ -74,7 +74,6 @@ class FilesRepository(
             )
         } else {
 
-            Napier.d { "文件是否存在 ： $existingFile " }
 
             db.filesQueries.updateFileByServerId(
                 originalName = metaFileMeta.fileName,
