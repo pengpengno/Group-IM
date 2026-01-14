@@ -1,0 +1,26 @@
+# AI服务配置
+app:
+  ai:
+    provider: groq  # 可选值: groq, openai
+# Groq配置 (使用OpenAI兼容接口)
+spring:
+  ai:
+    enabled: false
+    groq:
+      api-key: ${GROQ_API_KEY:your-groq-api-key-here}  # 从环境变量GROQ_API_KEY读取
+      base-url: https://api.groq.com/openai/v1
+      default-options:
+        model: llama3-70b-8192  # 可选: llama3-70b-8192, llama3-8b-8192, mixtral-8x7b-32768, gemma-7b-it
+        temperature: 0.7
+        top-p: 0.8
+        max-tokens: 1000
+
+# OpenAI配置
+    openai:
+      api-key: ${OPENAI_API_KEY:your-openai-api-key-here}  # 从环境变量OPENAI_API_KEY读取
+      base-url: https://api.openai.com/v1
+      default-options:
+        model: gpt-3.5-turbo
+        temperature: 0.7
+        top-p: 0.8
+        max-tokens: 1000
