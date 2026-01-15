@@ -273,7 +273,6 @@ actual object VideoPlayerManager {
             exoPlayerBuilder
                 .setSeekBackIncrementMs(5000)  // 5秒快退
                 .setSeekForwardIncrementMs(5000)  // 5秒快进
-                .build()
             val player = exoPlayerBuilder.build()
             
             // 根据 file.data 类型来设置不同的数据源
@@ -324,6 +323,7 @@ actual object VideoPlayerManager {
                         // 处理 Android Content URI
                         val mediaSource = DefaultMediaSourceFactory(context)
                             .createMediaSource(MediaItem.fromUri(file.path))
+                        player.setMediaSource(mediaSource)
                     } else if (file.path.startsWith("http://") || file.path.startsWith("https://")) {
                         // 处理网络视频资源 (HTTP/HTTPS)
                         val httpFactory = MediaHttpFactory.create(GlobalCredentialProvider.currentToken)
