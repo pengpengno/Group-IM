@@ -1,18 +1,12 @@
-package com.github.im.server.config;
+package com.github.im.server.config.netty;
 
 import com.github.im.common.connect.connection.server.ReactiveServer;
-import com.github.im.common.connect.connection.server.tcp.ReactorTcpServer;
-import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.SmartLifecycle;
-import org.springframework.core.task.TaskExecutor;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import java.net.InetSocketAddress;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 

@@ -140,28 +140,7 @@ class FilesRepository(
             )
         }
     }
-    
-    /**
-     * 更新文件最后访问时间
-     */
-    fun updateLastAccessTime(fileId: String) {
-        val file = getFile(fileId)
-        if (file != null) {
-            db.filesQueries.updateFileByServerId(
-                originalName = file.originalName,
-                contentType = file.contentType,
-                size = file.size,
-                storagePath = file.storagePath,
-                hash = file.hash,
-                uploadTime = Clock.System.now().toLocalDateTime(TimeZone.UTC),
-                status = file.status,
-                thumbnail = file.thumbnail,
-                duration = file.duration,
-                serverId = fileId
-            )
-        }
-    }
-    
+
     /**
      * 更新文件状态
      */

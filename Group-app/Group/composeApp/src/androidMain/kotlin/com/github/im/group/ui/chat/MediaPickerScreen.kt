@@ -269,7 +269,9 @@ fun MediaPreviewDialog(
             } else if (media.mimeType.startsWith("video/")) {
                 // 使用AndroidView和ExoPlayer直接播放视频
                 Napier.d("play video ${media.uri}")
-                CrossPlatformVideo(media.toPickedFile(), Modifier.fillMaxSize(), size = 200.dp)
+
+                MediaFileView(media.toPickedFile(), Modifier.fillMaxSize(), size = 200.dp)
+//                CrossPlatformVideo(media.toPickedFile(), Modifier.fillMaxSize(), size = 200.dp)
             }
 
             // 显示选中状态 - 在右上角

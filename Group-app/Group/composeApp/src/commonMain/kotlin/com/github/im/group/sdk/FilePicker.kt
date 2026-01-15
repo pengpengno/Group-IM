@@ -14,7 +14,18 @@ import kotlinx.coroutines.launch
  */
 sealed class FileData {
     data class Bytes(val data: ByteArray) : FileData()
-    data class Path(val path: String) : FileData()
+
+    /**
+     * @param path 支持本地路径  /   网络http 路径
+     */
+    data class Path(val path: String) : FileData(){
+        /**
+         * 判断是否 为网络路径
+         */
+        fun isHttpPath() = path.startsWith("http") || path.startsWith("https")
+        fun isLocalPath() = !isHttpPath()
+    }
+
     object None : FileData()
 }
 

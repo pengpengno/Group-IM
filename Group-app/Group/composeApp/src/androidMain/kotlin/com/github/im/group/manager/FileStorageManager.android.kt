@@ -9,16 +9,17 @@ import okio.Path
 import okio.Path.Companion.toPath
 
 /**
- * 检查文件是否存在（本地优先，Android 平台特定实现，支持 Content URI）
+ * 检查文件是否在本地存在（，Android 平台特定实现，支持 Content URI）
  * @param fileId 文件ID或文件路径
- * @return 文件是否存在
+ * @return 文件是否在本地存在
  */
 actual fun FileStorageManager.isFileExists(fileId: String): Boolean {
     try {
 
         val localFilePath = getLocalFilePath(fileId)
-        // 如果 fileId 是 Content URI (以 content:// 开头)
+        // 如果 fileId 是 Content URI (以 content:// 开头 安卓平台 本地上传文件时 会是带有content的)
         if (fileId.startsWith("content://")) {
+            Napier.d("检查 Content URI 文件是否存在: $fileId")
             val context = androidContext
             val uri = Uri.parse(fileId)
 
@@ -36,9 +37,10 @@ actual fun FileStorageManager.isFileExists(fileId: String): Boolean {
 
         // 对于非 Content URI，使用通用实现
         // 检查本地是否存在
-        if (localFilePath != null && fileSystem.exists(localFilePath.toPath())) {
+        if (localFilePath != null && localFilePath.isNotEmpty() && fileSystem.exists(localFilePath.toPath())) {
+            Napier.d("文件已存在: $fileId, path $localFilePath")
             return true
-        }else return false
+        } else return false
 
     } catch (e: Exception) {
         Napier.e("检查文件是否存在时发生错误: $fileId", e)
@@ -47,25 +49,34 @@ actual fun FileStorageManager.isFileExists(fileId: String): Boolean {
 }
 
 /**
- * 获取本地文件路径（Android 平台特定实现，支持 Content URI）
+ * 获取本地文件路径（Android 平台特定实现，支持 Content URI(conteng:// )
+ * 如果文件在本地不存在 那么 就返回 null ( 注：不会返回 http 的链接)
  * @param fileId 文件ID
  * @return 本地文件路径，如果不存在则返回null
  */
 actual fun FileStorageManager.getLocalFilePath(fileId: String): String? {
     try {
 
-         val file = getFile(fileId)
 
-
-         return file?.let {
-            val filePath = it.path
-            return filePath
+        val fileRecord = filesRepository.getFile(fileId)
+        val fileMeta = filesRepository.getFileMeta(fileId)
+        if (fileRecord != null) {
+            return fileMeta?.toFile(fileRecord.storagePath)?.let {
+                // 返回文件的完整路径
+                val filePath = it.path
+                // 确保路径不为空
+                if ( filePath.isNotEmpty()) {
+                    return@let filePath
+                }
+                return null
+            }
         }
 
     } catch (e: Exception) {
         Napier.e("获取本地文件路径失败: $fileId", e)
         return null
     }
+    return null
 }
 
 /**
@@ -78,8 +89,12 @@ actual fun FileStorageManager.getFile(fileId: String): File? {
 
         val fileRecord = filesRepository.getFile(fileId)
         val fileMeta = filesRepository.getFileMeta(fileId)
-        if (fileRecord != null) {
-           return fileMeta?.toFile(fileRecord.storagePath)
+        if (fileRecord != null && fileMeta != null) {
+            val file = fileMeta.toFile(fileRecord.storagePath)
+            // 确保文件路径不为空
+            if (file.path.isNotEmpty()) {
+                return file
+            }
         }
         return null
     } catch (e: Exception) {

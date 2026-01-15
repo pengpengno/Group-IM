@@ -7,7 +7,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +34,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,10 +52,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.github.im.group.api.FileMeta
+import com.github.im.group.db.entities.MessageType
+import com.github.im.group.model.MessageItem
 import com.github.im.group.sdk.AudioPlayer
-import com.github.im.group.sdk.CrossPlatformImage
 import com.github.im.group.sdk.CrossPlatformVideo
 import com.github.im.group.sdk.File
+import com.github.im.group.sdk.FileData
+import com.github.im.group.sdk.MediaFileView
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -84,29 +88,13 @@ sealed class MessageContent {
  * 图片气泡
  */
 @Composable
-fun ImageMessage(content: MessageContent.Image) {
-    var showPreview by remember { mutableStateOf(false) }
-
-    CrossPlatformImage(
+fun ImageMessage(content: MessageContent.Image, onDownloadFile: ((String) -> Unit)? = null, onShowMenu: ((File) -> Unit)? = null) {
+    MediaFileView(
         file = content.file,
-        modifier = Modifier
-            .size(200.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .clickable { showPreview = true },
-        size = 200
+        modifier = Modifier.size(160.dp),
+        onDownloadFile = onDownloadFile,
+        onShowMenu = onShowMenu
     )
-
-    if (showPreview) {
-        Dialog(onDismissRequest = { showPreview = false }) {
-            CrossPlatformImage(
-                file = content.file,
-                modifier = Modifier
-                    .size(300.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                size = 300
-            )
-        }
-    }
 }
 
 /**
@@ -306,76 +294,62 @@ fun TextMessage(content: MessageContent.Text) {
  * 文件类型气泡
  */
 @Composable
-fun FileMessageBubble(meta: FileMeta) {
+fun FileMessageBubble(meta: FileMeta, onDownloadFile: ((String) -> Unit)? = null) {
     val messageViewModel: ChatMessageViewModel = koinViewModel()
 
     var showDialog by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
 
-    // 异步加载文件大小信息
-    var fileSize by remember { mutableStateOf<Long?>(null) }
-    var fileName by remember { mutableStateOf<String>(meta.fileName) }
+    // 创建一个虚拟的File对象，用于MediaFileView显示
+    val file = File(
+        name = meta.fileName,
+        path = "",
+        mimeType = meta.contentType,
+        size = meta.size,
+        data = FileData.Path(meta.getFileUrl() ?: "")
+    )
 
-
-    val displaySize = when (val size = fileSize) {
-        null -> "加载中..."
-        else -> if (size > 1024 * 1024) {
-            "${size / 1024 / 1024}MB"
-        } else if (size > 1024) {
-            "${size / 1024}KB"
-        } else {
-            "${size}B"
-        }
+    val displaySize = if (meta.size > 1024 * 1024) {
+        "${meta.size / 1024 / 1024}MB"
+    } else if (meta.size > 1024) {
+        "${meta.size / 1024}KB"
+    } else {
+        "${meta.size}B"
     }
 
     fun downloadFile() {
         meta?.let {
-            messageViewModel.downloadFileMessage(it.fileId)
+            onDownloadFile?.invoke(it.fileId)
         }
     }
 
     Column(
         modifier = Modifier
             .padding(horizontal = 12.dp, vertical = 8.dp)
-            .clickable {
-                downloadFile()
-            }
             .width(200.dp)
     ) {
-        Row(
+        // 使用MediaFileView显示文件预览
+        MediaFileView(
+            file = file,
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 文件图标
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(Color(0xFFE3F2FD), shape = RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.FileDownload,
-                    contentDescription = "文件",
-                    tint = Color(0xFF1976D2),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+            size = 120.dp,
+            onDownloadFile = onDownloadFile
+        )
 
-            Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-            // 文件信息
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = fileName,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1
-                )
-                Text(
-                    text = displaySize,
-                    color = Color.Gray,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
+        // 文件信息
+        Column {
+            Text(
+                text = meta.fileName,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1
+            )
+            Text(
+                text = displaySize,
+                color = Color.Gray,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -396,7 +370,7 @@ fun FileMessageBubble(meta: FileMeta) {
     // 点击后显示文件操作对话框
     if (showDialog) {
         FileActionDialog(
-            fileName = fileName,
+            fileName = meta.fileName,
             fileSize = displaySize,
             onDismiss = { showDialog = false },
             onView = {
@@ -537,70 +511,71 @@ fun SendingSpinner(modifier: Modifier = Modifier, color: Color = Color.Gray) {
     }
 }
 
-@Composable
-fun VideoBubble(content: MessageContent.Video) {
-    var showPreview by remember { mutableStateOf(false) }
-
-    Box(
-        modifier = Modifier
-            .size(160.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .clickable {
-                showPreview = true
-            }
-    ) {
-        // 显示视频缩略图，这里暂时用一个占位图标
-        Icon(
-            // TODO  视频第一帧 缩略图
-            Icons.Default.PlayCircle,
-            contentDescription = "播放",
-            tint = Color.White,
-            modifier = Modifier
-                .size(48.dp)
-                .align(Alignment.Center)
-        )
-    }
-
-    // 点击后全屏预览
-    if (showPreview) {
-        FullScreenVideoPlayer(
-            file = content.file,
-            onClose = { showPreview = false }
-        )
-    }
-}
-
 /**
- * 全屏放大 视频播放
+ * 统一的文件消息组件 - 处理所有类型的文件消息（图片、视频、普通文件）
  */
 @Composable
-fun FullScreenVideoPlayer(file: File, onClose: () -> Unit) {
-    Dialog(
-        onDismissRequest = onClose,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false // 禁用默认宽度限制
-        )
-    ) {
-        CrossPlatformVideo(
-            file = file,
-            modifier = Modifier.fillMaxSize(),
-            size = 200.dp,
-            onClose = onClose
-        )
-        
-        // 关闭按钮
-//        IconButton(
-//            onClick = onClose,
-//            modifier = Modifier
-//                .align(Alignment.TopEnd)
-//                .padding(16.dp)
-//                .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
-//        ) {
-//            Icon(
-//                imageVector = Icons.Default.Close,
-//                contentDescription = "关闭",
-//                tint = Color.White
-//            )
-//        }
-    }
+fun UnifiedFileMessage(
+    message: MessageItem,
+    messageViewModel: ChatMessageViewModel
+) {
+    FileMessageLoader(
+        msg = message,
+        messageViewModel = messageViewModel,
+        maxDownloadSize = 5 * 1024 * 1024,  // 5MB for all file types
+        onContentReady = { pickedFile, meta ->
+            val downloadFile = { fileId: String -> messageViewModel.downloadFileMessage(fileId) }
+            val showMenu = { file: File ->
+                // 显示文件操作菜单
+                // 这里可以弹出一个BottomSheet或其他形式的菜单
+                // 暂时使用现有的文件操作对话框
+            }
+            when (message.type) {
+                MessageType.IMAGE -> {
+                    ImageMessage(
+                        content = MessageContent.Image(pickedFile),
+                        onDownloadFile = downloadFile,
+                        onShowMenu = showMenu
+                    )
+                }
+                MessageType.VIDEO -> {
+                    VideoBubble(
+                        content = MessageContent.Video(pickedFile),
+                        onDownloadFile = downloadFile,
+                        onShowMenu = showMenu
+                    )
+                }
+                MessageType.FILE -> {
+                    FileMessageBubble(
+                        meta = meta,
+                        onDownloadFile = downloadFile
+                    )
+                }
+                else -> {
+                    Text("未知的文件类型")
+                }
+            }
+        },
+        onLoading = {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .size(16.dp)
+                    .padding(4.dp),
+                strokeWidth = 2.dp
+            )
+        },
+        onError = {
+            Text("${message.type.name}文件过大或加载失败")
+        }
+    )
+}
+
+@Composable
+fun VideoBubble(content: MessageContent.Video, onDownloadFile: ((String) -> Unit)? = null, onShowMenu: ((File) -> Unit)? = null) {
+    MediaFileView(
+        file = content.file,
+        modifier = Modifier.size(160.dp),
+        onDownloadFile = onDownloadFile,
+        onShowMenu = onShowMenu
+    )
 }

@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * 消息路由组件
  */
-@Component
+@Component("aiMessageRouter")
 public class MessageRouter {
 
     private final List<BotHandler> handlers;

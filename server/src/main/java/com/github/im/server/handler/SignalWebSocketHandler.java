@@ -11,11 +11,15 @@ import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * WebRTC信令WebSocket处理器
+ * 处理WebRTC信令消息，包括offer/answer/candidate等
+ */
 @Component
 public class SignalWebSocketHandler extends TextWebSocketHandler {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper;
 
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     /**
@@ -23,6 +27,16 @@ public class SignalWebSocketHandler extends TextWebSocketHandler {
       */
     private final Map<String, String> inCall = new ConcurrentHashMap<>();
 
+    public SignalWebSocketHandler() {
+        this.mapper = new ObjectMapper();
+    }
+
+    /**
+     * WebSocket连接建立时的回调
+     * 将用户会话加入到会话管理中
+     *
+     * @param session WebSocket会话
+     */
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         String userId = extractUserId(session.getUri());
@@ -35,6 +49,13 @@ public class SignalWebSocketHandler extends TextWebSocketHandler {
         log.info("User connected: " + userId + ", total=" + sessions.size());
     }
 
+    /**
+     * 处理接收到的文本消息
+     * 解析信令消息并根据类型进行相应处理
+     *
+     * @param session WebSocket会话
+     * @param message 接收到的消息
+     */
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) {
         try {
@@ -77,6 +98,13 @@ public class SignalWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * WebSocket连接关闭时的回调
+     * 清理会话和通话状态
+     *
+     * @param session WebSocket会话
+     * @param status 连接关闭状态
+     */
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         String userId = extractUserId(session.getUri());
@@ -90,6 +118,12 @@ public class SignalWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 转发消息到目标用户
+     *
+     * @param toUser 目标用户ID
+     * @param msg 要转发的消息
+     */
     private void forward(String toUser, TextMessage msg) {
         WebSocketSession target = sessions.get(toUser);
         if (target != null && target.isOpen()) {
@@ -97,11 +131,23 @@ public class SignalWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 发送消息给指定用户
+     *
+     * @param toUser 目标用户ID
+     * @param payload 消息内容
+     */
     private void send(String toUser, String payload) {
         if (toUser == null) return;
         send(sessions.get(toUser), payload);
     }
 
+    /**
+     * 发送消息到WebSocket会话
+     *
+     * @param session WebSocket会话
+     * @param payload 消息内容
+     */
     private void send(WebSocketSession session, String payload) {
         try {
             if (session != null && session.isOpen()) {
@@ -110,10 +156,21 @@ public class SignalWebSocketHandler extends TextWebSocketHandler {
         } catch (Exception ignored) {}
     }
 
+    /**
+     * 安静地关闭WebSocket会话
+     *
+     * @param session 要关闭的会话
+     */
     private void closeQuietly(WebSocketSession session) {
         try { session.close(); } catch (Exception ignored) {}
     }
 
+    /**
+     * 从URI中提取用户ID
+     *
+     * @param uri WebSocket连接的URI
+     * @return 用户ID，如果无法提取则返回null
+     */
     private String extractUserId(URI uri) {
         if (uri == null || uri.getQuery() == null) return null;
         for (String kv : uri.getQuery().split("&")) {

@@ -17,6 +17,7 @@ import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.manager.FileStorageManager
 import com.github.im.group.manager.FileUploadService
+import com.github.im.group.manager.getFile
 import com.github.im.group.manager.getLocalFilePath
 import com.github.im.group.manager.isFileExists
 import com.github.im.group.model.proto.ChatMessage
@@ -80,11 +81,8 @@ class ChatMessageViewModel(
 
     private val _uiState = MutableStateFlow(ChatUiState())
 
-    //   用于处理客户端 发送消息 后 返回数据的 ui 更新辅助
-    private val messageIndex = mutableMapOf<String, Int>() // clientMsgId -> messages list index
-
-    //  sequence  辅助 messageItem
-    private val messageSequenceIdIndex = mutableMapOf<Long, Int>() // sequenceId -> messages list index
+    // 使用LinkedHashMap作为唯一的消息存储来源，替代原来的多个索引
+    private val messageStore = linkedMapOf<String, MessageItem>()
 
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
     
@@ -109,7 +107,7 @@ class ChatMessageViewModel(
     fun onReceiveMessage(message: MessageItem){
         Napier.d("收到消息 $message")
 
-        addNewMessage( message)
+        upsertMessage(message)
     }
 
 
@@ -132,17 +130,10 @@ class ChatMessageViewModel(
     fun updateMessage(clientMsgId: String?) {
         if (clientMsgId == null) return
 
-        val idx = messageIndex[clientMsgId] ?: return
-
         // 从数据库中查询最新版本的消息
         val latestMessage = chatMessageRepository.getMessageByClientMsgId(clientMsgId) ?: return
 
-        // 更新 StateFlow
-        _uiState.update { state ->
-            val updatedList = state.messages.toMutableList()
-            updatedList[idx] = latestMessage  // 替换为最新版本
-            state.copy(messages = updatedList)
-        }
+        upsertMessage(latestMessage)
     }
 
     /**
@@ -165,11 +156,8 @@ class ChatMessageViewModel(
         val messages = chatMessageRepository.getMessagesByConversation(conversationId,limit)
         Napier.d("读取到  ${messages.size} 条消息")
 
-        _uiState.update {
-            val messageList = mutableListOf<MessageItem>()
-            messageList.addAll(messages)
-            it.copy(messages = messageList)
-        }
+        // 应用消息到存储中
+        applyMessages(messages)
     }
 
     /**
@@ -195,11 +183,8 @@ class ChatMessageViewModel(
                 val messages = chatMessageRepository.getMessagesByConversation(conversationId,limit)
                 Napier.d("读取到  ${messages.size} 条消息")
 
-                _uiState.update {
-                    val messageList = mutableListOf<MessageItem>()
-                    messageList.addAll(messages)
-                    it.copy(messages = messageList)
-                }
+                // 应用消息到存储中
+                applyMessages(messages)
 
             } catch (e: Exception) {
                 Napier.e("加载消息失败", e)
@@ -234,11 +219,8 @@ class ChatMessageViewModel(
                 Napier.d("读取到  ${messages.size} 条消息")
                 Napier.d("读取到  ${messages} ")
 
-                _uiState.update {
-                    val messageList = mutableListOf<MessageItem>()
-                    messageList.addAll(messages)
-                    it.copy(messages = messageList)
-                }
+                // 应用消息到存储中
+                applyMessages(messages)
 
             } catch (e: Exception) {
                 Napier.e("加载消息失败", e)
@@ -269,13 +251,8 @@ class ChatMessageViewModel(
                     val updatedMessages = chatMessageRepository.getMessagesByConversation(conversationId)
                     Napier.d("刷新后共有 ${updatedMessages.size} 条消息")
                     
-                    _uiState.update {
-                        val messageList = mutableListOf<MessageItem>()
-                        updatedMessages.forEach { message ->
-                            messageList.add(message)
-                        }
-                        it.copy(messages = messageList)
-                    }
+                    // 应用消息到存储中
+                    applyMessages(updatedMessages)
                 }
             } catch (e: Exception) {
                 Napier.e("刷新消息失败", e)
@@ -334,22 +311,7 @@ class ChatMessageViewModel(
                 val messages = messageSyncRepository.getMessagesWithStrategy(conversationId, currentIndex, isFront)
                 Napier.d("加载了: ${messages.size} 条消息 currentIndex $currentIndex isFront $isFront")
                 // 更新UI状态
-                _uiState.update { currentState ->
-                    val list =  mutableListOf<MessageItem>()
-                    val updatedMessages = currentState.messages
-                    if (isFront) {
-                        // 历史消息，添加到列表开头
-                        list.addAll( messages)
-                        list.addAll(updatedMessages)
-//                        updatedMessages.addAll(0, messages)
-                    } else {
-                        // 最新消息，添加到列表末尾
-                        list.addAll( updatedMessages)
-                        list.addAll(messages)
-//                        updatedMessages.addAll(messages)
-                    }
-                    currentState.copy(messages = list)
-                }
+                applyMessages(messages)
             } catch (e: Exception) {
                 Napier.e("加载消息失败", e)
             } finally {
@@ -368,36 +330,47 @@ class ChatMessageViewModel(
      * 索引 index 0 则为 最新的消息
      *
      */
-    private fun addNewMessage(message: MessageItem){
+    private fun upsertMessage(message: MessageItem){
         chatMessageRepository.insertOrUpdateMessage(message)
-        _uiState.update {
-            // 更新消息列表
-            val updatedMessages = it.messages.toMutableList()
-            // 新来的消息，添加到列表开头
-            // clientMsgId  建立索引
-            val isExisted =  messageIndex.containsKey(message.clientMsgId)
-            Napier.d("addNewMessage: isExisted $isExisted  clientMsgId  ${message.clientMsgId}")
-            if(isExisted){
-                //  如果已经存在 那么就 更新掉原始的版本
-                val idx = messageIndex[message.clientMsgId]!!
-                updatedMessages[idx] = message
-            }else{
-                // 不存在则 录入 clientMsgId 索引 并且添加到列表首位
-                updatedMessages.add(0, message)
-                // 更新所有消息的索引（因为头插法改变了所有消息的位置）
-                messageIndex.clear()
-                updatedMessages.forEachIndexed { index, msg ->
-                    if (msg.clientMsgId .isNotBlank()){
-                        messageIndex[msg.clientMsgId] = index
-                    }
-                }
-            }
-            // seqId 不为0 的消息，添加到索引
-            if(message.seqId != 0L ){
-                messageSequenceIdIndex[message.seqId] = 0 // 新消息在索引0位置
-            }
-            it.copy(messages = updatedMessages)
+        
+        val key = message.uniqueKey()
+        
+        // 如果是 ACK，把 clientMsgId 版本替换成 seqId 版本
+        if (message.seqId != 0L && message.clientMsgId.isNotBlank()) {
+            messageStore.remove("C:${message.clientMsgId}")
         }
+        
+        messageStore[key] = message
+        emitUiMessages()
+    }
+    
+    /**
+     * 为MessageItem添加唯一键生成方法
+     */
+    private fun MessageItem.uniqueKey(): String =
+        when {
+            seqId != 0L -> "S:$seqId"
+            clientMsgId.isNotBlank() -> "C:$clientMsgId"
+            else -> error("Message has no identity: $this")
+        }
+    
+    /**
+     * 统一更新UI消息列表
+     */
+    private fun emitUiMessages() {
+        val sorted = messageStore.values
+            .sortedByDescending { it.seqId.takeIf { it != 0L } ?: Long.MAX_VALUE }
+
+        _uiState.update { state ->
+            state.copy(messages = sorted.toMutableList())
+        }
+    }
+    
+    /**
+     * 批量应用消息到存储中
+     */
+    private fun applyMessages(messages: List<MessageItem>) {
+        messages.forEach { upsertMessage(it) }
     }
 
 
@@ -405,16 +378,12 @@ class ChatMessageViewModel(
      * 删除消息
      */
     fun removeMessage(clientMsgId: String) {
-        val idx = messageIndex.remove(clientMsgId) ?: return
-        _uiState.update { state ->
-            val updatedMessages = state.messages.toMutableList()
-            updatedMessages.removeAt(idx)
-            // 重新建立索引
-            updatedMessages.forEachIndexed { i, msg ->
-                messageIndex[msg.clientMsgId] = i
-            }
-            state.copy(messages = updatedMessages)
-        }
+        val key = messageStore.keys.find { 
+            it.startsWith("C:") && messageStore[it]?.clientMsgId == clientMsgId 
+        } ?: return
+        
+        messageStore.remove(key)
+        emitUiMessages()
     }
 
 
@@ -506,7 +475,8 @@ class ChatMessageViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 // 添加到本地消息列表
-                addNewMessage(MessageWrapper(message = chatMessage))
+                val messageItem = MessageWrapper(message = chatMessage)
+                upsertMessage(messageItem)
                 // 发送消息
                 senderSdk.sendMessage(chatMessage)
 
@@ -650,29 +620,36 @@ class ChatMessageViewModel(
                     ))
                 }
                 
-                // 从文件存储管理器获取文件内容（实现本地优先策略）
-                val fileContent = fileStorageManager.getFileContent(fileId)
+                // 使用流式下载方法获取文件路径（实现本地优先策略）
+                val filePath = fileStorageManager.getFileContentPath(fileId)
                 
                 // 更新下载状态为成功
                 _fileDownloadStates.update { currentStates ->
                     currentStates + (fileId to FileDownloadState(
                         fileId = fileId,
                         isDownloading = false,
-                        isSuccess = true,
+                        isSuccess = filePath != null,
+                        error = if (filePath == null) "Failed to download file" else null
                     ))
                 }
 
                 Napier.d("文件下载成功: $fileId")
             } catch (e: Exception) {
-                Napier.e("文件下载失败", e)
-                // 更新下载状态为失败
-                _fileDownloadStates.update { currentStates ->
-                    currentStates + (fileId to FileDownloadState(
-                        fileId = fileId,
-                        isDownloading = false,
-                        isSuccess = false,
-                        error = e.message
-                    ))
+                // 区分协程取消异常和其他异常
+                if (e !is kotlinx.coroutines.CancellationException) {
+                    Napier.e("文件下载失败", e)
+                    // 更新下载状态为失败
+                    _fileDownloadStates.update { currentStates ->
+                        currentStates + (fileId to FileDownloadState(
+                            fileId = fileId,
+                            isDownloading = false,
+                            isSuccess = false,
+                            error = e.message
+                        ))
+                    }
+                } else {
+                    // 协程被取消，不记录为错误
+                    Napier.d("文件下载被取消: $fileId")
                 }
             }
         }
@@ -695,6 +672,15 @@ class ChatMessageViewModel(
      */
     fun getLocalFilePath(fileId: String): String? {
         return fileStorageManager.getLocalFilePath(fileId)
+    }
+
+    /**
+     * 获取文件对象
+     * @param fileId 文件ID
+     */
+    fun getFile(fileId: String): File?{
+
+        return fileStorageManager.getFile(fileId)
     }
 
 

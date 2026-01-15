@@ -136,8 +136,8 @@ fun LoginScreenUI(
     viewModel: UserViewModel = koinViewModel(),
     navController: NavHostController = rememberNavController(),
 ) {
-    var username by remember{ mutableStateOf("wangpeng")}
-    var password by remember { mutableStateOf("1") }
+    var username by remember{ mutableStateOf("peng.wang")}
+    var password by remember { mutableStateOf("12345") }
     var isLoggingIn by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()

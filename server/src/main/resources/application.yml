@@ -1,4 +1,11 @@
 spring:
+#  ai:
+#    openai:
+#      api-key: ${OPENAI_API_KEY:your-openai-api-key}
+#      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+#      chat:
+#        options:
+#          model: gpt-3.5-turbo
   data:
     redis:
         host: ${REDIS_HOST:localhost}
@@ -125,3 +132,5 @@ logging:
 jwt:
   private.key: classpath:app.key
   public.key: classpath:app.pub
+
+

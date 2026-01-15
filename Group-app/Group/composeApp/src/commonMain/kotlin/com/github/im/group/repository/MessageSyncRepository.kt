@@ -25,7 +25,6 @@ class MessageSyncRepository(
     private val fileStorageManager: FileStorageManager,
     private val userRepository: UserRepository
 ) {
-    private val syncScope = CoroutineScope(Dispatchers.IO)
 
     /**
      * 同步指定会话的新消息
@@ -152,33 +151,5 @@ class MessageSyncRepository(
         }
     }
 
-    /**
-     * 确保文件已下载到本地
-     * @param fileId 文件ID
-     */
-    private suspend fun ensureFileDownloaded(fileId: String) {
-        try {
-            // 检查文件是否已经存储在本地
-            if (!filesRepository.isFileStoredLocally(fileId)) {
-                Napier.d("文件 $fileId 尚未存储在本地，开始下载")
-                try {
-                    // 从服务器下载文件
-                    val fileContent = FileApi.downloadFile(fileId)
-                    
-                    // 保存文件到本地
-                    syncScope.launch {
-                        fileStorageManager.getFileContent(fileId)
-                    }
-                    
-                    Napier.d("文件 $fileId 下载完成")
-                } catch (e: Exception) {
-                    Napier.e("下载文件失败: $fileId", e)
-                }
-            } else {
-                Napier.d("文件 $fileId 已存在于本地")
-            }
-        } catch (e: Exception) {
-            Napier.e("检查文件状态时发生错误: $fileId", e)
-        }
-    }
+
 }

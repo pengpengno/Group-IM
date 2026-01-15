@@ -22,8 +22,18 @@ import java.io.FileNotFoundException
  */
 expect fun FileStorageManager.isFileExists(fileId: String): Boolean
 
+/**
+ * 获取文件的本地路径
+ *
+ * 如果 本地不存在 {@see FileStorageManager.isFileExists false  不存在} 返回 null
+ */
 expect fun FileStorageManager.getLocalFilePath(fileId: String): String?
-
+/**
+ * 获取本地文件对象
+ * 如果文件在本地不存在 那么 文件 {@see FileData.Path(path) 数据源则为 下载链接 }
+ * @param fileId 文件ID
+ * @return 本地文件对象，如果不存在则返回null
+ */
 expect fun FileStorageManager.getFile(fileId: String): File?
 
 
@@ -62,6 +72,7 @@ fun readFile(file: File): ByteArray {
 
 /**
  * 将FileMeta对象转换为File对象
+ * 其中 读取 path 作为  文件的数据源
  * @param path 本地文件路径
  * @return File对象
  */
@@ -72,8 +83,28 @@ fun FileMeta.toFile(path: String): File {
         mimeType = this.contentType,
         size = this.size,
         data = FileData.Path(path)
+//        data = FileData.Path(path.ifEmpty { this.getFileUrl() ?: "" })
     )
 }
+
+
+
+/**
+ * 将FileMeta对象转换为File对象
+ * 其中需要判断文件的状态为 正常，  数据为 http 资源
+ * @param path 本地文件路径
+ * @return File对象
+ */
+fun FileMeta.toFile(): File {
+    return File(
+        name = this.fileName,
+        path = "",
+        mimeType = this.contentType,
+        size = this.size,
+        data = FileData.Path(getFileUrl() ?: "")
+    )
+}
+
 
 class FileStorageManager(
     val filesRepository: FilesRepository,
@@ -82,13 +113,67 @@ class FileStorageManager(
 ) {
 
     /**
-     * 获取文件内容（实现本地优先策略）
+     * 获取文件内容路径（实现本地优先策略）
+     * @param fileId 文件ID
+     * @return 本地文件路径
+     */
+    suspend fun getFileContentPath(fileId: String): String? {
+        Napier.d("获取文件内容路径: $fileId")
+        val file = filesRepository.getFile(fileId)
+        /**
+         * a) 如果文件记录为空那么 从远程下载即可 包括记录 以及文件
+         * b) 如果文件不为空那么 检查本地是否存在记录 ,存在则返回本地文件路径
+         *    b1) 如果记录存在但是文件在 相应的位置不存在 指定文件 , 那么重新下载 , 并且更新文件记录
+         */
+
+        try {
+            // 情况 a) 文件记录为空，从远程下载
+            if (file == null) {
+                Napier.d("文件记录不存在，从服务器下载文件: $fileId")
+                downloadFileToLocalStorage(fileId)
+                return getLocalFilePath(fileId)
+            }
+
+            // 情况 b) 文件记录存在，使用isFileExists检查本地文件是否存在
+            if (isFileExists(fileId)) {
+                // 本地文件存在，直接返回路径
+                val localFilePathStr = getLocalFilePath(fileId)
+                Napier.d("文件已存在本地，返回路径: $localFilePathStr")
+                return localFilePathStr
+            } else {
+                // 本地文件不存在，从远程下载
+                Napier.d("本地文件不存在，从服务器下载: $fileId")
+                downloadFileToLocalStorage(fileId)
+                return getLocalFilePath(fileId)
+            }
+        } catch (e: Exception) {
+            Napier.e("获取文件内容路径失败: $fileId", e)
+            return null
+        }
+    }
+    
+    /**
+     * 获取文件内容（实现本地优先策略）- 保持向后兼容，但不推荐用于大文件
      * @param fileId 文件ID
      * @return 文件字节数组
+     * 
+     * 注意：对于大于5MB的文件，不建议使用此方法，因为它会将整个文件加载到内存中。
+     * 推荐使用 getFileObject 方法获取文件路径，然后流式读取。
      */
+    @Deprecated(
+        "此方法不适合大文件，会导致OOM。请使用getFileObject获取文件路径后流式读取。",
+        level = DeprecationLevel.WARNING
+    )
     suspend fun getFileContent(fileId: String): ByteArray {
         Napier.d("获取文件内容: $fileId")
         val file = filesRepository.getFile(fileId)
+        
+        // 检查文件大小，如果超过5MB则不允许使用此方法
+        val fileMeta = FileApi.getFileMeta(fileId)
+        if (fileMeta.size > 5 * 1024 * 1024) {  // 5MB
+            throw IllegalStateException("文件过大(${'$'}{fileMeta.size} bytes)，不能使用此方法获取，避免OOM错误")
+        }
+        
         /**
          * a) 如果文件记录为空那么 从远程下载即可 包括记录 以及文件
          * b) 如果文件不为空那么 检查本地是否存在记录 ,存在则返回本地文件内容
@@ -99,12 +184,11 @@ class FileStorageManager(
             // 情况 a) 文件记录为空，从远程下载
             if (file == null) {
                 Napier.d("文件记录不存在，从服务器下载文件: $fileId")
-                val fileContent = FileApi.downloadFile(fileId)
-
-                // 保存到本地
-                saveFileLocally(fileId, fileContent)
-
-                return fileContent
+                // 为保持向后兼容性，需要将File对象转换为ByteArray
+                val downloadedFile = downloadFileToLocalStorageAndReturnFile(fileId)
+                return fileSystem.read(downloadedFile.path.toPath()) {
+                    readByteArray()
+                }
             }
 
             // 情况 b) 文件记录存在，检查本地文件是否存在
@@ -112,28 +196,295 @@ class FileStorageManager(
             if (localFilePathStr != null) {
                 val localFilePath = localFilePathStr.toPath()
                 if (fileSystem.exists(localFilePath)) {
-                    Napier.d("从本地获取文件: $fileId")
-                    // 本地存在，直接返回本地文件内容
+                    // 本地文件存在，直接读取
+                    Napier.d("文件已存在本地，直接读取: $localFilePath")
                     return fileSystem.read(localFilePath) {
                         readByteArray()
                     }
+                } else {
+                    // 本地文件不存在，从远程下载
+                    Napier.d("本地文件不存在，从服务器下载: $fileId")
+                    // 为保持向后兼容性，需要将File对象转换为ByteArray
+                    val downloadedFile = downloadFileToLocalStorageAndReturnFile(fileId)
+                    return fileSystem.read(downloadedFile.path.toPath()) {
+                        readByteArray()
+                    }
+                }
+            } else {
+                // 本地路径不存在，从远程下载
+                Napier.d("本地路径不存在，从服务器下载: $fileId")
+                // 为保持向后兼容性，需要将File对象转换为ByteArray
+                val downloadedFile = downloadFileToLocalStorageAndReturnFile(fileId)
+                return fileSystem.read(downloadedFile.path.toPath()) {
+                    readByteArray()
                 }
             }
-
-            // 情况 b1) 记录存在但本地文件不存在，重新下载
-            Napier.d("本地文件不存在，从服务器重新下载: $fileId")
-            val fileContent = FileApi.downloadFile(fileId)
-
-            // 保存到本地
-            saveFileLocally(fileId, fileContent)
-
-            return fileContent
+        } catch (e: OutOfMemoryError) {
+            // 如果发生内存溢出，使用流式下载方式
+            Napier.e("内存不足，使用流式下载: $fileId", e)
+            return downloadFileStreaming(fileId)
         } catch (e: Exception) {
-            Napier.e("获取文件内容失败: $fileId", e)
-            throw e
+            // 区分协程取消异常和其他异常
+            if (e is kotlinx.coroutines.CancellationException) {
+                // 协程被取消，不记录为错误
+                Napier.d("获取文件内容被取消: $fileId")
+                throw e
+            } else {
+                Napier.e("获取文件内容失败: $fileId", e)
+                throw e
+            }
+        }
+    }
+    
+    /**
+     * 获取文件对象（实现本地优先策略）- 推荐用于大文件
+     * @param fileId 文件ID
+     * @return File对象
+     */
+    suspend fun getFileObject(fileId: String): File {
+        Napier.d("获取文件对象: $fileId")
+        val file = filesRepository.getFile(fileId)
+        /**
+         * a) 如果文件记录为空那么 从远程下载即可 包括记录 以及文件
+         * b) 如果文件不为空那么 检查本地是否存在记录 ,存在则返回本地文件对象
+         *    b1) 如果记录存在但是文件在 相应的位置不存在 指定文件 , 那么重新下载 , 并且更新文件记录
+         */
+
+        try {
+            // 情况 a) 文件记录为空，从远程下载
+            if (file == null) {
+                Napier.d("文件记录不存在，从服务器下载文件: $fileId")
+                return downloadFileToLocalStorageAndReturnFile(fileId)
+            }
+
+            // 情况 b) 文件记录存在，检查本地文件是否存在
+            val localFilePathStr = getLocalFilePath(fileId)
+            if (localFilePathStr != null) {
+                val localFilePath = localFilePathStr.toPath()
+                if (fileSystem.exists(localFilePath)) {
+                    // 本地文件存在，构建并返回File对象
+                    Napier.d("文件已存在本地，返回File对象: $localFilePath")
+                    val fileMeta = FileApi.getFileMeta(fileId)
+                    return File(
+                        name = fileMeta.fileName,
+                        path = localFilePathStr,
+                        mimeType = fileMeta.contentType,
+                        size = fileMeta.size,
+                        data = FileData.Path(localFilePathStr)
+                    )
+                } else {
+                    // 本地文件不存在，从远程下载
+                    Napier.d("本地文件不存在，从服务器下载: $fileId")
+                    return downloadFileToLocalStorageAndReturnFile(fileId)
+                }
+            } else {
+                // 本地路径不存在，从远程下载
+                Napier.d("本地路径不存在，从服务器下载: $fileId")
+                return downloadFileToLocalStorageAndReturnFile(fileId)
+            }
+        } catch (e: Exception) {
+            // 区分协程取消异常和其他异常
+            if (e is kotlinx.coroutines.CancellationException) {
+                // 协程被取消，不记录为错误
+                Napier.d("获取文件对象被取消: $fileId")
+                throw e
+            } else {
+                Napier.e("获取文件对象失败: $fileId", e)
+                throw e
+            }
         }
     }
 
+    /**
+     * 下载文件到本地并返回File对象（推荐用于大文件）
+     * @param fileId 文件ID
+     * @return File对象
+     */
+    private suspend fun downloadFileToLocalStorageAndReturnFile(fileId: String): File {
+        val tempFilePath = baseDirectory / "temp" / fileId
+        
+        try {
+            // 确保临时目录存在
+            val tempDir = baseDirectory / "temp"
+            if (!fileSystem.exists(tempDir)) {
+                fileSystem.createDirectories(tempDir)
+            }
+            
+            // 流式下载到临时文件
+            FileApi.downloadFileToPath(fileId, tempFilePath)
+            
+            // 获取文件元数据
+            val fileMeta = FileApi.getFileMeta(fileId)
+            val relativeFilePath = generateFilePathWithFileName(fileMeta.contentType, fileMeta.fileName, fileMeta.fileName)
+            val fullPath = baseDirectory / relativeFilePath
+            
+            // 确保目标目录存在
+            val targetDir = fullPath.parent
+            if (targetDir != null && !fileSystem.exists(targetDir)) {
+                fileSystem.createDirectories(targetDir)
+            }
+            
+            // 将临时文件移动到目标位置（流式移动，避免加载整个文件到内存）
+            fileSystem.write(fullPath) {
+                fileSystem.source(tempFilePath).use { source ->
+                    writeAll(source)
+                }
+            }
+            
+            // 删除临时文件
+            if (fileSystem.exists(tempFilePath)) {
+                fileSystem.delete(tempFilePath)
+            }
+            
+            // 更新数据库中的存储路径
+            filesRepository.updateStoragePath(fileId, fullPath.toString())
+
+            // 返回File对象
+            return File(
+                name = fileMeta.fileName,
+                path = fullPath.toString(),
+                mimeType = fileMeta.contentType,
+                size = fileMeta.size,
+                data = FileData.Path(fullPath.toString())
+            )
+        } catch (e: Exception) {
+            // 清理临时文件
+            if (fileSystem.exists(tempFilePath)) {
+                fileSystem.delete(tempFilePath)
+            }
+            // 如果目标文件已创建但下载失败，也要清理
+            try {
+                val fileMeta = FileApi.getFileMeta(fileId)
+                val relativeFilePath = generateFilePathWithFileName(fileMeta.contentType, fileMeta.fileName, fileMeta.fileName)
+                val fullPath = baseDirectory / relativeFilePath
+                if (fileSystem.exists(fullPath)) {
+                    fileSystem.delete(fullPath)
+                }
+            } catch (ex: Exception) {
+                // 如果获取文件元数据失败，则忽略此步骤
+                Napier.w("清理目标文件失败: $ex")
+            }
+            throw e
+        }
+    }
+    
+    /**
+     * 流式下载文件（避免将整个文件加载到内存）
+     * @param fileId 文件ID
+     * @return 文件字节数组
+     */
+    private suspend fun downloadFileStreaming(fileId: String): ByteArray {
+        val file = filesRepository.getFile(fileId)
+        val tempFilePath = baseDirectory / "temp" / fileId
+        
+        try {
+            // 确保临时目录存在
+            val tempDir = baseDirectory / "temp"
+            if (!fileSystem.exists(tempDir)) {
+                fileSystem.createDirectories(tempDir)
+            }
+            
+            // 流式下载到临时文件
+            FileApi.downloadFileToPath(fileId, tempFilePath)
+            
+            // 读取临时文件内容
+            val content = fileSystem.read(tempFilePath) {
+                readByteArray()
+            }
+            
+            // 将文件移动到正确位置
+            val localFilePath = if (file != null) {
+                val relativeFilePath = generateFilePathWithFileName(file.contentType, file.originalName, file.originalName)
+                baseDirectory / relativeFilePath
+            } else {
+                baseDirectory / "files" / generateFilePath() / fileId
+            }
+            
+            // 确保目标目录存在
+            val targetDir = localFilePath.parent
+            if (targetDir != null && !fileSystem.exists(targetDir)) {
+                fileSystem.createDirectories(targetDir)
+            }
+            
+            // 移动文件
+            fileSystem.write(localFilePath) {
+                write(content)
+            }
+            
+            // 删除临时文件
+            if (fileSystem.exists(tempFilePath)) {
+                fileSystem.delete(tempFilePath)
+            }
+            
+            // 更新数据库中的存储路径
+            if (file != null) {
+                filesRepository.updateStoragePath(fileId, localFilePath.toString())
+            }
+            
+            return content
+        } catch (e: Exception) {
+            // 区分协程取消异常和其他异常
+            if (e is kotlinx.coroutines.CancellationException) {
+                // 协程被取消，清理临时文件并重新抛出异常
+                if (fileSystem.exists(tempFilePath)) {
+                    fileSystem.delete(tempFilePath)
+                }
+                Napier.d("流式下载文件被取消: $fileId")
+                throw e
+            } else {
+                // 其他异常，清理临时文件并记录错误
+                if (fileSystem.exists(tempFilePath)) {
+                    fileSystem.delete(tempFilePath)
+                }
+                throw e
+            }
+        }
+    }
+    
+    /**
+     * 流式下载文件到本地（推荐用于大文件）
+     * @param fileId 文件ID
+     */
+    suspend fun downloadFileToLocalStorage(fileId: String) {
+        val file = filesRepository.getFile(fileId)
+        if (file == null) {
+            throw IllegalArgumentException("文件记录不存在: $fileId")
+        }
+        
+        val relativeFilePath = generateFilePathWithFileName(file.contentType, file.originalName, file.originalName)
+        val fullPath = baseDirectory / relativeFilePath
+        
+        try {
+            // 确保目录存在
+            val parentPath = fullPath.parent
+            if (parentPath != null) {
+                val directoryPath = baseDirectory / parentPath
+                if (!fileSystem.exists(directoryPath)) {
+                    fileSystem.createDirectories(directoryPath)
+                }
+            } else {
+                if (!fileSystem.exists(baseDirectory)) {
+                    fileSystem.createDirectories(baseDirectory)
+                }
+            }
+            
+            // 流式下载文件
+            FileApi.downloadFileToPath(fileId, fullPath)
+            
+            // 更新数据库中的存储路径
+            filesRepository.updateStoragePath(fileId, fullPath.toString())
+            Napier.d("文件已流式下载并保存到本地: $fullPath")
+        } catch (e: Exception) {
+            // 区分协程取消异常和其他异常
+            if (e is kotlinx.coroutines.CancellationException) {
+                // 协程被取消，不记录为错误
+                Napier.d("流式下载文件被取消: $fileId")
+            } else {
+                Napier.e("流式下载文件失败: $fileId", e)
+            }
+            throw e
+        }
+    }
 
     /**
      * 添加 处于上传中的文件
@@ -150,49 +501,6 @@ class FileStorageManager(
             filesRepository.addPendingFileRecord(fileId, fileName, duration,filePath)
         } catch (e: Exception) {
             Napier.e("添加待上传文件记录失败: $fileId", e)
-        }
-    }
-
-    /**
-     * 将文件保存到本地
-     * @param fileId 文件ID
-     * @param fileContent 文件内容
-     */
-    private fun saveFileLocally(fileId: String, fileContent: ByteArray) {
-        try {
-            val fileRecord = filesRepository.getFile(fileId)
-            if (fileRecord != null) {
-                // 使用公共方法生成相对文件路径
-                val relativeFilePath = generateFilePathWithFileName(fileRecord.contentType, fileRecord.originalName, fileRecord.originalName)
-                
-                // 确保目录存在 - 处理 parent 可能为 null 的情况
-                val parentPath = relativeFilePath.parent
-                if (parentPath != null) {
-                    val directoryPath = baseDirectory / parentPath
-                    if (!fileSystem.exists(directoryPath)) {
-                        fileSystem.createDirectories(directoryPath)
-                    }
-                } else {
-                    // 如果没有父路径，说明是根目录，通常不需要创建
-                    if (!fileSystem.exists(baseDirectory)) {
-                        fileSystem.createDirectories(baseDirectory)
-                    }
-                }
-
-                // 写入文件
-                val fullPath = baseDirectory / relativeFilePath
-                fileSystem.write(fullPath) {
-                    write(fileContent)
-                }
-
-                // 更新数据库中的存储路径 - 存储相对路径，便于跨设备使用
-                filesRepository.updateStoragePath(fileId, relativeFilePath.toString())
-                // 更新最后访问时间
-                filesRepository.updateLastAccessTime(fileId)
-                Napier.d("文件已保存到本地: $fullPath")
-            }
-        } catch (e: Exception) {
-            Napier.e("保存文件到本地失败", e)
         }
     }
 
@@ -419,6 +727,22 @@ object FileTypeDetector {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

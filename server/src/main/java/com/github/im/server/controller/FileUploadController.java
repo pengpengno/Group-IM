@@ -4,6 +4,7 @@ import com.github.im.dto.file.ChunkCheckResponse;
 import com.github.im.dto.file.FileUploadResponse;
 import com.github.im.dto.file.UploadFileRequest;
 import com.github.im.server.model.FileResource;
+import com.github.im.server.model.enums.FileStatus;
 import com.github.im.server.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -99,8 +100,14 @@ public class FileUploadController {
                                                  @RequestHeader(value = "Range", required = false) String rangeHeader) throws IOException {
 
 
-        // TODO  根据 当前用户判断是否有权限下载文件
         FileResource fileResource = fileStorageService.getFile(fileId);
+        if (fileResource == null ) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        if (fileResource.getStatus() != FileStatus.NORMAL) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         var file = fileStorageService.loadFile(fileResource);
         var resource = new UrlResource(file.toURI());
 

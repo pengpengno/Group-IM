@@ -426,7 +426,7 @@ private fun LazyListScope.showChatResults(chatResults: List<String>) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Message,
+                    imageVector = Icons.AutoMirrored.Filled.Message,
                     contentDescription = null,
                     modifier = Modifier.size(24.dp)
                 )

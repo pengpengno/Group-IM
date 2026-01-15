@@ -5,7 +5,9 @@ import com.github.im.enums.MessageStatus;
 import com.github.im.enums.MessageType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.testng.annotations.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -13,9 +15,10 @@ import static org.junit.jupiter.api.Assertions.*;
 public class AiBotFrameworkTest {
 
     @Autowired
+    @Qualifier("aiMessageRouter")
     private MessageRouter messageRouter;
 
-    @Test
+    @org.testng.annotations.Test
     public void testAiSummaryBot() {
         // 创建测试消息
         MessageDTO<?> message = new MessageDTO<>();

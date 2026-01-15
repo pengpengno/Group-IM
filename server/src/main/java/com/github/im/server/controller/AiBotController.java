@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.beans.factory.annotation.Qualifier;
+
 @RestController
 @RequestMapping("/api/ai-bot")
 @CrossOrigin
@@ -14,7 +16,7 @@ public class AiBotController {
     private final MessageRouter messageRouter;
 
     @Autowired
-    public AiBotController(MessageRouter messageRouter) {
+    public AiBotController(@Qualifier("aiMessageRouter") MessageRouter messageRouter) {
         this.messageRouter = messageRouter;
     }
 

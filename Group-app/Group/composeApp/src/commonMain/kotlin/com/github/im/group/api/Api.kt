@@ -10,20 +10,31 @@ import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.ApiResponse
 import com.github.im.group.model.DepartmentInfo
 import com.github.im.group.model.UserInfo
+import io.ktor.client.request.*
 import io.ktor.client.request.header
 import io.ktor.client.request.headers
 import io.ktor.client.request.prepareGet
-import io.ktor.client.statement.bodyAsBytes
-import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.*
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpMethod
+import io.ktor.http.contentLength
+import io.ktor.utils.io.*
+import io.ktor.utils.io.core.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import okio.FileSystem
+import okio.Path
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 
 object LoginApi {
+    /**
+     * 登录
+     */
     suspend fun login(username: String, password: String,  refreshToken: String): UserInfo {
         val requestBody = LoginRequest(username, password,refreshToken)
         return ProxyApi.request(
@@ -135,36 +146,80 @@ object FileApi {
     
 
     /**
-     * 下载文件
+     * 下载文件到指定路径（流式下载，避免OOM）
      * @param fileId 文件ID
+     * @param outputPath 输出文件路径
      */
-    suspend fun downloadFile(fileId: String): ByteArray {
-        val baseUrl = if (ProxyConfig.enableProxy) {
-            "http://${ProxyConfig.host}:${ProxyConfig.port}"
-        } else {
-            "http://${ProxyConfig.host}:${ProxyConfig.port}"
-        }
+    suspend fun downloadFileToPath(fileId: String, outputPath: Path) {
+        val baseUrl = "http://${ProxyConfig.host}:${ProxyConfig.port}"
 
-        val response = ProxyApi.client.prepareGet("$baseUrl/api/files/download/$fileId") {
+        val response: HttpResponse = ProxyApi.client.request("$baseUrl/api/files/download/$fileId") {
+            method = HttpMethod.Get
             headers {
                 val token = GlobalCredentialProvider.currentToken
                 if (token.isNotEmpty()) {
-                    header("Proxy-Authorization", "Basic $token")
-                    header("Authorization", "Bearer $token")
+                    append("Proxy-Authorization", "Basic $token")
+                    append("Authorization", "Bearer $token")
                 }
             }
-        }.execute()
-        
-        return when (response.status.value) {
-            in 200..299 -> {
-                response.bodyAsBytes()
-            }
-            else -> {
-                val errorText = response.bodyAsText()
-                throw RuntimeException("下载文件失败：${response.status}，内容: $errorText")
+        }
+
+        val statusValue: Int = response.status.value
+        if (statusValue !in 200..299) {
+            val errorText: String = response.bodyAsText()
+            throw RuntimeException("下载文件失败：${response.status}，内容: $errorText")
+        }
+
+        val contentLength: Long? = response.contentLength()
+        val contentType: String = response.headers["Content-Type"] ?: "application/octet-stream"
+
+        val sizeLimit: Long = when {
+            contentType.startsWith("audio/") -> 50L * 1024 * 1024
+            contentType.startsWith("image/") -> 10L * 1024 * 1024
+            contentType.startsWith("video/") -> 100L * 1024 * 1024
+            else -> 50L * 1024 * 1024
+        }
+
+        val useStream: Boolean = contentLength == null || contentLength > sizeLimit
+
+        withContext(Dispatchers.IO) {
+            try {
+                if (useStream) {
+                    // 流式写入
+                    val channel: ByteReadChannel = response.bodyAsChannel()
+                    val buffer = ByteArray(8 * 1024)
+
+                    FileSystem.SYSTEM.write(outputPath) {
+//                        val buffer = okio.Buffer()
+
+                        while (!channel.isClosedForRead) {
+
+                            while (!channel.isClosedForRead) {
+                                val bytesRead = channel.readAvailable(buffer)
+                                if (bytesRead <= 0) break
+                                write(buffer, 0, bytesRead)
+                            }
+
+                        }
+                    }
+                } else {
+                    // 小文件直接写入
+                    val bytes: ByteArray = response.bodyAsBytes()
+                    FileSystem.SYSTEM.write(outputPath) {
+                        write(bytes)
+                    }
+                }
+            } catch (e: Exception) {
+                if (FileSystem.SYSTEM.exists(outputPath)) {
+                    FileSystem.SYSTEM.delete(outputPath)
+                }
+                throw e
             }
         }
     }
+
+
+
 
     /**
      * 根据文件Id获取文件元数据
@@ -195,11 +250,11 @@ object FileApi {
         }
     }
 }
+
 /**
  * Chat Api
  */
 object ChatApi {
-
 
     /**
      * 获取会话消息
@@ -320,7 +375,6 @@ data class PageResult<T>(
     )
 }
 @Serializable
-//sealed interface MessagePayLoad
 sealed interface MessagePayLoad
 
 @Serializable
@@ -393,7 +447,28 @@ data class FileMeta(
 
     val fileStatus: FileStatus   // 文件状态
 
-) : MessagePayLoad
+
+) : MessagePayLoad{
+    /**
+     * 获取文件URL
+     * @return 文件URL fileId
+     */
+    fun getFileUrl(): String? {
+        // 只有当文件状态为NORMAL时才允许获取URL
+        return if (fileStatus == FileStatus.NORMAL) {
+            val baseUrl = if (ProxyConfig.enableProxy) {
+                ProxyConfig.getBaseUrl()
+            } else {
+                ProxyConfig.getBaseUrl()
+
+//                "http://${ProxyConfig.host}:${ProxyConfig.port}"
+            }
+            "$baseUrl/api/files/download/$fileId"
+        } else {
+            null // 文件状态不正常时返回null
+        }
+    }
+}
 
 @Serializable
 data class FriendshipDTO(

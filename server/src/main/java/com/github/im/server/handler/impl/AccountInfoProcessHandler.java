@@ -6,7 +6,9 @@ import com.github.im.common.connect.connection.server.BindAttr;
 import com.github.im.common.connect.connection.server.ProtoBufProcessHandler;
 import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
+import com.github.im.server.config.NodeId;
 import com.github.im.server.model.User;
+import com.github.im.server.service.OnlineService;
 import com.github.im.server.utils.JwtUtil;
 import com.github.im.server.utils.UserTokenManager;
 import io.netty.util.AttributeKey;
@@ -22,15 +24,16 @@ import reactor.netty.Connection;
 import java.util.Optional;
 
 /**
- *  AccountInfo ProcessHandler
+ * 账户信息处理器
+ * 处理用户登录和连接建立过程，管理用户在线状态
  */
 @Component
 @Slf4j
 @RequiredArgsConstructor
 public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
 
-
     private final UserTokenManager userTokenManager;
+    private final OnlineService onlineService;
 
     public static AttributeKey<User> BING_USER_KEY = AttributeKey.valueOf("USER");
 
@@ -39,10 +42,15 @@ public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
         return BaseMessage.BaseMessagePkg.PayloadCase.ACCOUNTINFO;
     }
 
-
+    /**
+     * 处理账户信息消息
+     * 验证用户身份，建立连接绑定，并更新用户在线状态
+     *
+     * @param con TCP连接
+     * @param message 包含账户信息的消息包
+     */
     @Override
     public void process(@NotNull Connection con, BaseMessage.BaseMessagePkg message) {
-
 
         var accountInfo = message.getAccountInfo();
 
@@ -55,6 +63,9 @@ public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
 
             connection.channel().attr(BING_USER_KEY).set(user);
 
+            // 设置用户在线状态
+            Long userId = user.getUserId();
+            onlineService.online(userId);
 
             // 订阅 信息流
             var account = accountInfo.getAccount();
@@ -88,6 +99,8 @@ public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
                 .doOnTerminate(() -> {
 //                    ReactiveConnectionManager.unSubscribe(accountInfo);
                     ReactiveConnectionManager.unSubscribe(bindAttr);
+                    // 从在线服务中移除用户
+                    onlineService.offline(userId);
                     // 连接关闭时，取消订阅，执行清理操作
                     log.debug("Connection closed, cancelling message stream subscription.");
 //                    chatMessages.subscribe().dispose();  // 显式取消流的订阅

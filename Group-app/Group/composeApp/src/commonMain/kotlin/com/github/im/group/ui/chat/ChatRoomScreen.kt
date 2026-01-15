@@ -1,5 +1,6 @@
 package com.github.im.group.ui.chat
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -58,6 +61,7 @@ import com.github.im.group.ui.video.VideoCallViewModel
 import io.github.aakira.napier.Napier
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.navigation.compose.rememberNavController
 import com.github.im.group.api.FileMeta
 import com.github.im.group.db.entities.MessageStatus
@@ -65,6 +69,7 @@ import com.github.im.group.db.entities.MessageType
 import com.github.im.group.manager.toFile
 import com.github.im.group.model.MessageItem
 import com.github.im.group.sdk.File
+import com.github.im.group.sdk.MediaFileView
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
@@ -79,7 +84,7 @@ fun ChatRoomScreen(
     val voiceViewModel: VoiceViewModel = koinViewModel()
     val messageViewModel: ChatMessageViewModel = koinViewModel()
     val videoCallViewModel: VideoCallViewModel = koinViewModel()
-    
+
     val uiState by voiceViewModel.uiState.collectAsState()
     val state by messageViewModel.uiState.collectAsState()
     val userInfo = userViewModel.getCurrentUser()
@@ -88,17 +93,17 @@ fun ChatRoomScreen(
     var showMorePanel by remember { mutableStateOf(false) }
     var showVideoCall by remember { mutableStateOf(false) }
     var remoteUser by remember { mutableStateOf<UserInfo?>(null) }
-    
+
     val pullRefreshState = rememberPullRefreshState(
         refreshing = state.loading,
-        onRefresh = { 
+        onRefresh = {
             messageViewModel.refreshMessages(conversationId)
         }
     )
     val isRefreshing = pullRefreshState.progress
 
     val listState = rememberLazyListState()
-    
+
     LaunchedEffect(conversationId) {
         messageViewModel.loadMessages(conversationId)
         messageViewModel.getConversation(conversationId) // 获取会话信息
@@ -108,14 +113,14 @@ fun ChatRoomScreen(
         remoteUser = state.conversation.getOtherUser(userInfo)
         Napier.i ("state ${state.conversation}")
     }
-    
+
     DisposableEffect(conversationId) {
         onDispose {
             messageViewModel.unregister(conversationId) // 注销会话，避免内存泄漏
             voiceViewModel.reset() // 重置
         }
     }
-    
+
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .collect { firstVisibleIndex ->
@@ -128,13 +133,13 @@ fun ChatRoomScreen(
                 }
             }
     }
-    
+
     // 视频通话界面
     if (showVideoCall) {
         VideoCallUI(
             remoteUser = remoteUser,
             localMediaStream = null,
-            onEndCall = { 
+            onEndCall = {
                 showVideoCall = false
 
             },
@@ -148,7 +153,7 @@ fun ChatRoomScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
@@ -159,9 +164,9 @@ fun ChatRoomScreen(
                                 username = otherUser.username,
                                 size = 32,
                             )
-                            
+
                             Spacer(modifier = Modifier.width(8.dp))
-                            
+
                             Column {
                                 Text(
                                     text = otherUser.username,
@@ -180,12 +185,12 @@ fun ChatRoomScreen(
                             // 如果没有获取到对方用户信息，显示群组名称
                             Text(state.conversation.groupName)
                         }
-                        
+
                         Spacer(modifier = Modifier.weight(1f))
-                        
+
                         // 视频通话按钮
                         IconButton(
-                            onClick = { 
+                            onClick = {
                                 showVideoCall = true
                                 // TODO: 初始化视频通话
                             }
@@ -223,7 +228,7 @@ fun ChatRoomScreen(
                     reverseLayout = true, // 最新消息在底部
                     contentPadding = PaddingValues(bottom = 80.dp) // 为输入区域留出空间
                 ) {
-                    
+
                     // 显示历史加载指示器
                     if (state.loading) {
                         item {
@@ -237,19 +242,25 @@ fun ChatRoomScreen(
                             }
                         }
                     }
-                    
+
                     // 显示消息列表
-                    items(state.messages, key = { it.clientMsgId }) { message ->
+                    items(state.messages, key = { message ->
+                        if (message.seqId != 0L) {
+                            "seq_${message.seqId}"
+                        } else {
+                            "client_${message.clientMsgId}"
+                        }
+                    }) { message ->
                         // 根据消息方向显示不同的气泡样式
                         val isMyMessage = message.userInfo.userId == userInfo?.userId
-                        
+
                         MessageBubble(
                             isOwnMessage = isMyMessage,
                             msg = message,
                         )
                     }
                 }
-                
+
                 // 下拉刷新指示器
                 PullRefreshIndicator(
                     refreshing = state.loading,
@@ -265,7 +276,7 @@ fun ChatRoomScreen(
                         amplitude = am.value,
                     )
                 }
-                
+
                 // 输入区域
                 Box(
                     modifier = Modifier
@@ -307,20 +318,20 @@ fun ChatRoomScreen(
  */
 fun shouldShowAvatar(currentMsg: MessageItem, allMessages: List<MessageItem>, currentUser: UserInfo?): Boolean {
     val currentIndex = allMessages.indexOf(currentMsg)
-    
+
     // 如果是第一条消息（最新的消息），显示头像
     if (currentIndex == 0) {
         return true
     }
-    
+
     // 获取前一条消息
     val previousMsg = allMessages[currentIndex - 1]
-    
+
     // 如果当前消息发送者与前一条消息发送者不同，显示头像
     if (currentMsg.userInfo.userId != previousMsg.userInfo.userId) {
         return true
     }
-    
+
     // 如果是当前用户发送的消息，根据需要决定是否显示自己的头像
     // 这里可以根据UI设计决定是否显示自己的头像
     return false
@@ -336,7 +347,7 @@ fun MessageBubble(
     showAvatar: Boolean = true,
 ) {
     val messageViewModel: ChatMessageViewModel = koinViewModel()
-    
+
     // 使用 Row 来包含头像和消息气泡
     Row(
         modifier = Modifier
@@ -357,7 +368,7 @@ fun MessageBubble(
                 Spacer(modifier = Modifier.width(48.dp))
             }
         }
-        
+
         Column(
             horizontalAlignment = if (isOwnMessage) Alignment.End else Alignment.Start
         ) {
@@ -370,7 +381,7 @@ fun MessageBubble(
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
-            
+
             // 消息气泡
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -419,67 +430,12 @@ fun MessageBubble(
                                 }
                             )
                         }
-                        MessageType.IMAGE -> {
-                            FileMessageLoader(
-                                msg = msg,
-                                messageViewModel = messageViewModel,
-                                maxDownloadSize = 10 * 1024 * 1024, // 10MB 限制
-                                onContentReady = { pickedFile, meta ->
-                                    ImageMessage(MessageContent.Image(pickedFile))
-                                },
-                                onLoading = {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier
-                                            .size(16.dp)
-                                            .padding(4.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                },
-                                onError = {
-                                    Text("图片文件过大或加载失败")
-                                }
-                            )
-                        }
-                        MessageType.VIDEO -> {
-                            FileMessageLoader(
-                                msg = msg,
-                                messageViewModel = messageViewModel,
-                                maxDownloadSize = 100 * 1024 * 1024, // 100MB 限制
-                                onContentReady = { pickedFile, meta ->
-                                    VideoBubble(MessageContent.Video(pickedFile))
-                                },
-                                onLoading = {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier
-                                            .size(16.dp)
-                                            .padding(4.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                },
-                                onError = {
-                                    Text("视频文件过大或加载失败")
-                                }
-                            )
-                        }
+                        MessageType.IMAGE ,
+                        MessageType.VIDEO ,
                         MessageType.FILE -> {
-                            FileMessageLoader(
-                                msg = msg,
-                                messageViewModel = messageViewModel,
-                                maxDownloadSize = 50 * 1024 * 1024, // 50MB 限制
-                                onContentReady = { pickedFile, meta ->
-                                    FileMessageBubble(meta)
-                                },
-                                onLoading = {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier
-                                            .size(16.dp)
-                                            .padding(4.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                },
-                                onError = {
-                                    Text("文件过大或加载失败")
-                                }
+                            UnifiedFileMessage(
+                                message = msg,
+                                messageViewModel = messageViewModel
                             )
                         }
                         else -> TextMessage(MessageContent.Text(msg.content))
@@ -487,20 +443,7 @@ fun MessageBubble(
                 }
             }
         }
-        
-        if (isOwnMessage) {
-            // 自己发送的消息显示头像在右侧
-            if (showAvatar) {
-                Spacer(modifier = Modifier.width(8.dp))
-                UserAvatar(
-                    username = msg.userInfo.username,
-                    size = 40
-                )
-            } else {
-                // 不显示头像时保留占位空间
-                Spacer(modifier = Modifier.width(48.dp))
-            }
-        }
+
     }
 }
 
@@ -522,40 +465,45 @@ fun FileMessageLoader(
     onLoading: @Composable () -> Unit,
     onError: @Composable (() -> Unit)? = null
 ) {
-    var fileUrl by remember { mutableStateOf<String?>(null) }
+
     var fileMeta by remember { mutableStateOf<FileMeta?>(null) }
+    var file by remember { mutableStateOf<File?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var hasError by remember { mutableStateOf(false) }
+    var shouldDownload by remember { mutableStateOf(false) }
+    var showDownloadButton by remember { mutableStateOf(false) }  // 新增状态：显示下载按钮
     val fileId = msg.content
 
     LaunchedEffect(msg) {
         try {
             // 异步获取文件元数据（这是所有文件类型都需要的步骤）
             val meta = messageViewModel.getFileMessageMetaAsync(msg)
+            file = messageViewModel.getFile(fileId)
             fileMeta = meta
-            Napier.d { "查询文件的 元数据：$meta" }
+            Napier.d { "查询文件的 元数据：$meta  file $file" }
 
-            fileMeta?.let { fileMeta ->
+            meta?.let { fileMeta ->
                 // 检查文件大小是否超过限制
                 if (fileMeta.size > maxDownloadSize) {
-                    hasError = true
+                    // 文件太大，不自动下载，显示下载按钮
+                    showDownloadButton = true
+                    file = fileMeta.toFile() // 使用HTTP链接作为数据源
                     isLoading = false
                     return@LaunchedEffect
                 }
 
-                // 检查文件是否存在，如果不存在则下载
+                // 检查文件是否存在，如果不存在 则 获取其 下载链接 作为数据源
                 val fileExists = messageViewModel.isFileExists(fileId)
                 if (!fileExists) {
-                    // 不存在则下载
-                    Napier.d { "文件不存在，开始下载文件：$fileId" }
-                    messageViewModel.downloadFileMessage(fileMeta.fileId)
+                    // 不存在则标记需要下载
+                    shouldDownload = true
+                    file = fileMeta.toFile()
+                } else {
+                    val path = messageViewModel.getLocalFilePath(fileId)
+                    path?.let { file = fileMeta.toFile(it) }
                 }
 
-                // 获取本地文件路径
-                val localPath = messageViewModel.getLocalFilePath(fileId)
-                fileUrl = localPath
-
-                Napier.d { "${fileMeta.fileId } 下载的本地路径为：$fileUrl" }
+                Napier.d { "文件存在 ：$fileExists 文件ID： ${fileMeta.fileId} 的数据源为：${file?.data}" }
             }
 
             isLoading = false
@@ -566,6 +514,32 @@ fun FileMessageLoader(
         }
     }
 
+    // 当需要下载时，启动下载流程
+    LaunchedEffect(shouldDownload) {
+        if (shouldDownload) {
+            try {
+                messageViewModel.downloadFileMessage(fileId)
+            } catch (e: Exception) {
+                Napier.e("下载文件失败", e)
+                hasError = true
+            }
+        }
+    }
+
+    // 监听下载状态变化，更新文件对象
+    val downloadStates by messageViewModel.fileDownloadStates.collectAsState()
+    LaunchedEffect(downloadStates) {
+        downloadStates[fileId]?.let { state ->
+            if (state.isSuccess && !state.isDownloading) {
+                // 下载完成后，获取本地路径并更新文件对象
+                val path = messageViewModel.getLocalFilePath(fileId)
+                path?.let {
+                    file = fileMeta?.toFile(it)
+                }
+            }
+        }
+    }
+
     when {
         hasError -> {
             onError?.invoke() ?: Text("文件过大或加载失败")
@@ -573,9 +547,52 @@ fun FileMessageLoader(
         isLoading -> {
             onLoading()
         }
-        fileUrl != null && fileMeta != null -> {
-            val pickedFile = fileMeta!!.toFile(fileUrl!!)
-            onContentReady(pickedFile, fileMeta!!)
+        showDownloadButton -> {
+            // 文件太大，显示缩略图和下载按钮
+            file?.let { fileObj ->
+                fileMeta?.let { meta ->
+                    // 显示缩略图和下载按钮
+                    Box {
+                        MediaFileView(
+                            file = fileObj,
+                            modifier = Modifier.size(120.dp),
+                            onDownloadFile = { fileId ->
+                                // 启动下载
+                                shouldDownload = true
+                            }
+                        )
+
+                        // 显示文件大小和下载图标
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .background(Color.Black.copy(alpha = 0.6f), shape = CircleShape)
+                                .padding(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FileDownload,
+                                contentDescription = "下载",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        // 显示文件大小
+                        Text(
+                            text = "${(meta.size / 1024 / 1024)}MB",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .background(Color.Black.copy(alpha = 0.6f), shape = RoundedCornerShape(4.dp))
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+        file != null  && fileMeta !=null-> {
+            onContentReady(file!!, fileMeta!!)
         }
         else -> {
             onLoading()

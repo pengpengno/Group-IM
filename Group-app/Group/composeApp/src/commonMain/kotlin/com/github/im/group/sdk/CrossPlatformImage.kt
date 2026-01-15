@@ -11,5 +11,6 @@ import androidx.compose.ui.Modifier
 expect fun CrossPlatformImage(
     file: File,
     modifier: Modifier = Modifier,
-    size: Int = 200
+    size: Int = 200,
+    onLongClick: (() -> Unit)? = null
 )
