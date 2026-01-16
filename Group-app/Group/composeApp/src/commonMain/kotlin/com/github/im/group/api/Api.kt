@@ -151,7 +151,7 @@ object FileApi {
      * @param outputPath 输出文件路径
      */
     suspend fun downloadFileToPath(fileId: String, outputPath: Path) {
-        val baseUrl = "http://${ProxyConfig.host}:${ProxyConfig.port}"
+        val baseUrl = ProxyConfig.getBaseUrl()
 
         val response: HttpResponse = ProxyApi.client.request("$baseUrl/api/files/download/$fileId") {
             method = HttpMethod.Get
@@ -227,7 +227,7 @@ object FileApi {
      * @param onProgress 进度回调函数，参数为已下载字节数和总字节数
      */
     suspend fun downloadFileToPathWithProgress(fileId: String, outputPath: Path, onProgress: (Long, Long) -> Unit) {
-        val baseUrl = "http://${'$'}{ProxyConfig.host}:${'$'}{ProxyConfig.port}"
+        val baseUrl = ProxyConfig.getBaseUrl()
 
         val response: HttpResponse = ProxyApi.client.request("$baseUrl/api/files/download/$fileId") {
             method = HttpMethod.Get

@@ -13,4 +13,18 @@ data class UserInfo(
     val companyId: Long? = null,
     val phoneNumber: String? = null,
     val currentLoginCompanyId: Long? = null
+
 )
+
+fun defaultUserInfo(): UserInfo {
+    return UserInfo(
+        userId = 0,
+        username = "",
+        email = "",
+        token = "",
+        refreshToken = "",
+        companyId = null,
+        phoneNumber = null,
+        currentLoginCompanyId = null
+    )
+}

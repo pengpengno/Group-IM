@@ -68,6 +68,7 @@ import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.manager.toFile
 import com.github.im.group.model.MessageItem
+import com.github.im.group.model.defaultUserInfo
 import com.github.im.group.sdk.File
 import com.github.im.group.sdk.MediaFileView
 import com.github.im.group.sdk.GalleryAwareMediaFileView
@@ -90,10 +91,8 @@ fun ChatRoomScreen(
     val state by messageViewModel.uiState.collectAsState()
     val userInfo = userViewModel.getCurrentUser()
 
-    var showEmojiPanel by remember { mutableStateOf(false) }
-    var showMorePanel by remember { mutableStateOf(false) }
     var showVideoCall by remember { mutableStateOf(false) }
-    var remoteUser by remember { mutableStateOf<UserInfo?>(null) }
+    var remoteUser by remember { mutableStateOf<UserInfo?>(null) } // 在群聊场景中可能为null，表示多个用户
 
     val pullRefreshState = rememberPullRefreshState(
         refreshing = state.loading,
@@ -137,17 +136,29 @@ fun ChatRoomScreen(
 
     // 视频通话界面
     if (showVideoCall) {
+        val videoCallState by videoCallViewModel.videoCallState.collectAsState()
+        val remoteVideoTrack by videoCallViewModel.remoteVideo.collectAsState()
+        val remoteAudioTrack by videoCallViewModel.remoteAudio.collectAsState()
+        val localStream by videoCallViewModel.localMediaStream.collectAsState()
+        
         VideoCallUI(
-            remoteUser = remoteUser,
-            localMediaStream = null,
+            remoteUser = remoteUser ?: defaultUserInfo(),
+            localMediaStream = localStream,
+            videoCallState = videoCallState,
+            remoteVideoTrack = remoteVideoTrack,
+            remoteAudioTrack = remoteAudioTrack,
             onEndCall = {
+                videoCallViewModel.endCall()
                 showVideoCall = false
-
             },
             onToggleCamera = { videoCallViewModel.toggleCamera() },
             onToggleMicrophone = { videoCallViewModel.toggleMicrophone() },
             onSwitchCamera = { videoCallViewModel.switchCamera() },
-            onMinimizeCall = { showVideoCall = false },
+            onMinimizeCall = { 
+                videoCallViewModel.minimizeCall()
+                showVideoCall = false
+            },
+            onToggleSpeaker = { videoCallViewModel.toggleSpeaker() }
         )
     }
 
@@ -190,16 +201,18 @@ fun ChatRoomScreen(
                         Spacer(modifier = Modifier.weight(1f))
 
                         // 视频通话按钮
-                        IconButton(
-                            onClick = {
-                                showVideoCall = true
-                                // TODO: 初始化视频通话
+                        if (remoteUser != null) { // 只在单聊场景中显示视频通话按钮
+                            IconButton(
+                                onClick = {
+                                    showVideoCall = true
+                                    // TODO: 初始化视频通话
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.VideoCall,
+                                    contentDescription = "视频通话"
+                                )
                             }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.VideoCall,
-                                contentDescription = "视频通话"
-                            )
                         }
                     }
                 },

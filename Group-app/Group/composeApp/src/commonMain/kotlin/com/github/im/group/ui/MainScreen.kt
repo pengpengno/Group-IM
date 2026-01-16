@@ -123,8 +123,8 @@ fun ChatMainScreen(
     val videoCallState by webRTCManager.videoCallState.collectAsState()
     
     // 处理来电逻辑
-    if (videoCallState.callStatus == com.github.im.group.ui.video.CallStatus.INCOMING) {
-        videoCallState.remoteUser?.let { caller ->
+    if (videoCallState.callStatus == com.github.im.group.ui.video.VideoCallStatus.INCOMING) {
+        videoCallState.caller?.let { caller ->
             IncomingCallDialog(
                 caller = caller,
                 onAccept = {

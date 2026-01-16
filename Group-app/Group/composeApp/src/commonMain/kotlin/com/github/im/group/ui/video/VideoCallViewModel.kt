@@ -15,10 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class VideoCallViewModel(
-    val userRepository : UserRepository,
-) : ViewModel(
-
-) {
+    val userRepository: UserRepository
+) : ViewModel() {
     private val _videoCallState = MutableStateFlow(VideoCallState())
     val videoCallState: StateFlow<VideoCallState> = _videoCallState
 
@@ -31,154 +29,308 @@ class VideoCallViewModel(
     private val _isFrontCamera = mutableStateOf(true)
     val isFrontCamera: androidx.compose.runtime.State<Boolean> = _isFrontCamera
 
+    private val _isSpeakerEnabled = mutableStateOf(true)
+    val isSpeakerEnabled: androidx.compose.runtime.State<Boolean> = _isSpeakerEnabled
+
     // 本地媒体流
     private val _localMediaStream = MutableStateFlow<MediaStream?>(null)
     val localMediaStream: StateFlow<MediaStream?> = _localMediaStream
 
     // 远程媒体流
-    private val _remoteMediaStream = MutableStateFlow<MediaStream?>(null)
-    val remoteMediaStream: StateFlow<MediaStream?> = _remoteMediaStream
-
-    // 远程视频流
     private val _remoteVideo = MutableStateFlow<VideoTrack?>(null)
     val remoteVideo: StateFlow<VideoTrack?> = _remoteVideo
 
-    // 远程音频流
     private val _remoteAudio = MutableStateFlow<AudioTrack?>(null)
     val remoteAudio: StateFlow<AudioTrack?> = _remoteAudio
+
+    init {
+        // 监听远程视频轨道变化，更新状态
+        viewModelScope.launch {
+            _remoteVideo.collect { videoTrack ->
+                if (_videoCallState.value.isRemoteVideoEnabled != (videoTrack != null)) {
+                    _videoCallState.value = _videoCallState.value.copy(
+                        isRemoteVideoEnabled = videoTrack != null
+                    )
+                }
+            }
+        }
+        
+        // 监听远程音频轨道变化，更新状态
+        viewModelScope.launch {
+            _remoteAudio.collect { audioTrack ->
+                if (_videoCallState.value.isMicrophoneEnabled != (audioTrack != null)) {
+                    _videoCallState.value = _videoCallState.value.copy(
+                        isMicrophoneEnabled = audioTrack != null
+                    )
+                }
+            }
+        }
+    }
 
     // WebRTC管理器
     private var webRTCManager: com.github.im.group.sdk.WebRTCManager? = null
 
-    fun setWebRTCManager(manager: com.github.im.group.sdk.WebRTCManager) {
-        this.webRTCManager = manager
+    // 当前来电ID
+    private var currentCallId: String? = null
 
-        // 绑定监听 remote track 更新
-        viewModelScope.launch {
-            manager.remoteVideoTrack.collect { videoTrack ->
-                _remoteVideo.value = videoTrack
-                Napier.d("收到远程视频轨道更新: ${videoTrack != null}")
-            }
-        }
+    init {
+        // WebRTCManager 通过依赖注入设置，不需要在此处初始化
+    }
 
+    /**
+     * 发起视频通话
+     */
+    fun startCall(callee: UserInfo) {
         viewModelScope.launch {
-            manager.remoteAudioTrack.collect { audioTrack ->
-                _remoteAudio.value = audioTrack
-                Napier.d("收到远程音频轨道更新: ${audioTrack != null}")
+            try {
+                _videoCallState.value = _videoCallState.value.copy(
+                    callStatus = VideoCallStatus.OUTGOING,
+                    callee = callee,
+                    participants = listOf(callee), // 添加被叫用户到参与者列表
+                    callStartTime = System.currentTimeMillis()
+                )
+
+                // 创建本地媒体流
+                createLocalMediaStream()
+
+                // 通过WebRTC发起通话
+                webRTCManager?.initiateCall(callee.userId.toString())
+            } catch (e: Exception) {
+                handleError("发起通话失败", e)
             }
         }
     }
 
-    fun startVideoCall(remoteUser: UserInfo) {
-        /**发起视频通话
-         * 1. 向信令服务器 发起呼叫请求
-         * 2. 创建本地媒体流
-         * 3. 创建远程媒体流
-         */
+    /**
+     * 接收到来电
+     */
+    fun receiveCall(caller: UserInfo) {
+        // 生成或接收callId
+        currentCallId = "call_${'$'}{System.currentTimeMillis()}"
+        _videoCallState.value = _videoCallState.value.copy(
+            callStatus = VideoCallStatus.INCOMING,
+            caller = caller,
+            participants = listOf(caller), // 添加主叫用户到参与者列表
+            callStartTime = System.currentTimeMillis()
+        )
+    }
+
+    /**
+     * 接受来电
+     */
+    fun acceptCall() {
         viewModelScope.launch {
-            _videoCallState.value = _videoCallState.value.copy(
-                callStatus = CallStatus.CONNECTING,
-                remoteUser = remoteUser
-            )
-
-            Napier.d("startVideoCall")
-            
-            // 初始化WebRTC连接
             try {
-                webRTCManager?.initialize()
-
-                // 先初始化本地媒体流
-                initializeLocalMediaStream()
-                // 发送呼叫请求
-                sendCallRequest(remoteUser.userId.toString())
-
-                _remoteVideo.value = webRTCManager?.remoteVideoTrack?.value
-                _remoteAudio.value = webRTCManager?.remoteAudioTrack?.value
-
                 _videoCallState.value = _videoCallState.value.copy(
-                    callStatus = CallStatus.ACTIVE
+                    callStatus = VideoCallStatus.CONNECTING
+                )
+
+                // 创建本地媒体流
+                createLocalMediaStream()
+
+                // 通过WebRTC接受通话
+                webRTCManager?.acceptCall(currentCallId ?: "")
+                
+                // 更新状态为活跃通话
+                _videoCallState.value = _videoCallState.value.copy(
+                    callStatus = VideoCallStatus.ACTIVE
                 )
             } catch (e: Exception) {
-                _videoCallState.value = _videoCallState.value.copy(
-                    callStatus = CallStatus.ERROR,
-                    errorMessage = e.message
-                )
-                Napier.e("startVideoCall error", e )
+                handleError("接受通话失败", e)
             }
         }
     }
 
-    fun endCall() {
+    /**
+     * 拒绝来电
+     */
+    fun rejectCall() {
         viewModelScope.launch {
-            _videoCallState.value = _videoCallState.value.copy(
-                callStatus = CallStatus.ENDED
-            )
-            
-            // 清理WebRTC连接
-            cleanupWebRTCConnection()
+            try {
+                // 通过WebRTC拒绝通话
+                currentCallId?.let { callId ->
+                    webRTCManager?.rejectCall(callId)
+                }
+                endCall()
+            } catch (e: Exception) {
+                handleError("拒绝通话失败", e)
+            }
         }
-        // 状态恢复
     }
 
+    /**
+     * 结束通话
+     */
+    fun endCall() {
+        viewModelScope.launch {
+            try {
+                // 通知远端结束通话
+                webRTCManager?.endCall()
+
+                // 释放媒体资源
+                releaseMediaResources()
+
+                // 重置状态
+                _videoCallState.value = VideoCallState(
+                    callStatus = VideoCallStatus.ENDED
+                )
+                
+                // 重置callId
+                currentCallId = null
+            } catch (e: Exception) {
+                handleError("结束通话失败", e)
+            }
+        }
+    }
+
+    /**
+     * 最小化通话（进入悬浮窗模式）
+     */
     fun minimizeCall() {
         viewModelScope.launch {
             _videoCallState.value = _videoCallState.value.copy(
-                callStatus = CallStatus.MINIMIZED
+                callStatus = VideoCallStatus.MINIMIZED,
+                isMinimized = true
             )
         }
     }
 
+    /**
+     * 最大化通话（从悬浮窗模式恢复）
+     */
+    fun maximizeCall() {
+        viewModelScope.launch {
+            _videoCallState.value = _videoCallState.value.copy(
+                callStatus = VideoCallStatus.ACTIVE,
+                isMinimized = false
+            )
+        }
+    }
+
+    /**
+     * 切换摄像头
+     */
     fun toggleCamera() {
-        _isCameraEnabled.value = !_isCameraEnabled.value
-        // 控制实际的摄像头开关
-        webRTCManager?.toggleCamera(_isCameraEnabled.value)
+        viewModelScope.launch {
+            _isCameraEnabled.value = !_isCameraEnabled.value
+            _videoCallState.value = _videoCallState.value.copy(
+                isLocalVideoEnabled = _isCameraEnabled.value
+            )
+            
+            // 通知WebRTC切换摄像头
+            webRTCManager?.toggleCamera(!_isCameraEnabled.value)
+        }
     }
 
+    /**
+     * 切换麦克风
+     */
     fun toggleMicrophone() {
-        _isMicrophoneEnabled.value = !_isMicrophoneEnabled.value
-        // 控制实际的麦克风开关
-        webRTCManager?.toggleMicrophone(_isMicrophoneEnabled.value)
+        viewModelScope.launch {
+            _isMicrophoneEnabled.value = !_isMicrophoneEnabled.value
+            _videoCallState.value = _videoCallState.value.copy(
+                isMicrophoneEnabled = _isMicrophoneEnabled.value
+            )
+            
+            // 通知WebRTC切换麦克风
+            webRTCManager?.toggleMicrophone(!_isMicrophoneEnabled.value)
+        }
     }
 
+    /**
+     * 切换扬声器 - 这里映射到麦克风切换，因为WebRTCManager没有专门的扬声器控制
+     */
+    fun toggleSpeaker() {
+        viewModelScope.launch {
+            _isSpeakerEnabled.value = !_isSpeakerEnabled.value
+            _videoCallState.value = _videoCallState.value.copy(
+                isSpeakerEnabled = _isSpeakerEnabled.value
+            )
+            
+            // 对于扬声器控制，通常在平台层处理，这里只是更新状态
+        }
+    }
+
+    /**
+     * 切换前后摄像头
+     */
     fun switchCamera() {
         viewModelScope.launch {
             _isFrontCamera.value = !_isFrontCamera.value
-            // 切换前后摄像头
+            
+            // 通知WebRTC切换摄像头
             webRTCManager?.switchCamera()
         }
     }
 
     /**
-     * 初始化本地媒体流
+     * 创建本地媒体流
      */
-    private suspend fun initializeLocalMediaStream() {
-        val mediaStream = webRTCManager?.createLocalMediaStream()
-        _localMediaStream.value = mediaStream
+    private suspend fun createLocalMediaStream() {
+        try {
+            val mediaStream = webRTCManager?.createLocalMediaStream()
+            _localMediaStream.value = mediaStream
+        } catch (e: Exception) {
+            Napier.e("创建本地媒体流失败", e)
+        }
     }
 
-    private fun sendCallRequest(userId: String) {
-        // 通过信令服务器发送呼叫请求
-        webRTCManager?.initiateCall(userId)
+    /**
+     * 释放媒体资源
+     */
+    private fun releaseMediaResources() {
+        try {
+            // 停止本地媒体流
+            _localMediaStream.value?.let { stream ->
+                stream.videoTracks.forEach { track -> track.setEnabled(false) }
+                stream.audioTracks.forEach { track -> track.setEnabled(false) }
+            }
+            _localMediaStream.value = null
+
+            // 释放远程媒体流
+            _remoteVideo.value?.setEnabled(false)
+            _remoteAudio.value?.setEnabled(false)
+            _remoteVideo.value = null
+            _remoteAudio.value = null
+
+            // 重置状态
+            _isCameraEnabled.value = true
+            _isMicrophoneEnabled.value = true
+            _isFrontCamera.value = true
+            _isSpeakerEnabled.value = true
+        } catch (e: Exception) {
+            Napier.e("释放媒体资源失败", e)
+        }
     }
 
-    private fun cleanupWebRTCConnection() {
-        // 清理WebRTC连接
-        webRTCManager?.endCall()
+    /**
+     * 处理错误
+     */
+    private fun handleError(message: String, e: Exception) {
+        Napier.e(message, e)
+        _videoCallState.value = _videoCallState.value.copy(
+            callStatus = VideoCallStatus.ERROR,
+            errorMessage = "$message: ${e.message}"
+        )
     }
-}
 
-data class VideoCallState(
-    val callStatus: CallStatus = CallStatus.IDLE,
-    val remoteUser: UserInfo? = null,
-    val errorMessage: String? = null
-)
+    /**
+     * 设置WebRTC管理器（通过依赖注入）
+     */
+    fun setWebRTCManager(manager: com.github.im.group.sdk.WebRTCManager) {
+        this.webRTCManager = manager
+    }
 
-enum class CallStatus {
-    IDLE,
-    CONNECTING,
-    INCOMING,  // 新增来电状态
-    ACTIVE,
-    MINIMIZED,
-    ENDED,
-    ERROR
+    /**
+     * 清理资源
+     */
+    override fun onCleared() {
+        super.onCleared()
+        try {
+            webRTCManager?.release()
+            releaseMediaResources()
+        } catch (e: Exception) {
+            Napier.e("清理视频通话资源失败", e)
+        }
+    }
 }

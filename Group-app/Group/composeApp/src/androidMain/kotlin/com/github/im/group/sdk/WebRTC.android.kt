@@ -15,6 +15,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.ui.video.VideoCallState
+import com.github.im.group.ui.video.VideoCallStatus
+import com.github.im.group.ui.video.VideoCallUI
 import com.shepeliev.webrtckmp.AudioTrack
 import com.shepeliev.webrtckmp.IceCandidate
 import com.shepeliev.webrtckmp.MediaDevices
@@ -271,13 +273,15 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
         remoteUserId = message.fromUser ?: ""
         
         // 更新状态以便UI显示来电对话框
+        val callerInfo = com.github.im.group.model.UserInfo(
+            userId = message.fromUser?.toLongOrNull() ?: 0L,
+            username = "User-${message.fromUser}",
+            email = "",
+        )
         _connectionState.value = VideoCallState(
-            callStatus = com.github.im.group.ui.video.CallStatus.INCOMING,
-            remoteUser = com.github.im.group.model.UserInfo(
-                userId = message.fromUser?.toLongOrNull() ?: 0L,
-                username = "User-${message.fromUser}",
-                email = "",
-            )
+            callStatus = VideoCallStatus.INCOMING,
+            caller = callerInfo,
+            participants = listOf(callerInfo) // 添加主叫用户到参与者列表
         )
     }
     
