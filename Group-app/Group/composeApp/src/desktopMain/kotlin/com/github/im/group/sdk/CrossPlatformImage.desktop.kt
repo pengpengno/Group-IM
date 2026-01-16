@@ -21,7 +21,7 @@ import java.net.URL
 actual fun CrossPlatformImage(
     file: File,
     modifier: Modifier,
-    size: Int
+    onLongClick: (() -> Unit)?
 ) {
     var imageBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
@@ -61,12 +61,12 @@ actual fun CrossPlatformImage(
         }
     }
 
-    Box(modifier = modifier.size(size.dp), contentAlignment = Alignment.Center) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
         if (imageBitmap != null) {
             Image(
                 bitmap = imageBitmap!!,
                 contentDescription = null,
-                modifier = Modifier.size(size.dp)
+                modifier = Modifier.fillMaxSize()
             )
         } else {
             CircularProgressIndicator(modifier = Modifier.size(24.dp))

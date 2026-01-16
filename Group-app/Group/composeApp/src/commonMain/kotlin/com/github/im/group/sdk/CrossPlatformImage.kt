@@ -1,6 +1,6 @@
-// commonMain/src/commonMain/kotlin/com/example/image/ImageLoader.kt
 package com.github.im.group.sdk
 
+import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
@@ -11,6 +11,5 @@ import androidx.compose.ui.Modifier
 expect fun CrossPlatformImage(
     file: File,
     modifier: Modifier = Modifier,
-    size: Int = 200,
     onLongClick: (() -> Unit)? = null
 )

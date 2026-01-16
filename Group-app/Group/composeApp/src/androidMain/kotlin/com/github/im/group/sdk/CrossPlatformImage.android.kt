@@ -9,10 +9,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,7 +32,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
-import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -43,7 +47,6 @@ import java.io.InputStream
 actual fun CrossPlatformImage(
     file: File,
     modifier: Modifier,
-    size: Int,
     onLongClick: (() -> Unit)?
 ) {
     val context = LocalContext.current
@@ -144,7 +147,10 @@ actual fun CrossPlatformImage(
  * 全屏展示图片组件
  */
 @Composable
-fun FullScreenImage(imagePath: String, onDismiss: () -> Unit) {
+fun FullScreenImage(
+    imagePath: String, 
+    onDismiss: () -> Unit
+) {
     val context = LocalContext.current
     
     Dialog(onDismissRequest = onDismiss,
@@ -252,4 +258,3 @@ private fun saveImageToLocal(context: Context, path: String, fileName: String) {
         Napier.e("保存图片失败: ${e.message}")
     }
 }
-

@@ -2,6 +2,7 @@ package com.github.im.group.sdk
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -23,15 +24,15 @@ import androidx.compose.ui.unit.dp
 actual fun CrossPlatformVideo(
     file: File,
     modifier: Modifier,
-    size: Dp,
     onClose: (() -> Unit)?
 ) {
     VideoThumbnail(
         file = file,
-        modifier = modifier.size(size),
+        modifier = modifier,
         onClick = {
             VideoPlayerManager.play(file)
-        }
+        },
+        onLongClick = null
     )
 }
 
@@ -39,12 +40,23 @@ actual fun CrossPlatformVideo(
 actual fun VideoThumbnail(
     file: File,
     modifier: Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null
 ) {
     Surface(
         modifier = modifier
             .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
+            .then(
+                // 根据是否有长按回调来决定使用哪种点击修饰符
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(
+                        onClick = onClick,
+                        onLongClick = onLongClick
+                    )
+                } else {
+                    Modifier.clickable(onClick = onClick)
+                }
+            ),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
         color = Color.Black
     ) {

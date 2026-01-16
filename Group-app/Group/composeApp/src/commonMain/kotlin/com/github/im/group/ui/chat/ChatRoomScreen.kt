@@ -70,7 +70,8 @@ import com.github.im.group.manager.toFile
 import com.github.im.group.model.MessageItem
 import com.github.im.group.sdk.File
 import com.github.im.group.sdk.MediaFileView
-
+import com.github.im.group.sdk.GalleryAwareMediaFileView
+import com.github.im.group.ui.chat.MessageMediaManager
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
@@ -452,6 +453,7 @@ fun MessageBubble(
  * @param msg 消息对象
  * @param messageViewModel 消息视图模型
  * @param maxDownloadSize 最大下载大小限制（字节），默认为50MB
+ * @param allMessages 所有消息列表，用于构建媒体画廊
  * @param onContentReady 内容准备就绪回调
  * @param onLoading 加载中状态
  * @param onError 错误状态（可选）
@@ -461,6 +463,7 @@ fun FileMessageLoader(
     msg: MessageItem,
     messageViewModel: ChatMessageViewModel,
     maxDownloadSize: Long = 50 * 1024 * 1024, // 默认50MB
+    allMessages: List<MessageItem>? = null, // 添加所有消息列表参数
     onContentReady: @Composable (File, FileMeta) -> Unit,
     onLoading: @Composable () -> Unit,
     onError: @Composable (() -> Unit)? = null

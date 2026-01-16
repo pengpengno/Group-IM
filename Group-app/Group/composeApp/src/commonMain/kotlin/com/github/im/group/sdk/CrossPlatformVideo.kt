@@ -1,9 +1,8 @@
 package com.github.im.group.sdk
 
+import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 
 /**
  * 跨平台视频组件（内部使用，业务层建议使用MediaFileView）
@@ -12,7 +11,6 @@ import androidx.compose.ui.unit.dp
 expect fun CrossPlatformVideo(
     file: File,
     modifier: Modifier = Modifier,
-    size: Dp = 200.dp,
     onClose: (() -> Unit)? = null
 )
 

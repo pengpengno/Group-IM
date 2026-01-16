@@ -59,6 +59,7 @@ import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.CrossPlatformVideo
 import com.github.im.group.sdk.File
 import com.github.im.group.sdk.FileData
+import com.github.im.group.sdk.GalleryAwareMediaFileView
 import com.github.im.group.sdk.MediaFileView
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import org.koin.compose.koinInject
@@ -124,17 +125,25 @@ sealed class MessageContent {
 
 
 /**
- * 图片气泡
+ * 统一媒体消息气泡 - 处理图片和视频消息
  */
 @Composable
-fun ImageMessage(content: MessageContent.Image, onDownloadFile: ((String) -> Unit)? = null, onShowMenu: ((File) -> Unit)? = null) {
+fun MediaMessage(
+    file: com.github.im.group.sdk.File,
+    modifier: Modifier = Modifier,
+    size: androidx.compose.ui.unit.Dp = 160.dp,
+    mediaList: List<com.github.im.group.sdk.File>? = null,
+    currentIndex: Int = 0,
+    onDownloadFile: ((String) -> Unit)? = null,
+    onShowMenu: ((com.github.im.group.sdk.File) -> Unit)? = null
+) {
     // 获取下载状态
     val messageViewModel: ChatMessageViewModel = koinViewModel()
     val downloadStates by messageViewModel.fileDownloadStates.collectAsState()
     
     // 提取文件ID
-    val fileId = remember(content.file.path) {
-        extractFileIdFromPath(content.file.path)
+    val fileId = remember(file.path) {
+        extractFileIdFromPath(file.path)
     }
     
     val downloadState = remember(fileId, downloadStates) {
@@ -142,12 +151,25 @@ fun ImageMessage(content: MessageContent.Image, onDownloadFile: ((String) -> Uni
     }
     
     Box {
-        MediaFileView(
-            file = content.file,
-            modifier = Modifier.size(160.dp),
-            onDownloadFile = onDownloadFile,
-            onShowMenu = onShowMenu
-        )
+        if (mediaList != null && mediaList.size > 1) {
+            // 如果有多个媒体资源，使用画廊感知的组件
+            GalleryAwareMediaFileView(
+                file = file,
+                modifier = modifier.size(size),
+                mediaList = mediaList,
+                currentIndex = currentIndex,
+                onDownloadFile = onDownloadFile,
+                onShowMenu = onShowMenu
+            )
+        } else {
+            // 否则使用普通的媒体文件视图
+            MediaFileView(
+                file = file,
+                modifier = modifier.size(size),
+                onDownloadFile = onDownloadFile,
+                onShowMenu = onShowMenu
+            )
+        }
         
         // 显示下载进度
         if (downloadState?.isDownloading == true) {
@@ -176,6 +198,48 @@ fun ImageMessage(content: MessageContent.Image, onDownloadFile: ((String) -> Uni
             }
         }
     }
+}
+
+/**
+ * 图片气泡
+ */
+@Composable
+fun ImageMessage(
+    content: MessageContent.Image, 
+    mediaList: List<MessageContent.Image>? = null,
+    currentIndex: Int = 0,
+    onDownloadFile: ((String) -> Unit)? = null, 
+    onShowMenu: ((com.github.im.group.sdk.File) -> Unit)? = null
+) {
+    val actualMediaList = mediaList?.map { it.file } // 转换为File列表
+    MediaMessage(
+        file = content.file,
+        mediaList = actualMediaList,
+        currentIndex = currentIndex,
+        onDownloadFile = onDownloadFile,
+        onShowMenu = onShowMenu
+    )
+}
+
+/**
+ * 视频气泡
+ */
+@Composable
+fun VideoBubble(
+    content: MessageContent.Video, 
+    mediaList: List<MessageContent.Video>? = null,
+    currentIndex: Int = 0,
+    onDownloadFile: ((String) -> Unit)? = null, 
+    onShowMenu: ((com.github.im.group.sdk.File) -> Unit)? = null
+) {
+    val actualMediaList = mediaList?.map { it.file } // 转换为File列表
+    MediaMessage(
+        file = content.file,
+        mediaList = actualMediaList,
+        currentIndex = currentIndex,
+        onDownloadFile = onDownloadFile,
+        onShowMenu = onShowMenu
+    )
 }
 
 /**
@@ -611,31 +675,21 @@ fun UnifiedFileMessage(
                 // 这里可以弹出一个BottomSheet或其他形式的菜单
                 // 暂时使用现有的文件操作对话框
             }
-            when (message.type) {
-                MessageType.IMAGE -> {
-                    ImageMessage(
-                        content = MessageContent.Image(pickedFile),
-                        onDownloadFile = downloadFile,
-                        onShowMenu = showMenu
-                    )
-                }
-                MessageType.VIDEO -> {
-                    VideoBubble(
-                        content = MessageContent.Video(pickedFile),
-                        onDownloadFile = downloadFile,
-                        onShowMenu = showMenu
-                    )
-                }
-                MessageType.FILE -> {
-                    FileMessageBubble(
-                        meta = meta,
-                        onDownloadFile = downloadFile
-                    )
-                }
-                else -> {
-                    Text("未知的文件类型")
-                }
-            }
+            
+            // 使用消息视图模型中的媒体消息管理器
+            val mediaManager = rememberMessageMediaManager(
+                messageViewModel = messageViewModel,
+                currentMessage = message
+            )
+            
+            // 使用统一的媒体消息组件
+            MediaMessage(
+                file = pickedFile,
+                mediaList = mediaManager.mediaFiles,
+                currentIndex = mediaManager.currentIndex,
+                onDownloadFile = downloadFile,
+                onShowMenu = showMenu
+            )
         },
         onLoading = {
             CircularProgressIndicator(
@@ -649,56 +703,4 @@ fun UnifiedFileMessage(
             Text("${message.type.name}文件过大或加载失败")
         }
     )
-}
-
-@Composable
-fun VideoBubble(content: MessageContent.Video, onDownloadFile: ((String) -> Unit)? = null, onShowMenu: ((File) -> Unit)? = null) {
-    // 获取下载状态
-    val messageViewModel: ChatMessageViewModel = koinViewModel()
-    val downloadStates by messageViewModel.fileDownloadStates.collectAsState()
-    
-    // 提取文件ID
-    val fileId = remember(content.file.path) {
-        extractFileIdFromPath(content.file.path)
-    }
-    
-    val downloadState = remember(fileId, downloadStates) {
-        if (fileId.isNotEmpty()) downloadStates[fileId] else null
-    }
-    
-    Box {
-        MediaFileView(
-            file = content.file,
-            modifier = Modifier.size(160.dp),
-            onDownloadFile = onDownloadFile,
-            onShowMenu = onShowMenu
-        )
-        
-        // 显示下载进度
-        if (downloadState?.isDownloading == true) {
-            // 在右下角显示进度指示器
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .background(Color.Black.copy(alpha = 0.6f), shape = CircleShape)
-                    .size(40.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                // 显示圆形进度条
-                androidx.compose.material3.CircularProgressIndicator(
-                    progress = downloadState.progress,
-                    color = Color.Cyan,
-                    strokeWidth = 3.dp
-                )
-                // 显示百分比文字
-                Text(
-                    text = "${(downloadState.progress * 100).toInt()}%",
-                    color = Color.White,
-                    fontSize = androidx.compose.ui.unit.TextUnit(10F, androidx.compose.ui.unit.TextUnitType.Sp),
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
-        }
-    }
 }

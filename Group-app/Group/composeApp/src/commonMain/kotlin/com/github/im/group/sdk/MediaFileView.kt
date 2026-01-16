@@ -38,7 +38,8 @@ fun MediaFileView(
     modifier: Modifier = Modifier,
     size: Dp = 120.dp,
     onDownloadFile: ((String) -> Unit)? = null,  // 以函数式方式传递下载功能
-    onShowMenu: ((File) -> Unit)? = null        // 显示菜单的回调
+    onShowMenu: ((File) -> Unit)? = null,        // 显示菜单的回调
+    onClick: (() -> Unit)? = null                // 点击回调，用于自定义处理
 ) {
     when {
         file.isVideo() -> {
@@ -46,7 +47,8 @@ fun MediaFileView(
                 file = file,
                 modifier = modifier,
                 size = size,
-                onShowMenu = onShowMenu
+                onShowMenu = onShowMenu,
+                onClick = onClick
             )
         }
         file.isImage() -> {
@@ -54,7 +56,8 @@ fun MediaFileView(
                 file = file,
                 modifier = modifier,
                 size = size,
-                onShowMenu = onShowMenu
+                onShowMenu = onShowMenu,
+                onClick = onClick
             )
         }
         else -> {
@@ -105,14 +108,20 @@ private fun VideoMediaView(
     file: File,
     modifier: Modifier,
     size: Dp,
-    onShowMenu: ((File) -> Unit)? = null
+    onShowMenu: ((File) -> Unit)? = null,
+    onClick: (() -> Unit)? = null
 ) {
     // 使用平台特定的视频缩略图组件
     VideoThumbnail(
         file = file,
         modifier = modifier.size(size),
         onClick = {
-            VideoPlayerManager.play(file)
+            if (onClick != null) {
+                onClick()
+            } else {
+                // 默认行为：播放视频
+                VideoPlayerManager.play(file)
+            }
         },
         onLongClick = {
             onShowMenu?.invoke(file)
@@ -128,12 +137,12 @@ private fun ImageMediaView(
     file: File,
     modifier: Modifier,
     size: Dp,
-    onShowMenu: ((File) -> Unit)? = null
+    onShowMenu: ((File) -> Unit)? = null,
+    onClick: (() -> Unit)? = null
 ) {
     CrossPlatformImage(
         file = file,
         modifier = modifier.size(size),
-        size = size.value.toInt(),
         onLongClick = {
             onShowMenu?.invoke(file)
         }

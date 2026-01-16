@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Warning
@@ -59,15 +62,15 @@ import kotlinx.coroutines.withContext
 actual fun CrossPlatformVideo(
     file: File,
     modifier: Modifier,
-    size: Dp,
     onClose: (() -> Unit)?
 ) {
     VideoThumbnail(
         file = file,
-        modifier = modifier.size(size),
+        modifier = modifier,
         onClick = {
             VideoPlayerManager.play(file)
-        }
+        },
+        onLongClick = null
     )
 }
 
@@ -251,6 +254,8 @@ actual object VideoPlayerManager {
     private fun FullScreenVideoPlayer(
         file: File, 
         onClose: () -> Unit,
+        onPrevious: (() -> Unit)? = null,  // 上一个视频
+        onNext: (() -> Unit)? = null,     // 下一个视频
         videoCache: androidx.media3.datasource.cache.SimpleCache
     ) {
         val context = LocalContext.current
@@ -441,22 +446,70 @@ actual object VideoPlayerManager {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // 顶部关闭按钮
+                    // 顶部关闭按钮和导航按钮
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        IconButton(
-                            onClick = onClose,
+                        // 左侧按钮 - 上一个视频
+                        if (onPrevious != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .background(Color.Black.copy(alpha = 0.6f), shape = CircleShape)
+                                    .clickable { onPrevious() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.ChevronLeft,
+                                    contentDescription = "上一个",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        } else {
+                            // 占位符，保持布局对称
+                            Spacer(modifier = Modifier.size(60.dp))
+                        }
+
+                        // 右上角关闭按钮
+                        Box(
                             modifier = Modifier
                                 .size(40.dp)
-                                .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                                .background(Color.Black.copy(alpha = 0.6f), shape = CircleShape),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.Pause,
-                                contentDescription = null,
-                                tint = Color.White
-                            )
+                            IconButton(
+                                onClick = onClose,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = null,
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                        
+                        // 右侧按钮 - 下一个视频
+                        if (onNext != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .background(Color.Black.copy(alpha = 0.6f), shape = CircleShape)
+                                    .clickable { onNext() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.ChevronRight,
+                                    contentDescription = "下一个",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        } else {
+                            // 占位符，保持布局对称
+                            Spacer(modifier = Modifier.size(60.dp))
                         }
                     }
 

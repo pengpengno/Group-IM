@@ -85,6 +85,9 @@ class ChatMessageViewModel(
     // 使用LinkedHashMap作为唯一的消息存储来源，替代原来的多个索引
     private val messageStore = linkedMapOf<String, MessageItem>()
 
+    // 专门的媒体资源列表，只包含图片和视频消息
+    private val mediaMessageStore = linkedMapOf<String, MessageItem>()
+
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
     
     // 多文件下载状态管理
@@ -94,7 +97,9 @@ class ChatMessageViewModel(
 
     private val _loading = MutableStateFlow(false)
 
-
+    // 媒体资源列表的StateFlow
+    private val _mediaMessages = MutableStateFlow<List<MessageItem>>(emptyList())
+    val mediaMessages: StateFlow<List<MessageItem>> = _mediaMessages.asStateFlow()
 
     fun scrollIndex(index : Int){
         _uiState.update {
@@ -324,6 +329,45 @@ class ChatMessageViewModel(
     }
 
     /**
+     * 检查消息是否为媒体类型（图片或视频）
+     */
+    private fun MessageItem.isMediaType(): Boolean {
+        return this.type == com.github.im.group.db.entities.MessageType.IMAGE || 
+               this.type == com.github.im.group.db.entities.MessageType.VIDEO
+    }
+
+    /**
+     * 统一更新UI消息列表
+     */
+    private fun emitUiMessages() {
+        val sorted = messageStore.values
+            .sortedByDescending { it.seqId.takeIf { it != 0L } ?: Long.MAX_VALUE }
+
+        // 更新媒体消息列表
+        updateMediaMessages(sorted)
+
+        _uiState.update { state ->
+            state.copy(messages = sorted.toMutableList())
+        }
+    }
+
+    /**
+     * 更新媒体消息列表
+     */
+    private fun updateMediaMessages(allMessages: List<MessageItem>) {
+        val mediaMessages = allMessages.filter { it.isMediaType() }
+        _mediaMessages.value = mediaMessages
+    }
+
+    /**
+     * 检查是否为媒体类型消息
+     */
+    private fun isMediaType(type: com.github.im.group.db.entities.MessageType): Boolean {
+        return type == com.github.im.group.db.entities.MessageType.IMAGE || 
+               type == com.github.im.group.db.entities.MessageType.VIDEO
+    }
+
+    /**
      * 接收/ 更新 服务端发送的新的新的消息
      * 当消息是客户端上报发送的新消息时 ： 在 会话的消息list 中直接插入一条新的消息
      * 当消息是服务端发送的消息时  a) 如果是客户端发送的回传ACK ： 更新消息状态为已收到， 更新ui上的消息状态
@@ -342,9 +386,18 @@ class ChatMessageViewModel(
         }
         
         messageStore[key] = message
+        
+        // 如果是媒体类型消息，也要添加到媒体消息存储中
+        if (message.isMediaType()) {
+            mediaMessageStore[key] = message
+        } else {
+            // 如果不是媒体类型，但之前在媒体消息存储中，则移除
+            mediaMessageStore.remove(key)
+        }
+        
         emitUiMessages()
     }
-    
+
     /**
      * 为MessageItem添加唯一键生成方法
      */
@@ -354,18 +407,6 @@ class ChatMessageViewModel(
             clientMsgId.isNotBlank() -> "C:$clientMsgId"
             else -> error("Message has no identity: $this")
         }
-    
-    /**
-     * 统一更新UI消息列表
-     */
-    private fun emitUiMessages() {
-        val sorted = messageStore.values
-            .sortedByDescending { it.seqId.takeIf { it != 0L } ?: Long.MAX_VALUE }
-
-        _uiState.update { state ->
-            state.copy(messages = sorted.toMutableList())
-        }
-    }
     
     /**
      * 批量应用消息到存储中
@@ -694,6 +735,21 @@ class ChatMessageViewModel(
         return fileStorageManager.getFile(fileId)
     }
 
+    /**
+     * 获取媒体消息列表
+     */
+    fun getMediaMessages(): List<MessageItem> {
+        return _mediaMessages.value
+    }
 
+    /**
+     * 获取指定消息在媒体消息列表中的索引
+     */
+    fun getMediaMessageIndex(message: MessageItem): Int {
+        val mediaMessages = getMediaMessages()
+        return mediaMessages.indexOfFirst { 
+            it.seqId == message.seqId && it.clientMsgId == message.clientMsgId 
+        }
+    }
 
 }
