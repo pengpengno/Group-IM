@@ -61,6 +61,7 @@ data class FileDownloadState(
     val fileId: String,
     val isDownloading: Boolean = false,
     val isSuccess: Boolean = false,
+    val progress: Float = 0f, // 添加进度信息，范围 0.0 - 1.0
 //    val fileContent: ByteArray? = null,
     val error: String? = null
 )
@@ -616,17 +617,27 @@ class ChatMessageViewModel(
                 _fileDownloadStates.update { currentStates ->
                     currentStates + (fileId to FileDownloadState(
                         fileId = fileId,
-                        isDownloading = true
+                        isDownloading = true,
+                        progress = 0f  // 初始化进度为0
                     ))
                 }
                 
-                // 使用流式下载方法获取文件路径（实现本地优先策略）
-                val filePath = fileStorageManager.getFileContentPath(fileId)
+                // 使用流式下载方法获取文件路径（实现本地优先策略），并更新进度
+                val filePath = fileStorageManager.getFileContentPathWithProgress(fileId) { downloaded, total ->
+                    val progress = if (total > 0) downloaded.toFloat() / total.toFloat() else 0f
+                    // 更新下载进度状态
+                    _fileDownloadStates.update { currentStates ->
+                        val currentState = currentStates[fileId] ?: FileDownloadState(fileId)
+                        currentStates + (fileId to currentState.copy(
+                            progress = progress.coerceIn(0f, 1f)  // 确保进度在0-1之间
+                        ))
+                    }
+                }
                 
                 // 更新下载状态为成功
                 _fileDownloadStates.update { currentStates ->
-                    currentStates + (fileId to FileDownloadState(
-                        fileId = fileId,
+                    val currentState = currentStates[fileId] ?: FileDownloadState(fileId)
+                    currentStates + (fileId to currentState.copy(
                         isDownloading = false,
                         isSuccess = filePath != null,
                         error = if (filePath == null) "Failed to download file" else null
@@ -640,8 +651,8 @@ class ChatMessageViewModel(
                     Napier.e("文件下载失败", e)
                     // 更新下载状态为失败
                     _fileDownloadStates.update { currentStates ->
-                        currentStates + (fileId to FileDownloadState(
-                            fileId = fileId,
+                        val currentState = currentStates[fileId] ?: FileDownloadState(fileId)
+                        currentStates + (fileId to currentState.copy(
                             isDownloading = false,
                             isSuccess = false,
                             error = e.message

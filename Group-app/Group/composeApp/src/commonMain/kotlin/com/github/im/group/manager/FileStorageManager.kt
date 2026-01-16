@@ -151,7 +151,48 @@ class FileStorageManager(
             return null
         }
     }
-    
+
+    /**
+     * 获取文件内容路径（实现本地优先策略）- 支持进度回调
+     * @param fileId 文件ID
+     * @param onProgress 进度回调函数，参数为已下载字节数和总字节数
+     * @return 本地文件路径
+     */
+    suspend fun getFileContentPathWithProgress(fileId: String, onProgress: (Long, Long) -> Unit): String? {
+        Napier.d("获取文件内容路径: $fileId")
+        val file = filesRepository.getFile(fileId)
+        /**
+         * a) 如果文件记录为空那么 从远程下载即可 包括记录 以及文件
+         * b) 如果文件不为空那么 检查本地是否存在记录 ,存在则返回本地文件路径
+         *    b1) 如果记录存在但是文件在 相应的位置不存在 指定文件 , 那么重新下载 , 并且更新文件记录
+         */
+
+        try {
+            // 情况 a) 文件记录为空，从远程下载
+            if (file == null) {
+                Napier.d("文件记录不存在，从服务器下载文件: $fileId")
+                downloadFileToLocalStorageWithProgress(fileId, onProgress)
+                return getLocalFilePath(fileId)
+            }
+
+            // 情况 b) 文件记录存在，使用isFileExists检查本地文件是否存在
+            if (isFileExists(fileId)) {
+                // 本地文件存在，直接返回路径
+                val localFilePathStr = getLocalFilePath(fileId)
+                Napier.d("文件已存在本地，返回路径: $localFilePathStr")
+                return localFilePathStr
+            } else {
+                // 本地文件不存在，从远程下载
+                Napier.d("本地文件不存在，从服务器下载: $fileId")
+                downloadFileToLocalStorageWithProgress(fileId, onProgress)
+                return getLocalFilePath(fileId)
+            }
+        } catch (e: Exception) {
+            Napier.e("获取文件内容路径失败: $fileId", e)
+            return null
+        }
+    }
+
     /**
      * 获取文件内容（实现本地优先策略）- 保持向后兼容，但不推荐用于大文件
      * @param fileId 文件ID
@@ -446,6 +487,15 @@ class FileStorageManager(
      * @param fileId 文件ID
      */
     suspend fun downloadFileToLocalStorage(fileId: String) {
+        downloadFileToLocalStorageWithProgress(fileId) { _, _ -> }
+    }
+    
+    /**
+     * 流式下载文件到本地（推荐用于大文件）- 支持进度回调
+     * @param fileId 文件ID
+     * @param onProgress 进度回调函数，参数为已下载字节数和总字节数
+     */
+    suspend fun downloadFileToLocalStorageWithProgress(fileId: String, onProgress: (Long, Long) -> Unit) {
         val file = filesRepository.getFile(fileId)
         if (file == null) {
             throw IllegalArgumentException("文件记录不存在: $fileId")
@@ -468,8 +518,8 @@ class FileStorageManager(
                 }
             }
             
-            // 流式下载文件
-            FileApi.downloadFileToPath(fileId, fullPath)
+            // 流式下载文件（带进度）
+            FileApi.downloadFileToPathWithProgress(fileId, fullPath, onProgress)
             
             // 更新数据库中的存储路径
             filesRepository.updateStoragePath(fileId, fullPath.toString())
@@ -727,6 +777,10 @@ object FileTypeDetector {
         }
     }
 }
+
+
+
+
 
 
 

@@ -188,18 +188,20 @@ object FileApi {
                     // 流式写入
                     val channel: ByteReadChannel = response.bodyAsChannel()
                     val buffer = ByteArray(8 * 1024)
+                    var totalBytesRead = 0L
 
                     FileSystem.SYSTEM.write(outputPath) {
-//                        val buffer = okio.Buffer()
-
                         while (!channel.isClosedForRead) {
-
-                            while (!channel.isClosedForRead) {
-                                val bytesRead = channel.readAvailable(buffer)
-                                if (bytesRead <= 0) break
-                                write(buffer, 0, bytesRead)
+                            val bytesRead = channel.readAvailable(buffer)
+                            if (bytesRead <= 0) break
+                            write(buffer, 0, bytesRead)
+                            totalBytesRead += bytesRead
+                            
+                            // 计算并更新进度
+                            if (contentLength != null && contentLength > 0) {
+                                val progress = totalBytesRead.toFloat() / contentLength.toFloat()
+                                // 这里可以通过回调函数或状态更新来通知进度
                             }
-
                         }
                     }
                 } else {
@@ -218,7 +220,85 @@ object FileApi {
         }
     }
 
+    /**
+     * 下载文件到指定路径（流式下载，避免OOM）- 支持进度回调
+     * @param fileId 文件ID
+     * @param outputPath 输出文件路径
+     * @param onProgress 进度回调函数，参数为已下载字节数和总字节数
+     */
+    suspend fun downloadFileToPathWithProgress(fileId: String, outputPath: Path, onProgress: (Long, Long) -> Unit) {
+        val baseUrl = "http://${'$'}{ProxyConfig.host}:${'$'}{ProxyConfig.port}"
 
+        val response: HttpResponse = ProxyApi.client.request("$baseUrl/api/files/download/$fileId") {
+            method = HttpMethod.Get
+            headers {
+                val token = GlobalCredentialProvider.currentToken
+                if (token.isNotEmpty()) {
+                    append("Proxy-Authorization", "Basic $token")
+                    append("Authorization", "Bearer $token")
+                }
+            }
+        }
+
+        val statusValue: Int = response.status.value
+        if (statusValue !in 200..299) {
+            val errorText: String = response.bodyAsText()
+            throw RuntimeException("下载文件失败：${'$'}{response.status}，内容: $errorText")
+        }
+
+        val contentLength: Long? = response.contentLength()
+        val contentType: String = response.headers["Content-Type"] ?: "application/octet-stream"
+
+        val sizeLimit: Long = when {
+            contentType.startsWith("audio/") -> 50L * 1024 * 1024
+            contentType.startsWith("image/") -> 10L * 1024 * 1024
+            contentType.startsWith("video/") -> 100L * 1024 * 1024
+            else -> 50L * 1024 * 1024
+        }
+
+        val useStream: Boolean = contentLength == null || contentLength > sizeLimit
+
+        withContext(Dispatchers.IO) {
+            try {
+                if (useStream) {
+                    // 流式写入
+                    val channel: ByteReadChannel = response.bodyAsChannel()
+                    val buffer = ByteArray(8 * 1024)
+                    var totalBytesRead = 0L
+
+                    FileSystem.SYSTEM.write(outputPath) {
+                        while (!channel.isClosedForRead) {
+                            val bytesRead = channel.readAvailable(buffer)
+                            if (bytesRead <= 0) break
+                            write(buffer, 0, bytesRead)
+                            totalBytesRead += bytesRead
+                            
+                            // 通知进度
+                            if (contentLength != null && contentLength > 0) {
+                                onProgress(totalBytesRead, contentLength)
+                            }
+                        }
+                    }
+                } else {
+                    // 小文件直接写入
+                    val bytes: ByteArray = response.bodyAsBytes()
+                    FileSystem.SYSTEM.write(outputPath) {
+                        write(bytes)
+                    }
+                    
+                    // 小文件直接完成
+                    if (contentLength != null) {
+                        onProgress(contentLength, contentLength)
+                    }
+                }
+            } catch (e: Exception) {
+                if (FileSystem.SYSTEM.exists(outputPath)) {
+                    FileSystem.SYSTEM.delete(outputPath)
+                }
+                throw e
+            }
+        }
+    }
 
 
     /**

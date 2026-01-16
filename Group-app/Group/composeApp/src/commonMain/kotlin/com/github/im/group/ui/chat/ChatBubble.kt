@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
@@ -65,6 +66,44 @@ import org.koin.compose.viewmodel.koinViewModel
 import kotlin.math.abs
 import kotlin.math.sin
 
+/**
+ * 从文件路径中提取文件ID
+ * 这是一个简单的实现，实际情况可能需要根据实际URL结构调整
+ */
+fun extractFileIdFromPath(path: String): String {
+    // 处理常见的API路径格式
+    val pathSegments = path.split('/')
+    // 查找 "files" 或 "api" 段后的ID
+    for ((index, segment) in pathSegments.withIndex()) {
+        if (segment.equals("files", ignoreCase = true) && index + 1 < pathSegments.size) {
+            // 检查下一个段是否可能是文件ID（不是路径的一部分）
+            val nextSegment = pathSegments[index + 1]
+            if (nextSegment.isNotEmpty() && !nextSegment.contains(".")) { // 排除文件扩展名
+                return nextSegment
+            }
+        }
+    }
+    
+    // 如果上面的逻辑没找到，尝试从URL参数中提取
+    if (path.contains("?")) {
+        val queryString = path.substringAfter('?')
+        val params = queryString.split('&')
+        for (param in params) {
+            if (param.startsWith("fileId=")) {
+                return param.substringAfter('=')
+            }
+        }
+    }
+    
+    // 如果仍然找不到，返回最后一个段（如果它看起来像是一个ID）
+    val lastSegment = pathSegments.lastOrNull { it.isNotEmpty() }
+    if (lastSegment != null && lastSegment.length > 5) { // 假设有效的文件ID至少有5个字符
+        return lastSegment
+    }
+    
+    return ""
+}
+
 sealed class MessageContent {
     data class Text(val text: String) : MessageContent()
     data class Image(val file: com.github.im.group.sdk.File) : MessageContent()
@@ -89,12 +128,54 @@ sealed class MessageContent {
  */
 @Composable
 fun ImageMessage(content: MessageContent.Image, onDownloadFile: ((String) -> Unit)? = null, onShowMenu: ((File) -> Unit)? = null) {
-    MediaFileView(
-        file = content.file,
-        modifier = Modifier.size(160.dp),
-        onDownloadFile = onDownloadFile,
-        onShowMenu = onShowMenu
-    )
+    // 获取下载状态
+    val messageViewModel: ChatMessageViewModel = koinViewModel()
+    val downloadStates by messageViewModel.fileDownloadStates.collectAsState()
+    
+    // 提取文件ID
+    val fileId = remember(content.file.path) {
+        extractFileIdFromPath(content.file.path)
+    }
+    
+    val downloadState = remember(fileId, downloadStates) {
+        if (fileId.isNotEmpty()) downloadStates[fileId] else null
+    }
+    
+    Box {
+        MediaFileView(
+            file = content.file,
+            modifier = Modifier.size(160.dp),
+            onDownloadFile = onDownloadFile,
+            onShowMenu = onShowMenu
+        )
+        
+        // 显示下载进度
+        if (downloadState?.isDownloading == true) {
+            // 在右下角显示进度指示器
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+                    .background(Color.Black.copy(alpha = 0.6f), shape = CircleShape)
+                    .size(40.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // 显示圆形进度条
+                androidx.compose.material3.CircularProgressIndicator(
+                    progress = downloadState.progress,
+                    color = Color.Cyan,
+                    strokeWidth = 3.dp
+                )
+                // 显示百分比文字
+                Text(
+                    text = "${(downloadState.progress * 100).toInt()}%",
+                    color = Color.White,
+                    fontSize = androidx.compose.ui.unit.TextUnit(10F, androidx.compose.ui.unit.TextUnitType.Sp),
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+        }
+    }
 }
 
 /**
@@ -572,10 +653,52 @@ fun UnifiedFileMessage(
 
 @Composable
 fun VideoBubble(content: MessageContent.Video, onDownloadFile: ((String) -> Unit)? = null, onShowMenu: ((File) -> Unit)? = null) {
-    MediaFileView(
-        file = content.file,
-        modifier = Modifier.size(160.dp),
-        onDownloadFile = onDownloadFile,
-        onShowMenu = onShowMenu
-    )
+    // 获取下载状态
+    val messageViewModel: ChatMessageViewModel = koinViewModel()
+    val downloadStates by messageViewModel.fileDownloadStates.collectAsState()
+    
+    // 提取文件ID
+    val fileId = remember(content.file.path) {
+        extractFileIdFromPath(content.file.path)
+    }
+    
+    val downloadState = remember(fileId, downloadStates) {
+        if (fileId.isNotEmpty()) downloadStates[fileId] else null
+    }
+    
+    Box {
+        MediaFileView(
+            file = content.file,
+            modifier = Modifier.size(160.dp),
+            onDownloadFile = onDownloadFile,
+            onShowMenu = onShowMenu
+        )
+        
+        // 显示下载进度
+        if (downloadState?.isDownloading == true) {
+            // 在右下角显示进度指示器
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+                    .background(Color.Black.copy(alpha = 0.6f), shape = CircleShape)
+                    .size(40.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // 显示圆形进度条
+                androidx.compose.material3.CircularProgressIndicator(
+                    progress = downloadState.progress,
+                    color = Color.Cyan,
+                    strokeWidth = 3.dp
+                )
+                // 显示百分比文字
+                Text(
+                    text = "${(downloadState.progress * 100).toInt()}%",
+                    color = Color.White,
+                    fontSize = androidx.compose.ui.unit.TextUnit(10F, androidx.compose.ui.unit.TextUnitType.Sp),
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+        }
+    }
 }
