@@ -48,7 +48,7 @@ public class ConversationController {
      * @return 群组
      */
     @GetMapping("/{conversationId}")
-    public ResponseEntity<ConversationRes> createGroup(@PathVariable Long  conversationId) {
+    public ResponseEntity<ConversationRes> getConversation(@PathVariable Long  conversationId) {
         var group = conversationService.getConversationById(conversationId);
         return ResponseEntity.ok(group);
     }

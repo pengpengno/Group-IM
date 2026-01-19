@@ -1,7 +1,6 @@
 package com.github.im.server.service;
 
 import com.github.im.conversation.ConversationRes;
-import com.github.im.dto.user.UserBasicInfo;
 import com.github.im.server.mapstruct.GroupMemberMapper;
 import com.github.im.server.model.Conversation;
 import com.github.im.server.model.ConversationMember;
@@ -82,7 +81,7 @@ public class ConversationService {
     }
 
     public ConversationRes getConversationById(Long conversationId) {
-        Conversation conversation = conversationRepository.findByIdWithCreatedBy(conversationId)
+        Conversation conversation = conversationRepository.findByIdWithMembersCreatedBy(conversationId)
                 .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
         ConversationRes dto = conversationsMapper.toDTO(conversation);
         dto.setCreateUserId(conversation.getCreatedBy().getUserId());
@@ -114,7 +113,7 @@ public class ConversationService {
 //            var members = newConversation.getMembers();
             Conversation savedConversation = conversationRepository.save(newConversation);
 //            newConversation = conversationRepository.findById(savedConversation.getConversationId()).get();
-            newConversation = conversationRepository.findByIdWithCreatedBy(savedConversation.getConversationId()).get();
+            newConversation = conversationRepository.findByIdWithMembersCreatedBy(savedConversation.getConversationId()).get();
 
 
             ConversationMember conversationMember1 = ConversationMember.builder()

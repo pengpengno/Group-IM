@@ -88,14 +88,14 @@ fun ChatRoomScreen(
     val videoCallViewModel: VideoCallViewModel = koinViewModel()
 
     val uiState by voiceViewModel.uiState.collectAsState()
-    val state by messageViewModel.uiState.collectAsState()
+    val chatUiState by messageViewModel.uiState.collectAsState()
     val userInfo = userViewModel.getCurrentUser()
 
     var showVideoCall by remember { mutableStateOf(false) }
     var remoteUser by remember { mutableStateOf<UserInfo?>(null) } // 在群聊场景中可能为null，表示多个用户
 
     val pullRefreshState = rememberPullRefreshState(
-        refreshing = state.loading,
+        refreshing = chatUiState.loading,
         onRefresh = {
             messageViewModel.refreshMessages(conversationId)
         }
@@ -105,13 +105,25 @@ fun ChatRoomScreen(
     val listState = rememberLazyListState()
 
     LaunchedEffect(conversationId) {
-        messageViewModel.loadMessages(conversationId)
         messageViewModel.getConversation(conversationId) // 获取会话信息
+        messageViewModel.loadMessages(conversationId)  //服务器加载更多消息
         messageViewModel.register(conversationId) // 注册会话，用于接收服务端推送的消息
-
-        // 设置远程用户（这里应该是从会话中获取对方用户信息）
-        remoteUser = state.conversation.getOtherUser(userInfo)
-        Napier.i ("state ${state.conversation}")
+    }
+    
+    // 单独的LaunchedEffect来响应会话数据更新
+    LaunchedEffect(conversationId) {
+        messageViewModel.uiState.collect { state ->
+            if (state.conversation.conversationId == conversationId && state.conversation.conversationId != -1L) {
+                Napier.i ("conversation ${state.conversation}")
+                
+                // 设置远程用户（这里应该是从会话中获取对方用户信息）
+                remoteUser = state.conversation.getOtherUser(userInfo)
+                Napier.i ("remoteUser $remoteUser")
+                
+                // 一旦获取到正确的会话信息就退出收集
+                return@collect
+            }
+        }
     }
 
     DisposableEffect(conversationId) {
@@ -124,9 +136,9 @@ fun ChatRoomScreen(
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .collect { firstVisibleIndex ->
-                if (firstVisibleIndex == 0 && state.messages.isNotEmpty()) {
+                if (firstVisibleIndex == 0 && chatUiState.messages.isNotEmpty()) {
                     // 用户滚动到了顶部，加载更多历史消息
-                    val oldestMessage = state.messages.lastOrNull()
+                    val oldestMessage = chatUiState.messages.lastOrNull()
                     oldestMessage?.seqId?.let { sequenceId ->
                         messageViewModel.loadMoreMessages(conversationId, sequenceId)
                     }
@@ -142,7 +154,7 @@ fun ChatRoomScreen(
         val localStream by videoCallViewModel.localMediaStream.collectAsState()
         
         VideoCallUI(
-            remoteUser = remoteUser ?: defaultUserInfo(),
+            remoteUser = remoteUser ?:defaultUserInfo(),
             localMediaStream = localStream,
             videoCallState = videoCallState,
             remoteVideoTrack = remoteVideoTrack,
@@ -170,8 +182,8 @@ fun ChatRoomScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        // 显示对方用户头像和昵称
-                        state.conversation.getOtherUser(userInfo)?.let { otherUser ->
+                        // 显示对方用户头像和昵称或群组名称
+                        chatUiState.conversation.getOtherUser(userInfo)?.let { otherUser ->
                             UserAvatar(
                                 username = otherUser.username,
                                 size = 32,
@@ -195,7 +207,11 @@ fun ChatRoomScreen(
                             }
                         } ?: run {
                             // 如果没有获取到对方用户信息，显示群组名称
-                            Text(state.conversation.groupName)
+                            Text(
+                                text = chatUiState.conversation.groupName,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
                         }
 
                         Spacer(modifier = Modifier.weight(1f))
@@ -244,7 +260,7 @@ fun ChatRoomScreen(
                 ) {
 
                     // 显示历史加载指示器
-                    if (state.loading) {
+                    if (chatUiState.loading) {
                         item {
                             Box(
                                 modifier = Modifier
@@ -258,7 +274,7 @@ fun ChatRoomScreen(
                     }
 
                     // 显示消息列表
-                    items(state.messages, key = { message ->
+                    items(chatUiState.messages, key = { message ->
                         if (message.seqId != 0L) {
                             "seq_${message.seqId}"
                         } else {
@@ -277,7 +293,7 @@ fun ChatRoomScreen(
 
                 // 下拉刷新指示器
                 PullRefreshIndicator(
-                    refreshing = state.loading,
+                    refreshing = chatUiState.loading,
                     state = pullRefreshState,
                     modifier = Modifier.align(Alignment.TopCenter)
                 )
@@ -545,8 +561,8 @@ fun FileMessageLoader(
     // 监听下载状态变化，更新文件对象
     val downloadStates by messageViewModel.fileDownloadStates.collectAsState()
     LaunchedEffect(downloadStates) {
-        downloadStates[fileId]?.let { state ->
-            if (state.isSuccess && !state.isDownloading) {
+        downloadStates[fileId]?.let { chatUiState ->
+            if (chatUiState.isSuccess && !chatUiState.isDownloading) {
                 // 下载完成后，获取本地路径并更新文件对象
                 val path = messageViewModel.getLocalFilePath(fileId)
                 path?.let {

@@ -63,7 +63,7 @@ val appmodule = module {
     single { FriendRequestRepository(get()) }
     single { MessageSyncRepository(get(), get(), get(),get()) }
 
-    single { ConversationRepository(get()) }
+    single { ConversationRepository(get(),get()) }
 
     single {
         val context = androidContext()

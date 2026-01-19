@@ -442,6 +442,7 @@ class ChatMessageViewModel(
             try {
                 // 使用本地优先策略获取会话信息
                 val conversation = conversationRepository.getConversation(conversationId)
+                Napier.d("获取会话信息成功: $conversation")
                 _uiState.update {
                     it.copy(conversation = conversation)
                 }

@@ -635,7 +635,7 @@ data class ConversationRes(
      */
     fun getOtherUser(currentUser: UserInfo?): UserInfo? {
         return when (type) {
-            ConversationType.GROUP -> null // 群聊暂时不支持视频通话
+            ConversationType.GROUP -> null
             ConversationType.PRIVATE_CHAT -> {
                 if (members.isEmpty()) return null
                 members.firstOrNull { it.userId != currentUser?.userId }
