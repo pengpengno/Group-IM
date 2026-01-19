@@ -16,7 +16,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.ui.video.VideoCallState
 import com.github.im.group.ui.video.VideoCallStatus
-import com.github.im.group.ui.video.VideoCallUI
 import com.shepeliev.webrtckmp.AudioTrack
 import com.shepeliev.webrtckmp.IceCandidate
 import com.shepeliev.webrtckmp.MediaDevices

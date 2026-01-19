@@ -51,7 +51,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.github.im.group.model.UserInfo
 import com.github.im.group.ui.UserAvatar
-import com.github.im.group.ui.video.VideoCallUI
 import com.github.im.group.viewmodel.ChatMessageViewModel
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.RecorderUiState
@@ -73,6 +72,7 @@ import com.github.im.group.sdk.File
 import com.github.im.group.sdk.MediaFileView
 import com.github.im.group.sdk.GalleryAwareMediaFileView
 import com.github.im.group.ui.chat.MessageMediaManager
+import com.github.im.group.ui.video.VideoCallLauncher
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
@@ -147,33 +147,17 @@ fun ChatRoomScreen(
     }
 
     // 视频通话界面
-    if (showVideoCall) {
-        val videoCallState by videoCallViewModel.videoCallState.collectAsState()
-        val remoteVideoTrack by videoCallViewModel.remoteVideo.collectAsState()
-        val remoteAudioTrack by videoCallViewModel.remoteAudio.collectAsState()
-        val localStream by videoCallViewModel.localMediaStream.collectAsState()
-        
-        VideoCallUI(
-            remoteUser = remoteUser ?:defaultUserInfo(),
-            localMediaStream = localStream,
-            videoCallState = videoCallState,
-            remoteVideoTrack = remoteVideoTrack,
-            remoteAudioTrack = remoteAudioTrack,
-            onEndCall = {
-                videoCallViewModel.endCall()
+    if (showVideoCall && remoteUser != null) {
+        VideoCallLauncher(
+            remoteUser = remoteUser!!,
+            onCallEnded = {
                 showVideoCall = false
-            },
-            onToggleCamera = { videoCallViewModel.toggleCamera() },
-            onToggleMicrophone = { videoCallViewModel.toggleMicrophone() },
-            onSwitchCamera = { videoCallViewModel.switchCamera() },
-            onMinimizeCall = { 
-                videoCallViewModel.minimizeCall()
-                showVideoCall = false
-            },
-            onToggleSpeaker = { videoCallViewModel.toggleSpeaker() }
+            }
         )
     }
 
+
+    // 顶部聊天 tab 状态栏
     Scaffold(
         topBar = {
             TopAppBar(
@@ -197,13 +181,7 @@ fun ChatRoomScreen(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp
                                 )
-                                //TODO  获取在线状态接口
-//
-//                                Text(
-//                                    text = "在线",
-//                                    color = Color.Green,
-//                                    fontSize = 12.sp
-//                                )
+
                             }
                         } ?: run {
                             // 如果没有获取到对方用户信息，显示群组名称
@@ -215,13 +193,13 @@ fun ChatRoomScreen(
                         }
 
                         Spacer(modifier = Modifier.weight(1f))
-
+                        Napier.i { "remoteUser  is  ...... $remoteUser" }
                         // 视频通话按钮
                         if (remoteUser != null) { // 只在单聊场景中显示视频通话按钮
                             IconButton(
                                 onClick = {
                                     showVideoCall = true
-                                    // TODO: 初始化视频通话
+                                    Napier.i ("start video call")
                                 }
                             ) {
                                 Icon(

@@ -177,6 +177,10 @@ class VideoCallViewModel(
                 
                 // 重置callId
                 currentCallId = null
+                
+                // 延迟一小段时间后重置为IDLE状态，以便能够重新发起通话
+                kotlinx.coroutines.delay(500) // 500毫秒延迟
+                _videoCallState.value = VideoCallState()
             } catch (e: Exception) {
                 handleError("结束通话失败", e)
             }
