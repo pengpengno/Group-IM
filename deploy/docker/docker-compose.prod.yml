@@ -1,0 +1,160 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14.13
+    container_name: postgres-db-prod
+    environment:
+      POSTGRES_DB: group
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+      - ./scripts/create_company_schema_function.sql:/docker-entrypoint-initdb.d/01-create_company_schema_function.sql
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis-cache-prod
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - ./redis_data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  openldap:
+    image: osixia/openldap:1.5.0
+    container_name: local-openldap-prod
+    environment:
+      LDAP_ORGANISATION: "MyCompany"
+      LDAP_DOMAIN: "mycompany.com"
+      LDAP_ADMIN_PASSWORD: "admin"
+      LDAP_CONFIG_PASSWORD: "config"
+      LDAP_READONLY_USER: "false"
+      LDAP_REMOVE_CONFIG_AFTER_SETUP: "true"
+      LDAP_SSL_HELPER_PREFIX: "ldap"
+    ports:
+      - "389:389"     # LDAP
+      - "636:636"     # LDAPS
+    volumes:
+      - ./ldap_data:/var/lib/ldap
+      - ./ldap_config:/etc/ldap/slapd.d
+      - ./bootstrap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom.ldif
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost", "-b", "dc=mycompany,dc=com", "-D", "cn=admin,dc=mycompany,dc=com", "-w", "admin"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  
+  phpldapadmin:
+    image: dinkel/phpldapadmin
+    container_name: phpldapadmin-prod
+    ports:
+      - "8085:80"
+    environment:
+      LDAP_SERVER_HOST: openldap
+      LDAP_SERVER_PORT: 389
+    networks:
+      - app-network
+    depends_on:
+      - openldap
+    restart: unless-stopped
+
+  server:
+    build: 
+      context: ../..
+      dockerfile: deploy/dockerfiles/Dockerfile.native
+    container_name: im-server-native
+    ports:
+      - "8080:8080"
+      - "8088:8088"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/group
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_LDAP_URLS=ldap://openldap:389
+      - SPRING_LDAP_USERNAME=cn=admin,dc=mycompany,dc=com
+      - SPRING_LDAP_PASSWORD=admin
+      - SPRING_LDAP_BASE=dc=mycompany,dc=com
+      # 系统初始化配置
+      - SYSTEM_INITIALIZER_ENABLED=true
+      - DEFAULT_COMPANY_NAME=public
+      - DEFAULT_COMPANY_SCHEMA=public
+      - DEFAULT_COMPANY_ACTIVE=true
+      - ADMIN_USERNAME=admin
+      - ADMIN_EMAIL=admin@example.com
+      - ADMIN_PHONE_NUMBER=1234567890
+      - ADMIN_PASSWORD=12345
+      # TCP端口配置
+      - TCP_PORT=8088
+      # WebRTC配置
+      - WEBRTC_SESSION_TIMEOUT=300000
+    volumes:
+      - ./logs/app:/app/logs
+      - ./storage:/app/storage
+    networks:
+      - app-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      openldap:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s  # Native image starts faster
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-proxy-prod
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8088:8088"  # TCP长连接端口
+    volumes:
+      - ../../nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../../nginx-tcp.conf:/etc/nginx/stream.conf.d/tcp-proxy.conf:ro
+      - ./ssl:/etc/nginx/ssl
+    networks:
+      - app-network
+    depends_on:
+      - server
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  ldap_data:
+  ldap_config:

@@ -258,6 +258,28 @@ public class SecurityConfig {
 
 ## 部署说明
 
+### 快速启动
+
+最简单的方式是使用一键部署脚本：
+
+**Docker Compose (推荐):**
+```bash
+# Linux/macOS
+./deploy/scripts/deploy.sh
+
+# Windows
+deploy\\scripts\\deploy.bat
+```
+
+**Kubernetes:**
+```bash
+# Linux/macOS
+./deploy/scripts/deploy-k8s.sh
+
+# Windows
+./deploy/scripts/deploy-k8s.ps1
+```
+
 ### 环境要求
 
 - Java 21+

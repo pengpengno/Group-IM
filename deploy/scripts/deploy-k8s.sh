@@ -7,12 +7,13 @@ set -e  # 遇到错误立即退出
 echo "=== IM Group Server Kubernetes 部署脚本 ==="
 
 # 检查是否安装了必要的工具
-if ! command -v kubectl &> /dev/null; then
+if ! command -v kubectl >/dev/null 2>&1; then
     echo "错误: 未找到 kubectl 命令，请先安装 kubectl"
     exit 1
 fi
 
-if ! command -v kubectl cluster-info &> /dev/null; then
+# 检查 kubectl 是否能连接到集群
+if ! kubectl cluster-info >/dev/null 2>&1; then
     echo "错误: 无法连接到 Kubernetes 集群，请确认集群正在运行"
     exit 1
 fi

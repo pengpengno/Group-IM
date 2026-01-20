@@ -47,7 +47,28 @@
 
 ## 🚀 快速开始
 
-### 后端启动
+### 一键部署（推荐）
+
+```bash
+# Linux/macOS
+chmod +x start.sh
+./start.sh
+
+# Windows
+start.bat
+```
+
+### Kubernetes 部署（推荐用于生产环境）
+
+```bash
+# Linux/macOS (k3s 单节点环境)
+./deploy/scripts/deploy-k8s-simple.sh
+
+# Windows (k3s 单节点环境)
+deploy\\scripts\\deploy-k8s-simple.ps1
+```
+
+### 传统方式启动
 
 ```bash
 # 启动数据库
