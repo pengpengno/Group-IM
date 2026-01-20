@@ -1,0 +1,149 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: im-server
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: im-server
+  template:
+    metadata:
+      labels:
+        app: im-server
+    spec:
+      initContainers:
+      - name: wait-for-postgres
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z postgres-service 5432; do echo waiting for postgres; sleep 2; done']
+      - name: wait-for-redis
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z redis-service 6379; do echo waiting for redis; sleep 2; done']
+      - name: wait-for-openldap
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z openldap-service 389; do echo waiting for openldap; sleep 2; done']
+      containers:
+      - name: im-server
+        image: im-server:latest  # Build this from your Dockerfile
+        ports:
+        - containerPort: 8080
+        - containerPort: 8088
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "k8s"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-service:5432/group"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "postgres"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "postgres"
+        - name: SPRING_DATA_REDIS_HOST
+          value: "redis-service"
+        - name: SPRING_DATA_REDIS_PORT
+          value: "6379"
+        - name: SPRING_LDAP_URLS
+          value: "ldap://openldap-service:389"
+        - name: SPRING_LDAP_USERNAME
+          value: "cn=admin,dc=mycompany,dc=com"
+        - name: SPRING_LDAP_PASSWORD
+          value: "admin"
+        - name: SPRING_LDAP_BASE
+          value: "dc=mycompany,dc=com"
+        - name: SYSTEM_INITIALIZER_ENABLED
+          value: "true"
+        - name: DEFAULT_COMPANY_NAME
+          value: "public"
+        - name: DEFAULT_COMPANY_SCHEMA
+          value: "public"
+        - name: DEFAULT_COMPANY_ACTIVE
+          value: "true"
+        - name: ADMIN_USERNAME
+          value: "admin"
+        - name: ADMIN_EMAIL
+          value: "admin@example.com"
+        - name: ADMIN_PHONE_NUMBER
+          value: "1234567890"
+        - name: ADMIN_PASSWORD
+          value: "12345"
+        - name: TCP_PORT
+          value: "8088"
+        - name: WEBRTC_SESSION_TIMEOUT
+          value: "300000"
+        - name: JAVA_OPTS
+          value: "-Xmx2g -Xms1g -XX:+UseG1GC"
+        volumeMounts:
+        - name: logs-volume
+          mountPath: /app/logs
+        - name: storage-volume
+          mountPath: /app/storage
+        - name: tmp-volume
+          mountPath: /tmp
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: logs-volume
+        persistentVolumeClaim:
+          claimName: im-server-logs-pvc
+      - name: storage-volume
+        persistentVolumeClaim:
+          claimName: im-server-storage-pvc
+      - name: tmp-volume
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: im-server-service
+  namespace: default
+spec:
+  selector:
+    app: im-server
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8080
+    targetPort: 8080
+  - name: tcp
+    protocol: TCP
+    port: 8088
+    targetPort: 8088
+  type: LoadBalancer  # Changed to LoadBalancer to expose both HTTP and TCP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: im-server-logs-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: im-server-storage-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

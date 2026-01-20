@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: openldap
+  namespace: default
+spec:
+  serviceName: openldap-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openldap
+  template:
+    metadata:
+      labels:
+        app: openldap
+    spec:
+      containers:
+      - name: openldap
+        image: osixia/openldap:1.5.0
+        ports:
+        - containerPort: 389
+        - containerPort: 636
+        env:
+        - name: LDAP_ORGANISATION
+          value: "MyCompany"
+        - name: LDAP_DOMAIN
+          value: "mycompany.com"
+        - name: LDAP_ADMIN_PASSWORD
+          value: "admin"
+        - name: LDAP_CONFIG_PASSWORD
+          value: "config"
+        - name: LDAP_READONLY_USER
+          value: "false"
+        - name: LDAP_REMOVE_CONFIG_AFTER_SETUP
+          value: "true"
+        - name: LDAP_SSL_HELPER_PREFIX
+          value: "ldap"
+        volumeMounts:
+        - name: ldap-data
+          mountPath: /var/lib/ldap
+        - name: ldap-config
+          mountPath: /etc/ldap/slapd.d
+        - name: ldap-bootstrap
+          mountPath: /container/service/slapd/assets/config/bootstrap/ldif/custom.ldif
+          subPath: custom.ldif
+        livenessProbe:
+          exec:
+            command:
+            - ldapsearch
+            - -x
+            - -H
+            - ldap://localhost
+            - -b
+            - dc=mycompany,dc=com
+            - -D
+            - cn=admin,dc=mycompany,dc=com
+            - -w
+            - admin
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - ldapsearch
+            - -x
+            - -H
+            - ldap://localhost
+            - -b
+            - dc=mycompany,dc=com
+            - -D
+            - cn=admin,dc=mycompany,dc=com
+            - -w
+            - admin
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+  volumeClaimTemplates:
+  - metadata:
+      name: ldap-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 2Gi
+  - metadata:
+      name: ldap-config
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openldap-service
+  namespace: default
+spec:
+  selector:
+    app: openldap
+  ports:
+  - protocol: TCP
+    port: 389
+    targetPort: 389
+  - protocol: TCP
+    port: 636
+    targetPort: 636
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ldap-bootstrap
+  namespace: default
+data:
+  custom.ldif: |
+    # Custom LDAP configuration
+    # Content would go here
