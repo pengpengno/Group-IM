@@ -12,3 +12,22 @@ expect fun TryGetPermission(
     onRequest:() -> Unit,
     onDenied: () -> Unit
 )
+
+@Composable
+expect fun TryGetMultiplePermissions(
+    permissions: List<String>,
+    onAllGranted: () -> Unit,
+    onRequest: () -> Unit = {},
+    onAnyDenied: () -> Unit = {}
+)
+
+
+/**
+ * 视频通话权限处理
+ */
+@Composable
+expect fun TryGetVideoCallPermissions(
+    onAllGranted: () -> Unit,
+    onRequest: () -> Unit = {},
+    onAnyDenied: () -> Unit = {}
+)

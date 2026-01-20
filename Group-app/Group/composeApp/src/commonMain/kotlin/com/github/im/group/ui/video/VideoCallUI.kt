@@ -1,5 +1,7 @@
 package com.github.im.group.ui.video
 
+import androidx.compose.runtime.Composable
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -14,8 +16,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.github.im.group.model.UserInfo
-import com.github.im.group.sdk.MediaStream
-import com.github.im.group.sdk.RemoteMediaStream
+import com.github.im.group.sdk.TryGetMultiplePermissions
+import com.github.im.group.sdk.TryGetPermission
+import com.github.im.group.sdk.TryGetVideoCallPermissions
 import com.github.im.group.sdk.VideoScreenView
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -39,6 +42,24 @@ fun VideoCallLauncher(
 ) {
     val videoCallViewModel: VideoCallViewModel = koinViewModel()
     val videoCallState by videoCallViewModel.videoCallState.collectAsState()
+
+    TryGetVideoCallPermissions(
+        onAllGranted = {
+//            VideoCall(
+//                onAllGranted = {
+//                    CrossPlatformVideoCallLauncher(
+//                        remoteUser = remoteUser,
+//                        onCallEnded = onCallEnded
+//                    )
+//                },
+//                onAnyDenied = {
+//                    DefaultHandleVideoCallPermissions(
+//                        onPermissionsGranted = {}
+//                    )
+//                }
+//            )
+        }
+    )
     
     // 检测到通话结束状态时，通知调用方关闭界面
     LaunchedEffect(videoCallState.callStatus) {
@@ -131,6 +152,11 @@ private fun OutgoingVideoCallUI(
 ) {
     val videoCallState by videoCallViewModel.videoCallState.collectAsState()
     val localStream by videoCallViewModel.localMediaStream.collectAsState()
+
+    LaunchedEffect(remoteUser){
+
+        videoCallViewModel.startCall(remoteUser)
+    }
     
     Dialog(
         onDismissRequest = { /* 不允许通过点击外部关闭 */ },

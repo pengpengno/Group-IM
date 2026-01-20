@@ -2,14 +2,15 @@ package com.github.im.group.ui.video
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -19,13 +20,13 @@ import androidx.compose.ui.window.DialogProperties
 import com.github.im.group.model.UserInfo
 
 @Composable
-fun IncomingCallDialog(
+fun VideoCallIncomingNotification(
     caller: UserInfo,
     onAccept: () -> Unit,
     onReject: () -> Unit
 ) {
     Dialog(
-        onDismissRequest = { onReject() },
+        onDismissRequest = { /* 不允许通过点击外部关闭 */ },
         properties = DialogProperties(
             dismissOnBackPress = false,
             dismissOnClickOutside = false,
@@ -39,9 +40,9 @@ fun IncomingCallDialog(
                 .padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
-            Surface(
+            Card(
                 shape = MaterialTheme.shapes.medium,
-                color = Color(0xFF1F1F1F),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1F1F)),
                 modifier = Modifier
                     .fillMaxWidth(0.8f)
                     .wrapContentHeight()
@@ -50,56 +51,52 @@ fun IncomingCallDialog(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(24.dp)
                 ) {
-                    // 来电图标
-                    Icon(
-                        imageVector = Icons.Default.Call,
-                        contentDescription = null,
-                        tint = Color.Green,
+                    // 用户头像占位符
+                    Box(
                         modifier = Modifier
-                            .size(64.dp)
-                            .padding(bottom = 16.dp)
-                    )
+                            .size(80.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF333333)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = caller.username.firstOrNull()?.uppercaseChar()?.toString() ?: "U",
+                            fontSize = 32.sp,
+                            color = Color.White
+                        )
+                    }
                     
-                    // 标题
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // 来电标题
                     Text(
                         text = "视频通话",
-                        fontSize = 24.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     
                     // 来电者信息
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier
-                                .size(24.dp)
-                                .padding(end = 8.dp)
-                        )
-                        
-                        Text(
-                            text = caller.username,
-                            fontSize = 20.sp,
-                            color = Color.White
-                        )
-                    }
+                    Text(
+                        text = caller.username,
+                        fontSize = 18.sp,
+                        color = Color.White
+                    )
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
                     
                     // 操作按钮
                     Row(
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        horizontalArrangement = Arrangement.spacedBy(48.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         // 拒绝按钮
                         FloatingActionButton(
                             onClick = onReject,
                             containerColor = Color.Red,
-                            modifier = Modifier.size(64.dp)
+                            shape = CircleShape,
+                            modifier = Modifier.size(68.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CallEnd,
@@ -113,7 +110,8 @@ fun IncomingCallDialog(
                         FloatingActionButton(
                             onClick = onAccept,
                             containerColor = Color.Green,
-                            modifier = Modifier.size(64.dp)
+                            shape = CircleShape,
+                            modifier = Modifier.size(68.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Call,

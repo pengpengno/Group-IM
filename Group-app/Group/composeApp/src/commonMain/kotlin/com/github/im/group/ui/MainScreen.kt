@@ -50,7 +50,7 @@ import com.github.im.group.ui.chat.ChatUI
 import com.github.im.group.ui.contacts.ContactsUI
 import com.github.im.group.ui.profile.ProfileUI
 import com.github.im.group.ui.video.DraggableVideoWindow
-import com.github.im.group.ui.video.IncomingCallDialog
+import com.github.im.group.ui.video.VideoCallIncomingNotification
 import com.github.im.group.viewmodel.LoginState
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.launch
@@ -125,7 +125,7 @@ fun ChatMainScreen(
     // 处理来电逻辑
     if (videoCallState.callStatus == com.github.im.group.ui.video.VideoCallStatus.INCOMING) {
         videoCallState.caller?.let { caller ->
-            IncomingCallDialog(
+            VideoCallIncomingNotification(
                 caller = caller,
                 onAccept = {
                     // 接受来电

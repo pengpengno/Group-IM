@@ -4,9 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,9 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.content.ContextCompat
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.MultiplePermissionsState
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.rememberPermissionState
@@ -47,11 +43,11 @@ import io.github.aakira.napier.Napier
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun TryGetMultiplePermissions(
+actual fun TryGetMultiplePermissions(
     permissions: List<String>,
     onAllGranted: () -> Unit,
-    onRequest: () -> Unit = {},
-    onAnyDenied: () -> Unit = {}
+    onRequest: () -> Unit,
+    onAnyDenied: () -> Unit
 ) {
     val multiplePermissionsState = rememberMultiplePermissionsState(permissions)
     var showPermissionScreen by remember { mutableStateOf(false) }
@@ -277,13 +273,29 @@ fun MultiplePermissionRequestScreen(
     val context = LocalContext.current
     Napier.d("多权限申请页面")
 
-    val permissionsText = if (permissions.any { it.contains("MEDIA") }) "需要相册权限" else "需要权限"
-    val infoMessage = if (permissions.any { it.contains("MEDIA") }) {
-        "请允许访问相册以选择图片和视频"
-    } else if (permissions.contains(Manifest.permission.RECORD_AUDIO)) {
-        "请允许访问麦克风以录制语音消息"
-    } else {
-        "请允许权限以继续使用功能"
+    val permissionsText = when {
+        permissions.any { it.contains("CAMERA") } -> "需要相机权限"
+        permissions.any { it.contains("RECORD_AUDIO") } -> "需要麦克风权限"
+        permissions.any { it.contains("MEDIA") } -> "需要相册权限"
+        else -> "需要权限"
+    }
+    
+    val infoMessage = when {
+        permissions.containsAll(listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)) -> {
+            "请允许相机和麦克风权限以进行视频通话"
+        }
+        permissions.contains(Manifest.permission.CAMERA) -> {
+            "请允许相机权限以进行视频通话"
+        }
+        permissions.contains(Manifest.permission.RECORD_AUDIO) -> {
+            "请允许麦克风权限以进行视频通话或录制语音消息"
+        }
+        permissions.any { it.contains("MEDIA") } -> {
+            "请允许访问相册以选择图片和视频"
+        }
+        else -> {
+            "请允许权限以继续使用功能"
+        }
     }
 
     Dialog(onDismissRequest = { onPermissionResult(false) }
@@ -345,4 +357,24 @@ fun MultiplePermissionRequestScreen(
             )
         }
     }
+}
+
+@Composable
+actual fun TryGetVideoCallPermissions(
+    onAllGranted: () -> Unit,
+    onRequest: () -> Unit,
+    onAnyDenied: () -> Unit
+) {
+
+
+    TryGetMultiplePermissions(
+        permissions = listOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO,
+        )
+        , onAllGranted = onAllGranted,
+        onRequest = onRequest,
+        onAnyDenied = onAnyDenied
+    )
+
 }
