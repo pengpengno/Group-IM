@@ -1,0 +1,78 @@
+{
+  "resources": {
+    "includes": [
+      {
+        "pattern": "\\QMETA-INF/services/org.springframework.boot.diagnostics.FailureAnalyzer\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/spring.components\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/spring.factories\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports\\E"
+      },
+      {
+        "pattern": "\\Qapplication.properties\\E"
+      },
+      {
+        "pattern": "\\Qapplication.yml\\E"
+      },
+      {
+        "pattern": "\\Qapplication-docker.yml\\E"
+      },
+      {
+        "pattern": "\\Qapplication-ai.yml\\E"
+      },
+      {
+        "pattern": "\\Qlogback.xml\\E"
+      },
+      {
+        "pattern": "\\Qlogback-spring.xml\\E"
+      },
+      {
+        "pattern": ".*\\.properties"
+      },
+      {
+        "pattern": ".*\\.yml"
+      },
+      {
+        "pattern": ".*\\.yaml"
+      },
+      {
+        "pattern": ".*\\.proto"
+      },
+      {
+        "pattern": ".*\\.key"
+      },
+      {
+        "pattern": ".*\\.pub"
+      },
+      {
+        "pattern": "org/springframework/web/socket/config/annotation/WebSocketMessageBrokerConfiguration.class"
+      },
+      {
+        "pattern": "org/springframework/web/socket/config/annotation/WebSocketConfiguration.class"
+      },
+      {
+        "pattern": "org/springframework/web/socket/config/annotation/DelegatingWebSocketConfiguration.class"
+      },
+      {
+        "pattern": "org/springframework/web/socket/config/annotation/DelegatingWebSocketMessageBrokerConfiguration.class"
+      },
+      {
+        "pattern": "org/springframework/security/config/annotation/web/configuration/OAuth2ClientConfiguration.class"
+      },
+      {
+        "pattern": "org/springframework/security/config/annotation/web/configuration/SpringWebMvcContractSecurityConfiguration.class"
+      },
+      {
+        "pattern": "org/springframework/security/config/annotation/web/configuration/EnableWebSecurityImportSelector.class"
+      },
+      {
+        "pattern": "org/springframework/security/config/annotation/web/configuration/OAuth2ClientConfiguration.class"
+      }
+    ]
+  }
+}

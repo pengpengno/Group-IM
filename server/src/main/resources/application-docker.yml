@@ -1,0 +1,121 @@
+# Docker环境配置
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/group}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 600000
+      connection-timeout: 30000
+      validation-timeout: 5000
+      leak-detection-threshold: 60000
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 2
+          max-wait: 1000ms
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        multiTenancy: SCHEMA
+
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+  ldap:
+    urls: ${SPRING_LDAP_URLS:ldap://localhost:389}
+    username: ${SPRING_LDAP_USERNAME:cn=admin,dc=mycompany,dc=com}
+    password: ${SPRING_LDAP_PASSWORD:admin}
+    base: ${SPRING_LDAP_BASE:dc=mycompany,dc=com}
+    base-environment:
+      java.naming.security.authentication: simple
+
+logging:
+  level:
+    root: INFO
+    com.github.im: DEBUG
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    reactor.netty: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /app/logs/application.log
+
+server:
+  port: ${SERVER_PORT:8080}
+  tomcat:
+    max-http-form-post-size: 104857600  # 100MB
+
+tcp:
+  port: ${TCP_PORT:8088}
+
+# 文件存储配置
+group:
+  storage:
+    type: local
+    path: /app/storage
+  file:
+    upload:
+      chunk-temp-path: /tmp/chunk-storage
+      base-path: uploads
+
+# WebRTC配置
+webrtc:
+  session-timeout: ${WEBRTC_SESSION_TIMEOUT:300000}
+  ice-servers:
+    - url: "stun:stun.l.google.com:19302"
+  turn-enabled: false
+  turn-server:
+    url: "turn:localhost:3478"
+    username: "username"
+    credential: "credential"
+
+# JWT配置
+jwt:
+  private.key: classpath:app.key
+  public.key: classpath:app.pub
+
+# 系统初始化配置
+system:
+  initializer:
+    enabled: ${SYSTEM_INITIALIZER_ENABLED:true}
+    default-company:
+      name: ${DEFAULT_COMPANY_NAME:public}
+      schema-name: ${DEFAULT_COMPANY_SCHEMA:public}
+      active: ${DEFAULT_COMPANY_ACTIVE:true}
+    admin-user:
+      username: ${ADMIN_USERNAME:admin}
+      email: ${ADMIN_EMAIL:admin@example.com}
+      phone-number: ${ADMIN_PHONE_NUMBER:1234567890}
+      password: ${ADMIN_PASSWORD:12345}
+
+# AI配置（如果需要）
+spring:
+  ai:
+    enabled: ${SPRING_AI_ENABLED:false}
+    groq:
+      api-key: ${GROQ_API_KEY:}
+      base-url: ${GROQ_BASE_URL:https://api.groq.com/openai/v1}
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}

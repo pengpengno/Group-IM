@@ -1,0 +1,32 @@
+# GraalVM Native Image Dockerfile
+# 构建阶段
+FROM ghcr.io/graalvm/native-image:ol8-java21-native AS build
+
+WORKDIR /build
+
+# 复制项目文件
+COPY pom.xml .
+COPY src src/
+
+# 预下载依赖
+RUN mvn dependency:go-offline -q
+
+# 构建原生镜像
+RUN mvn -Pnative -DskipTests clean native:compile
+
+# 运行时阶段
+FROM gcr.io/distroless/cc-debian11
+
+WORKDIR /app
+
+# 从构建阶段复制原生可执行文件
+COPY --from=build /build/target/server-* /app/im-server
+
+# 暴露端口
+EXPOSE 8080 8088
+
+# 创建应用目录
+RUN mkdir -p /app/logs /app/storage
+
+# 启动应用
+ENTRYPOINT ["/app/im-server"]

@@ -1,0 +1,538 @@
+[
+  {
+    "name": "com.github.im.server.Application",
+    "allPublicMethods": true,
+    "allPublicConstructors": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "org.springframework.boot.autoconfigure.web.servlet.DispatcherServletAutoConfiguration",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.servlet.DispatcherServlet",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.config.annotation.DelegatingWebSocketConfiguration",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.config.annotation.WebSocketConfiguration",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfiguration",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.config.annotation.web.configuration.OAuth2ClientConfiguration",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.FilterChainProxy",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.authentication.AnonymousAuthenticationFilter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.authentication.logout.LogoutFilter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.context.SecurityContextPersistenceFilter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.header.HeaderWriterFilter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.csrf.CsrfFilter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.authentication.www.BasicAuthenticationFilter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.savedrequest.RequestCacheAwareFilter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.authentication.AnonymousAuthenticationFilter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.session.SessionManagementFilter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.access.ExceptionTranslationFilter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.access.intercept.AuthorizationFilter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.access.AccessDeniedHandlerImpl",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.security.web.authentication.session.SessionFixationProtectionStrategy",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.method.support.HandlerMethodArgumentResolverComposite",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.servlet.view.ContentNegotiatingViewResolver",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.servlet.view.BeanNameViewResolver",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.servlet.view.InternalResourceViewResolver",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.servlet.view.json.MappingJackson2JsonView",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.servlet.handler.MappedInterceptor",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.servlet.config.annotation.WebMvcConfigurer",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.server.standard.ServerEndpointExporter",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.config.annotation.DelegatingWebSocketMessageBrokerConfiguration",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.messaging.simp.config.AbstractMessageBrokerConfiguration",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.messaging.simp.config.MessageBrokerRegistrar",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.config.annotation.StompEndpointRegistry",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.config.annotation.SockJsServiceRegistration",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.server.support.HttpSessionHandshakeInterceptor",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.adapter.NativeWebSocketSession",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.adapter.standard.StandardWebSocketSession",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.handler.PerConnectionWebSocketHandler",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.handler.LoggingWebSocketHandlerDecorator",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$1",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketServerListener",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$CloseFrameHandler",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$BinaryFrameHandler",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$TextFrameHandler",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$PingPongFrameHandler",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$ErrorHandler",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$CloseStatus",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionListener",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$1",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$2",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$3",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$4",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$5",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$6",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$7",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$8",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$9",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$10",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$11",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$12",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$13",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$14",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$15",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$16",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$17",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$18",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$19",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$20",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$21",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$22",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$23",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$24",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$25",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$26",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$27",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$28",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$29",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$30",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$31",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$32",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$33",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$34",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$35",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$36",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$37",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$38",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$39",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$40",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$41",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$42",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$43",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$44",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$45",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$46",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$47",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$48",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$49",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "org.springframework.web.socket.sockjs.transport.session.WebSocketServerSockJsSession$WebSocketSessionSendHandler$50",
+    "allPublicMethods": true,
+    "allPublicConstructors": true
+  }
+]
