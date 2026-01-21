@@ -108,9 +108,6 @@ system:
       email: ${ADMIN_EMAIL:admin@example.com}
       phone-number: ${ADMIN_PHONE_NUMBER:1234567890}
       password: ${ADMIN_PASSWORD:12345}
-
-# AI配置（如果需要）
-spring:
   ai:
     enabled: ${SPRING_AI_ENABLED:false}
     groq:

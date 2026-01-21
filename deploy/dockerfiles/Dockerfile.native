@@ -1,6 +1,6 @@
 # GraalVM Native Image Dockerfile
 # 构建阶段
-FROM ghcr.io/graalvm/native-image:ol8-java21-native AS build
+FROM ghcr.io/graalvm/graalvm-community:21 AS build
 
 WORKDIR /build
 
@@ -15,9 +15,12 @@ RUN mvn dependency:go-offline -q
 RUN mvn -Pnative -DskipTests clean native:compile
 
 # 运行时阶段
-FROM gcr.io/distroless/cc-debian11
+FROM debian:bullseye-slim
 
 WORKDIR /app
+
+# 安装必要的运行时依赖
+RUN apt-get update && apt-get install -y --no-install-recommends libc6-compat && rm -rf /var/lib/apt/lists/*
 
 # 从构建阶段复制原生可执行文件
 COPY --from=build /build/target/server-* /app/im-server
