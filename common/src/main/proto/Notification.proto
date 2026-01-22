@@ -10,6 +10,7 @@ message NotificationInfo {
 
     FriendRequest friendRequest = 1; // 好友请求申请
 
+
   }
 
 
@@ -44,10 +45,4 @@ message NotificationInfo {
   }
 
 
-//  enum NotificationType{
-//
-//
-//    FRIEND_REQUEST = 0 ;
-//
-//  }
 }

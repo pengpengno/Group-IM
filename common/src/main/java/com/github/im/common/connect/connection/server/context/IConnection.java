@@ -1,7 +1,7 @@
 package com.github.im.common.connect.connection.server.context;
 
 import com.github.im.common.connect.enums.ConnectionStatus;
-import com.github.im.common.connect.model.proto.Account;
+import com.github.im.common.connect.model.proto.User;
 import io.netty.channel.Channel;
 import reactor.netty.Connection;
 
@@ -21,7 +21,7 @@ public interface IConnection {
     public Connection connection();
 
 //    @NotNull(message = "accountInfo could not be null",groups = Create.class)
-    public Account.AccountInfo accountInfo();
+    public User.UserInfo accountInfo();
 
     public ConnectionStatus status();
 

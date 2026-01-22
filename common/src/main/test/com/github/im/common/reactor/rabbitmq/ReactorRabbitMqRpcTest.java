@@ -1,6 +1,5 @@
 package com.github.im.common.reactor.rabbitmq;
 
-import com.github.im.common.connect.model.proto.OnLineUser;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Delivery;

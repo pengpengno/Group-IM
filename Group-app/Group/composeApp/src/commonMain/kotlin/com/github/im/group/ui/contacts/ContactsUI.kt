@@ -1,6 +1,5 @@
 package com.github.im.group.ui.contacts
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,26 +11,39 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.github.im.group.viewmodel.ContactsViewModel
-import com.github.im.group.viewmodel.UserViewModel
-import com.github.im.group.ui.UserAvatar
 import com.github.im.group.model.OrgTreeNode
-import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.ui.ChatRoom
 import com.github.im.group.ui.UserItem
+import com.github.im.group.viewmodel.ChatViewModel
+import com.github.im.group.viewmodel.ContactsViewModel
+import com.github.im.group.viewmodel.UserViewModel
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
-import io.github.aakira.napier.Napier
 
 /**
  * 联系人面板 - 显示组织架构
@@ -123,9 +135,7 @@ fun ContactsUI (
                                 // 点击用户，创建私聊会话
                                 scope.launch {
                                     try {
-                                        val conversation = chatViewModel.getPrivateChat(userInfo.userId)
-                                        Napier.d("成功获取会话: ${conversation.conversationId}")
-                                        navHostController.navigate(ChatRoom(conversation.conversationId))
+                                        navHostController.navigate(ChatRoom.CreatePrivate(userInfo.userId))
                                     } catch (e: Exception) {
                                         Napier.e("创建或获取会话失败", e)
                                     }

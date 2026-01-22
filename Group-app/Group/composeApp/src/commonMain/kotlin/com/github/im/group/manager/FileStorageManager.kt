@@ -1,19 +1,20 @@
 package com.github.im.group.manager
 
-import com.github.im.group.repository.FilesRepository
-import io.github.aakira.napier.Napier
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import okio.*
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.FileMeta
 import com.github.im.group.db.entities.FileStatus
 import com.github.im.group.model.proto.MessageType
+import com.github.im.group.repository.FilesRepository
 import com.github.im.group.sdk.File
 import com.github.im.group.sdk.FileData
-import okio.Path.Companion.toPath
+import io.github.aakira.napier.Napier
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import okio.FileSystem
 import okio.Path
+import okio.Path.Companion.toPath
+import okio.use
 import java.io.FileNotFoundException
 
 /***
@@ -641,6 +642,34 @@ class FileStorageManager(
         return yearMonth.toPath()
     }
 
+    
+    /**
+     * 从本地路径读取文件并封装为 sdk.File 类型
+     * @param localPath 本地文件路径
+     * @return sdk.File 对象
+     */
+    fun readLocalFileFromPath(localPath: String): File {
+        return try {
+            val path = localPath.toPath()
+
+            val fileBytes =  fileSystem.read(path) {
+                    readByteArray()
+                }
+            val fileName = path.name
+            val file = com.github.im.group.sdk.File(
+                name = fileName,
+                path = localPath,
+                mimeType = "",  //TODO 这里目前不需要设置类型 ，统一上传后 服务端返回
+                size = fileBytes.size.toLong(),
+                data = com.github.im.group.sdk.FileData.Bytes(fileBytes)
+            )
+            file
+        } catch (e: Exception) {
+            Napier.e("读取本地文件失败: $localPath", e)
+            throw e
+        }
+    }
+    
     /**
      * 生成安全且唯一的文件名
      * @param directoryPath 目录路径

@@ -3,7 +3,6 @@ package com.github.im.server.handler.impl;
 import com.github.im.common.connect.connection.ReactiveConnectionManager;
 import com.github.im.common.connect.connection.server.BindAttr;
 import com.github.im.common.connect.connection.server.ProtoBufProcessHandler;
-import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.server.model.User;
@@ -20,7 +19,6 @@ import org.springframework.stereotype.Component;
 import reactor.netty.Connection;
 
 import java.time.ZoneId;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -51,16 +49,16 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
             return;
         }
 
-        log.info("接收到消息 fromAccountInfo {}", chatMessage.getFromAccountInfo());
+        log.info("接收到消息 fromAccountInfo {}", chatMessage.getFromUser());
         log.info("content: {}", chatMessage.getContent());
         log.info("clientMsgId: {}", chatMessage.getClientMsgId());
         log.info("conversationId: {}", chatMessage.getConversationId());
 
-        var fromAccountInfo = chatMessage.getFromAccountInfo();
+        var fromAccountInfo = chatMessage.getFromUser();
         var userId = fromAccountInfo.getUserId();
-        var account = fromAccountInfo.getAccount();
+        var username = fromAccountInfo.getUsername();
 
-        User user = con.channel().attr(AccountInfoProcessHandler.BING_USER_KEY).get();
+        User user = con.channel().attr(UserInfoProcessHandler.BING_USER_KEY).get();
         var schemaName = user.getCurrentSchema();
 
         // 使用响应式方式处理消息保存和推送
@@ -73,7 +71,7 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
             var epochMilli = saveMessage.getTimestamp().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             final var newChatMessage = Chat.ChatMessage.newBuilder(chatMessage)
                     .setSequenceId(sequenceId)
-                    .setFromAccountInfo(Account.AccountInfo.newBuilder(fromAccountInfo).setAccessToken("").build())
+                    .setFromUser(com.github.im.common.connect.model.proto.User.UserInfo.newBuilder(fromAccountInfo).setAccessToken("").build())
                     .setServerTimeStamp(epochMilli)
                     .setMsgId(msgId)
                     .setMessagesStatus(EnumsTransUtil.convertMessageStatus(saveMessage.getStatus()))

@@ -3,7 +3,6 @@ package com.github.im.common.unittests;
 import com.github.im.common.connect.connection.ReactiveConnectionManager;
 import com.github.im.common.connect.connection.server.BindAttr;
 import com.github.im.common.connect.enums.PlatformType;
-import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,12 +13,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class BindAttrTest {
 
-    private Account.AccountInfo mockAccountInfo;
+    private User.UserInfo mockAccountInfo;
 
     @BeforeEach
     public void setUp() {
-        // 创建一个模拟的 Account.AccountInfo 对象
-        mockAccountInfo = Mockito.mock(Account.AccountInfo.class);
+        // 创建一个模拟的 User.UserInfo 对象
+        mockAccountInfo = Mockito.mock(User.UserInfo.class);
         Mockito.when(mockAccountInfo.getAccount()).thenReturn("testAccount");
         Mockito.when(mockAccountInfo.getPlatformType()).thenReturn(Account.PlatformType.ANDROID);
     }

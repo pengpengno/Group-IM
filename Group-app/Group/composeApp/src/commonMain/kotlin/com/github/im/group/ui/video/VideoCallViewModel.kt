@@ -83,6 +83,7 @@ class VideoCallViewModel(
     fun startCall(callee: UserInfo) {
         viewModelScope.launch {
             try {
+                // 更新 状态为 拨出
                 _videoCallState.value = _videoCallState.value.copy(
                     callStatus = VideoCallStatus.OUTGOING,
                     callee = callee,

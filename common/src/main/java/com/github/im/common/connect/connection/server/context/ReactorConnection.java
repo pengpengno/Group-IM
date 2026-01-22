@@ -2,8 +2,8 @@ package com.github.im.common.connect.connection.server.context;
 
 
 import com.github.im.common.connect.enums.ConnectionStatus;
-import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.connection.ConnectionConstants;
+import com.github.im.common.connect.model.proto.User;
 import io.netty.channel.Channel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,7 +28,7 @@ public class ReactorConnection implements IConnection{
 
     private Connection connection;
 
-    private Account.AccountInfo accountInfo;
+    private User.UserInfo accountInfo;
 
     private String group ;
 
@@ -44,7 +44,7 @@ public class ReactorConnection implements IConnection{
     }
 
     @Override
-    public Account.AccountInfo accountInfo() {
+    public User.UserInfo accountInfo() {
         if (accountInfo != null){
             return accountInfo;
         }else {

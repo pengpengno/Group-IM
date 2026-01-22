@@ -2,8 +2,6 @@ package com.github.im.common.connect.connection.server.context;
 
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.StrUtil;
-import com.github.im.common.connect.model.proto.Account;
-import com.github.im.common.connect.model.proto.OnLineUser;
 import com.github.im.common.connect.connection.server.ServerToolkit;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -42,38 +40,6 @@ public class ConnectionContextUtil {
         return SingleInstance.INSTANCE.getInstance();
     }
 
-    /**
-     * 获取指定集合中的在线用户
-     * @param account
-     * @return
-     */
-    public Set<String> filterOnlineAccount(Set<String> account){
-        return filterOnlineIConnection(account).stream().map(e-> e.accountInfo().getAccount()).collect(Collectors.toSet());
-    }
-
-
-    @SneakyThrows
-    public OnLineUser.UserSearch filterOnlineByUserSearch(OnLineUser.UserSearch userSearch){
-        if (userSearch != null ){
-            List<Account.AccountInfo> accountsList = userSearch.getAccountsList();
-            if (CollectionUtil.isNotEmpty(accountsList)){
-                List<Account.AccountInfo> accountInfos = accountsList.stream()
-                        .filter(l -> null != l && StrUtil.isNotBlank(l.getAccount()))
-                        .filter(e -> {
-                            String account = e.getAccount();
-                            IConnection connection = contextAction.applyConnection(account);
-                            if (connection == null ){
-                                log.info(" account :{} is offline !",account);
-                            }
-                            return connectionValid(connection);
-                        })
-                        .collect(Collectors.toList());
-                return OnLineUser.UserSearch.newBuilder().addAllAccounts(accountInfos).build();
-            }
-        }
-
-        return OnLineUser.UserSearch.newBuilder().build();
-    }
 
     public Boolean connectionValid(IConnection connection){
         return null != connection && connection.online();

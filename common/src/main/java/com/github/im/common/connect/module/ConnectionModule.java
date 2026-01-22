@@ -8,8 +8,8 @@ import com.github.im.common.connect.connection.server.context.ReactorConnection;
 import com.github.im.common.connect.connection.ConnectionConsumer;
 import com.github.im.common.connect.connection.server.ReactiveConnectionConsumer;
 import com.github.im.common.connect.connection.server.tcp.ReactorTcpServer;
-import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.Chat;
+import com.github.im.common.connect.model.proto.User;
 import com.google.inject.*;
 import com.google.inject.name.Names;
 import com.google.protobuf.MessageLite;
@@ -28,7 +28,7 @@ public class ConnectionModule extends AbstractModule {
 
         bind(ProtobufEncoder.class).toInstance(new ProtobufEncoder());
 
-        bind(MessageLite.class).toProvider(Account.AccountInfo::getDefaultInstance).in(Scopes.NO_SCOPE);
+        bind(MessageLite.class).toProvider(User.UserInfo::getDefaultInstance).in(Scopes.NO_SCOPE);
 
 //        bind(MessageLite.class).annotatedWith(Names.named("Authenticate")).toInstance(Account.Authenticate.getDefaultInstance());
 
@@ -40,7 +40,7 @@ public class ConnectionModule extends AbstractModule {
 
 //        bind(MessageLite.class).to().toInstance(ReactorTcpServer.getInstance());
 
-//        binder().bind(new TypeLiteral<MessageLite>(){}).toInstance(Account.AccountInfo.getDefaultInstance());
+//        binder().bind(new TypeLiteral<MessageLite>(){}).toInstance(User.UserInfo.getDefaultInstance());
 
 //        bind(MessageLite.class).toInstance(Account.Authenticate.getDefaultInstance());
 //

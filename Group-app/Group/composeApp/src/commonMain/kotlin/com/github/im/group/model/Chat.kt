@@ -5,8 +5,6 @@ import com.github.im.group.api.MessageDTO
 import com.github.im.group.api.extraAs
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
-import com.github.im.group.db.entities.UserStatus
-import com.github.im.group.model.proto.AccountInfo
 import com.github.im.group.model.proto.ChatMessage
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -136,16 +134,16 @@ data class MessageWrapper(
 
     override val userInfo: UserInfo
         get() = when{
-            message?.fromAccountInfo != null -> accountInfoTransForm(message.fromAccountInfo)
+            message?.fromUser != null -> accountInfoTransForm(message.fromUser)
             messageDto?.fromAccount != null -> messageDto.fromAccount
-            else -> UserInfo()
+            else -> throw IllegalArgumentException("message or messageDto must not be null")
         }
 }
 
-fun accountInfoTransForm ( accountInfo: AccountInfo) : UserInfo{
+fun accountInfoTransForm ( accountInfo: com.github.im.group.model.proto.UserInfo) : UserInfo{
     return UserInfo(
         accountInfo.userId,
-        accountInfo.account,
+        accountInfo.username,
         accountInfo.eMail,
     )
 }

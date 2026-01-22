@@ -4,6 +4,7 @@ import com.github.im.conversation.ConversationRes;
 import com.github.im.conversation.GroupInfo;
 import com.github.im.server.model.User;
 import com.github.im.server.service.ConversationService;
+import lombok.val;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,8 +27,10 @@ public class ConversationController {
      * @return 创建后的群组
      */
     @PostMapping("/group")
-    public ResponseEntity<ConversationRes> createGroup(@RequestBody GroupInfo groupInfo) {
-        var group = conversationService.createGroup(groupInfo.getGroupName(), groupInfo.getDescription(), groupInfo.getMembers());
+    public ResponseEntity<ConversationRes> createGroup(@RequestBody GroupInfo groupInfo,
+                                                       @AuthenticationPrincipal User user
+    ) {
+        var group = conversationService.createGroup(user.getUserId(),groupInfo.getGroupName(), groupInfo.getDescription(), groupInfo.getMembers());
         return ResponseEntity.ok(group);
     }
 
@@ -56,17 +59,18 @@ public class ConversationController {
     /**
      * 创建或获取私聊会话
      *
-     * @param userId
      * @param friendId
      * @return 私聊会话的DTO
      */
     @PostMapping("/private-chat")
-    public ResponseEntity<ConversationRes> createOrGetPrivateChat(@RequestParam Long userId, @RequestParam Long friendId,
+    public ResponseEntity<ConversationRes> createOrGetPrivateChat(
+                                                                  @RequestParam Long friendId,
                                                                   @AuthenticationPrincipal User user) {
-
+        val userId = user.getUserId();
         ConversationRes conversationRes = conversationService.createOrGetPrivateChat(userId, friendId);
         return ResponseEntity.ok(conversationRes);
     }
+
 
     /**
      * 获取某个用户正在进行的群组

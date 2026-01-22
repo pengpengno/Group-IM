@@ -3,6 +3,7 @@ package com.github.im.server.service;
 import com.github.im.common.util.ValidatorUtil;
 import com.github.im.dto.user.LoginRequest;
 import com.github.im.dto.user.RegistrationRequest;
+import com.github.im.dto.user.UserBasicInfo;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.server.config.ForcePasswordChangeConfig;
 import com.github.im.server.config.mult.CurrentTenantIdentifierResolverImpl;
@@ -194,9 +195,29 @@ public class UserService {
     }
 
 
-    public Optional<User> findUserByUsername(String username) {
-        return userRepository.findByUsername(username);
+    /**
+     * 根据用户名查询用户信息
+     * @param username 用户名
+     * @return 用户信息
+     */
+    public Optional<UserBasicInfo> findUserByUsername(String username) {
+        return userRepository.findByUsername(username).map(
+                user -> UserMapper.INSTANCE.userToUserBasicInfo(user)
+        );
     }
+
+
+    /**
+     * 根据用户名查询用户信息
+     * @param userId 用户名
+     * @return 用户信息
+     */
+    public Optional<UserBasicInfo> findUserByUserId(Long userId){
+        return userRepository.findById(userId).map(
+                user -> UserMapper.INSTANCE.userToUserBasicInfo(user)
+        );
+    }
+
 
     /**
      * 根据用户 queryString  查询其他用户， 不会返回自己

@@ -2,13 +2,8 @@ package com.github.im.group.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
@@ -20,7 +15,6 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -40,19 +34,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.manager.LoginStateManager
-import com.github.im.group.sdk.MediaStream
-import com.github.im.group.viewmodel.ChatViewModel
-import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.ui.chat.ChatUI
 import com.github.im.group.ui.contacts.ContactsUI
 import com.github.im.group.ui.profile.ProfileUI
 import com.github.im.group.ui.video.DraggableVideoWindow
 import com.github.im.group.ui.video.VideoCallIncomingNotification
+import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.LoginState
-import io.github.aakira.napier.Napier
+import com.github.im.group.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -71,16 +63,15 @@ fun ChatMainScreen(
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    // 会话列表加载中状态
     val loading by chatViewModel.loading.collectAsState()
-    val friends by userViewModel.friends.collectAsState()
+    // 登录状态
     val loginState by userViewModel.loginState.collectAsState()
 
-    // 使用 collectAsState 来监听用户状态变化
-    val userInfo = userViewModel.getCurrentUser()
+
     // 小窗视频通话状态
     var isVideoCallMinimized by remember { mutableStateOf(false) }
-    var localMediaStream: MediaStream? by remember { mutableStateOf(null) }
-    
+
     // 底部导航栏选中状态
     var selectedItem by remember { mutableIntStateOf(0) }
     
@@ -89,12 +80,15 @@ fun ChatMainScreen(
         BottomNavItem("联系人", Icons.Default.Contacts),
         BottomNavItem("我", Icons.Default.Person)
     )
-    Napier.d("loginState: $loginState")
-    if(loginState is LoginState.LoggedFailed){
 
-        // 登录失败则跳转到登录页面
-        navHostController.navigate(Login)
+    if(loginState is LoginState.AuthenticationFailed){
+        val authFailed = loginState as LoginState.AuthenticationFailed
+        if (!authFailed.isNetworkError) {
+            // 登录失败且非网络错误则跳转到登录页面
+            navHostController.navigate(Login)
+        }
     }
+    val userInfo by userViewModel.currentUserInfo.collectAsState()
 
     LaunchedEffect(userInfo) {
         if(userInfo?.userId != 0L){
@@ -104,15 +98,27 @@ fun ChatMainScreen(
     }
     var firstTopBarText by remember { mutableStateOf("聊天") }
 
+    // 根据登录状态更新顶部栏文本
     when(loginState){
-        is LoginState.LoggedIn -> {
+        is LoginState.Authenticated -> {
             firstTopBarText = "聊天"
         }
-        is LoginState.Logging -> {
-            firstTopBarText = "登录中..."
+        is LoginState.Authenticating -> {
+            firstTopBarText = "连接中..."
+        }
+        is LoginState.Checking -> {
+            firstTopBarText = "检查中..."
+        }
+        is LoginState.AuthenticationFailed -> {
+            val authFailed = loginState as LoginState.AuthenticationFailed
+            if (authFailed.isNetworkError) {
+                firstTopBarText = "重试中..."
+            } else {
+                firstTopBarText = "认证失败" // 这种情况下用户很快就会被重定向到登录页面
+            }
         }
         else -> {
-            firstTopBarText = "登录"
+            firstTopBarText = "聊天" // 默认为聊天
         }
     }
     

@@ -1,12 +1,8 @@
 package com.github.im.group.gui.context;
 
-import com.alibaba.ttl.TransmittableThreadLocal;
-import com.github.im.common.connect.model.proto.Account;
 import com.github.im.dto.user.UserInfo;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
-
-import java.util.Optional;
 
 /**
  * Description:
@@ -26,7 +22,7 @@ public class UserInfoContext {
     private static final Sinks.Many<UserInfo> userInfoSink  = Sinks.many().multicast().onBackpressureBuffer();;
 
     private static UserInfo userInfo;
-    private static Account.AccountInfo accountInfo;
+    private static User.UserInfo accountInfo;
 
 
     static {
@@ -56,16 +52,16 @@ public class UserInfoContext {
         return userInfo;
     }
 
-    public static Account.AccountInfo getAccountInfo() {
+    public static User.UserInfo getAccountInfo() {
 
         return accountInfo;
-//        return Optional.ofNullable(getCurrentUser()).map(userInfo -> getAccountInfo(userInfo)).orElse( Account.AccountInfo.newBuilder().build());
+//        return Optional.ofNullable(getCurrentUser()).map(userInfo -> getAccountInfo(userInfo)).orElse( User.UserInfo.newBuilder().build());
 
     }
 
-    private  static Account.AccountInfo getAccountInfo(UserInfo userInfo) {
+    private  static User.UserInfo getAccountInfo(UserInfo userInfo) {
         // 获取当前用户信息
-        Account.AccountInfo accountInfo = Account.AccountInfo.newBuilder()
+        User.UserInfo accountInfo = User.UserInfo.newBuilder()
                 .setUserId(userInfo.getUserId())
                 .setAccount(userInfo.getUsername())
                 .setAccountName(userInfo.getUsername())

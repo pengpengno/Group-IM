@@ -85,3 +85,11 @@ JOIN User AS u ON u.userId = cm.userId
 WHERE cm.conversationId = ?
 ORDER BY cm.joinedAt DESC
 LIMIT ? OFFSET ?;
+
+-- 查询包含两个特定用户的会话（用于查找私聊会话）
+selectConversationByTwoUsers:
+SELECT DISTINCT cm1.conversationId
+FROM ConversationMember AS cm1
+JOIN ConversationMember AS cm2 ON cm1.conversationId = cm2.conversationId
+WHERE cm1.userId = ? AND cm2.userId = ?
+AND cm1.userId != cm2.userId;  -- 确保是不同的用户

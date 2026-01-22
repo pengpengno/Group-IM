@@ -1,7 +1,5 @@
 package com.github.im.common.reactor.rabbitmq;
 
-import com.github.im.common.connect.model.proto.Account;
-import com.github.im.common.connect.model.proto.OnLineUser;
 import com.rabbitmq.client.Delivery;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +41,7 @@ public class ReactorOnlineUserTest {
     public void onlineUserTest() throws InterruptedException {
         RpcClient rpcClient = sender.rpcClient("", onlineMqQueue);
         OnLineUser.UserSearch pengpeng = OnLineUser.UserSearch.newBuilder()
-                .addAccounts(Account.AccountInfo.newBuilder().setAccount("pengpeng").build())
+                .addAccounts(User.UserInfo.newBuilder().setAccount("pengpeng").build())
                 .build();
         Mono<Delivery> reply = rpcClient.rpc(Mono.just(
                 new RpcClient.RpcRequest( pengpeng.toByteArray())

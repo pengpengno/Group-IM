@@ -1,7 +1,6 @@
 package com.github.im.group.gui.views;
 
 import com.github.im.common.connect.connection.client.ClientToolkit;
-import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.group.gui.context.UserInfoContext;
 import com.github.im.group.gui.controller.PlatformView;
@@ -279,7 +278,7 @@ public class MainPresenter  implements PlatformUI{
         var reConnected =  new Button("重新连接");
         reConnected.setOnMouseClicked(event-> {
             var userInfo = UserInfoContext.getCurrentUser();
-            var accountInfo = Account.AccountInfo.newBuilder()
+            var accountInfo = User.UserInfo.newBuilder()
                     .setPlatformType(PlatformView.getCurrentPlatformType())
                     .setUserId(userInfo.getUserId())
                     .setAccountName(userInfo.getUsername())

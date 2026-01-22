@@ -13,6 +13,7 @@ enum class MessageStatus {
 
     RECEIVED,
     FAILED,
+//    DELIVERED, // 已送达
     READ ,
     UNREAD ,
     DELETED,  // 删除

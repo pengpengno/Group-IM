@@ -10,16 +10,16 @@ import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.ApiResponse
 import com.github.im.group.model.DepartmentInfo
 import com.github.im.group.model.UserInfo
-import io.ktor.client.request.*
-import io.ktor.client.request.header
 import io.ktor.client.request.headers
-import io.ktor.client.request.prepareGet
-import io.ktor.client.statement.*
+import io.ktor.client.request.request
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsBytes
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpMethod
 import io.ktor.http.contentLength
-import io.ktor.utils.io.*
-import io.ktor.utils.io.core.*
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDateTime
@@ -27,8 +27,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okio.FileSystem
 import okio.Path
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 
 object LoginApi {
@@ -43,6 +41,10 @@ object LoginApi {
             body = requestBody,
         )
     }
+
+
+
+
 }
 
 /**
@@ -65,6 +67,20 @@ object UserApi{
             requestParams = mapOf("query" to queryString)
         )
     }
+
+
+    /**
+     * 获取用户的基础信息
+     * @param userId 用户id
+     * @return 返回用户的基础信息（id， username ,email 这些）
+     */
+    suspend fun getUserBasicInfo(userId: Long): UserInfo {
+        return ProxyApi.request<Unit, UserInfo>(
+            hmethod = HttpMethod.Post,
+            path = "/api/users/id/$userId",
+        )
+    }
+
 
 }
 
@@ -96,12 +112,11 @@ object ConversationApi{
     /**
      * 获取或者创建私聊会话
      */
-    suspend fun createOrGetConversation(userId:Long ,friendId:Long): ConversationRes {
+    suspend fun createOrGetConversation(friendId:Long): ConversationRes {
         return ProxyApi.request<Unit , ConversationRes>(
             hmethod = HttpMethod.Post,
             path = "/api/conversations/private-chat",
-            requestParams = mapOf("userId" to userId.toString(),"" +
-                    "friendId" to friendId.toString())
+            requestParams = mapOf("friendId" to friendId.toString())
         )
     }
 
@@ -598,23 +613,30 @@ public inline fun <reified T : MessagePayLoad> MessageDTO.extraAs(): T? {
 
 @Serializable
 data class GroupInfo(
+    // 群聊名称
     val groupName: String? = null,
+    // 群聊描述
     val description: String? = null,
+    // 群聊用户
     val members: List<UserInfo>? = listOf(),
-)
+){
+    fun isGroup():Boolean{
+        return members != null && members.isNotEmpty() && members.size > 2
+    }
+}
 
 @Serializable
 data class ConversationRes(
-    val conversationId: Long = -1,
-    val createdBy : UserInfo = UserInfo(),
-    val createUserId : Long = -1 ,
-    val createAt : String = "",
+    val conversationId: Long ,
+    val createdBy : UserInfo ,
+    val createUserId : Long ,
+    val createAt : String ,
     val groupName: String = "",
     val description: String? = "",
     val members: List<UserInfo> = emptyList(),
     val status: ConversationStatus = ConversationStatus.ACTIVE, // 或者默认值
     val type: ConversationType = ConversationType.PRIVATE_CHAT, // 或者默认值
-    val lastMessage: String = "",
+//    val lastMessageTime: LocalDateTime = LocalDateTime(1970, 1, 1, 0, 0, 0),
 ) {
     fun getName(currentUser: UserInfo?): String {
         return when (type) {

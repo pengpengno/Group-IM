@@ -47,8 +47,8 @@ public class IConnectContext implements IConnectContextAction {
     @Override
     public void putConnection(IConnection connection) {
         ValidatorUtil.validateThrows(connection, IConnection.Create.class);
-        String account = connection.accountInfo().getAccount();
-        connectionCache.put(account,connection);
+        String username = connection.accountInfo().getUsername();
+        connectionCache.put(username,connection);
     }
 
 //

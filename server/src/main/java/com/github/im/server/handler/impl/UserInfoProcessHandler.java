@@ -4,20 +4,15 @@ import com.github.im.common.connect.connection.ConnectionConstants;
 import com.github.im.common.connect.connection.ReactiveConnectionManager;
 import com.github.im.common.connect.connection.server.BindAttr;
 import com.github.im.common.connect.connection.server.ProtoBufProcessHandler;
-import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
-import com.github.im.server.config.NodeId;
 import com.github.im.server.model.User;
 import com.github.im.server.service.OnlineService;
-import com.github.im.server.utils.JwtUtil;
 import com.github.im.server.utils.UserTokenManager;
 import io.netty.util.AttributeKey;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
-import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
 
@@ -30,7 +25,7 @@ import java.util.Optional;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
+public class UserInfoProcessHandler implements ProtoBufProcessHandler {
 
     private final UserTokenManager userTokenManager;
     private final OnlineService onlineService;
@@ -39,7 +34,7 @@ public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
 
     @Override
     public BaseMessage.BaseMessagePkg.PayloadCase type() {
-        return BaseMessage.BaseMessagePkg.PayloadCase.ACCOUNTINFO;
+        return BaseMessage.BaseMessagePkg.PayloadCase.USERINFO;
     }
 
     /**
@@ -52,7 +47,7 @@ public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
     @Override
     public void process(@NotNull Connection con, BaseMessage.BaseMessagePkg message) {
 
-        var accountInfo = message.getAccountInfo();
+        var accountInfo = message.getUserInfo();
 
         Optional.ofNullable(con).ifPresent(connection -> {
             connection.channel().attr(ConnectionConstants.BING_ACCOUNT_KEY).set(accountInfo);
@@ -68,7 +63,7 @@ public class AccountInfoProcessHandler implements ProtoBufProcessHandler {
             onlineService.online(userId);
 
             // 订阅 信息流
-            var account = accountInfo.getAccount();
+            var account = accountInfo.getUsername();
             var bindAttr = BindAttr.getBindAttr(accountInfo);
 
             var baseMessageMany = ReactiveConnectionManager.registerSinkFlow(bindAttr).asFlux();

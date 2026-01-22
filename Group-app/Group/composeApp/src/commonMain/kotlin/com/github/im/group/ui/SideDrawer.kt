@@ -12,12 +12,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoCall
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Divider
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -36,7 +34,7 @@ import com.github.im.group.model.UserInfo
  */
 @Composable
 fun SideDrawer(
-    userInfo: UserInfo,
+    userInfo: UserInfo?,
     onLogout: () -> Unit,
     onProfileClick: () -> Unit = {},
     onContactsClick: () -> Unit = {},
@@ -45,6 +43,17 @@ fun SideDrawer(
     onSettingsClick: () -> Unit = {},
     appVersion: String = "v1.0.0"
 ) {
+
+//    val userRepository : UserRepository = koinInject<UserRepository>()
+//
+//
+//    var userInfo : UserInfo? by remember { mutableStateOf(null) }
+//
+//    LaunchedEffect(userInfo){
+//        userInfo = GlobalCredentialProvider.storage.getUserInfo()
+//    }
+
+//    val userInfoState = userRepository.userState.collectAsState()
     Column(
         modifier = Modifier
             .fillMaxHeight()
@@ -60,16 +69,16 @@ fun SideDrawer(
                 .clickable { onProfileClick() }
                 .padding(bottom = 24.dp)
         ) {
-            UserAvatar(username = userInfo.username, size = 56)
+            UserAvatar(username = userInfo?.username ?: "游客", size = 56)
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = userInfo.username,
+                    text = userInfo?.username ?: "加载中...",
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White
                 )
                 Text(
-                    text = "点击查看个人资料",
+                    text = if (userInfo != null) "点击查看个人资料" else "未登录用户",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFFA3A3A3)
                 )

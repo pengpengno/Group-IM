@@ -4,8 +4,6 @@ import com.github.im.common.connect.connection.client.ClientLifeStyle;
 import com.github.im.common.connect.connection.client.ClientToolkit;
 import com.github.im.common.connect.connection.client.ReactiveClientAction;
 //import com.github.im.common.connect.handler.client.ClientInboundHandler;
-import com.github.im.common.connect.model.proto.Account;
-import com.github.im.common.model.AccountInfo;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.handler.logging.LogLevel;
@@ -88,7 +86,7 @@ public class ReactiveClientTest {
 //                })
                 .connectNow().bind();
         log.info("{}", connect.isDisposed());
-        Account.AccountInfo build = Account.AccountInfo.newBuilder()
+        User.UserInfo build = User.UserInfo.newBuilder()
                 .setAccount("pengpeng")
                 .setAccountName("王鹏")
                 .setEMail("pengpeng_on@163.com")

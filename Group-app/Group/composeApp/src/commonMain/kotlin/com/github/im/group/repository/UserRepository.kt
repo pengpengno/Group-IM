@@ -1,65 +1,111 @@
 package com.github.im.group.repository
 
-import com.github.im.group.GlobalCredentialProvider
-import com.github.im.group.Platform
 import com.github.im.group.db.AppDatabase
 import com.github.im.group.db.entities.UserStatus
-import com.github.im.group.getPlatform
 import com.github.im.group.model.UserInfo
-import com.github.im.group.model.proto.AccountInfo
-import com.github.im.group.model.proto.PlatformType
-import io.github.aakira.napier.Napier
+import com.github.im.group.viewmodel.LoginState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 
-
-//TODO 需要保留登出状态的时候再启用次 sealed
-// 初期使用 lateinit 声明 用户信息的必定初始化即可
-sealed class UserState {
-    object LoggedOut : UserState()  // 尚未登录模式
-
-    object Logging : UserState()   // 登录中
-    data class LoggedIn(val info: CurrentUserInfoContainer) : UserState()
-}
-
-
+/**
+ * 当前登录用户
+ */
 data class CurrentUserInfoContainer(
     val user: UserInfo,
-    val accountInfo: AccountInfo
 )
 
 class UserRepository (
     private val db:AppDatabase
 ){
 
-    private val _userState = MutableStateFlow<UserState>(UserState.LoggedOut)
+    private val _userState = MutableStateFlow<LoginState>(LoginState.Idle)
     val userState = _userState.asStateFlow()
 
-    inline fun <T> withLoggedInUser(action: (CurrentUserInfoContainer) -> T): T {
-        val user = requireLoggedInUser() // 抛异常提示未登录
-        return action(user)
+    /**
+     * 获取当前用户状态
+     */
+    fun getCurrentUserState(): LoginState {
+        return userState.value
     }
-
-
-
-    fun requireLoggedInUser(): CurrentUserInfoContainer{
-        return when (val state = userState.value){
-            is UserState.LoggedIn -> state.info
-            is UserState.LoggedOut ->{
-                Napier.d("用户未登录")
-                // 从数据库获取用户信息
-//                GlobalCredentialProvider.storage.getUserInfo()?.let {
-//                    saveCurrentUser(it)
-//                }
-
-                throw IllegalStateException("用户未登录")
-            }
-            is UserState.Logging -> {
-                Napier.d("用户登录中")
-                throw IllegalStateException("用户登录中")
-            }
+    
+    /**
+     * 获取当前用户信息（如果已登录）
+     */
+    fun getCurrentUserInfo(): UserInfo? {
+        return when (val state = userState.value) {
+            is LoginState.Authenticated -> state.userInfo
+            else -> null
         }
+    }
+//
+//    /**
+//     * 安全执行需要登录用户的操作，只有在用户已登录时才执行
+//     */
+//    inline fun <T> withLoggedInUser(action: (UserInfo) -> T): T? {
+//        val user = getCurrentUserInfo()
+//        return if (user != null) {
+//            action(user)
+//        } else {
+//            null
+//        }
+//    }
+
+//
+//    /**
+//     * 异步获取当前用户信息，包括从本地存储检索
+//     */
+//    suspend fun getCurrentUserWithLocalFallback(): UserInfo? {
+//        // 首先检查当前状态
+//        val currentStateUser = getCurrentUserInfo()
+//        if (currentStateUser != null) {
+//            return currentStateUser
+//        }
+//
+//        // 如果状态中没有，则从本地存储获取
+//        return GlobalCredentialProvider.storage.getUserInfo()
+//    }
+
+    /**
+     * 更新用户状态为检查中
+     */
+    fun updateToChecking() {
+        _userState.value = LoginState.Checking
+    }
+    
+    /**
+     * 更新用户状态为认证中
+     */
+    fun updateToAuthenticating() {
+        _userState.value = LoginState.Authenticating
+    }
+    
+    /**
+     * 更新用户状态为已认证
+     */
+    fun updateToAuthenticated(userInfo: UserInfo) {
+        _userState.value = LoginState.Authenticated(userInfo)
+    }
+    
+    /**
+     * 更新用户状态为认证失败
+     */
+    fun updateToAuthenticationFailed(error: String, isNetworkError: Boolean = false) {
+        _userState.value = LoginState.AuthenticationFailed(error, isNetworkError)
+    }
+    
+    /**
+     * 更新用户状态为登出中
+     */
+    fun updateToLoggingOut() {
+        _userState.value = LoginState.LoggingOut
+    }
+    
+    /**
+     * 更新用户状态为登出（回到空闲状态）
+     */
+    fun updateToLoggedOut() {
+        _userState.value = LoginState.Idle
     }
 
     /**
@@ -67,20 +113,9 @@ class UserRepository (
      * 同时 将当前用户 绑定 APP
      */
     fun saveCurrentUser(user: UserInfo) {
-
-        val accountInfo = AccountInfo(
-            account = user.username,
-            accountName = user.username,
-            userId = user.userId,
-            eMail = user.email,
-            accessToken = user.token,
-            platformType = PlatformType.valueOf(getPlatform().name),
-        )
-        _userState.value = UserState.LoggedIn(CurrentUserInfoContainer(user, accountInfo))
+        updateToAuthenticated(user)
         addOrUpdateUser(user)
     }
-
-
 
     /**
      * 插入或更新用户信息
@@ -129,6 +164,15 @@ class UserRepository (
     
     /**
      * 根据用户ID获取用户信息
+     * 
+     * 此方法从本地数据库查询用户信息，如果本地数据库中存在对应的用户记录，
+     * 则返回用户信息对象；否则返回null。
+     * 
+     * @param userId 需要查询的用户ID
+     * @return 如果找到对应的用户记录则返回UserInfo对象，否则返回null
+     * 
+     * 注意：此方法只返回本地缓存的用户信息，不包含认证令牌信息（token和refreshToken）
+     * 这些敏感信息应当通过安全的认证流程获取和管理
      */
     fun getUserById(userId: Long): UserInfo? {
         val userEntity = db.userQueries.selectById(userId).executeAsOneOrNull()

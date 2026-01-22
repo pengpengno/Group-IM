@@ -358,7 +358,7 @@ class ChatMessageRepository (
             msgId = entity.msg_id,
             clientMsgId = entity.client_msg_id,
             content = entity.content,
-            fromAccount = UserInfo(entity.from_account_id),
+            fromAccount = userRepository.getUserById(entity.from_account_id),
             type = entity.type,
             status = entity.status,
             timestamp = entity.server_timestamp.toString(),

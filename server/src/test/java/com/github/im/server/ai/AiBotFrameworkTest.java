@@ -3,13 +3,13 @@ package com.github.im.server.ai;
 import com.github.im.dto.message.MessageDTO;
 import com.github.im.enums.MessageStatus;
 import com.github.im.enums.MessageType;
-import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.testng.annotations.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.testng.AssertJUnit.assertNotNull;
+import static org.testng.AssertJUnit.assertTrue;
 
 @SpringBootTest
 public class AiBotFrameworkTest {

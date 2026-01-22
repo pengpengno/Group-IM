@@ -1,7 +1,6 @@
 package com.github.im.common.connect.enums;
 
-import cn.hutool.http.useragent.Platform;
-import com.github.im.common.connect.model.proto.Account;
+import com.github.im.common.connect.model.proto.User;
 
 /**
      * DEFAULT IS DESKTOP
@@ -33,7 +32,7 @@ public enum PlatformType {
     }
 
 
-    public static PlatformType getPlatformType(Account.PlatformType platform) {
+    public static PlatformType getPlatformType(User.PlatformType platform) {
         return switch (platform) {
             case ANDROID -> MOBILE;
             case IOS -> MOBILE;

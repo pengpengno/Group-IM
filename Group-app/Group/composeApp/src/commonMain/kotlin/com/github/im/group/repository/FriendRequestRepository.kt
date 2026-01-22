@@ -4,7 +4,6 @@ import com.github.im.group.api.FriendShipApi
 import com.github.im.group.api.FriendshipDTO
 import com.github.im.group.db.AppDatabase
 import com.github.im.group.db.entities.FriendRequestStatus
-import com.github.im.group.model.UserInfo
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -67,54 +66,54 @@ class FriendRequestRepository(
         return db.friendshipQueries.selectPendingRequestsCount(userId).executeAsOneOrNull() ?: 0
     }
     
-    /**
-     * 获取用户收到的所有好友请求
-     */
-    fun getReceivedFriendRequests(userId: Long): List<FriendshipDTO> {
-        return db.friendshipQueries.selectReceivedRequests(userId).executeAsList().map { entity ->
-            FriendshipDTO(
-                id = entity.id,
-                userInfo = UserInfo(userId = entity.from_user_id),
-                friendUserInfo = UserInfo(userId = entity.to_user_id),
-                conversationId = entity.conversation_id,
-                status = entity.status
-            )
-        }
-    }
-    
-    /**
-     * 获取用户发送的所有好友请求
-     */
-    fun getSentFriendRequests(userId: Long): List<FriendshipDTO> {
-        return db.friendshipQueries.selectSentRequests(userId).executeAsList().map { entity ->
-            FriendshipDTO(
-                id = entity.id,
-                userInfo = UserInfo(userId = entity.from_user_id),
-                friendUserInfo = UserInfo(userId = entity.to_user_id),
-                conversationId = entity.conversation_id,
-                status = entity.status
-            )
-        }
-    }
-
-    /**
-     * 获取所有的好友关系请求
-     * @param limit 每页数量
-     * @param offset 偏移量
-     *
-     * @return 好友关系列表
-     */
-    fun getAllFriendRequests(limit : Long = 20 , offset : Long = 0): List<FriendshipDTO> {
-        return db.friendshipQueries.selectAllRequests(limit,offset).executeAsList().map { entity ->
-            FriendshipDTO(
-                id = entity.id,
-                userInfo = UserInfo(userId = entity.from_user_id),
-                friendUserInfo = UserInfo(userId = entity.to_user_id),
-                conversationId = entity.conversation_id,
-                status = entity.status
-            )
-        }
-    }
+//    /**
+//     * 获取用户收到的所有好友请求
+//     */
+//    fun getReceivedFriendRequests(userId: Long): List<FriendshipDTO> {
+//        return db.friendshipQueries.selectReceivedRequests(userId).executeAsList().map { entity ->
+//            FriendshipDTO(
+//                id = entity.id,
+//                userInfo = UserInfo(userId = entity.from_user_id),
+//                friendUserInfo = UserInfo(userId = entity.to_user_id),
+//                conversationId = entity.conversation_id,
+//                status = entity.status
+//            )
+//        }
+//    }
+//
+//    /**
+//     * 获取用户发送的所有好友请求
+//     */
+//    fun getSentFriendRequests(userId: Long): List<FriendshipDTO> {
+//        return db.friendshipQueries.selectSentRequests(userId).executeAsList().map { entity ->
+//            FriendshipDTO(
+//                id = entity.id,
+//                userInfo = UserInfo(userId = entity.from_user_id),
+//                friendUserInfo = UserInfo(userId = entity.to_user_id),
+//                conversationId = entity.conversation_id,
+//                status = entity.status
+//            )
+//        }
+//    }
+//
+//    /**
+//     * 获取所有的好友关系请求
+//     * @param limit 每页数量
+//     * @param offset 偏移量
+//     *
+//     * @return 好友关系列表
+//     */
+//    fun getAllFriendRequests(limit : Long = 20 , offset : Long = 0): List<FriendshipDTO> {
+//        return db.friendshipQueries.selectAllRequests(limit,offset).executeAsList().map { entity ->
+//            FriendshipDTO(
+//                id = entity.id,
+//                userInfo = UserInfo(userId = entity.from_user_id),
+//                friendUserInfo = UserInfo(userId = entity.to_user_id),
+//                conversationId = entity.conversation_id,
+//                status = entity.status
+//            )
+//        }
+//    }
     
     /**
      * 更新好友关系状态

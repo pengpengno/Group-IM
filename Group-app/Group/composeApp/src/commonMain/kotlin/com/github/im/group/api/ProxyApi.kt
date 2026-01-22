@@ -1,6 +1,7 @@
+
 import com.github.im.group.GlobalCredentialProvider
+import com.github.im.group.GlobalErrorHandler
 import com.github.im.group.api.FileUploadResponse
-import com.github.im.group.manager.LoginStateManager
 import io.github.aakira.napier.Napier
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -22,9 +23,6 @@ import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 
 object ProxyApi
@@ -93,7 +91,10 @@ object ProxyApi
 
             401 -> {
                 val errorText = response.bodyAsText()
-                throw UnauthorizedException("认证失败，请重新登录：${response.status}，内容: $errorText")
+                val exception = UnauthorizedException("认证失败，请重新登录：${response.status}，内容: $errorText")
+                // 触发全局未认证异常处理
+                GlobalErrorHandler.handleUnauthorized()
+                throw exception
             }
             in 400..499 -> {
                 val errorText = response.bodyAsText()
@@ -159,7 +160,10 @@ object ProxyApi
 
             401 -> {
                 val errorText = response.bodyAsText()
-                throw UnauthorizedException("认证失败，请重新登录：${response.status}，内容: $errorText")
+                val exception = UnauthorizedException("认证失败，请重新登录：${response.status}，内容: $errorText")
+                // 触发全局未认证异常处理
+                GlobalErrorHandler.handleUnauthorized()
+                throw exception
             }
             in 400..499 -> {
                 val errorText = response.bodyAsText()
@@ -230,7 +234,10 @@ object ProxyApi
             }
             401 -> {
                 val errorText = response.bodyAsText()
-                throw UnauthorizedException("认证失败，请重新登录：${response.status}，内容: $errorText")
+                val exception = UnauthorizedException("认证失败，请重新登录：${response.status}，内容: $errorText")
+                // 触发全局未认证异常处理
+                GlobalErrorHandler.handleUnauthorized()
+                throw exception
             }
             in 400..499 -> {
                 val errorText = response.bodyAsText()

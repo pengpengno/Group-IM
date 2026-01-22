@@ -3,8 +3,7 @@ syntax = "proto3";
 package com.github.im.common.connect.model.proto;
 option java_package = "com.github.im.group.model.proto";
 option java_outer_classname = "Chat";
-//import "google/protobuf/any.proto";
-import "Account.proto";
+import "UserInfoProto.proto";
 
 // chat 信息
 message ChatMessage  {
@@ -14,15 +13,15 @@ message ChatMessage  {
 
   string clientMsgId = 4; // client msg Id 配合 sequenceId 用于QOS ACK 使用UUID 即可
 
-  string content  = 3 ;
-  //client-server
-  int64 conversationId = 9 ;
+  string content  = 3 ;  //消息内容
+
+  int64 conversationId = 9 ;   // 消息对应的会话Id
 
   string conversationName = 10 ;
 
-  AccountInfo fromAccountInfo = 2 ;
+  UserInfo fromUser = 2 ;
  // server-client 需要使用 用于指示推送到的客户端
-  AccountInfo toAccountInfo = 8 ;
+  UserInfo toUser = 8 ;
 
   int64 clientTimeStamp = 7 ;
 
@@ -62,7 +61,7 @@ message AckMessage {
   string clientMsgId = 1;  // 客户端生成的唯一 ID
   int64 serverMsgId = 2;  // 服务端生成的 msgId
   int64 conversationId = 3;
-  AccountInfo fromAccount = 4;  // 谁的消息被确认
+  UserInfo fromUser = 4;  // 谁的消息被确认
   int64 ackTimestamp = 5;  // 确认时间戳 服务端消息时间戳
 //  enum AckType {
 //    RECEIVED = 0; // 已收到

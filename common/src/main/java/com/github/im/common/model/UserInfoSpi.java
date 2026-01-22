@@ -6,7 +6,7 @@ package com.github.im.common.model;
  * @description
  * @date 2023/1/11
  */
-public interface AccountSPI {
+public interface UserInfoSpi {
 
     /***
      * 获取用户身份唯一标识

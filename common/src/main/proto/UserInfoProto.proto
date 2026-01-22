@@ -2,25 +2,22 @@ syntax = "proto3";
 
 package com.github.im.common.connect.model.proto;
 option java_package = "com.github.im.common.connect.model.proto";
-option java_outer_classname = "Account";
+option java_outer_classname = "User";
 
 
 
-message AccountInfo{
+message UserInfo{
 
   /**
    {@link UserInfo#getUsername}
    */
-  string account = 1 ;
+  string username = 1 ;
 
-  string accountName = 2 ;
+  int64 userId  = 2 ;
 
-  int64 userId  = 3 ;
-
-  string eMail = 4 ;
-
-//  string refreshToken = 6 ;  // 长期令牌
-  string accessToken = 6 ;
+  string eMail = 3;
+P
+  string accessToken = 4;
 
   PlatformType platformType = 5 ;
 
@@ -40,15 +37,6 @@ enum PlatformType{
   MAC = 4;
 
   LINUX = 5;
-
-
-}
-
-enum AccountOperationType{
-
-  SIGNIN = 0;
-
-  LOGOUT = 1;
 
 
 }

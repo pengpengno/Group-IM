@@ -1,0 +1,65 @@
+import com.github.im.group.db.entities.MessageStatus;
+import com.github.im.group.db.entities.MessageType;
+import kotlinx.datetime.LocalDateTime;
+
+-- 离线消息表，存储待发送的消息
+CREATE TABLE OfflineMessage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_msg_id TEXT NOT NULL UNIQUE,      -- 客户端生成的消息ID
+    conversation_id INTEGER,                 -- 会话ID（可能为NULL，表示待创建会话）
+    from_user_id INTEGER NOT NULL,          -- 发送方用户ID
+    to_user_id INTEGER,                     -- 接收方用户ID（可能为NULL，表示群聊或待确定用户）
+    content TEXT NOT NULL,                  -- 消息内容
+    message_type TEXT AS MessageType NOT NULL DEFAULT 'TEXT',  -- 消息类型
+    file_path TEXT,                         -- 文件路径（如果是文件消息）
+    file_size INTEGER,                      -- 文件大小
+    file_duration INTEGER DEFAULT 0,        -- 文件时长（音频/视频消息）
+    status TEXT AS MessageStatus NOT NULL DEFAULT 'SENDING',  -- 消息状态：SENDING（发送中）、SENT（已发送）、FAILED（发送失败）
+    created_at INTEGER AS LocalDateTime NOT NULL,  -- 创建时间
+    retry_count INTEGER DEFAULT 0,          -- 重试次数
+    max_retry_count INTEGER DEFAULT 3       -- 最大重试次数
+);
+
+-- 插入离线消息
+insertOfflineMessage:
+INSERT INTO OfflineMessage (
+    client_msg_id, conversation_id, from_user_id, to_user_id, 
+    content, message_type, file_path, file_size, file_duration,
+    status, created_at, retry_count, max_retry_count
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- 根据状态查询离线消息
+selectOfflineMessagesByStatus:
+SELECT * FROM OfflineMessage WHERE status = ? ORDER BY created_at ASC;
+
+-- 查询所有待发送的离线消息
+selectSendingOfflineMessages:
+SELECT * FROM OfflineMessage WHERE status IN ('SENDING', 'FAILED') ORDER BY created_at ASC;
+
+-- 根据client_msg_id查询离线消息
+selectOfflineMessageByClientMsgId:
+SELECT * FROM OfflineMessage WHERE client_msg_id = ?;
+
+-- 更新离线消息状态
+updateOfflineMessageStatus:
+UPDATE OfflineMessage SET status = ?, retry_count = ? WHERE client_msg_id = ?;
+
+-- 更新离线消息的会话ID（当会话创建成功后）
+updateOfflineMessageConversationId:
+UPDATE OfflineMessage SET conversation_id = ? WHERE client_msg_id = ? AND conversation_id IS NULL;
+
+-- 删除离线消息
+deleteOfflineMessage:
+DELETE FROM OfflineMessage WHERE client_msg_id = ?;
+
+-- 删除已发送的离线消息
+deleteSentOfflineMessages:
+DELETE FROM OfflineMessage WHERE status = 'SENT';
+
+-- 清理失败次数过多的消息
+cleanupFailedMessages:
+DELETE FROM OfflineMessage WHERE status = 'FAILED' AND retry_count >= max_retry_count;
+
+-- 查询所有离线消息
+selectAll:
+SELECT * FROM OfflineMessage ORDER BY created_at ASC;

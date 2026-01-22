@@ -1,6 +1,6 @@
 package com.github.im.common.connect.connection;
 
-import com.github.im.common.connect.model.proto.Account;
+import com.github.im.common.connect.model.proto.User;
 import io.netty.util.AttributeKey;
 
 /**
@@ -10,7 +10,7 @@ import io.netty.util.AttributeKey;
  */
 public interface ConnectionConstants {
 
-    public static AttributeKey<Account.AccountInfo> BING_ACCOUNT_KEY = AttributeKey.valueOf("Account");
+    public static AttributeKey<User.UserInfo> BING_ACCOUNT_KEY = AttributeKey.valueOf("User");
 
 
 

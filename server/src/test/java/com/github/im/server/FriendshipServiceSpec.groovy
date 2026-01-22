@@ -1,6 +1,6 @@
 package com.github.im.server
 
-import com.github.im.common.model.account.ChatMsgVo;
+
 import com.github.im.dto.user.FriendRequestDto
 import com.github.im.dto.user.FriendshipDTO
 import com.github.im.server.model.Friendship

@@ -2,12 +2,8 @@ package com.github.im.server.service.impl;
 
 import com.github.im.common.connect.connection.ReactiveConnectionManager;
 import com.github.im.common.connect.connection.server.BindAttr;
-import com.github.im.common.connect.enums.PlatformType;
-import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.common.connect.model.proto.Notification;
-import com.github.im.common.model.account.ChatMsgVo;
-import com.github.im.dto.user.FriendRequestDto;
 import com.github.im.server.model.Friendship;
 import com.github.im.server.model.User;
 import com.github.im.server.service.SendMessageToClientEndPoint;

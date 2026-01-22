@@ -3,9 +3,9 @@ syntax = "proto3";
 package com.github.im.common.connect.model.proto;
 option java_package = "com.github.im.group.model.proto";
 option java_outer_classname = "BaseMessage";
-import "Account.proto";
+import "UserInfoProto.proto";
 import "Notification.proto";
-import "message.proto";
+import "Message.proto";
 
 /**
  * 基础消息包
@@ -15,7 +15,7 @@ message BaseMessagePkg {
 //https://protobuf.dev/programming-guides/proto3/#oneof
   oneof payload {
 
-    AccountInfo accountInfo = 1;
+    UserInfo userInfo = 1;
 
     ChatMessage message = 2;
 

@@ -1,7 +1,6 @@
 package com.github.im.group.gui.lifecycle.impl;
 
 import com.github.im.common.connect.connection.client.ClientToolkit;
-import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.dto.user.LoginRequest;
 import com.github.im.dto.user.UserInfo;
@@ -15,7 +14,6 @@ import com.github.im.group.gui.views.MainPresenter;
 import javafx.application.Platform;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.net.InetSocketAddress;
@@ -75,7 +73,7 @@ public class LoginLifecycleImpl implements LoginLifecycle {
                     .connect(new InetSocketAddress(serverConnectPro.getHost()
                             , serverConnectPro.getPort()));
 
-            var accountInfo = Account.AccountInfo.newBuilder()
+            var accountInfo = User.UserInfo.newBuilder()
                     .setPlatformType(PlatformView.getCurrentPlatformType())
                     .setUserId(userInfo.getUserId())
                     .setAccountName(userInfo.getUsername())

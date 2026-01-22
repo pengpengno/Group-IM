@@ -8,7 +8,6 @@ package com.github.im.group.gui.controller;/**
  */
 
 import com.github.im.common.connect.enums.PlatformType;
-import com.github.im.common.connect.model.proto.Account;
 import com.gluonhq.attach.util.Platform;
 
 import static com.github.im.common.connect.enums.PlatformType.*;

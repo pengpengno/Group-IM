@@ -2,13 +2,9 @@ package com.github.im.common.connect.connection;
 
 import com.github.im.common.connect.connection.server.BindAttr;
 import com.github.im.common.connect.enums.PlatformType;
-import com.github.im.common.connect.model.proto.Account;
 import com.github.im.common.connect.model.proto.BaseMessage;
-import com.github.im.common.connect.model.proto.Chat;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
-import reactor.netty.Connection;
 
 import java.util.Arrays;
 import java.util.List;
@@ -33,7 +29,7 @@ public class ReactiveConnectionManager {
      * 此方法旨在确保每个属性都有一个对应的Sink实例来处理消息，
      * 如果该ATTR尚未关联任何Sink，则创建一个新的Sink实例并关联
      *
-     * ATTR 的创建可以 参考  {@link BindAttr#getBindAttr(String, PlatformType)}  {@link BindAttr#getBindAttr(Account.AccountInfo)}
+     * ATTR 的创建可以 参考  {@link BindAttr#getBindAttr(String, PlatformType)}  {@link BindAttr#getBindAttr(User.UserInfo)}
      *
      * @param ATTR 属性名称，用作在BASE_MESSAGE_SINKS映射中的键
      */
@@ -66,7 +62,7 @@ public class ReactiveConnectionManager {
 
     /**
      * 判断是否 存在了 sink
-     * @param ATTR {@link BindAttr#getBindAttr(Account.AccountInfo)}
+     * @param ATTR {@link BindAttr#getBindAttr(User.UserInfo)}
      * @return 存在返回true  不存在返回false
      */
     public static boolean isSubscribe(BindAttr<String> ATTR) {

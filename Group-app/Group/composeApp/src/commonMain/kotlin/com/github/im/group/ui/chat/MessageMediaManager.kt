@@ -1,17 +1,15 @@
 package com.github.im.group.ui.chat
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
 import com.github.im.group.sdk.File
-import com.github.im.group.viewmodel.ChatMessageViewModel
+import com.github.im.group.viewmodel.ChatRoomViewModel
 
 /**
  * 消息媒体资源管理器
@@ -75,7 +73,7 @@ class MessageMediaManager {
     }
     
     companion object {
-        fun create(mediaMessages: List<MessageItem>, currentMessage: MessageItem, messageViewModel: ChatMessageViewModel): MessageMediaManager {
+        fun create(mediaMessages: List<MessageItem>, currentMessage: MessageItem, messageViewModel: ChatRoomViewModel): MessageMediaManager {
             val manager = MessageMediaManager()
             
             // 异步获取所有媒体文件
@@ -115,7 +113,7 @@ class MessageMediaManager {
  */
 @Composable
 fun rememberMessageMediaManager(
-    messageViewModel: ChatMessageViewModel,
+    messageViewModel: ChatRoomViewModel,
     currentMessage: MessageItem
 ): MessageMediaManager {
     val mediaMessages by messageViewModel.mediaMessages.collectAsStateWithLifecycle()

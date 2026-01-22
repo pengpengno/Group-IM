@@ -12,8 +12,10 @@ import com.github.im.server.model.User
 import com.github.im.server.repository.ConversationRepository
 import com.github.im.server.repository.GroupMemberRepository
 import com.github.im.server.repository.UserRepository
+import com.github.im.server.service.ConversationSequenceService
 import com.github.im.server.service.ConversationService;
 import com.github.im.server.service.GroupMemberService
+import jakarta.persistence.EntityManager
 import spock.lang.Specification
 
 class ConversationServiceSpec extends Specification {
@@ -26,18 +28,22 @@ class ConversationServiceSpec extends Specification {
     private ConversationMapper conversationMapper = Mock()
     private GroupMemberMapper groupMemberMapper = Mock()
     private GroupMemberService groupMemberService
+    private final ConversationSequenceService conversationSequenceService = Mock();
+    private final EntityManager entityManager = Mock();
 
 
     def setup() {
         groupMemberService = Mock(GroupMemberService, constructorArgs: [groupMemberRepository, conversationRepository])
-                as GroupMemberService
 
         conversationService = new ConversationService(
                 conversationRepository,
                 userRepository,
                 conversationMapper,
                 groupMemberMapper,
-                groupMemberService
+                groupMemberService,
+                groupMemberRepository,
+                conversationSequenceService,
+                entityManager
         )
     }
 
@@ -81,31 +87,34 @@ class ConversationServiceSpec extends Specification {
         )
 
         // 模拟 repository 和 mapper 的行为
-        conversationRepository.save(_ as Conversation) >> savedConversation
+        conversationRepository.saveAndFlush(_ as Conversation) >> savedConversation
+        entityManager.getReference(Conversation.class, 1L) >> savedConversation
+        userRepository.getReferenceById(1L) >> user
+        userRepository.getReferenceById(2L) >> user2
         conversationMapper.toDTO(savedConversation) >> mockResponse
-
+        groupMemberRepository.saveAll(_ as List) >> memberList
 
         // Mock groupMemberService.addMemberToGroup 的调用
         groupMemberService.addMemberToGroup(_ as Long, _ as Long) >> {}
 
         when: "执行测试"
         // 调用实际的创建群组服务方法
-        ConversationRes result = conversationService.createGroup(groupName, description, members)
+        ConversationRes result = conversationService.createGroup(userInfo1.getUserId(), groupName, description, members)
 
         then: "验证结果"
         // 验证结果是否与预期一致
         result == mockResponse
 //
 //        // 验证保存对话的调用
-        1 * conversationRepository.save({ Conversation conv ->
-            conv.groupName == groupName &&
+        1 * conversationRepository.saveAndFlush({ Conversation conv ->
+                    conv.groupName == groupName &&
                     conv.description == description &&
                     conv.conversationType == ConversationType.GROUP &&
                     conv.status == ConversationStatus.ACTIVE
         }) >> savedConversation
 //
 //        // 验证添加成员到群组的方法调用
-//        2 * groupMemberService.addMemberToGroup(1L, _ as Long) >> {}
+        1 * groupMemberRepository.saveAll(_ as List) >> {}
 //
 //        // 验证映射器转换为 DTO
         1 * conversationMapper.toDTO(savedConversation) >> mockResponse
@@ -116,10 +125,11 @@ class ConversationServiceSpec extends Specification {
         given: "准备测试数据"
         String groupName = "Test Group"
         String description = "A test group"
+        Long createUserId = 1L
         List<UserInfo> emptyMembers = []
 
         when: "执行测试"
-        conversationService.createGroup(groupName, description, emptyMembers)
+        conversationService.createGroup(createUserId, groupName, description, emptyMembers)
 
         then: "验证异常"
         IllegalArgumentException exception = thrown()
@@ -134,10 +144,11 @@ class ConversationServiceSpec extends Specification {
         given: "准备测试数据"
         String groupName = "Test Group"
         String description = "A test group"
+        Long createUserId = 1L
         List<UserInfo> nullMembers = null
 
         when: "执行测试"
-        conversationService.createGroup(groupName, description, nullMembers)
+        conversationService.createGroup(createUserId, groupName, description, nullMembers)
 
         then: "验证异常"
         IllegalArgumentException exception = thrown()

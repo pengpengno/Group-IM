@@ -14,18 +14,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,18 +34,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.model.UserInfo
-import com.github.im.group.viewmodel.ChatViewModel
-import kotlinx.coroutines.launch
-import org.koin.compose.viewmodel.koinViewModel
-import io.github.aakira.napier.Napier
-import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.graphics.Color
 import com.github.im.group.ui.ChatRoom
 import com.github.im.group.ui.UserAvatar
+import com.github.im.group.viewmodel.ChatViewModel
+import com.github.im.group.viewmodel.LoginState
+import com.github.im.group.viewmodel.UserViewModel
+import io.github.aakira.napier.Napier
+import kotlinx.coroutines.launch
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun AddFriendScreen(
@@ -59,10 +60,30 @@ fun AddFriendScreen(
     var showUserDetails by remember { mutableStateOf(false) }
     var selectedUser by remember { mutableStateOf<UserInfo?>(null) }
     var isFriend by remember { mutableStateOf(false) }
-    
+    val loginState by userViewModel.loginState.collectAsState();
     val searchResults by userViewModel.searchResults.collectAsState()
     val friends by userViewModel.friends.collectAsState()
-    
+
+    var userInfo by remember {
+        mutableStateOf(userViewModel.getCurrentUser())
+    }
+    LaunchedEffect(loginState){
+        when(val state = loginState) {
+            is LoginState.Authenticated -> {
+                // 获取当前用户信息
+                userInfo =  state.userInfo
+                Napier.i("Current user: $userInfo")
+                // 加载好友列表
+                userViewModel.loadFriends()
+            }
+            else -> {
+
+            }
+
+        }
+
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -137,18 +158,16 @@ fun AddFriendScreen(
                                     // 导航到聊天界面
                                     scope.launch {
                                         try {
-                                            val conversation = chatViewModel.getPrivateChat(user.userId)
-                                            navHostController.navigate(ChatRoom(conversation.conversationId))
+//                                            val conversation = chatViewModel.getOrCreatePrivateChat(user.userId)
+                                            //TODO  这里的逻辑有点 问题 需要处理修改掉
+                                            navHostController.navigate(ChatRoom.CreatePrivate(user.userId))
                                         } catch (e: Exception) {
                                             Napier.e("创建或获取会话失败", e)
                                         }
                                     }
                                 } else {
                                     // 添加好友
-                                    userViewModel.addFriend(
-                                        userId = userViewModel.getCurrentUser().userId,
-                                        friendId = user.userId
-                                    )
+
                                 }
                             }
                         )
@@ -179,19 +198,20 @@ fun AddFriendScreen(
                     // 导航到聊天界面
                     scope.launch {
                         try {
-                            val conversation = chatViewModel.getPrivateChat(selectedUser!!.userId)
-                            showUserDetails = false
-                            navHostController.navigate(ChatRoom(conversation.conversationId))
+
+                            selectedUser?.let {
+                                // 导航到具体的聊天室
+                                navHostController.navigate(ChatRoom.CreatePrivate(it.userId))
+                                showUserDetails = false
+                            }
+
                         } catch (e: Exception) {
-                            Napier.e("创建或获取会话失败", e)
+                            Napier.e("创建或获取私聊会话失败", e)
                         }
                     }
                 } else {
                     // 添加好友
-                    userViewModel.addFriend(
-                        userId = userViewModel.getCurrentUser().userId,
-                        friendId = selectedUser!!.userId
-                    )
+//                    userViewModel.addFriend(userInfo.userId, selectedUser!!.userId)
                     showUserDetails = false
                 }
             }

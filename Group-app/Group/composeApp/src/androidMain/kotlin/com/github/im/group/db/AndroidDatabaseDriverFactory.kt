@@ -14,6 +14,7 @@ import db.Conversation
 import db.FileResource
 import db.Friendship
 import db.Message
+import db.OfflineMessage
 import db.User
 
 class AndroidDatabaseDriverFactory(private val context: Context) : DatabaseDriverFactory {
@@ -46,9 +47,15 @@ class AndroidDatabaseDriverFactory(private val context: Context) : DatabaseDrive
 
             FriendshipAdapter = Friendship.Adapter(
                 statusAdapter = EnumColumnAdapter<FriendRequestStatus>(),
+
                 created_atAdapter = localDateTimeAdapter,
                 updated_atAdapter = localDateTimeAdapter
-            )
+            ),
+            OfflineMessageAdapter = OfflineMessage.Adapter(
+                statusAdapter = EnumColumnAdapter<MessageStatus>(),
+                created_atAdapter = localDateTimeAdapter,
+                message_typeAdapter = EnumColumnAdapter<MessageType>()
+            ),
         )
     }
 }

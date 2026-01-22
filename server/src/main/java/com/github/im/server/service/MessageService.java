@@ -117,7 +117,7 @@ public class MessageService {
         message.setConversation(proxy);
         message.setContent(chatMessage.getContent());
         message.setClientMsgId(chatMessage.getClientMsgId());
-        var userProxy = entityManager.getReference(User.class,chatMessage.getFromAccountInfo().getUserId());
+        var userProxy = entityManager.getReference(User.class,chatMessage.getFromUser().getUserId());
         // 生成 会话中的消息序列
         message.setSequenceId(conversationSequenceService.nextSequence(chatMessage.getConversationId()));
         message.setFromAccountId(userProxy);

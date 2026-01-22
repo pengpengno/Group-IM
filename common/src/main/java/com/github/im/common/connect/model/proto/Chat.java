@@ -26,6 +26,11 @@ public final class Chat {
         (com.google.protobuf.ExtensionRegistryLite) registry);
   }
   /**
+   * <pre>
+   * *
+   * 消息状态
+   * </pre>
+   *
    * Protobuf enum {@code com.github.im.common.connect.model.proto.MessagesStatus}
    */
   public enum MessagesStatus
@@ -409,10 +414,6 @@ public final class Chat {
       com.google.protobuf.MessageOrBuilder {
 
     /**
-     * <pre>
-     * 服务端的消息标识
-     * </pre>
-     *
      * <code>int64 msgId = 1;</code>
      * @return The msgId.
      */
@@ -420,7 +421,7 @@ public final class Chat {
 
     /**
      * <pre>
-     * client msg Id 配合 sequenceId 用于QOS ACK
+     * client msg Id 配合 sequenceId 用于QOS ACK 使用UUID 即可
      * </pre>
      *
      * <code>string clientMsgId = 4;</code>
@@ -429,7 +430,7 @@ public final class Chat {
     java.lang.String getClientMsgId();
     /**
      * <pre>
-     * client msg Id 配合 sequenceId 用于QOS ACK
+     * client msg Id 配合 sequenceId 用于QOS ACK 使用UUID 即可
      * </pre>
      *
      * <code>string clientMsgId = 4;</code>
@@ -439,11 +440,19 @@ public final class Chat {
         getClientMsgIdBytes();
 
     /**
+     * <pre>
+     * 消息内容
+     * </pre>
+     *
      * <code>string content = 3;</code>
      * @return The content.
      */
     java.lang.String getContent();
     /**
+     * <pre>
+     * 消息内容
+     * </pre>
+     *
      * <code>string content = 3;</code>
      * @return The bytes for content.
      */
@@ -452,7 +461,7 @@ public final class Chat {
 
     /**
      * <pre>
-     * client-server
+     * 消息对应的会话Id
      * </pre>
      *
      * <code>int64 conversationId = 9;</code>
@@ -473,62 +482,54 @@ public final class Chat {
         getConversationNameBytes();
 
     /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
-     * @return Whether the fromAccountInfo field is set.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 2;</code>
+     * @return Whether the fromUser field is set.
      */
-    boolean hasFromAccountInfo();
+    boolean hasFromUser();
     /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
-     * @return The fromAccountInfo.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 2;</code>
+     * @return The fromUser.
      */
-    com.github.im.common.connect.model.proto.Account.AccountInfo getFromAccountInfo();
+    com.github.im.common.connect.model.proto.User.UserInfo getFromUser();
     /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
+     * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 2;</code>
      */
-    com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getFromAccountInfoOrBuilder();
+    com.github.im.common.connect.model.proto.User.UserInfoOrBuilder getFromUserOrBuilder();
 
     /**
      * <pre>
      * server-client 需要使用 用于指示推送到的客户端
      * </pre>
      *
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-     * @return Whether the toAccountInfo field is set.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo toUser = 8;</code>
+     * @return Whether the toUser field is set.
      */
-    boolean hasToAccountInfo();
+    boolean hasToUser();
     /**
      * <pre>
      * server-client 需要使用 用于指示推送到的客户端
      * </pre>
      *
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-     * @return The toAccountInfo.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo toUser = 8;</code>
+     * @return The toUser.
      */
-    com.github.im.common.connect.model.proto.Account.AccountInfo getToAccountInfo();
+    com.github.im.common.connect.model.proto.User.UserInfo getToUser();
     /**
      * <pre>
      * server-client 需要使用 用于指示推送到的客户端
      * </pre>
      *
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
+     * <code>.com.github.im.common.connect.model.proto.UserInfo toUser = 8;</code>
      */
-    com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getToAccountInfoOrBuilder();
+    com.github.im.common.connect.model.proto.User.UserInfoOrBuilder getToUserOrBuilder();
 
     /**
-     * <pre>
-     * 客户端时间
-     * </pre>
-     *
      * <code>int64 clientTimeStamp = 7;</code>
      * @return The clientTimeStamp.
      */
     long getClientTimeStamp();
 
     /**
-     * <pre>
-     * 服务端时间
-     * </pre>
-     *
      * <code>int64 serverTimeStamp = 12;</code>
      * @return The serverTimeStamp.
      */
@@ -632,10 +633,6 @@ public final class Chat {
     public static final int MSGID_FIELD_NUMBER = 1;
     private long msgId_ = 0L;
     /**
-     * <pre>
-     * 服务端的消息标识
-     * </pre>
-     *
      * <code>int64 msgId = 1;</code>
      * @return The msgId.
      */
@@ -649,7 +646,7 @@ public final class Chat {
     private volatile java.lang.Object clientMsgId_ = "";
     /**
      * <pre>
-     * client msg Id 配合 sequenceId 用于QOS ACK
+     * client msg Id 配合 sequenceId 用于QOS ACK 使用UUID 即可
      * </pre>
      *
      * <code>string clientMsgId = 4;</code>
@@ -670,7 +667,7 @@ public final class Chat {
     }
     /**
      * <pre>
-     * client msg Id 配合 sequenceId 用于QOS ACK
+     * client msg Id 配合 sequenceId 用于QOS ACK 使用UUID 即可
      * </pre>
      *
      * <code>string clientMsgId = 4;</code>
@@ -695,6 +692,10 @@ public final class Chat {
     @SuppressWarnings("serial")
     private volatile java.lang.Object content_ = "";
     /**
+     * <pre>
+     * 消息内容
+     * </pre>
+     *
      * <code>string content = 3;</code>
      * @return The content.
      */
@@ -712,6 +713,10 @@ public final class Chat {
       }
     }
     /**
+     * <pre>
+     * 消息内容
+     * </pre>
+     *
      * <code>string content = 3;</code>
      * @return The bytes for content.
      */
@@ -734,7 +739,7 @@ public final class Chat {
     private long conversationId_ = 0L;
     /**
      * <pre>
-     * client-server
+     * 消息对应的会话Id
      * </pre>
      *
      * <code>int64 conversationId = 9;</code>
@@ -784,44 +789,44 @@ public final class Chat {
       }
     }
 
-    public static final int FROMACCOUNTINFO_FIELD_NUMBER = 2;
-    private com.github.im.common.connect.model.proto.Account.AccountInfo fromAccountInfo_;
+    public static final int FROMUSER_FIELD_NUMBER = 2;
+    private com.github.im.common.connect.model.proto.User.UserInfo fromUser_;
     /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
-     * @return Whether the fromAccountInfo field is set.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 2;</code>
+     * @return Whether the fromUser field is set.
      */
     @java.lang.Override
-    public boolean hasFromAccountInfo() {
+    public boolean hasFromUser() {
       return ((bitField0_ & 0x00000001) != 0);
     }
     /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
-     * @return The fromAccountInfo.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 2;</code>
+     * @return The fromUser.
      */
     @java.lang.Override
-    public com.github.im.common.connect.model.proto.Account.AccountInfo getFromAccountInfo() {
-      return fromAccountInfo_ == null ? com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : fromAccountInfo_;
+    public com.github.im.common.connect.model.proto.User.UserInfo getFromUser() {
+      return fromUser_ == null ? com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance() : fromUser_;
     }
     /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
+     * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 2;</code>
      */
     @java.lang.Override
-    public com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getFromAccountInfoOrBuilder() {
-      return fromAccountInfo_ == null ? com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : fromAccountInfo_;
+    public com.github.im.common.connect.model.proto.User.UserInfoOrBuilder getFromUserOrBuilder() {
+      return fromUser_ == null ? com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance() : fromUser_;
     }
 
-    public static final int TOACCOUNTINFO_FIELD_NUMBER = 8;
-    private com.github.im.common.connect.model.proto.Account.AccountInfo toAccountInfo_;
+    public static final int TOUSER_FIELD_NUMBER = 8;
+    private com.github.im.common.connect.model.proto.User.UserInfo toUser_;
     /**
      * <pre>
      * server-client 需要使用 用于指示推送到的客户端
      * </pre>
      *
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-     * @return Whether the toAccountInfo field is set.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo toUser = 8;</code>
+     * @return Whether the toUser field is set.
      */
     @java.lang.Override
-    public boolean hasToAccountInfo() {
+    public boolean hasToUser() {
       return ((bitField0_ & 0x00000002) != 0);
     }
     /**
@@ -829,32 +834,28 @@ public final class Chat {
      * server-client 需要使用 用于指示推送到的客户端
      * </pre>
      *
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-     * @return The toAccountInfo.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo toUser = 8;</code>
+     * @return The toUser.
      */
     @java.lang.Override
-    public com.github.im.common.connect.model.proto.Account.AccountInfo getToAccountInfo() {
-      return toAccountInfo_ == null ? com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : toAccountInfo_;
+    public com.github.im.common.connect.model.proto.User.UserInfo getToUser() {
+      return toUser_ == null ? com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance() : toUser_;
     }
     /**
      * <pre>
      * server-client 需要使用 用于指示推送到的客户端
      * </pre>
      *
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
+     * <code>.com.github.im.common.connect.model.proto.UserInfo toUser = 8;</code>
      */
     @java.lang.Override
-    public com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getToAccountInfoOrBuilder() {
-      return toAccountInfo_ == null ? com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : toAccountInfo_;
+    public com.github.im.common.connect.model.proto.User.UserInfoOrBuilder getToUserOrBuilder() {
+      return toUser_ == null ? com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance() : toUser_;
     }
 
     public static final int CLIENTTIMESTAMP_FIELD_NUMBER = 7;
     private long clientTimeStamp_ = 0L;
     /**
-     * <pre>
-     * 客户端时间
-     * </pre>
-     *
      * <code>int64 clientTimeStamp = 7;</code>
      * @return The clientTimeStamp.
      */
@@ -866,10 +867,6 @@ public final class Chat {
     public static final int SERVERTIMESTAMP_FIELD_NUMBER = 12;
     private long serverTimeStamp_ = 0L;
     /**
-     * <pre>
-     * 服务端时间
-     * </pre>
-     *
      * <code>int64 serverTimeStamp = 12;</code>
      * @return The serverTimeStamp.
      */
@@ -963,7 +960,7 @@ public final class Chat {
         output.writeInt64(1, msgId_);
       }
       if (((bitField0_ & 0x00000001) != 0)) {
-        output.writeMessage(2, getFromAccountInfo());
+        output.writeMessage(2, getFromUser());
       }
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(content_)) {
         com.google.protobuf.GeneratedMessage.writeString(output, 3, content_);
@@ -981,7 +978,7 @@ public final class Chat {
         output.writeInt64(7, clientTimeStamp_);
       }
       if (((bitField0_ & 0x00000002) != 0)) {
-        output.writeMessage(8, getToAccountInfo());
+        output.writeMessage(8, getToUser());
       }
       if (conversationId_ != 0L) {
         output.writeInt64(9, conversationId_);
@@ -1010,7 +1007,7 @@ public final class Chat {
       }
       if (((bitField0_ & 0x00000001) != 0)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(2, getFromAccountInfo());
+          .computeMessageSize(2, getFromUser());
       }
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(content_)) {
         size += com.google.protobuf.GeneratedMessage.computeStringSize(3, content_);
@@ -1032,7 +1029,7 @@ public final class Chat {
       }
       if (((bitField0_ & 0x00000002) != 0)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(8, getToAccountInfo());
+          .computeMessageSize(8, getToUser());
       }
       if (conversationId_ != 0L) {
         size += com.google.protobuf.CodedOutputStream
@@ -1074,15 +1071,15 @@ public final class Chat {
           != other.getConversationId()) return false;
       if (!getConversationName()
           .equals(other.getConversationName())) return false;
-      if (hasFromAccountInfo() != other.hasFromAccountInfo()) return false;
-      if (hasFromAccountInfo()) {
-        if (!getFromAccountInfo()
-            .equals(other.getFromAccountInfo())) return false;
+      if (hasFromUser() != other.hasFromUser()) return false;
+      if (hasFromUser()) {
+        if (!getFromUser()
+            .equals(other.getFromUser())) return false;
       }
-      if (hasToAccountInfo() != other.hasToAccountInfo()) return false;
-      if (hasToAccountInfo()) {
-        if (!getToAccountInfo()
-            .equals(other.getToAccountInfo())) return false;
+      if (hasToUser() != other.hasToUser()) return false;
+      if (hasToUser()) {
+        if (!getToUser()
+            .equals(other.getToUser())) return false;
       }
       if (getClientTimeStamp()
           != other.getClientTimeStamp()) return false;
@@ -1115,13 +1112,13 @@ public final class Chat {
           getConversationId());
       hash = (37 * hash) + CONVERSATIONNAME_FIELD_NUMBER;
       hash = (53 * hash) + getConversationName().hashCode();
-      if (hasFromAccountInfo()) {
-        hash = (37 * hash) + FROMACCOUNTINFO_FIELD_NUMBER;
-        hash = (53 * hash) + getFromAccountInfo().hashCode();
+      if (hasFromUser()) {
+        hash = (37 * hash) + FROMUSER_FIELD_NUMBER;
+        hash = (53 * hash) + getFromUser().hashCode();
       }
-      if (hasToAccountInfo()) {
-        hash = (37 * hash) + TOACCOUNTINFO_FIELD_NUMBER;
-        hash = (53 * hash) + getToAccountInfo().hashCode();
+      if (hasToUser()) {
+        hash = (37 * hash) + TOUSER_FIELD_NUMBER;
+        hash = (53 * hash) + getToUser().hashCode();
       }
       hash = (37 * hash) + CLIENTTIMESTAMP_FIELD_NUMBER;
       hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
@@ -1270,8 +1267,8 @@ public final class Chat {
       private void maybeForceBuilderInitialization() {
         if (com.google.protobuf.GeneratedMessage
                 .alwaysUseFieldBuilders) {
-          getFromAccountInfoFieldBuilder();
-          getToAccountInfoFieldBuilder();
+          getFromUserFieldBuilder();
+          getToUserFieldBuilder();
         }
       }
       @java.lang.Override
@@ -1283,15 +1280,15 @@ public final class Chat {
         content_ = "";
         conversationId_ = 0L;
         conversationName_ = "";
-        fromAccountInfo_ = null;
-        if (fromAccountInfoBuilder_ != null) {
-          fromAccountInfoBuilder_.dispose();
-          fromAccountInfoBuilder_ = null;
+        fromUser_ = null;
+        if (fromUserBuilder_ != null) {
+          fromUserBuilder_.dispose();
+          fromUserBuilder_ = null;
         }
-        toAccountInfo_ = null;
-        if (toAccountInfoBuilder_ != null) {
-          toAccountInfoBuilder_.dispose();
-          toAccountInfoBuilder_ = null;
+        toUser_ = null;
+        if (toUserBuilder_ != null) {
+          toUserBuilder_.dispose();
+          toUserBuilder_ = null;
         }
         clientTimeStamp_ = 0L;
         serverTimeStamp_ = 0L;
@@ -1348,15 +1345,15 @@ public final class Chat {
         }
         int to_bitField0_ = 0;
         if (((from_bitField0_ & 0x00000020) != 0)) {
-          result.fromAccountInfo_ = fromAccountInfoBuilder_ == null
-              ? fromAccountInfo_
-              : fromAccountInfoBuilder_.build();
+          result.fromUser_ = fromUserBuilder_ == null
+              ? fromUser_
+              : fromUserBuilder_.build();
           to_bitField0_ |= 0x00000001;
         }
         if (((from_bitField0_ & 0x00000040) != 0)) {
-          result.toAccountInfo_ = toAccountInfoBuilder_ == null
-              ? toAccountInfo_
-              : toAccountInfoBuilder_.build();
+          result.toUser_ = toUserBuilder_ == null
+              ? toUser_
+              : toUserBuilder_.build();
           to_bitField0_ |= 0x00000002;
         }
         if (((from_bitField0_ & 0x00000080) != 0)) {
@@ -1410,11 +1407,11 @@ public final class Chat {
           bitField0_ |= 0x00000010;
           onChanged();
         }
-        if (other.hasFromAccountInfo()) {
-          mergeFromAccountInfo(other.getFromAccountInfo());
+        if (other.hasFromUser()) {
+          mergeFromUser(other.getFromUser());
         }
-        if (other.hasToAccountInfo()) {
-          mergeToAccountInfo(other.getToAccountInfo());
+        if (other.hasToUser()) {
+          mergeToUser(other.getToUser());
         }
         if (other.getClientTimeStamp() != 0L) {
           setClientTimeStamp(other.getClientTimeStamp());
@@ -1464,7 +1461,7 @@ public final class Chat {
               } // case 8
               case 18: {
                 input.readMessage(
-                    getFromAccountInfoFieldBuilder().getBuilder(),
+                    getFromUserFieldBuilder().getBuilder(),
                     extensionRegistry);
                 bitField0_ |= 0x00000020;
                 break;
@@ -1496,7 +1493,7 @@ public final class Chat {
               } // case 56
               case 66: {
                 input.readMessage(
-                    getToAccountInfoFieldBuilder().getBuilder(),
+                    getToUserFieldBuilder().getBuilder(),
                     extensionRegistry);
                 bitField0_ |= 0x00000040;
                 break;
@@ -1540,10 +1537,6 @@ public final class Chat {
 
       private long msgId_ ;
       /**
-       * <pre>
-       * 服务端的消息标识
-       * </pre>
-       *
        * <code>int64 msgId = 1;</code>
        * @return The msgId.
        */
@@ -1552,10 +1545,6 @@ public final class Chat {
         return msgId_;
       }
       /**
-       * <pre>
-       * 服务端的消息标识
-       * </pre>
-       *
        * <code>int64 msgId = 1;</code>
        * @param value The msgId to set.
        * @return This builder for chaining.
@@ -1568,10 +1557,6 @@ public final class Chat {
         return this;
       }
       /**
-       * <pre>
-       * 服务端的消息标识
-       * </pre>
-       *
        * <code>int64 msgId = 1;</code>
        * @return This builder for chaining.
        */
@@ -1585,7 +1570,7 @@ public final class Chat {
       private java.lang.Object clientMsgId_ = "";
       /**
        * <pre>
-       * client msg Id 配合 sequenceId 用于QOS ACK
+       * client msg Id 配合 sequenceId 用于QOS ACK 使用UUID 即可
        * </pre>
        *
        * <code>string clientMsgId = 4;</code>
@@ -1605,7 +1590,7 @@ public final class Chat {
       }
       /**
        * <pre>
-       * client msg Id 配合 sequenceId 用于QOS ACK
+       * client msg Id 配合 sequenceId 用于QOS ACK 使用UUID 即可
        * </pre>
        *
        * <code>string clientMsgId = 4;</code>
@@ -1626,7 +1611,7 @@ public final class Chat {
       }
       /**
        * <pre>
-       * client msg Id 配合 sequenceId 用于QOS ACK
+       * client msg Id 配合 sequenceId 用于QOS ACK 使用UUID 即可
        * </pre>
        *
        * <code>string clientMsgId = 4;</code>
@@ -1643,7 +1628,7 @@ public final class Chat {
       }
       /**
        * <pre>
-       * client msg Id 配合 sequenceId 用于QOS ACK
+       * client msg Id 配合 sequenceId 用于QOS ACK 使用UUID 即可
        * </pre>
        *
        * <code>string clientMsgId = 4;</code>
@@ -1657,7 +1642,7 @@ public final class Chat {
       }
       /**
        * <pre>
-       * client msg Id 配合 sequenceId 用于QOS ACK
+       * client msg Id 配合 sequenceId 用于QOS ACK 使用UUID 即可
        * </pre>
        *
        * <code>string clientMsgId = 4;</code>
@@ -1676,6 +1661,10 @@ public final class Chat {
 
       private java.lang.Object content_ = "";
       /**
+       * <pre>
+       * 消息内容
+       * </pre>
+       *
        * <code>string content = 3;</code>
        * @return The content.
        */
@@ -1692,6 +1681,10 @@ public final class Chat {
         }
       }
       /**
+       * <pre>
+       * 消息内容
+       * </pre>
+       *
        * <code>string content = 3;</code>
        * @return The bytes for content.
        */
@@ -1709,6 +1702,10 @@ public final class Chat {
         }
       }
       /**
+       * <pre>
+       * 消息内容
+       * </pre>
+       *
        * <code>string content = 3;</code>
        * @param value The content to set.
        * @return This builder for chaining.
@@ -1722,6 +1719,10 @@ public final class Chat {
         return this;
       }
       /**
+       * <pre>
+       * 消息内容
+       * </pre>
+       *
        * <code>string content = 3;</code>
        * @return This builder for chaining.
        */
@@ -1732,6 +1733,10 @@ public final class Chat {
         return this;
       }
       /**
+       * <pre>
+       * 消息内容
+       * </pre>
+       *
        * <code>string content = 3;</code>
        * @param value The bytes for content to set.
        * @return This builder for chaining.
@@ -1749,7 +1754,7 @@ public final class Chat {
       private long conversationId_ ;
       /**
        * <pre>
-       * client-server
+       * 消息对应的会话Id
        * </pre>
        *
        * <code>int64 conversationId = 9;</code>
@@ -1761,7 +1766,7 @@ public final class Chat {
       }
       /**
        * <pre>
-       * client-server
+       * 消息对应的会话Id
        * </pre>
        *
        * <code>int64 conversationId = 9;</code>
@@ -1777,7 +1782,7 @@ public final class Chat {
       }
       /**
        * <pre>
-       * client-server
+       * 消息对应的会话Id
        * </pre>
        *
        * <code>int64 conversationId = 9;</code>
@@ -1862,139 +1867,139 @@ public final class Chat {
         return this;
       }
 
-      private com.github.im.common.connect.model.proto.Account.AccountInfo fromAccountInfo_;
+      private com.github.im.common.connect.model.proto.User.UserInfo fromUser_;
       private com.google.protobuf.SingleFieldBuilder<
-          com.github.im.common.connect.model.proto.Account.AccountInfo, com.github.im.common.connect.model.proto.Account.AccountInfo.Builder, com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder> fromAccountInfoBuilder_;
+          com.github.im.common.connect.model.proto.User.UserInfo, com.github.im.common.connect.model.proto.User.UserInfo.Builder, com.github.im.common.connect.model.proto.User.UserInfoOrBuilder> fromUserBuilder_;
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
-       * @return Whether the fromAccountInfo field is set.
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 2;</code>
+       * @return Whether the fromUser field is set.
        */
-      public boolean hasFromAccountInfo() {
+      public boolean hasFromUser() {
         return ((bitField0_ & 0x00000020) != 0);
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
-       * @return The fromAccountInfo.
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 2;</code>
+       * @return The fromUser.
        */
-      public com.github.im.common.connect.model.proto.Account.AccountInfo getFromAccountInfo() {
-        if (fromAccountInfoBuilder_ == null) {
-          return fromAccountInfo_ == null ? com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : fromAccountInfo_;
+      public com.github.im.common.connect.model.proto.User.UserInfo getFromUser() {
+        if (fromUserBuilder_ == null) {
+          return fromUser_ == null ? com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance() : fromUser_;
         } else {
-          return fromAccountInfoBuilder_.getMessage();
+          return fromUserBuilder_.getMessage();
         }
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 2;</code>
        */
-      public Builder setFromAccountInfo(com.github.im.common.connect.model.proto.Account.AccountInfo value) {
-        if (fromAccountInfoBuilder_ == null) {
+      public Builder setFromUser(com.github.im.common.connect.model.proto.User.UserInfo value) {
+        if (fromUserBuilder_ == null) {
           if (value == null) {
             throw new NullPointerException();
           }
-          fromAccountInfo_ = value;
+          fromUser_ = value;
         } else {
-          fromAccountInfoBuilder_.setMessage(value);
+          fromUserBuilder_.setMessage(value);
         }
         bitField0_ |= 0x00000020;
         onChanged();
         return this;
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 2;</code>
        */
-      public Builder setFromAccountInfo(
-          com.github.im.common.connect.model.proto.Account.AccountInfo.Builder builderForValue) {
-        if (fromAccountInfoBuilder_ == null) {
-          fromAccountInfo_ = builderForValue.build();
+      public Builder setFromUser(
+          com.github.im.common.connect.model.proto.User.UserInfo.Builder builderForValue) {
+        if (fromUserBuilder_ == null) {
+          fromUser_ = builderForValue.build();
         } else {
-          fromAccountInfoBuilder_.setMessage(builderForValue.build());
+          fromUserBuilder_.setMessage(builderForValue.build());
         }
         bitField0_ |= 0x00000020;
         onChanged();
         return this;
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 2;</code>
        */
-      public Builder mergeFromAccountInfo(com.github.im.common.connect.model.proto.Account.AccountInfo value) {
-        if (fromAccountInfoBuilder_ == null) {
+      public Builder mergeFromUser(com.github.im.common.connect.model.proto.User.UserInfo value) {
+        if (fromUserBuilder_ == null) {
           if (((bitField0_ & 0x00000020) != 0) &&
-            fromAccountInfo_ != null &&
-            fromAccountInfo_ != com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance()) {
-            getFromAccountInfoBuilder().mergeFrom(value);
+            fromUser_ != null &&
+            fromUser_ != com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance()) {
+            getFromUserBuilder().mergeFrom(value);
           } else {
-            fromAccountInfo_ = value;
+            fromUser_ = value;
           }
         } else {
-          fromAccountInfoBuilder_.mergeFrom(value);
+          fromUserBuilder_.mergeFrom(value);
         }
-        if (fromAccountInfo_ != null) {
+        if (fromUser_ != null) {
           bitField0_ |= 0x00000020;
           onChanged();
         }
         return this;
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 2;</code>
        */
-      public Builder clearFromAccountInfo() {
+      public Builder clearFromUser() {
         bitField0_ = (bitField0_ & ~0x00000020);
-        fromAccountInfo_ = null;
-        if (fromAccountInfoBuilder_ != null) {
-          fromAccountInfoBuilder_.dispose();
-          fromAccountInfoBuilder_ = null;
+        fromUser_ = null;
+        if (fromUserBuilder_ != null) {
+          fromUserBuilder_.dispose();
+          fromUserBuilder_ = null;
         }
         onChanged();
         return this;
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 2;</code>
        */
-      public com.github.im.common.connect.model.proto.Account.AccountInfo.Builder getFromAccountInfoBuilder() {
+      public com.github.im.common.connect.model.proto.User.UserInfo.Builder getFromUserBuilder() {
         bitField0_ |= 0x00000020;
         onChanged();
-        return getFromAccountInfoFieldBuilder().getBuilder();
+        return getFromUserFieldBuilder().getBuilder();
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 2;</code>
        */
-      public com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getFromAccountInfoOrBuilder() {
-        if (fromAccountInfoBuilder_ != null) {
-          return fromAccountInfoBuilder_.getMessageOrBuilder();
+      public com.github.im.common.connect.model.proto.User.UserInfoOrBuilder getFromUserOrBuilder() {
+        if (fromUserBuilder_ != null) {
+          return fromUserBuilder_.getMessageOrBuilder();
         } else {
-          return fromAccountInfo_ == null ?
-              com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : fromAccountInfo_;
+          return fromUser_ == null ?
+              com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance() : fromUser_;
         }
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccountInfo = 2;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          com.github.im.common.connect.model.proto.Account.AccountInfo, com.github.im.common.connect.model.proto.Account.AccountInfo.Builder, com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder> 
-          getFromAccountInfoFieldBuilder() {
-        if (fromAccountInfoBuilder_ == null) {
-          fromAccountInfoBuilder_ = new com.google.protobuf.SingleFieldBuilder<
-              com.github.im.common.connect.model.proto.Account.AccountInfo, com.github.im.common.connect.model.proto.Account.AccountInfo.Builder, com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder>(
-                  getFromAccountInfo(),
+          com.github.im.common.connect.model.proto.User.UserInfo, com.github.im.common.connect.model.proto.User.UserInfo.Builder, com.github.im.common.connect.model.proto.User.UserInfoOrBuilder> 
+          getFromUserFieldBuilder() {
+        if (fromUserBuilder_ == null) {
+          fromUserBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              com.github.im.common.connect.model.proto.User.UserInfo, com.github.im.common.connect.model.proto.User.UserInfo.Builder, com.github.im.common.connect.model.proto.User.UserInfoOrBuilder>(
+                  getFromUser(),
                   getParentForChildren(),
                   isClean());
-          fromAccountInfo_ = null;
+          fromUser_ = null;
         }
-        return fromAccountInfoBuilder_;
+        return fromUserBuilder_;
       }
 
-      private com.github.im.common.connect.model.proto.Account.AccountInfo toAccountInfo_;
+      private com.github.im.common.connect.model.proto.User.UserInfo toUser_;
       private com.google.protobuf.SingleFieldBuilder<
-          com.github.im.common.connect.model.proto.Account.AccountInfo, com.github.im.common.connect.model.proto.Account.AccountInfo.Builder, com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder> toAccountInfoBuilder_;
+          com.github.im.common.connect.model.proto.User.UserInfo, com.github.im.common.connect.model.proto.User.UserInfo.Builder, com.github.im.common.connect.model.proto.User.UserInfoOrBuilder> toUserBuilder_;
       /**
        * <pre>
        * server-client 需要使用 用于指示推送到的客户端
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-       * @return Whether the toAccountInfo field is set.
+       * <code>.com.github.im.common.connect.model.proto.UserInfo toUser = 8;</code>
+       * @return Whether the toUser field is set.
        */
-      public boolean hasToAccountInfo() {
+      public boolean hasToUser() {
         return ((bitField0_ & 0x00000040) != 0);
       }
       /**
@@ -2002,14 +2007,14 @@ public final class Chat {
        * server-client 需要使用 用于指示推送到的客户端
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
-       * @return The toAccountInfo.
+       * <code>.com.github.im.common.connect.model.proto.UserInfo toUser = 8;</code>
+       * @return The toUser.
        */
-      public com.github.im.common.connect.model.proto.Account.AccountInfo getToAccountInfo() {
-        if (toAccountInfoBuilder_ == null) {
-          return toAccountInfo_ == null ? com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : toAccountInfo_;
+      public com.github.im.common.connect.model.proto.User.UserInfo getToUser() {
+        if (toUserBuilder_ == null) {
+          return toUser_ == null ? com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance() : toUser_;
         } else {
-          return toAccountInfoBuilder_.getMessage();
+          return toUserBuilder_.getMessage();
         }
       }
       /**
@@ -2017,16 +2022,16 @@ public final class Chat {
        * server-client 需要使用 用于指示推送到的客户端
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo toUser = 8;</code>
        */
-      public Builder setToAccountInfo(com.github.im.common.connect.model.proto.Account.AccountInfo value) {
-        if (toAccountInfoBuilder_ == null) {
+      public Builder setToUser(com.github.im.common.connect.model.proto.User.UserInfo value) {
+        if (toUserBuilder_ == null) {
           if (value == null) {
             throw new NullPointerException();
           }
-          toAccountInfo_ = value;
+          toUser_ = value;
         } else {
-          toAccountInfoBuilder_.setMessage(value);
+          toUserBuilder_.setMessage(value);
         }
         bitField0_ |= 0x00000040;
         onChanged();
@@ -2037,14 +2042,14 @@ public final class Chat {
        * server-client 需要使用 用于指示推送到的客户端
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo toUser = 8;</code>
        */
-      public Builder setToAccountInfo(
-          com.github.im.common.connect.model.proto.Account.AccountInfo.Builder builderForValue) {
-        if (toAccountInfoBuilder_ == null) {
-          toAccountInfo_ = builderForValue.build();
+      public Builder setToUser(
+          com.github.im.common.connect.model.proto.User.UserInfo.Builder builderForValue) {
+        if (toUserBuilder_ == null) {
+          toUser_ = builderForValue.build();
         } else {
-          toAccountInfoBuilder_.setMessage(builderForValue.build());
+          toUserBuilder_.setMessage(builderForValue.build());
         }
         bitField0_ |= 0x00000040;
         onChanged();
@@ -2055,21 +2060,21 @@ public final class Chat {
        * server-client 需要使用 用于指示推送到的客户端
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo toUser = 8;</code>
        */
-      public Builder mergeToAccountInfo(com.github.im.common.connect.model.proto.Account.AccountInfo value) {
-        if (toAccountInfoBuilder_ == null) {
+      public Builder mergeToUser(com.github.im.common.connect.model.proto.User.UserInfo value) {
+        if (toUserBuilder_ == null) {
           if (((bitField0_ & 0x00000040) != 0) &&
-            toAccountInfo_ != null &&
-            toAccountInfo_ != com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance()) {
-            getToAccountInfoBuilder().mergeFrom(value);
+            toUser_ != null &&
+            toUser_ != com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance()) {
+            getToUserBuilder().mergeFrom(value);
           } else {
-            toAccountInfo_ = value;
+            toUser_ = value;
           }
         } else {
-          toAccountInfoBuilder_.mergeFrom(value);
+          toUserBuilder_.mergeFrom(value);
         }
-        if (toAccountInfo_ != null) {
+        if (toUser_ != null) {
           bitField0_ |= 0x00000040;
           onChanged();
         }
@@ -2080,14 +2085,14 @@ public final class Chat {
        * server-client 需要使用 用于指示推送到的客户端
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo toUser = 8;</code>
        */
-      public Builder clearToAccountInfo() {
+      public Builder clearToUser() {
         bitField0_ = (bitField0_ & ~0x00000040);
-        toAccountInfo_ = null;
-        if (toAccountInfoBuilder_ != null) {
-          toAccountInfoBuilder_.dispose();
-          toAccountInfoBuilder_ = null;
+        toUser_ = null;
+        if (toUserBuilder_ != null) {
+          toUserBuilder_.dispose();
+          toUserBuilder_ = null;
         }
         onChanged();
         return this;
@@ -2097,26 +2102,26 @@ public final class Chat {
        * server-client 需要使用 用于指示推送到的客户端
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo toUser = 8;</code>
        */
-      public com.github.im.common.connect.model.proto.Account.AccountInfo.Builder getToAccountInfoBuilder() {
+      public com.github.im.common.connect.model.proto.User.UserInfo.Builder getToUserBuilder() {
         bitField0_ |= 0x00000040;
         onChanged();
-        return getToAccountInfoFieldBuilder().getBuilder();
+        return getToUserFieldBuilder().getBuilder();
       }
       /**
        * <pre>
        * server-client 需要使用 用于指示推送到的客户端
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo toUser = 8;</code>
        */
-      public com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getToAccountInfoOrBuilder() {
-        if (toAccountInfoBuilder_ != null) {
-          return toAccountInfoBuilder_.getMessageOrBuilder();
+      public com.github.im.common.connect.model.proto.User.UserInfoOrBuilder getToUserOrBuilder() {
+        if (toUserBuilder_ != null) {
+          return toUserBuilder_.getMessageOrBuilder();
         } else {
-          return toAccountInfo_ == null ?
-              com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : toAccountInfo_;
+          return toUser_ == null ?
+              com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance() : toUser_;
         }
       }
       /**
@@ -2124,28 +2129,24 @@ public final class Chat {
        * server-client 需要使用 用于指示推送到的客户端
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo toAccountInfo = 8;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo toUser = 8;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          com.github.im.common.connect.model.proto.Account.AccountInfo, com.github.im.common.connect.model.proto.Account.AccountInfo.Builder, com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder> 
-          getToAccountInfoFieldBuilder() {
-        if (toAccountInfoBuilder_ == null) {
-          toAccountInfoBuilder_ = new com.google.protobuf.SingleFieldBuilder<
-              com.github.im.common.connect.model.proto.Account.AccountInfo, com.github.im.common.connect.model.proto.Account.AccountInfo.Builder, com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder>(
-                  getToAccountInfo(),
+          com.github.im.common.connect.model.proto.User.UserInfo, com.github.im.common.connect.model.proto.User.UserInfo.Builder, com.github.im.common.connect.model.proto.User.UserInfoOrBuilder> 
+          getToUserFieldBuilder() {
+        if (toUserBuilder_ == null) {
+          toUserBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              com.github.im.common.connect.model.proto.User.UserInfo, com.github.im.common.connect.model.proto.User.UserInfo.Builder, com.github.im.common.connect.model.proto.User.UserInfoOrBuilder>(
+                  getToUser(),
                   getParentForChildren(),
                   isClean());
-          toAccountInfo_ = null;
+          toUser_ = null;
         }
-        return toAccountInfoBuilder_;
+        return toUserBuilder_;
       }
 
       private long clientTimeStamp_ ;
       /**
-       * <pre>
-       * 客户端时间
-       * </pre>
-       *
        * <code>int64 clientTimeStamp = 7;</code>
        * @return The clientTimeStamp.
        */
@@ -2154,10 +2155,6 @@ public final class Chat {
         return clientTimeStamp_;
       }
       /**
-       * <pre>
-       * 客户端时间
-       * </pre>
-       *
        * <code>int64 clientTimeStamp = 7;</code>
        * @param value The clientTimeStamp to set.
        * @return This builder for chaining.
@@ -2170,10 +2167,6 @@ public final class Chat {
         return this;
       }
       /**
-       * <pre>
-       * 客户端时间
-       * </pre>
-       *
        * <code>int64 clientTimeStamp = 7;</code>
        * @return This builder for chaining.
        */
@@ -2186,10 +2179,6 @@ public final class Chat {
 
       private long serverTimeStamp_ ;
       /**
-       * <pre>
-       * 服务端时间
-       * </pre>
-       *
        * <code>int64 serverTimeStamp = 12;</code>
        * @return The serverTimeStamp.
        */
@@ -2198,10 +2187,6 @@ public final class Chat {
         return serverTimeStamp_;
       }
       /**
-       * <pre>
-       * 服务端时间
-       * </pre>
-       *
        * <code>int64 serverTimeStamp = 12;</code>
        * @param value The serverTimeStamp to set.
        * @return This builder for chaining.
@@ -2214,10 +2199,6 @@ public final class Chat {
         return this;
       }
       /**
-       * <pre>
-       * 服务端时间
-       * </pre>
-       *
        * <code>int64 serverTimeStamp = 12;</code>
        * @return This builder for chaining.
        */
@@ -2514,31 +2495,31 @@ public final class Chat {
      * 谁的消息被确认
      * </pre>
      *
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccount = 4;</code>
-     * @return Whether the fromAccount field is set.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 4;</code>
+     * @return Whether the fromUser field is set.
      */
-    boolean hasFromAccount();
+    boolean hasFromUser();
     /**
      * <pre>
      * 谁的消息被确认
      * </pre>
      *
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccount = 4;</code>
-     * @return The fromAccount.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 4;</code>
+     * @return The fromUser.
      */
-    com.github.im.common.connect.model.proto.Account.AccountInfo getFromAccount();
+    com.github.im.common.connect.model.proto.User.UserInfo getFromUser();
     /**
      * <pre>
      * 谁的消息被确认
      * </pre>
      *
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccount = 4;</code>
+     * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 4;</code>
      */
-    com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getFromAccountOrBuilder();
+    com.github.im.common.connect.model.proto.User.UserInfoOrBuilder getFromUserOrBuilder();
 
     /**
      * <pre>
-     * 确认时间戳
+     * 确认时间戳 服务端消息时间戳
      * </pre>
      *
      * <code>int64 ackTimestamp = 5;</code>
@@ -2693,18 +2674,18 @@ public final class Chat {
       return conversationId_;
     }
 
-    public static final int FROMACCOUNT_FIELD_NUMBER = 4;
-    private com.github.im.common.connect.model.proto.Account.AccountInfo fromAccount_;
+    public static final int FROMUSER_FIELD_NUMBER = 4;
+    private com.github.im.common.connect.model.proto.User.UserInfo fromUser_;
     /**
      * <pre>
      * 谁的消息被确认
      * </pre>
      *
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccount = 4;</code>
-     * @return Whether the fromAccount field is set.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 4;</code>
+     * @return Whether the fromUser field is set.
      */
     @java.lang.Override
-    public boolean hasFromAccount() {
+    public boolean hasFromUser() {
       return ((bitField0_ & 0x00000001) != 0);
     }
     /**
@@ -2712,30 +2693,30 @@ public final class Chat {
      * 谁的消息被确认
      * </pre>
      *
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccount = 4;</code>
-     * @return The fromAccount.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 4;</code>
+     * @return The fromUser.
      */
     @java.lang.Override
-    public com.github.im.common.connect.model.proto.Account.AccountInfo getFromAccount() {
-      return fromAccount_ == null ? com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : fromAccount_;
+    public com.github.im.common.connect.model.proto.User.UserInfo getFromUser() {
+      return fromUser_ == null ? com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance() : fromUser_;
     }
     /**
      * <pre>
      * 谁的消息被确认
      * </pre>
      *
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccount = 4;</code>
+     * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 4;</code>
      */
     @java.lang.Override
-    public com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getFromAccountOrBuilder() {
-      return fromAccount_ == null ? com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : fromAccount_;
+    public com.github.im.common.connect.model.proto.User.UserInfoOrBuilder getFromUserOrBuilder() {
+      return fromUser_ == null ? com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance() : fromUser_;
     }
 
     public static final int ACKTIMESTAMP_FIELD_NUMBER = 5;
     private long ackTimestamp_ = 0L;
     /**
      * <pre>
-     * 确认时间戳
+     * 确认时间戳 服务端消息时间戳
      * </pre>
      *
      * <code>int64 ackTimestamp = 5;</code>
@@ -2806,7 +2787,7 @@ public final class Chat {
         output.writeInt64(3, conversationId_);
       }
       if (((bitField0_ & 0x00000001) != 0)) {
-        output.writeMessage(4, getFromAccount());
+        output.writeMessage(4, getFromUser());
       }
       if (ackTimestamp_ != 0L) {
         output.writeInt64(5, ackTimestamp_);
@@ -2836,7 +2817,7 @@ public final class Chat {
       }
       if (((bitField0_ & 0x00000001) != 0)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(4, getFromAccount());
+          .computeMessageSize(4, getFromUser());
       }
       if (ackTimestamp_ != 0L) {
         size += com.google.protobuf.CodedOutputStream
@@ -2867,10 +2848,10 @@ public final class Chat {
           != other.getServerMsgId()) return false;
       if (getConversationId()
           != other.getConversationId()) return false;
-      if (hasFromAccount() != other.hasFromAccount()) return false;
-      if (hasFromAccount()) {
-        if (!getFromAccount()
-            .equals(other.getFromAccount())) return false;
+      if (hasFromUser() != other.hasFromUser()) return false;
+      if (hasFromUser()) {
+        if (!getFromUser()
+            .equals(other.getFromUser())) return false;
       }
       if (getAckTimestamp()
           != other.getAckTimestamp()) return false;
@@ -2894,9 +2875,9 @@ public final class Chat {
       hash = (37 * hash) + CONVERSATIONID_FIELD_NUMBER;
       hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
           getConversationId());
-      if (hasFromAccount()) {
-        hash = (37 * hash) + FROMACCOUNT_FIELD_NUMBER;
-        hash = (53 * hash) + getFromAccount().hashCode();
+      if (hasFromUser()) {
+        hash = (37 * hash) + FROMUSER_FIELD_NUMBER;
+        hash = (53 * hash) + getFromUser().hashCode();
       }
       hash = (37 * hash) + ACKTIMESTAMP_FIELD_NUMBER;
       hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
@@ -3038,7 +3019,7 @@ public final class Chat {
       private void maybeForceBuilderInitialization() {
         if (com.google.protobuf.GeneratedMessage
                 .alwaysUseFieldBuilders) {
-          getFromAccountFieldBuilder();
+          getFromUserFieldBuilder();
         }
       }
       @java.lang.Override
@@ -3048,10 +3029,10 @@ public final class Chat {
         clientMsgId_ = "";
         serverMsgId_ = 0L;
         conversationId_ = 0L;
-        fromAccount_ = null;
-        if (fromAccountBuilder_ != null) {
-          fromAccountBuilder_.dispose();
-          fromAccountBuilder_ = null;
+        fromUser_ = null;
+        if (fromUserBuilder_ != null) {
+          fromUserBuilder_.dispose();
+          fromUserBuilder_ = null;
         }
         ackTimestamp_ = 0L;
         status_ = 0;
@@ -3099,9 +3080,9 @@ public final class Chat {
         }
         int to_bitField0_ = 0;
         if (((from_bitField0_ & 0x00000008) != 0)) {
-          result.fromAccount_ = fromAccountBuilder_ == null
-              ? fromAccount_
-              : fromAccountBuilder_.build();
+          result.fromUser_ = fromUserBuilder_ == null
+              ? fromUser_
+              : fromUserBuilder_.build();
           to_bitField0_ |= 0x00000001;
         }
         if (((from_bitField0_ & 0x00000010) != 0)) {
@@ -3136,8 +3117,8 @@ public final class Chat {
         if (other.getConversationId() != 0L) {
           setConversationId(other.getConversationId());
         }
-        if (other.hasFromAccount()) {
-          mergeFromAccount(other.getFromAccount());
+        if (other.hasFromUser()) {
+          mergeFromUser(other.getFromUser());
         }
         if (other.getAckTimestamp() != 0L) {
           setAckTimestamp(other.getAckTimestamp());
@@ -3188,7 +3169,7 @@ public final class Chat {
               } // case 24
               case 34: {
                 input.readMessage(
-                    getFromAccountFieldBuilder().getBuilder(),
+                    getFromUserFieldBuilder().getBuilder(),
                     extensionRegistry);
                 bitField0_ |= 0x00000008;
                 break;
@@ -3388,18 +3369,18 @@ public final class Chat {
         return this;
       }
 
-      private com.github.im.common.connect.model.proto.Account.AccountInfo fromAccount_;
+      private com.github.im.common.connect.model.proto.User.UserInfo fromUser_;
       private com.google.protobuf.SingleFieldBuilder<
-          com.github.im.common.connect.model.proto.Account.AccountInfo, com.github.im.common.connect.model.proto.Account.AccountInfo.Builder, com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder> fromAccountBuilder_;
+          com.github.im.common.connect.model.proto.User.UserInfo, com.github.im.common.connect.model.proto.User.UserInfo.Builder, com.github.im.common.connect.model.proto.User.UserInfoOrBuilder> fromUserBuilder_;
       /**
        * <pre>
        * 谁的消息被确认
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccount = 4;</code>
-       * @return Whether the fromAccount field is set.
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 4;</code>
+       * @return Whether the fromUser field is set.
        */
-      public boolean hasFromAccount() {
+      public boolean hasFromUser() {
         return ((bitField0_ & 0x00000008) != 0);
       }
       /**
@@ -3407,14 +3388,14 @@ public final class Chat {
        * 谁的消息被确认
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccount = 4;</code>
-       * @return The fromAccount.
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 4;</code>
+       * @return The fromUser.
        */
-      public com.github.im.common.connect.model.proto.Account.AccountInfo getFromAccount() {
-        if (fromAccountBuilder_ == null) {
-          return fromAccount_ == null ? com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : fromAccount_;
+      public com.github.im.common.connect.model.proto.User.UserInfo getFromUser() {
+        if (fromUserBuilder_ == null) {
+          return fromUser_ == null ? com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance() : fromUser_;
         } else {
-          return fromAccountBuilder_.getMessage();
+          return fromUserBuilder_.getMessage();
         }
       }
       /**
@@ -3422,16 +3403,16 @@ public final class Chat {
        * 谁的消息被确认
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccount = 4;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 4;</code>
        */
-      public Builder setFromAccount(com.github.im.common.connect.model.proto.Account.AccountInfo value) {
-        if (fromAccountBuilder_ == null) {
+      public Builder setFromUser(com.github.im.common.connect.model.proto.User.UserInfo value) {
+        if (fromUserBuilder_ == null) {
           if (value == null) {
             throw new NullPointerException();
           }
-          fromAccount_ = value;
+          fromUser_ = value;
         } else {
-          fromAccountBuilder_.setMessage(value);
+          fromUserBuilder_.setMessage(value);
         }
         bitField0_ |= 0x00000008;
         onChanged();
@@ -3442,14 +3423,14 @@ public final class Chat {
        * 谁的消息被确认
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccount = 4;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 4;</code>
        */
-      public Builder setFromAccount(
-          com.github.im.common.connect.model.proto.Account.AccountInfo.Builder builderForValue) {
-        if (fromAccountBuilder_ == null) {
-          fromAccount_ = builderForValue.build();
+      public Builder setFromUser(
+          com.github.im.common.connect.model.proto.User.UserInfo.Builder builderForValue) {
+        if (fromUserBuilder_ == null) {
+          fromUser_ = builderForValue.build();
         } else {
-          fromAccountBuilder_.setMessage(builderForValue.build());
+          fromUserBuilder_.setMessage(builderForValue.build());
         }
         bitField0_ |= 0x00000008;
         onChanged();
@@ -3460,21 +3441,21 @@ public final class Chat {
        * 谁的消息被确认
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccount = 4;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 4;</code>
        */
-      public Builder mergeFromAccount(com.github.im.common.connect.model.proto.Account.AccountInfo value) {
-        if (fromAccountBuilder_ == null) {
+      public Builder mergeFromUser(com.github.im.common.connect.model.proto.User.UserInfo value) {
+        if (fromUserBuilder_ == null) {
           if (((bitField0_ & 0x00000008) != 0) &&
-            fromAccount_ != null &&
-            fromAccount_ != com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance()) {
-            getFromAccountBuilder().mergeFrom(value);
+            fromUser_ != null &&
+            fromUser_ != com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance()) {
+            getFromUserBuilder().mergeFrom(value);
           } else {
-            fromAccount_ = value;
+            fromUser_ = value;
           }
         } else {
-          fromAccountBuilder_.mergeFrom(value);
+          fromUserBuilder_.mergeFrom(value);
         }
-        if (fromAccount_ != null) {
+        if (fromUser_ != null) {
           bitField0_ |= 0x00000008;
           onChanged();
         }
@@ -3485,14 +3466,14 @@ public final class Chat {
        * 谁的消息被确认
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccount = 4;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 4;</code>
        */
-      public Builder clearFromAccount() {
+      public Builder clearFromUser() {
         bitField0_ = (bitField0_ & ~0x00000008);
-        fromAccount_ = null;
-        if (fromAccountBuilder_ != null) {
-          fromAccountBuilder_.dispose();
-          fromAccountBuilder_ = null;
+        fromUser_ = null;
+        if (fromUserBuilder_ != null) {
+          fromUserBuilder_.dispose();
+          fromUserBuilder_ = null;
         }
         onChanged();
         return this;
@@ -3502,26 +3483,26 @@ public final class Chat {
        * 谁的消息被确认
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccount = 4;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 4;</code>
        */
-      public com.github.im.common.connect.model.proto.Account.AccountInfo.Builder getFromAccountBuilder() {
+      public com.github.im.common.connect.model.proto.User.UserInfo.Builder getFromUserBuilder() {
         bitField0_ |= 0x00000008;
         onChanged();
-        return getFromAccountFieldBuilder().getBuilder();
+        return getFromUserFieldBuilder().getBuilder();
       }
       /**
        * <pre>
        * 谁的消息被确认
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccount = 4;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 4;</code>
        */
-      public com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getFromAccountOrBuilder() {
-        if (fromAccountBuilder_ != null) {
-          return fromAccountBuilder_.getMessageOrBuilder();
+      public com.github.im.common.connect.model.proto.User.UserInfoOrBuilder getFromUserOrBuilder() {
+        if (fromUserBuilder_ != null) {
+          return fromUserBuilder_.getMessageOrBuilder();
         } else {
-          return fromAccount_ == null ?
-              com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance() : fromAccount_;
+          return fromUser_ == null ?
+              com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance() : fromUser_;
         }
       }
       /**
@@ -3529,26 +3510,26 @@ public final class Chat {
        * 谁的消息被确认
        * </pre>
        *
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo fromAccount = 4;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo fromUser = 4;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          com.github.im.common.connect.model.proto.Account.AccountInfo, com.github.im.common.connect.model.proto.Account.AccountInfo.Builder, com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder> 
-          getFromAccountFieldBuilder() {
-        if (fromAccountBuilder_ == null) {
-          fromAccountBuilder_ = new com.google.protobuf.SingleFieldBuilder<
-              com.github.im.common.connect.model.proto.Account.AccountInfo, com.github.im.common.connect.model.proto.Account.AccountInfo.Builder, com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder>(
-                  getFromAccount(),
+          com.github.im.common.connect.model.proto.User.UserInfo, com.github.im.common.connect.model.proto.User.UserInfo.Builder, com.github.im.common.connect.model.proto.User.UserInfoOrBuilder> 
+          getFromUserFieldBuilder() {
+        if (fromUserBuilder_ == null) {
+          fromUserBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              com.github.im.common.connect.model.proto.User.UserInfo, com.github.im.common.connect.model.proto.User.UserInfo.Builder, com.github.im.common.connect.model.proto.User.UserInfoOrBuilder>(
+                  getFromUser(),
                   getParentForChildren(),
                   isClean());
-          fromAccount_ = null;
+          fromUser_ = null;
         }
-        return fromAccountBuilder_;
+        return fromUserBuilder_;
       }
 
       private long ackTimestamp_ ;
       /**
        * <pre>
-       * 确认时间戳
+       * 确认时间戳 服务端消息时间戳
        * </pre>
        *
        * <code>int64 ackTimestamp = 5;</code>
@@ -3560,7 +3541,7 @@ public final class Chat {
       }
       /**
        * <pre>
-       * 确认时间戳
+       * 确认时间戳 服务端消息时间戳
        * </pre>
        *
        * <code>int64 ackTimestamp = 5;</code>
@@ -3576,7 +3557,7 @@ public final class Chat {
       }
       /**
        * <pre>
-       * 确认时间戳
+       * 确认时间戳 服务端消息时间戳
        * </pre>
        *
        * <code>int64 ackTimestamp = 5;</code>
@@ -3758,52 +3739,52 @@ public final class Chat {
   static {
     java.lang.String[] descriptorData = {
       "\n\rMessage.proto\022(com.github.im.common.co" +
-      "nnect.model.proto\032\rAccount.proto\"\357\003\n\013Cha" +
-      "tMessage\022\r\n\005msgId\030\001 \001(\003\022\023\n\013clientMsgId\030\004" +
-      " \001(\t\022\017\n\007content\030\003 \001(\t\022\026\n\016conversationId\030" +
-      "\t \001(\003\022\030\n\020conversationName\030\n \001(\t\022N\n\017fromA" +
-      "ccountInfo\030\002 \001(\01325.com.github.im.common." +
-      "connect.model.proto.AccountInfo\022L\n\rtoAcc" +
-      "ountInfo\030\010 \001(\01325.com.github.im.common.co" +
-      "nnect.model.proto.AccountInfo\022\027\n\017clientT" +
-      "imeStamp\030\007 \001(\003\022\027\n\017serverTimeStamp\030\014 \001(\003\022" +
-      "C\n\004type\030\006 \001(\01625.com.github.im.common.con" +
-      "nect.model.proto.MessageType\022P\n\016messages" +
-      "Status\030\013 \001(\01628.com.github.im.common.conn" +
-      "ect.model.proto.MessagesStatus\022\022\n\nsequen" +
-      "ceId\030\005 \001(\003\"\372\001\n\nAckMessage\022\023\n\013clientMsgId" +
-      "\030\001 \001(\t\022\023\n\013serverMsgId\030\002 \001(\003\022\026\n\016conversat" +
-      "ionId\030\003 \001(\003\022J\n\013fromAccount\030\004 \001(\01325.com.g" +
-      "ithub.im.common.connect.model.proto.Acco" +
-      "untInfo\022\024\n\014ackTimestamp\030\005 \001(\003\022H\n\006status\030" +
-      "\007 \001(\01628.com.github.im.common.connect.mod" +
-      "el.proto.MessagesStatus*p\n\016MessagesStatu" +
-      "s\022\013\n\007SENDING\020\000\022\010\n\004SENT\020\001\022\n\n\006FAILED\020\002\022\014\n\010" +
-      "RECEIVED\020\003\022\010\n\004READ\020\004\022\n\n\006UNREAD\020\005\022\013\n\007DELE" +
-      "TED\020\006\022\n\n\006REVOKE\020\007*B\n\013MessageType\022\010\n\004TEXT" +
-      "\020\000\022\010\n\004FILE\020\001\022\t\n\005VIDEO\020\003\022\t\n\005IMAGE\020\006\022\t\n\005VO" +
-      "ICE\020\004B0\n(com.github.im.common.connect.mo" +
-      "del.protoB\004Chatb\006proto3"
+      "nnect.model.proto\032\023UserInfoProto.proto\"\333" +
+      "\003\n\013ChatMessage\022\r\n\005msgId\030\001 \001(\003\022\023\n\013clientM" +
+      "sgId\030\004 \001(\t\022\017\n\007content\030\003 \001(\t\022\026\n\016conversat" +
+      "ionId\030\t \001(\003\022\030\n\020conversationName\030\n \001(\t\022D\n" +
+      "\010fromUser\030\002 \001(\01322.com.github.im.common.c" +
+      "onnect.model.proto.UserInfo\022B\n\006toUser\030\010 " +
+      "\001(\01322.com.github.im.common.connect.model" +
+      ".proto.UserInfo\022\027\n\017clientTimeStamp\030\007 \001(\003" +
+      "\022\027\n\017serverTimeStamp\030\014 \001(\003\022C\n\004type\030\006 \001(\0162" +
+      "5.com.github.im.common.connect.model.pro" +
+      "to.MessageType\022P\n\016messagesStatus\030\013 \001(\01628" +
+      ".com.github.im.common.connect.model.prot" +
+      "o.MessagesStatus\022\022\n\nsequenceId\030\005 \001(\003\"\364\001\n" +
+      "\nAckMessage\022\023\n\013clientMsgId\030\001 \001(\t\022\023\n\013serv" +
+      "erMsgId\030\002 \001(\003\022\026\n\016conversationId\030\003 \001(\003\022D\n" +
+      "\010fromUser\030\004 \001(\01322.com.github.im.common.c" +
+      "onnect.model.proto.UserInfo\022\024\n\014ackTimest" +
+      "amp\030\005 \001(\003\022H\n\006status\030\007 \001(\01628.com.github.i" +
+      "m.common.connect.model.proto.MessagesSta" +
+      "tus*p\n\016MessagesStatus\022\013\n\007SENDING\020\000\022\010\n\004SE" +
+      "NT\020\001\022\n\n\006FAILED\020\002\022\014\n\010RECEIVED\020\003\022\010\n\004READ\020\004" +
+      "\022\n\n\006UNREAD\020\005\022\013\n\007DELETED\020\006\022\n\n\006REVOKE\020\007*B\n" +
+      "\013MessageType\022\010\n\004TEXT\020\000\022\010\n\004FILE\020\001\022\t\n\005VIDE" +
+      "O\020\003\022\t\n\005IMAGE\020\006\022\t\n\005VOICE\020\004B0\n(com.github." +
+      "im.common.connect.model.protoB\004Chatb\006pro" +
+      "to3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
         new com.google.protobuf.Descriptors.FileDescriptor[] {
-          com.github.im.common.connect.model.proto.Account.getDescriptor(),
+          com.github.im.common.connect.model.proto.User.getDescriptor(),
         });
     internal_static_com_github_im_common_connect_model_proto_ChatMessage_descriptor =
       getDescriptor().getMessageTypes().get(0);
     internal_static_com_github_im_common_connect_model_proto_ChatMessage_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_com_github_im_common_connect_model_proto_ChatMessage_descriptor,
-        new java.lang.String[] { "MsgId", "ClientMsgId", "Content", "ConversationId", "ConversationName", "FromAccountInfo", "ToAccountInfo", "ClientTimeStamp", "ServerTimeStamp", "Type", "MessagesStatus", "SequenceId", });
+        new java.lang.String[] { "MsgId", "ClientMsgId", "Content", "ConversationId", "ConversationName", "FromUser", "ToUser", "ClientTimeStamp", "ServerTimeStamp", "Type", "MessagesStatus", "SequenceId", });
     internal_static_com_github_im_common_connect_model_proto_AckMessage_descriptor =
       getDescriptor().getMessageTypes().get(1);
     internal_static_com_github_im_common_connect_model_proto_AckMessage_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_com_github_im_common_connect_model_proto_AckMessage_descriptor,
-        new java.lang.String[] { "ClientMsgId", "ServerMsgId", "ConversationId", "FromAccount", "AckTimestamp", "Status", });
+        new java.lang.String[] { "ClientMsgId", "ServerMsgId", "ConversationId", "FromUser", "AckTimestamp", "Status", });
     descriptor.resolveAllFeaturesImmutable();
-    com.github.im.common.connect.model.proto.Account.getDescriptor();
+    com.github.im.common.connect.model.proto.User.getDescriptor();
   }
 
   // @@protoc_insertion_point(outer_class_scope)

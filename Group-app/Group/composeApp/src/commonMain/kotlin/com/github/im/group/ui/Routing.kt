@@ -6,8 +6,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 object Login
 
-@Serializable
-object Chat
 
 @Serializable
 object Home
@@ -15,10 +13,25 @@ object Home
 @Serializable
 object ProxySetting
 
+
+
 @Serializable
-data class ChatRoom(
-    val conversationId: Long,
-)
+open class ChatRoom(
+
+){
+
+    /**
+     * 创建私聊的聊天室
+     */
+    @Serializable
+    data class CreatePrivate(val friendUserId: Long) : ChatRoom()
+    /**
+     * 已经存在的会话
+     */
+    @Serializable
+    data class Conversation(val conversationId: Long): ChatRoom()
+
+}
 @Serializable
 object Contacts
 

@@ -2,7 +2,7 @@ package com.github.im.group.manager
 
 import com.github.im.group.model.UserInfo
 import com.github.im.group.repository.UserRepository
-import com.github.im.group.repository.UserState
+import com.github.im.group.viewmodel.LoginState
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.StateFlow
 
@@ -51,7 +51,7 @@ class UserDataSyncListener(private val userRepository: UserRepository) : LoginSt
  * 当登录状态变化时更新UI状态
  */
 class UIStateUpdateListener(private val userRepository: UserRepository) : LoginStateListener {
-    val uiState: StateFlow<UserState> = userRepository.userState
+    val uiState: StateFlow<LoginState> = userRepository.userState
 
     override fun onLogin(userInfo: UserInfo) {
         // UI状态由UserRepository管理

@@ -22,29 +22,37 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.github.im.group.api.ConversationRes
 import com.github.im.group.model.UserInfo
 import com.github.im.group.ui.ChatRoom
 import com.github.im.group.ui.UserAvatar
 import com.github.im.group.viewmodel.ChatViewModel
+import com.github.im.group.viewmodel.ConversationDisplayState
 import com.github.im.group.viewmodel.UserViewModel
-import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
+/**
+ * 聊天消息
+ */
 @Composable
 fun ChatUI(
     navHostController: NavHostController,
 ) {
     val chatViewModel: ChatViewModel = koinViewModel()
     val userViewModel: UserViewModel = koinViewModel()
-    val conversations by chatViewModel.uiState.collectAsState()
-    val userInfo = userViewModel.getCurrentUser()
+
+    // 会话列表
+    val conversations by chatViewModel.conversationState.collectAsState()
+    val loginState by userViewModel.loginState.collectAsState()
+    val userInfo  by  remember {mutableStateOf(userViewModel.getCurrentUser()) }
     var userSearchQuery by remember { mutableStateOf("") }
     val searchResults by userViewModel.searchResults.collectAsState()
 
     LaunchedEffect(userInfo) {
-        if (userInfo.userId != 0L) {
-            userInfo.userId.let { chatViewModel.getConversations(it) }
+
+        if (userInfo?.userId != 0L) {
+            userInfo?.userId?.let {
+                // 获取用户的所有会话消息
+                chatViewModel.getConversations(it) }
         }
     }
 
@@ -75,7 +83,7 @@ fun ChatUI(
                             currentUser = userInfo,
                             onAddFriend = { friendId ->
                                 userInfo?.userId?.let { userId ->
-                                    userViewModel.addFriend(userId, friendId)
+//                                    userViewModel.addFriend(userId, friendId)
                                 }
                             }
                         )
@@ -89,7 +97,7 @@ fun ChatUI(
                     conversation = conversation,
                     userInfo = userInfo,
                     onClick = {
-                        navHostController.navigate(ChatRoom(conversation.conversationId))
+                        navHostController.navigate(ChatRoom.Conversation(conversation.conversation.conversationId))
                     }
                 )
             }
@@ -98,22 +106,30 @@ fun ChatUI(
 }
 
 @Composable
-fun ChatItem(conversation: ConversationRes, userInfo: UserInfo, onClick: () -> Unit) {
+fun ChatItem(conversation: ConversationDisplayState, userInfo: UserInfo, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(12.dp)
     ) {
-        UserAvatar(username = conversation.getName(userInfo), size = 56)
+        UserAvatar(username = conversation.conversation.getName(userInfo), size = 56)
         Spacer(Modifier.width(12.dp))
         Column {
+            // 展示用户
             Text(
-                conversation.getName(userInfo),
+                conversation.conversation.getName(userInfo),
                 style = androidx.compose.material3.MaterialTheme.typography.titleMedium
             )
+            //展示消息
             Text(
                 text = conversation.lastMessage.takeIf { e -> e.isNotEmpty() } ?: "暂无消息",
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = androidx.compose.ui.graphics.Color.Gray
+            )
+            //   展示时间
+            Text(
+                text = conversation.displayDateTime,
                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                 color = androidx.compose.ui.graphics.Color.Gray
             )

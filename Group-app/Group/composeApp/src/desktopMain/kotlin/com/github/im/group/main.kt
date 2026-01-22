@@ -22,7 +22,7 @@ import com.github.im.group.manager.FileStorageManager
 import com.github.im.group.sdk.DesktopVoiceRecorder
 import com.github.im.group.sdk.SenderSdk
 import com.github.im.group.ui.video.VideoCallViewModel
-import com.github.im.group.viewmodel.ChatMessageViewModel
+import com.github.im.group.viewmodel.ChatRoomViewModel
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.ContactsViewModel
 import com.github.im.group.viewmodel.TCPMessageViewModel
@@ -86,7 +86,7 @@ val desktopModule = module {
 
     // 为ChatMessageViewModel添加所有必需的依赖项
     viewModel {
-        ChatMessageViewModel(
+        ChatRoomViewModel(
             get(),
             chatSessionManager = get(),
             chatMessageRepository = get(),

@@ -1,14 +1,14 @@
+
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.UploadFileRequest
-import com.github.im.group.manager.FileStorageManager
 import com.github.im.group.manager.FileTypeDetector
-import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.model.proto.MessageType
 import com.github.im.group.model.proto.MessagesStatus
+import com.github.im.group.model.toUserInfo
 import com.github.im.group.repository.UserRepository
+import com.github.im.group.viewmodel.LoginState
 import kotlinx.datetime.Clock
-import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -67,13 +67,15 @@ class ChatMessageBuilderImpl(
 
         // 创建一个本地消息记录
         val clientMsgId = Uuid.random().toString()
-        val accountInfo = userRepository.withLoggedInUser { it.accountInfo }
+        val loginState =  userRepository.userState.value as LoginState.Authenticated
+
+        val accountInfo =loginState.userInfo.toUserInfo()
 
         // 首先发送一个带有本地状态的消息，状态为发送中
        return  ChatMessage(
                 content = messageContent, // 使用服务端返回的ID作为内容
                 conversationId = conversationId,
-                fromAccountInfo = accountInfo,
+                fromUser = accountInfo,
                 type = messageType,
                 messagesStatus = MessagesStatus.SENDING,
                 clientTimeStamp = Clock.System.now().toEpochMilliseconds(),

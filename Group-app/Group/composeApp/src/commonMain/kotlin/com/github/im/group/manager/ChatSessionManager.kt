@@ -1,22 +1,16 @@
 package com.github.im.group.manager
 
-import com.github.im.group.db.AppDatabase
-import com.github.im.group.db.entities.MessageStatus
-import com.github.im.group.model.MessageWrapper
-import com.github.im.group.model.proto.BaseMessagePkg
-import com.github.im.group.model.proto.ChatMessage
-import com.github.im.group.viewmodel.ChatMessageViewModel
-import io.github.aakira.napier.Napier
-import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-
 
 /**
  * 客户端 会话的管理
  */
+import com.github.im.group.db.AppDatabase
+import com.github.im.group.model.MessageWrapper
+import com.github.im.group.model.proto.BaseMessagePkg
+import com.github.im.group.model.proto.ChatMessage
 import com.github.im.group.repository.ChatMessageRepository
+import com.github.im.group.viewmodel.ChatRoomViewModel
+import io.github.aakira.napier.Napier
 
 class ChatSessionManager  (
     private val db: AppDatabase,
@@ -24,7 +18,7 @@ class ChatSessionManager  (
 ){
 
     // 已初始化的 VM
-    private val sessionMap = mutableMapOf<Long, ChatMessageViewModel>()
+    private val sessionMap = mutableMapOf<Long, ChatRoomViewModel>()
 
     // 缓存消息（ViewModel 未准备好前暂存）
     private val messageBuffer = mutableMapOf<Long, MutableList<ChatMessage>>()
@@ -33,7 +27,7 @@ class ChatSessionManager  (
      * 注册会话
      * 避免重复进入页面重复刷新
      */
-    fun register(conversationId: Long, viewModel: ChatMessageViewModel) {
+    fun register(conversationId: Long, viewModel: ChatRoomViewModel) {
 
         sessionMap[conversationId] = viewModel
         // 若缓存中有消息，立即投递并清除

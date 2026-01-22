@@ -2,21 +2,17 @@ package com.github.im.group.sdk
 
 import ProxyConfig
 import com.github.im.group.config.SocketClient
-import com.github.im.group.model.UserInfo
-import com.github.im.group.model.proto.AccountInfo
 import com.github.im.group.model.proto.BaseMessagePkg
 import com.github.im.group.model.proto.ChatMessage
-import com.github.im.group.model.proto.PlatformType
+import com.github.im.group.model.toUserInfo
 import com.github.im.group.repository.UserRepository
+import com.github.im.group.viewmodel.LoginState
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -77,7 +73,7 @@ class SenderSdk(
                                 tcpClient.connect(_host, _port)
                                 Napier.d("重连成功，重新启动接收协程")
                                 // 重新注册到远程服务器（重新发送登录信息）
-                                registerToRemoteSilently()
+                                registerToRemote()
                                 retryCount = 0 // 重置重试计数
                             }
                             _connected.value = true
@@ -134,18 +130,23 @@ class SenderSdk(
     private suspend fun registerToRemote() {
         try {
             // 获取当前登录用户信息
-            val currentUser = userRepository.requireLoggedInUser()
-            
-            // 首先 建立TCP 连接通道
-            if (!tcpClient.isActive()){
-                tcpClient.connect(_host,_port)
+            val loginState =  userRepository.userState.value as LoginState.Authenticated
+
+            val currentUser =loginState.userInfo
+            currentUser?.let {
+
+                // 首先 建立TCP 连接通道
+                if (!tcpClient.isActive()){
+                    tcpClient.connect(_host,_port)
+                }
+
+                val pkg = BaseMessagePkg(userInfo = it.toUserInfo())
+                val message = BaseMessagePkg.ADAPTER.encode(pkg)
+                tcpClient.send(message)
+                _connected.value = true
+                startAutoReconnect()
             }
 
-            val pkg = BaseMessagePkg(accountInfo = currentUser.accountInfo)
-            val message = BaseMessagePkg.ADAPTER.encode(pkg)
-            tcpClient.send(message)
-            _connected.value = true
-            startAutoReconnect()
 
         } catch (e: Exception) {
             Napier.d("连接到远程服务器失败: ${e.message}")
@@ -154,25 +155,5 @@ class SenderSdk(
 
         }
     }
-    
-    /**
-     * 静默注册到远程服务器（用于重连）
-     */
-    private suspend fun registerToRemoteSilently() {
-        try {
-            Napier.d  ("重连时发送登录信息")
 
-            // 获取当前登录用户信息
-            val currentUser = userRepository.requireLoggedInUser()
-            
-            val pkg = BaseMessagePkg(accountInfo = currentUser.accountInfo)
-            val message = BaseMessagePkg.ADAPTER.encode(pkg)
-            tcpClient.send(message)
-            
-            _connected.value = true
-        } catch (e: Exception) {
-            Napier.d  ("重连时发送登录信息失败: ${e.message}")
-            _connected.value = false
-        }
-    }
 }

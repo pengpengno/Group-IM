@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -23,10 +22,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -35,7 +32,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,7 +39,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.pointerInput
@@ -51,17 +46,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.github.im.group.api.FileMeta
-import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
 import com.github.im.group.sdk.AudioPlayer
-import com.github.im.group.sdk.CrossPlatformVideo
 import com.github.im.group.sdk.File
 import com.github.im.group.sdk.FileData
 import com.github.im.group.sdk.GalleryAwareMediaFileView
 import com.github.im.group.sdk.MediaFileView
-import com.github.im.group.viewmodel.ChatMessageViewModel
+import com.github.im.group.viewmodel.ChatRoomViewModel
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.math.abs
@@ -138,7 +130,7 @@ fun MediaMessage(
     onShowMenu: ((com.github.im.group.sdk.File) -> Unit)? = null
 ) {
     // 获取下载状态
-    val messageViewModel: ChatMessageViewModel = koinViewModel()
+    val messageViewModel: ChatRoomViewModel = koinViewModel()
     val downloadStates by messageViewModel.fileDownloadStates.collectAsState()
     
     // 提取文件ID
@@ -440,7 +432,7 @@ fun TextMessage(content: MessageContent.Text) {
  */
 @Composable
 fun FileMessageBubble(meta: FileMeta, onDownloadFile: ((String) -> Unit)? = null) {
-    val messageViewModel: ChatMessageViewModel = koinViewModel()
+    val messageViewModel: ChatRoomViewModel = koinViewModel()
 
     var showDialog by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
@@ -662,7 +654,7 @@ fun SendingSpinner(modifier: Modifier = Modifier, color: Color = Color.Gray) {
 @Composable
 fun UnifiedFileMessage(
     message: MessageItem,
-    messageViewModel: ChatMessageViewModel
+    messageViewModel: ChatRoomViewModel
 ) {
     FileMessageLoader(
         msg = message,

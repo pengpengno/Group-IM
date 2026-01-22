@@ -1,6 +1,5 @@
 package com.github.im.group.ui
 
-import ProxyScreen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,14 +13,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,102 +31,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.toRoute
 import com.github.im.group.manager.LoginStateManager
-import com.github.im.group.repository.UserRepository
-import com.github.im.group.repository.UserState
-import com.github.im.group.ui.chat.ChatRoomScreen
-import com.github.im.group.ui.contacts.AddFriendScreen
-import com.github.im.group.ui.contacts.ContactsUI
 import com.github.im.group.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 
 
-
-/**
- * 登录界面
- */
-@Composable
-@Preview
-fun LoginScreen() {
-    val navController: NavHostController = rememberNavController()
-    val userViewModel: UserViewModel = koinViewModel()
-    val userRepository: UserRepository = koinInject()
-    var startPage by remember { mutableStateOf<Any>(Login) }
-    
-    val userState by userRepository.userState.collectAsState()
-
-    LaunchedEffect(Unit) {
-        userViewModel.autoLogin()
-    }
-
-    LaunchedEffect(userState){
-        when(userState){
-            is UserState.LoggedIn -> {
-                startPage = Home
-            }
-            is UserState.LoggedOut -> {
-                startPage = Login
-            }
-            else -> {}
-        }
-    }
-    
-    // 检查是否可以自动登录
-    androidx.navigation.compose.NavHost(
-        navController = navController,
-        startDestination = startPage
-    ) {
-        composable<Login> {
-            LoginScreenUI(navController = navController)
-        }
-        composable<Home> {
-            ChatMainScreen(
-                navHostController = navController
-            )
-        }
-        composable<ProxySetting> {
-            ProxyScreen(
-                navHostController = navController,
-            )
-        }
-        composable<Contacts> {
-            ContactsUI(
-                navHostController = navController,
-            )
-        }
-        composable<Search> {
-            SearchScreen(
-                navHostController = navController
-            )
-        }
-        
-        composable<AddFriend> {
-            AddFriendScreen(
-                navHostController = navController
-            )
-        }
-
-        composable<ChatRoom>{ backStackEntry ->
-            val chatRoom : ChatRoom = backStackEntry.toRoute()
-            ChatRoomScreen(
-                conversationId = chatRoom.conversationId,
-                onBack = {
-                    navController.popBackStack()
-                },
-                navHostController = navController
-            )
-        }
-    }
-
-
-}
 
 @Composable
 fun LoginScreenUI(
@@ -141,9 +51,7 @@ fun LoginScreenUI(
     var isLoggingIn by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-    val userInfo by viewModel.uiState.collectAsState()
-    val loginStateManager = koinInject<LoginStateManager>()
-    
+
     MaterialTheme {
         Box(
             modifier = Modifier

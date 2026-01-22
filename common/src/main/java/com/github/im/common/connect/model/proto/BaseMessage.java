@@ -30,19 +30,19 @@ public final class BaseMessage {
       com.google.protobuf.MessageOrBuilder {
 
     /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo accountInfo = 1;</code>
-     * @return Whether the accountInfo field is set.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo userInfo = 1;</code>
+     * @return Whether the userInfo field is set.
      */
-    boolean hasAccountInfo();
+    boolean hasUserInfo();
     /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo accountInfo = 1;</code>
-     * @return The accountInfo.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo userInfo = 1;</code>
+     * @return The userInfo.
      */
-    com.github.im.common.connect.model.proto.Account.AccountInfo getAccountInfo();
+    com.github.im.common.connect.model.proto.User.UserInfo getUserInfo();
     /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo accountInfo = 1;</code>
+     * <code>.com.github.im.common.connect.model.proto.UserInfo userInfo = 1;</code>
      */
-    com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getAccountInfoOrBuilder();
+    com.github.im.common.connect.model.proto.User.UserInfoOrBuilder getUserInfoOrBuilder();
 
     /**
      * <code>.com.github.im.common.connect.model.proto.ChatMessage message = 2;</code>
@@ -107,6 +107,11 @@ public final class BaseMessage {
     com.github.im.common.connect.model.proto.BaseMessage.BaseMessagePkg.PayloadCase getPayloadCase();
   }
   /**
+   * <pre>
+   * *
+   * 基础消息包
+   * </pre>
+   *
    * Protobuf type {@code com.github.im.common.connect.model.proto.BaseMessagePkg}
    */
   public static final class BaseMessagePkg extends
@@ -149,7 +154,7 @@ public final class BaseMessage {
     public enum PayloadCase
         implements com.google.protobuf.Internal.EnumLite,
             com.google.protobuf.AbstractMessage.InternalOneOfEnum {
-      ACCOUNTINFO(1),
+      USERINFO(1),
       MESSAGE(2),
       NOTIFICATION(3),
       ACK(4),
@@ -171,7 +176,7 @@ public final class BaseMessage {
 
       public static PayloadCase forNumber(int value) {
         switch (value) {
-          case 1: return ACCOUNTINFO;
+          case 1: return USERINFO;
           case 2: return MESSAGE;
           case 3: return NOTIFICATION;
           case 4: return ACK;
@@ -191,35 +196,35 @@ public final class BaseMessage {
           payloadCase_);
     }
 
-    public static final int ACCOUNTINFO_FIELD_NUMBER = 1;
+    public static final int USERINFO_FIELD_NUMBER = 1;
     /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo accountInfo = 1;</code>
-     * @return Whether the accountInfo field is set.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo userInfo = 1;</code>
+     * @return Whether the userInfo field is set.
      */
     @java.lang.Override
-    public boolean hasAccountInfo() {
+    public boolean hasUserInfo() {
       return payloadCase_ == 1;
     }
     /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo accountInfo = 1;</code>
-     * @return The accountInfo.
+     * <code>.com.github.im.common.connect.model.proto.UserInfo userInfo = 1;</code>
+     * @return The userInfo.
      */
     @java.lang.Override
-    public com.github.im.common.connect.model.proto.Account.AccountInfo getAccountInfo() {
+    public com.github.im.common.connect.model.proto.User.UserInfo getUserInfo() {
       if (payloadCase_ == 1) {
-         return (com.github.im.common.connect.model.proto.Account.AccountInfo) payload_;
+         return (com.github.im.common.connect.model.proto.User.UserInfo) payload_;
       }
-      return com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance();
+      return com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance();
     }
     /**
-     * <code>.com.github.im.common.connect.model.proto.AccountInfo accountInfo = 1;</code>
+     * <code>.com.github.im.common.connect.model.proto.UserInfo userInfo = 1;</code>
      */
     @java.lang.Override
-    public com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getAccountInfoOrBuilder() {
+    public com.github.im.common.connect.model.proto.User.UserInfoOrBuilder getUserInfoOrBuilder() {
       if (payloadCase_ == 1) {
-         return (com.github.im.common.connect.model.proto.Account.AccountInfo) payload_;
+         return (com.github.im.common.connect.model.proto.User.UserInfo) payload_;
       }
-      return com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance();
+      return com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance();
     }
 
     public static final int MESSAGE_FIELD_NUMBER = 2;
@@ -361,7 +366,7 @@ public final class BaseMessage {
     public void writeTo(com.google.protobuf.CodedOutputStream output)
                         throws java.io.IOException {
       if (payloadCase_ == 1) {
-        output.writeMessage(1, (com.github.im.common.connect.model.proto.Account.AccountInfo) payload_);
+        output.writeMessage(1, (com.github.im.common.connect.model.proto.User.UserInfo) payload_);
       }
       if (payloadCase_ == 2) {
         output.writeMessage(2, (com.github.im.common.connect.model.proto.Chat.ChatMessage) payload_);
@@ -386,7 +391,7 @@ public final class BaseMessage {
       size = 0;
       if (payloadCase_ == 1) {
         size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(1, (com.github.im.common.connect.model.proto.Account.AccountInfo) payload_);
+          .computeMessageSize(1, (com.github.im.common.connect.model.proto.User.UserInfo) payload_);
       }
       if (payloadCase_ == 2) {
         size += com.google.protobuf.CodedOutputStream
@@ -422,8 +427,8 @@ public final class BaseMessage {
       if (!getPayloadCase().equals(other.getPayloadCase())) return false;
       switch (payloadCase_) {
         case 1:
-          if (!getAccountInfo()
-              .equals(other.getAccountInfo())) return false;
+          if (!getUserInfo()
+              .equals(other.getUserInfo())) return false;
           break;
         case 2:
           if (!getMessage()
@@ -457,8 +462,8 @@ public final class BaseMessage {
       hash = (19 * hash) + getDescriptor().hashCode();
       switch (payloadCase_) {
         case 1:
-          hash = (37 * hash) + ACCOUNTINFO_FIELD_NUMBER;
-          hash = (53 * hash) + getAccountInfo().hashCode();
+          hash = (37 * hash) + USERINFO_FIELD_NUMBER;
+          hash = (53 * hash) + getUserInfo().hashCode();
           break;
         case 2:
           hash = (37 * hash) + MESSAGE_FIELD_NUMBER;
@@ -577,6 +582,11 @@ public final class BaseMessage {
       return builder;
     }
     /**
+     * <pre>
+     * *
+     * 基础消息包
+     * </pre>
+     *
      * Protobuf type {@code com.github.im.common.connect.model.proto.BaseMessagePkg}
      */
     public static final class Builder extends
@@ -610,8 +620,8 @@ public final class BaseMessage {
       public Builder clear() {
         super.clear();
         bitField0_ = 0;
-        if (accountInfoBuilder_ != null) {
-          accountInfoBuilder_.clear();
+        if (userInfoBuilder_ != null) {
+          userInfoBuilder_.clear();
         }
         if (messageBuilder_ != null) {
           messageBuilder_.clear();
@@ -667,8 +677,8 @@ public final class BaseMessage {
         result.payloadCase_ = payloadCase_;
         result.payload_ = this.payload_;
         if (payloadCase_ == 1 &&
-            accountInfoBuilder_ != null) {
-          result.payload_ = accountInfoBuilder_.build();
+            userInfoBuilder_ != null) {
+          result.payload_ = userInfoBuilder_.build();
         }
         if (payloadCase_ == 2 &&
             messageBuilder_ != null) {
@@ -701,8 +711,8 @@ public final class BaseMessage {
       public Builder mergeFrom(com.github.im.common.connect.model.proto.BaseMessage.BaseMessagePkg other) {
         if (other == com.github.im.common.connect.model.proto.BaseMessage.BaseMessagePkg.getDefaultInstance()) return this;
         switch (other.getPayloadCase()) {
-          case ACCOUNTINFO: {
-            mergeAccountInfo(other.getAccountInfo());
+          case USERINFO: {
+            mergeUserInfo(other.getUserInfo());
             break;
           }
           case MESSAGE: {
@@ -753,7 +763,7 @@ public final class BaseMessage {
                 break;
               case 10: {
                 input.readMessage(
-                    getAccountInfoFieldBuilder().getBuilder(),
+                    getUserInfoFieldBuilder().getBuilder(),
                     extensionRegistry);
                 payloadCase_ = 1;
                 break;
@@ -819,71 +829,71 @@ public final class BaseMessage {
       private int bitField0_;
 
       private com.google.protobuf.SingleFieldBuilder<
-          com.github.im.common.connect.model.proto.Account.AccountInfo, com.github.im.common.connect.model.proto.Account.AccountInfo.Builder, com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder> accountInfoBuilder_;
+          com.github.im.common.connect.model.proto.User.UserInfo, com.github.im.common.connect.model.proto.User.UserInfo.Builder, com.github.im.common.connect.model.proto.User.UserInfoOrBuilder> userInfoBuilder_;
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo accountInfo = 1;</code>
-       * @return Whether the accountInfo field is set.
+       * <code>.com.github.im.common.connect.model.proto.UserInfo userInfo = 1;</code>
+       * @return Whether the userInfo field is set.
        */
       @java.lang.Override
-      public boolean hasAccountInfo() {
+      public boolean hasUserInfo() {
         return payloadCase_ == 1;
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo accountInfo = 1;</code>
-       * @return The accountInfo.
+       * <code>.com.github.im.common.connect.model.proto.UserInfo userInfo = 1;</code>
+       * @return The userInfo.
        */
       @java.lang.Override
-      public com.github.im.common.connect.model.proto.Account.AccountInfo getAccountInfo() {
-        if (accountInfoBuilder_ == null) {
+      public com.github.im.common.connect.model.proto.User.UserInfo getUserInfo() {
+        if (userInfoBuilder_ == null) {
           if (payloadCase_ == 1) {
-            return (com.github.im.common.connect.model.proto.Account.AccountInfo) payload_;
+            return (com.github.im.common.connect.model.proto.User.UserInfo) payload_;
           }
-          return com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance();
+          return com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance();
         } else {
           if (payloadCase_ == 1) {
-            return accountInfoBuilder_.getMessage();
+            return userInfoBuilder_.getMessage();
           }
-          return com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance();
+          return com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance();
         }
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo accountInfo = 1;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo userInfo = 1;</code>
        */
-      public Builder setAccountInfo(com.github.im.common.connect.model.proto.Account.AccountInfo value) {
-        if (accountInfoBuilder_ == null) {
+      public Builder setUserInfo(com.github.im.common.connect.model.proto.User.UserInfo value) {
+        if (userInfoBuilder_ == null) {
           if (value == null) {
             throw new NullPointerException();
           }
           payload_ = value;
           onChanged();
         } else {
-          accountInfoBuilder_.setMessage(value);
+          userInfoBuilder_.setMessage(value);
         }
         payloadCase_ = 1;
         return this;
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo accountInfo = 1;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo userInfo = 1;</code>
        */
-      public Builder setAccountInfo(
-          com.github.im.common.connect.model.proto.Account.AccountInfo.Builder builderForValue) {
-        if (accountInfoBuilder_ == null) {
+      public Builder setUserInfo(
+          com.github.im.common.connect.model.proto.User.UserInfo.Builder builderForValue) {
+        if (userInfoBuilder_ == null) {
           payload_ = builderForValue.build();
           onChanged();
         } else {
-          accountInfoBuilder_.setMessage(builderForValue.build());
+          userInfoBuilder_.setMessage(builderForValue.build());
         }
         payloadCase_ = 1;
         return this;
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo accountInfo = 1;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo userInfo = 1;</code>
        */
-      public Builder mergeAccountInfo(com.github.im.common.connect.model.proto.Account.AccountInfo value) {
-        if (accountInfoBuilder_ == null) {
+      public Builder mergeUserInfo(com.github.im.common.connect.model.proto.User.UserInfo value) {
+        if (userInfoBuilder_ == null) {
           if (payloadCase_ == 1 &&
-              payload_ != com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance()) {
-            payload_ = com.github.im.common.connect.model.proto.Account.AccountInfo.newBuilder((com.github.im.common.connect.model.proto.Account.AccountInfo) payload_)
+              payload_ != com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance()) {
+            payload_ = com.github.im.common.connect.model.proto.User.UserInfo.newBuilder((com.github.im.common.connect.model.proto.User.UserInfo) payload_)
                 .mergeFrom(value).buildPartial();
           } else {
             payload_ = value;
@@ -891,19 +901,19 @@ public final class BaseMessage {
           onChanged();
         } else {
           if (payloadCase_ == 1) {
-            accountInfoBuilder_.mergeFrom(value);
+            userInfoBuilder_.mergeFrom(value);
           } else {
-            accountInfoBuilder_.setMessage(value);
+            userInfoBuilder_.setMessage(value);
           }
         }
         payloadCase_ = 1;
         return this;
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo accountInfo = 1;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo userInfo = 1;</code>
        */
-      public Builder clearAccountInfo() {
-        if (accountInfoBuilder_ == null) {
+      public Builder clearUserInfo() {
+        if (userInfoBuilder_ == null) {
           if (payloadCase_ == 1) {
             payloadCase_ = 0;
             payload_ = null;
@@ -914,50 +924,50 @@ public final class BaseMessage {
             payloadCase_ = 0;
             payload_ = null;
           }
-          accountInfoBuilder_.clear();
+          userInfoBuilder_.clear();
         }
         return this;
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo accountInfo = 1;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo userInfo = 1;</code>
        */
-      public com.github.im.common.connect.model.proto.Account.AccountInfo.Builder getAccountInfoBuilder() {
-        return getAccountInfoFieldBuilder().getBuilder();
+      public com.github.im.common.connect.model.proto.User.UserInfo.Builder getUserInfoBuilder() {
+        return getUserInfoFieldBuilder().getBuilder();
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo accountInfo = 1;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo userInfo = 1;</code>
        */
       @java.lang.Override
-      public com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder getAccountInfoOrBuilder() {
-        if ((payloadCase_ == 1) && (accountInfoBuilder_ != null)) {
-          return accountInfoBuilder_.getMessageOrBuilder();
+      public com.github.im.common.connect.model.proto.User.UserInfoOrBuilder getUserInfoOrBuilder() {
+        if ((payloadCase_ == 1) && (userInfoBuilder_ != null)) {
+          return userInfoBuilder_.getMessageOrBuilder();
         } else {
           if (payloadCase_ == 1) {
-            return (com.github.im.common.connect.model.proto.Account.AccountInfo) payload_;
+            return (com.github.im.common.connect.model.proto.User.UserInfo) payload_;
           }
-          return com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance();
+          return com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance();
         }
       }
       /**
-       * <code>.com.github.im.common.connect.model.proto.AccountInfo accountInfo = 1;</code>
+       * <code>.com.github.im.common.connect.model.proto.UserInfo userInfo = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          com.github.im.common.connect.model.proto.Account.AccountInfo, com.github.im.common.connect.model.proto.Account.AccountInfo.Builder, com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder> 
-          getAccountInfoFieldBuilder() {
-        if (accountInfoBuilder_ == null) {
+          com.github.im.common.connect.model.proto.User.UserInfo, com.github.im.common.connect.model.proto.User.UserInfo.Builder, com.github.im.common.connect.model.proto.User.UserInfoOrBuilder> 
+          getUserInfoFieldBuilder() {
+        if (userInfoBuilder_ == null) {
           if (!(payloadCase_ == 1)) {
-            payload_ = com.github.im.common.connect.model.proto.Account.AccountInfo.getDefaultInstance();
+            payload_ = com.github.im.common.connect.model.proto.User.UserInfo.getDefaultInstance();
           }
-          accountInfoBuilder_ = new com.google.protobuf.SingleFieldBuilder<
-              com.github.im.common.connect.model.proto.Account.AccountInfo, com.github.im.common.connect.model.proto.Account.AccountInfo.Builder, com.github.im.common.connect.model.proto.Account.AccountInfoOrBuilder>(
-                  (com.github.im.common.connect.model.proto.Account.AccountInfo) payload_,
+          userInfoBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              com.github.im.common.connect.model.proto.User.UserInfo, com.github.im.common.connect.model.proto.User.UserInfo.Builder, com.github.im.common.connect.model.proto.User.UserInfoOrBuilder>(
+                  (com.github.im.common.connect.model.proto.User.UserInfo) payload_,
                   getParentForChildren(),
                   isClean());
           payload_ = null;
         }
         payloadCase_ = 1;
         onChanged();
-        return accountInfoBuilder_;
+        return userInfoBuilder_;
       }
 
       private com.google.protobuf.SingleFieldBuilder<
@@ -2054,11 +2064,11 @@ public final class BaseMessage {
   static {
     java.lang.String[] descriptorData = {
       "\n\021BaseMessage.proto\022(com.github.im.commo" +
-      "n.connect.model.proto\032\rAccount.proto\032\rMe" +
-      "ssage.proto\032\022Notification.proto\"\226\003\n\016Base" +
-      "MessagePkg\022L\n\013accountInfo\030\001 \001(\01325.com.gi" +
-      "thub.im.common.connect.model.proto.Accou" +
-      "ntInfoH\000\022H\n\007message\030\002 \001(\01325.com.github.i" +
+      "n.connect.model.proto\032\023UserInfoProto.pro" +
+      "to\032\022Notification.proto\032\rMessage.proto\"\220\003" +
+      "\n\016BaseMessagePkg\022F\n\010userInfo\030\001 \001(\01322.com" +
+      ".github.im.common.connect.model.proto.Us" +
+      "erInfoH\000\022H\n\007message\030\002 \001(\01325.com.github.i" +
       "m.common.connect.model.proto.ChatMessage" +
       "H\000\022R\n\014notification\030\003 \001(\0132:.com.github.im" +
       ".common.connect.model.proto.Notification" +
@@ -2073,16 +2083,16 @@ public final class BaseMessage {
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
         new com.google.protobuf.Descriptors.FileDescriptor[] {
-          com.github.im.common.connect.model.proto.Account.getDescriptor(),
-          com.github.im.common.connect.model.proto.Chat.getDescriptor(),
+          com.github.im.common.connect.model.proto.User.getDescriptor(),
           com.github.im.common.connect.model.proto.Notification.getDescriptor(),
+          com.github.im.common.connect.model.proto.Chat.getDescriptor(),
         });
     internal_static_com_github_im_common_connect_model_proto_BaseMessagePkg_descriptor =
       getDescriptor().getMessageTypes().get(0);
     internal_static_com_github_im_common_connect_model_proto_BaseMessagePkg_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_com_github_im_common_connect_model_proto_BaseMessagePkg_descriptor,
-        new java.lang.String[] { "AccountInfo", "Message", "Notification", "Ack", "Heartbeat", "Payload", });
+        new java.lang.String[] { "UserInfo", "Message", "Notification", "Ack", "Heartbeat", "Payload", });
     internal_static_com_github_im_common_connect_model_proto_Heartbeat_descriptor =
       getDescriptor().getMessageTypes().get(1);
     internal_static_com_github_im_common_connect_model_proto_Heartbeat_fieldAccessorTable = new
@@ -2090,9 +2100,9 @@ public final class BaseMessage {
         internal_static_com_github_im_common_connect_model_proto_Heartbeat_descriptor,
         new java.lang.String[] { "Ping", });
     descriptor.resolveAllFeaturesImmutable();
-    com.github.im.common.connect.model.proto.Account.getDescriptor();
-    com.github.im.common.connect.model.proto.Chat.getDescriptor();
+    com.github.im.common.connect.model.proto.User.getDescriptor();
     com.github.im.common.connect.model.proto.Notification.getDescriptor();
+    com.github.im.common.connect.model.proto.Chat.getDescriptor();
   }
 
   // @@protoc_insertion_point(outer_class_scope)

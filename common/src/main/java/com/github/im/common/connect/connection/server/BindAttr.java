@@ -2,7 +2,7 @@ package com.github.im.common.connect.connection.server;
 
 import com.github.im.common.connect.connection.ReactiveConnectionManager;
 import com.github.im.common.connect.enums.PlatformType;
-import com.github.im.common.connect.model.proto.Account;
+import com.github.im.common.connect.model.proto.User;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -58,10 +58,10 @@ public class BindAttr<T> {
     }
 
 
-    public static BindAttr<String> getBindAttr(Account.AccountInfo accountInfo) {
+    public static BindAttr<String> getBindAttr(User.UserInfo accountInfo) {
         var platformType = accountInfo.getPlatformType();
         var platformTypeEnums = PlatformType.getPlatformType(platformType);
-        var account = accountInfo.getAccount();
+        var account = accountInfo.getUsername();
         return getBindAttr(account,platformTypeEnums);
     }
 

@@ -4,6 +4,7 @@ import com.github.im.dto.PageResult;
 import com.github.im.dto.organization.CompanyDTO;
 import com.github.im.dto.user.LoginRequest;
 import com.github.im.dto.user.RegistrationRequest;
+import com.github.im.dto.user.UserBasicInfo;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.server.model.User;
 import com.github.im.server.service.CompanyUserService;
@@ -73,11 +74,33 @@ public class UserController {
         }
     }
 
+    /**
+     * 查询用户信息
+     * @param username
+     * @return 用户信息
+     */
+
     @GetMapping("/{username}")
-    public Optional<User> getUserByUsername(@PathVariable String username) {
+    public Optional<UserBasicInfo> getUserByUsername(@PathVariable String username) {
         //TODO 权限
         return userService.findUserByUsername(username);
     }
+
+
+    /**
+     * 查询用户信息
+     * @param userId
+     * @return 用户信息
+     */
+
+    @GetMapping("/id/{userId}")
+    public Optional<UserBasicInfo> getUserById(@PathVariable Long userId,
+                                               @AuthenticationPrincipal User user) {
+        //TODO 权限
+        return userService.findUserByUserId(userId);
+    }
+
+
 
 
     /**

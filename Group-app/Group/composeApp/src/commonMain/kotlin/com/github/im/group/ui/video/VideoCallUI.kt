@@ -43,21 +43,17 @@ fun VideoCallLauncher(
     val videoCallViewModel: VideoCallViewModel = koinViewModel()
     val videoCallState by videoCallViewModel.videoCallState.collectAsState()
 
+    // 首先检查权限，只有权限被授予后才开始视频通话流程
     TryGetVideoCallPermissions(
         onAllGranted = {
-//            VideoCall(
-//                onAllGranted = {
-//                    CrossPlatformVideoCallLauncher(
-//                        remoteUser = remoteUser,
-//                        onCallEnded = onCallEnded
-//                    )
-//                },
-//                onAnyDenied = {
-//                    DefaultHandleVideoCallPermissions(
-//                        onPermissionsGranted = {}
-//                    )
-//                }
-//            )
+            // 权限已授予，可以安全地启动视频通话
+            // 启动视频通话
+            videoCallViewModel.startCall(remoteUser)
+
+        },
+        onAnyDenied = {
+            // 权限被拒绝，结束通话
+            onCallEnded()
         }
     )
     
@@ -73,10 +69,8 @@ fun VideoCallLauncher(
     // 根据通话状态显示不同界面
     when (videoCallState.callStatus) {
         VideoCallStatus.IDLE -> {
-            // 启动视频通话
-            LaunchedEffect(remoteUser) {
-                videoCallViewModel.startCall(remoteUser)
-            }
+            // 等待权限处理后启动视频通话
+            // 实际启动在权限检查中进行
         }
         VideoCallStatus.INCOMING -> {
             // 显示来电通知
