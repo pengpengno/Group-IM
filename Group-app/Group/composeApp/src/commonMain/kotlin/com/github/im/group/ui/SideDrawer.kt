@@ -2,35 +2,29 @@ package com.github.im.group.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoCall
-import androidx.compose.material3.DividerDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.github.im.group.model.UserInfo
 
 /**
- * 侧边栏
+ * 侧边栏 - 美化版
  */
 @Composable
 fun SideDrawer(
@@ -43,76 +37,104 @@ fun SideDrawer(
     onSettingsClick: () -> Unit = {},
     appVersion: String = "v1.0.0"
 ) {
-
-//    val userRepository : UserRepository = koinInject<UserRepository>()
-//
-//
-//    var userInfo : UserInfo? by remember { mutableStateOf(null) }
-//
-//    LaunchedEffect(userInfo){
-//        userInfo = GlobalCredentialProvider.storage.getUserInfo()
-//    }
-
-//    val userInfoState = userRepository.userState.collectAsState()
     Column(
         modifier = Modifier
             .fillMaxHeight()
-            .width(260.dp)
-            .background(Color(0xFF111B21))
-            .padding(16.dp)
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
     ) {
-        // 顶部：用户信息
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        // --- 顶部用户信息区域 ---
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onProfileClick() }
-                .padding(bottom = 24.dp)
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
+                .padding(top = 48.dp, bottom = 24.dp, start = 20.dp, end = 20.dp)
         ) {
-            UserAvatar(username = userInfo?.username ?: "游客", size = 56)
-            Spacer(modifier = Modifier.width(12.dp))
             Column {
+                UserAvatar(
+                    username = userInfo?.username ?: "游客", 
+                    size = 64
+                )
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = userInfo?.username ?: "加载中...",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White
+                    text = userInfo?.username ?: "未登录",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = if (userInfo != null) "点击查看个人资料" else "未登录用户",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFA3A3A3)
+                    text = userInfo?.email ?: "登录体验更多功能",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
 
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 8.dp),
-            thickness = DividerDefaults.Thickness,
-            color = Color(0xFF202C33)
-        )
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // 菜单项区域
-        DrawerItem("联系人", Icons.Default.People, onContactsClick, Color.White)
-//        DrawerItem("群组", Icons.Default.Group, onGroupsClick, Color.White)
-        DrawerItem("会议", Icons.Default.VideoCall, onMeetingsClick, Color.White)
-        DrawerItem("个人资料", Icons.Default.Person, onProfileClick, Color.White)
-        DrawerItem("设置", Icons.Default.Settings, onSettingsClick, Color.White)
-
-        Spacer(modifier = Modifier.weight(1f)) // 底部对齐
-
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color(0xFF202C33))
-
-        // 退出 & 版本
-        DrawerItem("退出登录", Icons.AutoMirrored.Filled.ExitToApp, onLogout, Color.Red)
-
-        Text(
-            text = "版本号：$appVersion",
-            style = MaterialTheme.typography.bodySmall,
-            color = Color(0xFF667781),
+        // --- 菜单项列表 ---
+        Column(
             modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(top = 8.dp)
+                .weight(1f)
+                .padding(horizontal = 12.dp)
+        ) {
+            DrawerItem(
+                label = "联系人", 
+                icon = Icons.Default.People, 
+                onClick = onContactsClick,
+                containerColor = Color(0xFFE3F2FD),
+                iconTint = Color(0xFF2196F3)
+            )
+            DrawerItem(
+                label = "音视频会议", 
+                icon = Icons.Default.VideoCall, 
+                onClick = onMeetingsClick,
+                containerColor = Color(0xFFF1F8E9),
+                iconTint = Color(0xFF4CAF50)
+            )
+            DrawerItem(
+                label = "个人资料", 
+                icon = Icons.Default.Person, 
+                onClick = onProfileClick,
+                containerColor = Color(0xFFFFF3E0),
+                iconTint = Color(0xFFFF9800)
+            )
+            DrawerItem(
+                label = "系统设置", 
+                icon = Icons.Default.Settings, 
+                onClick = onSettingsClick,
+                containerColor = Color(0xFFF3E5F5),
+                iconTint = Color(0xFF9C27B0)
+            )
+        }
+
+        // --- 底部工具栏 ---
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
         )
+        
+        DrawerItem(
+            label = "退出登录", 
+            icon = Icons.AutoMirrored.Filled.ExitToApp, 
+            onClick = onLogout,
+            iconTint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Version $appVersion",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline
+            )
+        }
     }
 }
 
@@ -121,26 +143,43 @@ fun DrawerItem(
     label: String,
     icon: ImageVector,
     onClick: () -> Unit,
-    iconTint: Color = Color(0xFF0088CC)
+    containerColor: Color = Color.Transparent,
+    iconTint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    modifier: Modifier = Modifier.padding(vertical = 4.dp)
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(vertical = 14.dp)
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = Color.Transparent,
+        modifier = modifier.fillMaxWidth()
     ) {
-        Icon(
-            icon,
-            contentDescription = label,
-            tint = iconTint,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(24.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = Color.White
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(
+                        if (containerColor == Color.Transparent) Color.Transparent else containerColor, 
+                        RoundedCornerShape(8.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = iconTint,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
 }

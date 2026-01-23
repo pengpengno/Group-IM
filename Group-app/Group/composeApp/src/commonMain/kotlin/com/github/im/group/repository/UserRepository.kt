@@ -1,5 +1,6 @@
 package com.github.im.group.repository
 
+import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.db.AppDatabase
 import com.github.im.group.db.entities.UserStatus
 import com.github.im.group.model.UserInfo
@@ -23,22 +24,24 @@ class UserRepository (
     val userState = _userState.asStateFlow()
 
     /**
-     * 获取当前用户状态
+     * 获取当前本地的用户
      */
-    fun getCurrentUserState(): LoginState {
-        return userState.value
+
+    suspend fun getLocalUserInfo(): UserInfo? {
+        return GlobalCredentialProvider.storage.getUserInfo()
     }
-    
-    /**
-     * 获取当前用户信息（如果已登录）
-     */
-    fun getCurrentUserInfo(): UserInfo? {
-        return when (val state = userState.value) {
-            is LoginState.Authenticated -> state.userInfo
-            else -> null
-        }
-    }
+
 //
+//    /**
+//     * 获取当前用户信息（如果已登录）
+//     */
+//    fun getCurrentUserInfo(): UserInfo? {
+//        return when (val state = userState.value) {
+//            is LoginState.Authenticated -> state.userInfo
+//            else -> null
+//        }
+//    }
+////
 //    /**
 //     * 安全执行需要登录用户的操作，只有在用户已登录时才执行
 //     */

@@ -52,7 +52,7 @@ class ChatMessageBuilderImpl(
         val chatMessage = buildSendChatMessage(
             messageContent = serverFileId,
             conversationId = conversationId,
-            messageType = messageType
+            messageType = messageType,
         )
 
         return chatMessage

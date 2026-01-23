@@ -2,25 +2,29 @@ package com.github.im.group.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,9 +37,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.manager.LoginStateManager
 import com.github.im.group.ui.chat.ChatUI
 import com.github.im.group.ui.contacts.ContactsUI
@@ -49,8 +53,11 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
-// 底部导航项数据类
-data class BottomNavItem(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+data class BottomNavItem(
+    val title: String, 
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val selectedIcon: androidx.compose.ui.graphics.vector.ImageVector
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,85 +70,74 @@ fun ChatMainScreen(
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    // 会话列表加载中状态
-    val loading by chatViewModel.loading.collectAsState()
-    // 登录状态
     val loginState by userViewModel.loginState.collectAsState()
+    val userInfo by userViewModel.currentLocalUserInfo.collectAsState()
 
-
-    // 小窗视频通话状态
     var isVideoCallMinimized by remember { mutableStateOf(false) }
-
-    // 底部导航栏选中状态
     var selectedItem by remember { mutableIntStateOf(0) }
     
     val bottomNavItems = listOf(
-        BottomNavItem("聊天", Icons.AutoMirrored.Filled.Chat),
-        BottomNavItem("联系人", Icons.Default.Contacts),
-        BottomNavItem("我", Icons.Default.Person)
+        BottomNavItem("聊天", Icons.AutoMirrored.Filled.Chat, Icons.AutoMirrored.Filled.Chat),
+        BottomNavItem("联系人", Icons.Default.Contacts, Icons.Default.Contacts),
+        BottomNavItem("设置", Icons.Default.Person, Icons.Default.Person)
     )
 
     if(loginState is LoginState.AuthenticationFailed){
         val authFailed = loginState as LoginState.AuthenticationFailed
         if (!authFailed.isNetworkError) {
-            // 登录失败且非网络错误则跳转到登录页面
             navHostController.navigate(Login)
         }
     }
-    val userInfo by userViewModel.currentUserInfo.collectAsState()
 
+    LaunchedEffect(userInfo) {
+        // 判断是否存在登录凭证 存在 则自动化登陆 ， 不存在则 返回到登录页面
+        userViewModel.hasLocalCredential().let {
+            if (!it) {
+                loginStateManager.setLoggedOut()
+                navHostController.navigate(Login)
+            }
+            else{
+                // 如果状态不是登陆中 且 也不是溢价登录的状态  那么就尝试登录一下， 并且如果失败了  那么就定期尝试重试
+
+                if (loginState !is LoginState.Authenticating  && loginState !is LoginState.Authenticated){
+                    // Todo  检测失败后  定期重试一下
+                    userViewModel.autoLogin()
+                }
+
+
+            }
+        }
+    }
     LaunchedEffect(userInfo) {
         if(userInfo?.userId != 0L){
             userInfo?.userId?.let { chatViewModel.getConversations(it) }
             userViewModel.loadFriends()
         }
     }
-    var firstTopBarText by remember { mutableStateOf("聊天") }
 
-    // 根据登录状态更新顶部栏文本
-    when(loginState){
-        is LoginState.Authenticated -> {
-            firstTopBarText = "聊天"
+    val topBarTitle = when (selectedItem) {
+        0 -> when(loginState) {
+            is LoginState.Authenticating -> "连接中..."
+            is LoginState.Checking -> "正在更新..."
+            is LoginState.AuthenticationFailed -> if ((loginState as LoginState.AuthenticationFailed).isNetworkError) "网络异常" else "聊天"
+            else -> "消息"
         }
-        is LoginState.Authenticating -> {
-            firstTopBarText = "连接中..."
-        }
-        is LoginState.Checking -> {
-            firstTopBarText = "检查中..."
-        }
-        is LoginState.AuthenticationFailed -> {
-            val authFailed = loginState as LoginState.AuthenticationFailed
-            if (authFailed.isNetworkError) {
-                firstTopBarText = "重试中..."
-            } else {
-                firstTopBarText = "认证失败" // 这种情况下用户很快就会被重定向到登录页面
-            }
-        }
-        else -> {
-            firstTopBarText = "聊天" // 默认为聊天
-        }
+        1 -> "联系人"
+        else -> "个人中心"
     }
     
-    // 获取WebRTC管理器实例
     val webRTCManager = koinInject<com.github.im.group.sdk.WebRTCManager>()
-    
-    // 观察来电状态
     val videoCallState by webRTCManager.videoCallState.collectAsState()
     
-    // 处理来电逻辑
     if (videoCallState.callStatus == com.github.im.group.ui.video.VideoCallStatus.INCOMING) {
         videoCallState.caller?.let { caller ->
             VideoCallIncomingNotification(
                 caller = caller,
                 onAccept = {
-                    // 接受来电
                     webRTCManager.acceptCall("")
-                    
-                    // 打开视频通话界面
                     isVideoCallMinimized = false
                 },
                 onReject = {
-                    // 拒绝来电
                     webRTCManager.rejectCall("")
                 }
             )
@@ -150,22 +146,27 @@ fun ChatMainScreen(
     
     ModalNavigationDrawer(
         drawerContent = {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
+            ModalDrawerSheet(
+                drawerContainerColor = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.width(300.dp)
             ) {
                 SideDrawer(
                     userInfo = userInfo,
                     onLogout = {
-                                    loginStateManager.setLoggedOut()
-                                    navHostController.navigate(Login)
-                               },
-                    onProfileClick = { selectedItem = 2},
-                    onContactsClick = { navHostController.navigate(Contacts) },
-//                    onGroupsClick = { navHostController.navigate("Groups") },
+                        loginStateManager.setLoggedOut()
+                        navHostController.navigate(Login)
+                    },
+                    onProfileClick = { 
+                        selectedItem = 2
+                        scope.launch { drawerState.close() }
+                    },
+                    onContactsClick = { 
+                        selectedItem = 1
+                        scope.launch { drawerState.close() }
+                    },
                     onMeetingsClick = { navHostController.navigate(Meetings) },
                     onSettingsClick = { navHostController.navigate(Settings) },
-                    appVersion = "v1.2.3"
+                    appVersion = "v1.0.5"
                 )
             }
         },
@@ -173,84 +174,59 @@ fun ChatMainScreen(
     ) { 
         Scaffold(
             topBar = {
-                when (selectedItem) {
-                    0 -> {
-                        // 聊天界面的 TopAppBar，显示搜索按钮
-                        TopAppBar(
-                            title = {
-                                Text(text = firstTopBarText, color = Color.White)
-                            },
-                            navigationIcon = {
-                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                    Icon(Icons.Default.Menu, contentDescription = "菜单", tint = Color.White)
-                                }
-                            },
-                            actions = {
-                                IconButton(onClick = {
-                                    // 导航到搜索页面
-                                    navHostController.navigate(Search)
-                                }) {
-                                    Icon(Icons.Default.Search, contentDescription = "搜索", tint = Color.White)
-                                }
-                            },
-                            colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                                containerColor = Color(0xFF0088CC)
-                            )
-                        )
-                    }
-                    1 -> {
-                        // 联系人界面的 TopAppBar
-                        TopAppBar(
-                            title = { Text(text = "联系人", color = Color.White) },
-                            navigationIcon = {
-                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                    Icon(Icons.Default.Menu, contentDescription = "菜单", tint = Color.White)
-                                }
-                            },
-                            colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                                containerColor = Color(0xFF0088CC)
-                            )
-                        )
-                    }
-                    2 -> {
-                        // 个人界面的 TopAppBar
-                        TopAppBar(
-                            title = { Text(text = "我", color = Color.White) },
-                            navigationIcon = {
-                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                    Icon(Icons.Default.Menu, contentDescription = "菜单", tint = Color.White)
-                                }
-                            },
-                            colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                                containerColor = Color(0xFF0088CC)
-                            )
-                        )
-                    }
-                }
+                CenterAlignedTopAppBar(
+                    title = { 
+                        Text(
+                            text = topBarTitle, 
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        ) 
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = "菜单")
+                        }
+                    },
+                    actions = {
+                        if (selectedItem == 0) {
+                            IconButton(onClick = { navHostController.navigate(Search) }) {
+                                Icon(Icons.Default.Add, contentDescription = "发起聊天")
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                )
             },
             bottomBar = {
                 NavigationBar(
-                    containerColor = Color(0xFF0088CC)
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 8.dp
                 ) {
                     bottomNavItems.forEachIndexed { index, item ->
+                        val isSelected = selectedItem == index
                         NavigationBarItem(
                             icon = {
                                 Icon(
-                                    item.icon,
+                                    imageVector = item.icon,
                                     contentDescription = item.title,
-                                    tint = if (selectedItem == index) Color.White else Color(0x99FFFFFF)
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
                             label = { 
                                 Text(
                                     text = item.title,
-                                    color = if (selectedItem == index) Color.White else Color(0x99FFFFFF)
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 ) 
                             },
-                            selected = selectedItem == index,
-                            onClick = { selectedItem = index }
+                            selected = isSelected,
+                            onClick = { selectedItem = index },
+                            colors = NavigationBarItemDefaults.colors(
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                            )
                         )
-
                     }
                 }
             }
@@ -259,32 +235,20 @@ fun ChatMainScreen(
                 modifier = Modifier
                     .padding(padding)
                     .fillMaxSize()
-                    .background(Color(0xFFF0F0F0))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
             ) {
-                // 根据底部导航选择显示不同内容
                 when (selectedItem) {
-                    0 -> {
-                        // 聊天界面
-                        ChatUI(navHostController = navHostController)
-                    }
-                    1 -> {
-                        // 联系人界面
-                        ContactsUI(navHostController = navHostController)
-                    }
-                    2 -> {
-                        // 个人界面
-                        ProfileUI(navHostController = navHostController)
-                    }
+                    0 -> ChatUI(navHostController = navHostController)
+                    1 -> ContactsUI(navHostController = navHostController)
+                    2 -> ProfileUI(navHostController = navHostController)
                 }
                 
-                // 小窗视频通话
                 if (isVideoCallMinimized) {
                     DraggableVideoWindow(
                         null,
                         Modifier.align(Alignment.BottomEnd)
                     )
                 }
-
             }
         }
     }

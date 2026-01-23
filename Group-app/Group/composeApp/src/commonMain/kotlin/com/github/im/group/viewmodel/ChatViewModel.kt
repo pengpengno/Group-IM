@@ -1,6 +1,7 @@
 package com.github.im.group.viewmodel
 
 import UnauthorizedException
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.im.group.api.ConversationApi
@@ -400,6 +401,7 @@ class ChatViewModel (
      * 如果是更早的,没超过一年 那么就展示日期  格式 mm-dd
      * 如果超过了 一年那么久展示 年月日  格式 yyyy-mm-dd
      */
+    @RequiresApi(android.os.Build.VERSION_CODES.O)
     private fun calculateDisplayDateTime(createAt: kotlinx.datetime.LocalDateTime): String {
         return try {
             val dateTime = createAt

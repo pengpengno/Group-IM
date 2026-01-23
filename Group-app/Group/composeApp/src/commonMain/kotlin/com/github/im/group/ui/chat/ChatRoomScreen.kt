@@ -60,6 +60,9 @@ import androidx.navigation.compose.rememberNavController
 import com.github.im.group.api.FileMeta
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
+import com.github.im.group.manager.FileStorageManager
+import com.github.im.group.manager.getFile
+import com.github.im.group.manager.isFileExists
 import com.github.im.group.manager.toFile
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.UserInfo
@@ -68,13 +71,13 @@ import com.github.im.group.sdk.MediaFileView
 import com.github.im.group.ui.ChatRoom
 import com.github.im.group.ui.UserAvatar
 import com.github.im.group.ui.video.VideoCallLauncher
-import com.github.im.group.ui.video.VideoCallViewModel
 import com.github.im.group.viewmodel.ChatRoomViewModel
 import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.SessionCreationState
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
 import io.github.aakira.napier.Napier
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
@@ -87,11 +90,10 @@ fun ChatRoomScreen(
     val userViewModel: UserViewModel = koinViewModel()
     val voiceViewModel: VoiceViewModel = koinViewModel()
     val chatRoomViewModel: ChatRoomViewModel = koinViewModel()
-    val videoCallViewModel: VideoCallViewModel = koinViewModel()
 
     val uiState by voiceViewModel.uiState.collectAsState()
     val chatUiState by chatRoomViewModel.uiState.collectAsState()
-    val userInfo = userViewModel.getCurrentUser()
+    val userInfo by userViewModel.currentLocalUserInfo.collectAsState()
 
     var showVideoCall by remember { mutableStateOf(false) }
     var isCreatingConversation by remember {  mutableStateOf(true)}
@@ -100,13 +102,12 @@ fun ChatRoomScreen(
     var remoteUser by remember { mutableStateOf<UserInfo?>(chatUiState.friend) } // 在群聊场景中可能为null，表示多个用户
     var groupName by remember { mutableStateOf<String>(chatUiState.getRoomName()) } // 群聊名称加载中
 
-    // 如果是创建的会话，则获取创建者信息
+    // 实现 刷新的逻辑 ，优先本地获取， 边界 则从远程获取，而且是即将到达边界的时候就应该拉去刷新 ， loading的时候要有动画
     val pullRefreshState = rememberPullRefreshState(
         refreshing = chatUiState.loading,
         onRefresh = {
-            conversationId?.let {
-                chatRoomViewModel.loadMessages(it)
-            }
+            //
+            chatRoomViewModel.loadMessages()
         }
     )
     val isRefreshing = pullRefreshState.progress
@@ -115,42 +116,20 @@ fun ChatRoomScreen(
 
     LaunchedEffect(chatRoom) {
 
-        when(val room = chatRoom){
-            is ChatRoom.CreatePrivate -> {
-                // 设置初始状态为Idle，表示有待创建的会话
-                chatRoomViewModel.clearSessionCreationError()
-            }
-
-            is ChatRoom.Conversation -> {
-                conversationId = room.conversationId
-            }
-        }
+//        when(val room = chatRoom){
+//            is ChatRoom.CreatePrivate -> {
+//                // 设置初始状态为Idle，表示有待创建的会话
+//                chatRoomViewModel.clearSessionCreationError()
+//            }
+//
+//            is ChatRoom.Conversation -> {
+//                conversationId = room.conversationId
+//            }
+//        }
         // 初始化下 信息
         chatRoomViewModel.initChatRoom(chatRoom)
     }
-//    LaunchedEffect(conversationId) {
-//        conversationId?.let {
-//            chatRoomViewModel.getConversation(it) // 获取会话信息
-//            chatRoomViewModel.loadMessages(it)  //服务器加载更多消息
-//            chatRoomViewModel.register(it) // 注册会话，用于接收服务端推送的消息
-//        }
-//    }
-//
-    // 单独的LaunchedEffect来响应会话数据更新
-    LaunchedEffect(conversationId) {
-//        chatRoomViewModel.uiState.collect { state ->
-//            if (state.conversation.conversationId == conversationId && state.conversation.conversationId != -1L) {
-//                Napier.i ("conversation ${state.conversation}")
-//
-//                // 设置远程用户（这里应该是从会话中获取对方用户信息）
-//                remoteUser = state.conversation.getOtherUser(userInfo)
-//                Napier.i ("remoteUser $remoteUser")
-//
-//                // 一旦获取到正确的会话信息就退出收集
-//                return@collect
-//            }
-//        }
-    }
+
 
     DisposableEffect(conversationId) {
         onDispose {
@@ -315,58 +294,31 @@ fun ChatRoomScreen(
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                 ) {
+                    // Updated Input Area Logic in ChatRoomScreen.kt
                     ChatInputArea(
                         onSendText = { text ->
                             if (text.isNotBlank()) {
-                                remoteUser?.let { friendUser ->
-                                    userInfo?.let { currentUser ->
-                                        // 使用viewModel中的辅助方法发送私聊消息，带重试机制
-                                        chatRoomViewModel.sendPrivateTextMessageWithRetry(currentUser.userId, friendUser.userId, text)
-                                    }
-                                } ?: run {
-                                    conversationId?.let { id ->
-                                        chatRoomViewModel.sendTextMessage(id, text)
-                                    }
-                                }
+                                chatRoomViewModel.sendText(text)
                             }
                         },
                         onRelease = {
-                            //  停止后直接发送
                             voiceViewModel.getVoiceData()?.let { voiceData ->
-                                remoteUser?.let { friendUser ->
-                                    userInfo?.let { currentUser ->
-                                        // 使用viewModel中的辅助方法发送私聊语音消息，带重试机制
-                                        chatRoomViewModel.sendPrivateVoiceMessageWithRetry(currentUser.userId, friendUser.userId, voiceData)
-                                    }
-                                } ?: run {
-                                    conversationId?.let { id ->
-                                        chatRoomViewModel.sendVoiceMessage(id, voiceData)
-                                    }
-                                }
+                                chatRoomViewModel.sendVoice(voiceData)
                             }
                         },
                         onFileSelected = { files ->
                             files.forEach { file ->
-                                chatUiState.friend?.let { friendUser ->
-                                    userInfo?.let { currentUser ->
-                                        // 使用viewModel中的辅助方法发送私聊文件消息，带重试机制
-                                        chatRoomViewModel.sendPrivateFileMessageWithRetry(currentUser.userId, friendUser.userId, file)
-                                    }
-                                } ?: run {
-                                    conversationId?.let { id ->
-                                        chatRoomViewModel.sendFileMessage(id, file)
-                                    }
-                                }
+                                chatRoomViewModel.sendFile(file)
                             }
                         }
                     )
                 }
-                
+
                 // 显示会话创建错误或状态
                 if (chatUiState.sessionCreationState is SessionCreationState.Error ||
                     chatUiState.sessionCreationState is SessionCreationState.Pending ||
                     chatUiState.error != null) {
-                    
+
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -385,13 +337,13 @@ fun ChatRoomScreen(
                                 color = Color.White,
                                 fontSize = 14.sp
                             )
-                            
+
                             Spacer(modifier = Modifier.width(8.dp))
-                            
+
                             Button(
                                 onClick = {
                                     chatRoomViewModel.clearSessionCreationError()
-                                    chatRoomViewModel.retryPendingSession()
+//                                    chatRoomViewModel.retryPendingSession()
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color.Yellow)
                             ) {
@@ -403,7 +355,7 @@ fun ChatRoomScreen(
                         }
                     }
                 }
-                
+
                 // 显示会话创建过程中的加载状态
                 if (chatUiState.sessionCreationState is SessionCreationState.Creating) {
                     Box(
@@ -424,9 +376,9 @@ fun ChatRoomScreen(
                                 strokeWidth = 2.dp,
                                 color = Color.White
                             )
-                            
+
                             Spacer(modifier = Modifier.width(8.dp))
-                            
+
                             Text(
                                 text = "正在创建会话...",
                                 color = Color.White,
@@ -439,6 +391,7 @@ fun ChatRoomScreen(
         }
     )
 }
+
 
 /**
  * 判断是否应该显示头像
@@ -571,7 +524,7 @@ fun MessageBubble(
                         }
                         else -> TextMessage(MessageContent.Text(msg.content))
                     }
-                    
+
                     // 显示消息状态图标（仅对本人发送的消息）
                     if (isOwnMessage) {
                         when (msg.status) {
@@ -674,6 +627,8 @@ fun FileMessageLoader(
     onError: @Composable (() -> Unit)? = null
 ) {
 
+
+    val fileStorageManager = koinInject<FileStorageManager>()
     var fileMeta by remember { mutableStateOf<FileMeta?>(null) }
     var file by remember { mutableStateOf<File?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -686,7 +641,7 @@ fun FileMessageLoader(
         try {
             // 异步获取文件元数据（这是所有文件类型都需要的步骤）
             val meta = messageViewModel.getFileMessageMetaAsync(msg)
-            file = messageViewModel.getFile(fileId)
+            file = fileStorageManager.getFile(fileId)
             fileMeta = meta
             Napier.d { "查询文件的 元数据：$meta  file $file" }
 
@@ -701,7 +656,7 @@ fun FileMessageLoader(
                 }
 
                 // 检查文件是否存在，如果不存在 则 获取其 下载链接 作为数据源
-                val fileExists = messageViewModel.isFileExists(fileId)
+                val fileExists = fileStorageManager.isFileExists(fileId)
                 if (!fileExists) {
                     // 不存在则标记需要下载
                     shouldDownload = true

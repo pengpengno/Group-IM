@@ -3,7 +3,7 @@ import kotlinx.datetime.LocalDateTime;
 
 CREATE TABLE Conversation (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  conversationId INTEGER NOT NULL,          -- 会话Id
+  conversationId INTEGER NOT NULL UNIQUE,          -- 会话Id (添加 UNIQUE 约束)
   groupName TEXT,
   description TEXT,                 -- 描述
   createdBy INTEGER NOT NULL,       -- 对应 User.userId
@@ -16,10 +16,11 @@ SELECT * FROM Conversation;
 
 selectConversationById:
 SELECT * FROM Conversation
-WHERE conversationId = ?;
+WHERE conversationId = ?
+LIMIT 1;
 
 insertConversation:
-INSERT INTO Conversation(
+INSERT OR REPLACE INTO Conversation(
    conversationId ,groupName, description, createdBy, createdAt, status
 ) VALUES ( ?, ?, ?, ?, ?, ?);
 

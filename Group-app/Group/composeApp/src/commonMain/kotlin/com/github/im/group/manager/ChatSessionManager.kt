@@ -56,9 +56,9 @@ class ChatSessionManager  (
             val vm = sessionMap[conversationId]
             if (vm != null) {
                 it.clientMsgId.let { clientMsgId ->
-                    vm.receiveAckUpdateStatus(clientMsgId,it.ackTimestamp)
+//                    vm.receiveAckUpdateStatus(clientMsgId,it.ackTimestamp)
                 }
-                vm.updateMessage(it.clientMsgId)
+//                vm.onReceiveMessage(it.clientMsgId)
             } else {
             }
             // 更新对应信息的 ui 状态

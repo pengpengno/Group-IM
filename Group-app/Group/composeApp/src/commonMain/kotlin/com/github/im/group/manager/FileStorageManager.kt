@@ -766,17 +766,20 @@ object FileTypeDetector {
     }
 
     fun isAudioFile(mimeType: String? = null, filename: String? = null): Boolean {
-        mimeType?.let {
-            if (it.startsWith("audio/")) return true
-        }
+//        mimeType?.let {
+//            if (it.startsWith("audio/")) return true
+//        }
+
+        // 当M4A 才未 录音 文件因为本地生成的就是m4a 的
         filename?.let {
             val lower = it.lowercase()
-            return lower.endsWith(".mp3") ||
-                    lower.endsWith(".wav") ||
-                    lower.endsWith(".aac") ||
-                    lower.endsWith(".flac") ||
-                    lower.endsWith(".ogg") ||
-                    lower.endsWith(".m4a")
+            return lower.endsWith(".m4a")
+//            lower.endsWith(".mp3") ||
+//                    lower.endsWith(".wav") ||
+//                    lower.endsWith(".aac") ||
+//                    lower.endsWith(".flac") ||
+//                    lower.endsWith(".ogg") ||
+
         }
         return false
     }

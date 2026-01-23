@@ -38,8 +38,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.github.im.group.model.UserInfo
-import com.github.im.group.ui.ChatRoom
 import com.github.im.group.ui.UserAvatar
+import com.github.im.group.ui.conversation
+import com.github.im.group.ui.createPrivate
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.LoginState
 import com.github.im.group.viewmodel.UserViewModel
@@ -64,16 +65,12 @@ fun AddFriendScreen(
     val searchResults by userViewModel.searchResults.collectAsState()
     val friends by userViewModel.friends.collectAsState()
 
-    var userInfo by remember {
-        mutableStateOf(userViewModel.getCurrentUser())
-    }
+
+
     LaunchedEffect(loginState){
         when(val state = loginState) {
             is LoginState.Authenticated -> {
                 // 获取当前用户信息
-                userInfo =  state.userInfo
-                Napier.i("Current user: $userInfo")
-                // 加载好友列表
                 userViewModel.loadFriends()
             }
             else -> {
@@ -160,7 +157,7 @@ fun AddFriendScreen(
                                         try {
 //                                            val conversation = chatViewModel.getOrCreatePrivateChat(user.userId)
                                             //TODO  这里的逻辑有点 问题 需要处理修改掉
-                                            navHostController.navigate(ChatRoom.CreatePrivate(user.userId))
+                                            navHostController.navigate(createPrivate(user.userId))
                                         } catch (e: Exception) {
                                             Napier.e("创建或获取会话失败", e)
                                         }
@@ -201,7 +198,7 @@ fun AddFriendScreen(
 
                             selectedUser?.let {
                                 // 导航到具体的聊天室
-                                navHostController.navigate(ChatRoom.CreatePrivate(it.userId))
+                                navHostController.navigate(conversation(it.userId))
                                 showUserDetails = false
                             }
 

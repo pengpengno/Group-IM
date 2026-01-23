@@ -628,15 +628,14 @@ data class GroupInfo(
 @Serializable
 data class ConversationRes(
     val conversationId: Long ,
-    val createdBy : UserInfo ,
-    val createUserId : Long ,
-    val createAt : String ,
+    val createdBy : UserInfo? = null ,
+    val createUserId : Long = 0,
+    val createAt : String = "" ,
     val groupName: String = "",
     val description: String? = "",
     val members: List<UserInfo> = emptyList(),
-    val status: ConversationStatus = ConversationStatus.ACTIVE, // 或者默认值
-    val type: ConversationType = ConversationType.PRIVATE_CHAT, // 或者默认值
-//    val lastMessageTime: LocalDateTime = LocalDateTime(1970, 1, 1, 0, 0, 0),
+    val status: ConversationStatus = ConversationStatus.ACTIVE,
+    val type: ConversationType = ConversationType.PRIVATE_CHAT,
 ) {
     fun getName(currentUser: UserInfo?): String {
         return when (type) {

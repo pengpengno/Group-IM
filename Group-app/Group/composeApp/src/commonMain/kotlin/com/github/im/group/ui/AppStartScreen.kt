@@ -76,27 +76,6 @@ fun AppStartScreen() {
         }
     }
 
-    // 监听登录状态变化 - 只处理认证失败的情况
-//    LaunchedEffect(userState) {
-//        when(userState) {
-//            is LoginState.AuthenticationFailed -> {
-//                val authFailed = userState as LoginState.AuthenticationFailed
-//                if (!authFailed.isNetworkError) {
-//                    // 非网络错误（如认证失败、token过期等），跳转到登录页
-//                    appStartState = AppStartState.Unauthenticated
-//                }
-//                // 网络错误会继续重试，不需要改变状态
-//            }
-////            is LoginState.Idle -> {
-////                // 无凭据状态，跳转到未认证状态
-////                appStartState = AppStartState.Unauthenticated
-////            }
-//            else -> {
-//                // 其他状态（Checking, Authenticating, Authenticated）保持当前导航状态
-//                // 实际的登录状态会在主页中显示
-//            }
-//        }
-//    }
 
     Napier.d { "appStartState $appStartState, userState: $userState" }
     
@@ -148,6 +127,7 @@ fun AppStartScreen() {
                     )
                 }
 
+
                 composable<ChatRoom>{ backStackEntry ->
                     val chatRoom : ChatRoom = backStackEntry.toRoute()
                     ChatRoomScreen(
@@ -159,29 +139,17 @@ fun AppStartScreen() {
                         navHostController = navController
                     )
                 }
-
-                composable<ChatRoom.Conversation>{ backStackEntry ->
-                    val chatRoom : ChatRoom = backStackEntry.toRoute()
-                    ChatRoomScreen(
-                        chatRoom = chatRoom,
-//                        conversationId = chatRoom.conversationId,
-                        onBack = {
-                            navController.popBackStack()
-                        },
-                        navHostController = navController
-                    )
-                }
-                composable<ChatRoom.CreatePrivate>{ backStackEntry ->
-                    val chatRoom : ChatRoom = backStackEntry.toRoute()
-                    ChatRoomScreen(
-                        chatRoom = chatRoom,
-//                        conversationId = chatRoom.conversationId,
-                        onBack = {
-                            navController.popBackStack()
-                        },
-                        navHostController = navController
-                    )
-                }
+//                composable<ChatRoom.CreatePrivate>{ backStackEntry ->
+//                    val chatRoom : ChatRoom.CreatePrivate = backStackEntry.toRoute()
+//                    ChatRoomScreen(
+//                        chatRoom = chatRoom,
+////                        conversationId = chatRoom.conversationId,
+//                        onBack = {
+//                            navController.popBackStack()
+//                        },
+//                        navHostController = navController
+//                    )
+//                }
             }
         }
         AppStartState.Unauthenticated -> {
@@ -219,29 +187,19 @@ fun AppStartScreen() {
                         navHostController = navController
                     )
                 }
-
+//
+//                composable<ChatRoom.Conversation>{ backStackEntry ->
+//                    val chatRoom : ChatRoom.Conversation = backStackEntry.toRoute()
+//                    ChatRoomScreen(
+//                        chatRoom = chatRoom,
+////                        conversationId = chatRoom.conversationId,
+//                        onBack = {
+//                            navController.popBackStack()
+//                        },
+//                        navHostController = navController
+//                    )
+//                }
                 composable<ChatRoom>{ backStackEntry ->
-                    val chatRoom : ChatRoom = backStackEntry.toRoute()
-                    ChatRoomScreen(
-                        chatRoom = chatRoom,
-                        onBack = {
-                            navController.popBackStack()
-                        },
-                        navHostController = navController
-                    )
-                }
-                composable<ChatRoom.Conversation>{ backStackEntry ->
-                    val chatRoom : ChatRoom = backStackEntry.toRoute()
-                    ChatRoomScreen(
-                        chatRoom = chatRoom,
-//                        conversationId = chatRoom.conversationId,
-                        onBack = {
-                            navController.popBackStack()
-                        },
-                        navHostController = navController
-                    )
-                }
-                composable<ChatRoom.CreatePrivate>{ backStackEntry ->
                     val chatRoom : ChatRoom = backStackEntry.toRoute()
                     ChatRoomScreen(
                         chatRoom = chatRoom,

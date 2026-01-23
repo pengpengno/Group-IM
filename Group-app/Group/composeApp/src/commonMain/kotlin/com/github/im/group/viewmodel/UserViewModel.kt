@@ -48,17 +48,14 @@ class UserViewModel(
     private val _searchResults = MutableStateFlow<List<UserInfo>>(emptyList())
     val searchResults: StateFlow<List<UserInfo>> = _searchResults.asStateFlow()
 
-    private val _currentUserInfo =  MutableStateFlow<UserInfo?>(null)
 
-    var currentUserInfo : StateFlow<UserInfo?> =  _currentUserInfo.asStateFlow()
-    
-//    // 待处理好友请求数量状态
-//    private val _pendingFriendRequestsCount = MutableStateFlow<Long>(0)
-//    val pendingFriendRequestsCount: StateFlow<Long> = _pendingFriendRequestsCount.asStateFlow()
-//
-//    // 待处理好友请求列表
-//    private val _pendingFriendRequests = MutableStateFlow<List<FriendshipDTO>>(emptyList())
-//    val pendingFriendRequests: StateFlow<List<FriendshipDTO>> = _pendingFriendRequests.asStateFlow()
+    /**
+     * 尝试获取本地的 登录凭据
+     */
+    private val _currentLocalUserInfo =  MutableStateFlow<UserInfo?>(null)
+
+    var currentLocalUserInfo : StateFlow<UserInfo?> =  _currentLocalUserInfo.asStateFlow()
+
 
     init {
         viewModelScope.launch {
@@ -67,7 +64,7 @@ class UserViewModel(
                 when (state) {
                     is LoginState.Authenticated -> {
                         // 登录成功，更新当前用户信息
-                        _currentUserInfo.value = state.userInfo
+                        _currentLocalUserInfo.value = state.userInfo
                     }
                     else -> {
                         // 登录失败，更新当前用户信息
@@ -75,9 +72,17 @@ class UserViewModel(
                 }
             }
 
-            _currentUserInfo.value = GlobalCredentialProvider.storage.getUserInfo()
+            _currentLocalUserInfo.value = GlobalCredentialProvider.storage.getUserInfo()
 
         }
+    }
+
+    /**
+     * 检查本地存储的凭据
+     * 如果有，则返回true
+     */
+    suspend fun hasLocalCredential() : Boolean {
+        return GlobalCredentialProvider.storage.getUserInfo() != null
     }
     /**
      * 安全获取当前用户信息
@@ -98,7 +103,7 @@ class UserViewModel(
     fun loadFriends() {
         viewModelScope.launch {
             try {
-                val currentUser = getCurrentUser()
+                val currentUser = currentLocalUserInfo.value
                 if (currentUser?.userId != 0L) {
                     val friendList = FriendShipApi.getFriends(currentUser!!.userId)
                     _friends.value = friendList

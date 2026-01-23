@@ -211,6 +211,37 @@ class ChatMessageRepository (
     
     /**
      * 获取指定会话的最新消息
+     * @param conversationId 会话ID
+     * @param limit 限制返回的消息数量 默认30
+     */
+    fun getLatestMessages(conversationId: Long, limit: Long = 30): List<MessageItem> {
+        // 获取指定会话的最新消息  ORDER  BY  server_time_stamp DESC
+
+        val entities = db.messageQueries.selectMessagesWithUserInfoByConversation(conversationId, limit).executeAsList()
+        return entities.map { entity ->
+            MessageWrapper(
+                messageDto = MessageDTO(
+                    msgId = entity.msg_id,
+                    conversationId = entity.conversation_id,
+                    clientMsgId = entity.client_msg_id,
+                    fromAccountId = entity.from_account_id,
+                    status = entity.status,
+                    content = entity.content,
+                    type =  entity.type,
+                    timestamp = entity.server_timestamp.toString(),
+                    sequenceId = entity.sequence_id,
+                    fromAccount = UserInfo(
+                        userId = entity.from_account_id,
+                        username = entity.username?:"",
+                        email = entity.email?:""
+                    ),
+                )
+            )
+        }
+    }
+
+    /**
+     * 获取指定会话的最新消息
      * 优先
      */
     suspend fun getLatestMessage(conversationId: Long): MessageWrapper? {

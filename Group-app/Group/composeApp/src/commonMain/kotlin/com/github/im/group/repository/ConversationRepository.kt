@@ -73,7 +73,7 @@ class ConversationRepository(
                         userId = member.u_userId,
                         username = member.u_username,
                         email = member.u_email ?: "",
-                        token = "", // 从本地存储获取token不太合适
+                        token = "",
                         refreshToken = "",
                         phoneNumber = null,
                         companyId = null,
@@ -86,7 +86,7 @@ class ConversationRepository(
                     groupName = entity.groupName ?: "",
                     description = entity.description,
                     // 使用成员中的创建者信息，如果没有则使用createUserId
-                    createdBy = members.find { it.userId == entity.createdBy }!!,
+                    createdBy = members.find { it.userId == entity.createdBy } ?: UserInfo(entity.createdBy, "", "", "", "", null, null, null),
                     createUserId = entity.createdBy,
                     createAt = entity.createdAt.toString(),
                     status = ConversationStatus.valueOf(entity.status.name),
@@ -116,16 +116,7 @@ class ConversationRepository(
             Napier.d("开始保存会话信息到本地数据库: conversationId=${conversation.conversationId}, members count: ${conversation.members.size}")
             
             db.transaction {
-                // 检查会话是否已存在
-                val existingConversation = db.conversationQueries.selectConversationById(conversation.conversationId).executeAsOneOrNull()
-                
-                if (existingConversation != null) {
-                    // 会话已存在，先删除再插入更新（因为没有直接的更新查询）
-                    db.conversationQueries.deleteConversation(conversation.conversationId)
-                    Napier.d("已删除旧会话信息: conversationId=${conversation.conversationId}")
-                }
-                
-                // 插入会话信息（无论是新会话还是更新的会话）
+                // 插入或更新会话信息（利用 SQL 中的 INSERT OR REPLACE 和 UNIQUE 约束）
                 db.conversationQueries.insertConversation(
                     conversationId = conversation.conversationId,
                     groupName = conversation.groupName,
@@ -143,23 +134,14 @@ class ConversationRepository(
                     },
                     status = com.github.im.group.db.entities.ConversationStatus.valueOf(conversation.status.name)
                 )
-                
-                if (existingConversation != null) {
-                    Napier.d("已更新会话信息: conversationId=${conversation.conversationId}")
-                } else {
-                    Napier.d("已插入新会话信息: conversationId=${conversation.conversationId}")
-                }
 
                 // 删除现有的成员信息，然后重新插入（因为成员可能有变动）
-
-                //TODO  在大群聊模式 这种设计必须要改变， 大群聊的用户数据只保留 部分 其他  的通过  API 来实时 拉取即可
+                // TODO 大群聊模式下，这种全删全插的方式效率较低
                 db.conversationMemberQueries.deleteByConversation(conversation.conversationId)
-                Napier.d("已删除会话 $conversation.conversationId 的旧成员信息")
+                Napier.d("已删除会话 ${conversation.conversationId} 的旧成员信息")
 
                 // 保存成员信息
                 conversation.members.forEachIndexed { index, userInfo ->
-                    Napier.d("正在保存会话成员 $index: userId=${userInfo.userId}, username=${userInfo.username}")
-                    
                     // 首先保存用户信息
                     userRepository.addOrUpdateUser(userInfo)
 
@@ -176,8 +158,8 @@ class ConversationRepository(
                             }
                         } else {
                             kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
-                        }, // 使用会话创建时间或当前时间作为加入时间
-                        leftAt = null // 初始时未离开
+                        },
+                        leftAt = null
                     )
                 }
             }

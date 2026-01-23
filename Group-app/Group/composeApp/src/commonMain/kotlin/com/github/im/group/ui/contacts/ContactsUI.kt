@@ -3,24 +3,31 @@ package com.github.im.group.ui.contacts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,29 +40,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.github.im.group.model.OrgTreeNode
-import com.github.im.group.ui.ChatRoom
 import com.github.im.group.ui.UserItem
-import com.github.im.group.viewmodel.ChatViewModel
+import com.github.im.group.ui.createPrivate
 import com.github.im.group.viewmodel.ContactsViewModel
-import com.github.im.group.viewmodel.UserViewModel
-import io.github.aakira.napier.Napier
-import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * 联系人面板 - 显示组织架构
  */
 @Composable
-fun ContactsUI (
+fun ContactsUI(
     navHostController: NavHostController,
-){
+) {
     val contactsViewModel: ContactsViewModel = koinViewModel()
-    val userViewModel: UserViewModel = koinViewModel()
-    val chatViewModel: ChatViewModel = koinViewModel()
-    
     val organizationTree by contactsViewModel.organizationTree.collectAsState()
     val loading by contactsViewModel.loading.collectAsState()
     val expandedDepartments by contactsViewModel.expandedDepartments.collectAsState()
@@ -64,82 +66,94 @@ fun ContactsUI (
     var contactSearchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
-        // 加载组织架构
         contactsViewModel.getOrganizationStructure()
-        Napier.d("加载组织架构")
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(8.dp)
+        modifier = Modifier.fillMaxSize()
     ) {
-        // 组织架构搜索框
+        // --- 搜索与工具栏 ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 8.dp),
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
                 value = contactSearchQuery,
                 onValueChange = { contactSearchQuery = it },
-                label = { Text("搜索组织或人员") },
+                placeholder = { Text("搜索组织或人员", fontSize = 14.sp) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(20.dp)) },
                 modifier = Modifier
                     .weight(1f)
+                    .height(52.dp),
+                shape = RoundedCornerShape(26.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                ),
+                singleLine = true
             )
             
-            IconButton(
-                onClick = { 
-                    // 刷新组织架构
-                    scope.launch {
-                        contactsViewModel.getOrganizationStructure()
-                    }
-                },
-                modifier = Modifier
-                    .padding(start = 8.dp)
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Surface(
+                onClick = { contactsViewModel.getOrganizationStructure() },
+                shape = RoundedCornerShape(26.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.size(52.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "刷新"
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "刷新",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
         
-        if (loading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else if (organizationTree.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("暂无组织架构数据")
-            }
-        } else {
-            LazyColumn {
-                organizationTree.forEach { node ->
-                    item(key = node.id) {
+        // --- 内容区域 ---
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        ) {
+            if (loading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(strokeWidth = 3.dp)
+                }
+            } else if (organizationTree.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.Inbox, 
+                            contentDescription = null, 
+                            modifier = Modifier.size(48.dp), 
+                            tint = MaterialTheme.colorScheme.outline
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("暂无组织架构数据", color = MaterialTheme.colorScheme.outline)
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    items(organizationTree, key = { it.id }) { node ->
                         OrganizationNodeItem(
                             node = node,
+                            depth = 0,
                             expandedDepartments = expandedDepartments,
                             onToggleExpand = { nodeId ->
-                                if (node.type == OrgTreeNode.NodeType.DEPARTMENT) {
-                                    contactsViewModel.toggleDepartmentExpanded(nodeId)
-                                }
+                                contactsViewModel.toggleDepartmentExpanded(nodeId)
                             },
                             onUserClick = { userInfo ->
-                                // 点击用户，创建私聊会话
-                                scope.launch {
-                                    try {
-                                        navHostController.navigate(ChatRoom.CreatePrivate(userInfo.userId))
-                                    } catch (e: Exception) {
-                                        Napier.e("创建或获取会话失败", e)
-                                    }
-                                }
+                                navHostController.navigate(createPrivate(userInfo.userId))
                             }
                         )
                     }
@@ -152,35 +166,41 @@ fun ContactsUI (
 @Composable
 fun OrganizationNodeItem(
     node: OrgTreeNode,
+    depth: Int,
     expandedDepartments: Set<Long>,
     onToggleExpand: (Long) -> Unit,
     onUserClick: (com.github.im.group.model.UserInfo) -> Unit
 ) {
-    when (node.type) {
-        OrgTreeNode.NodeType.DEPARTMENT -> {
-            DepartmentNode(
-                node = node,
-                expandedDepartments = expandedDepartments,
-                onToggleExpand = onToggleExpand
-            )
-            // 如果部门已展开，显示其子节点
-            if (expandedDepartments.contains(node.id)) {
-                node.children.forEach { childNode ->
-                    Spacer(modifier = Modifier.padding(start = 24.dp))
-                    OrganizationNodeItem(
-                        node = childNode,
-                        expandedDepartments = expandedDepartments,
-                        onToggleExpand = onToggleExpand,
-                        onUserClick = onUserClick
-                    )
+    val isExpanded = expandedDepartments.contains(node.id)
+
+    Column {
+        when (node.type) {
+            OrgTreeNode.NodeType.DEPARTMENT -> {
+                DepartmentNode(
+                    node = node,
+                    depth = depth,
+                    isExpanded = isExpanded,
+                    onToggleExpand = onToggleExpand
+                )
+                if (isExpanded) {
+                    node.children.forEach { childNode ->
+                        OrganizationNodeItem(
+                            node = childNode,
+                            depth = depth + 1,
+                            expandedDepartments = expandedDepartments,
+                            onToggleExpand = onToggleExpand,
+                            onUserClick = onUserClick
+                        )
+                    }
                 }
             }
-        }
-        OrgTreeNode.NodeType.USER -> {
-            UserNode(
-                node = node,
-                onUserClick = onUserClick
-            )
+            OrgTreeNode.NodeType.USER -> {
+                UserNode(
+                    node = node,
+                    depth = depth,
+                    onUserClick = onUserClick
+                )
+            }
         }
     }
 }
@@ -188,42 +208,51 @@ fun OrganizationNodeItem(
 @Composable
 fun DepartmentNode(
     node: OrgTreeNode,
-    expandedDepartments: Set<Long>,
+    depth: Int,
+    isExpanded: Boolean,
     onToggleExpand: (Long) -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onToggleExpand(node.id) }
-            .padding(12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(start = (depth * 20).dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = if (expandedDepartments.contains(node.id)) {
-                Icons.Default.ExpandMore
-            } else {
-                Icons.Default.ChevronRight
-            },
-            contentDescription = if (expandedDepartments.contains(node.id)) "收起" else "展开",
-            modifier = Modifier.size(24.dp)
+            imageVector = if (isExpanded) Icons.Default.ExpandMore else Icons.Default.ChevronRight,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Icon(
-            imageVector = Icons.Default.Business,
-            contentDescription = "部门",
-            modifier = Modifier.size(24.dp)
-        )
+        Surface(
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier.size(32.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Default.Business,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
         Spacer(modifier = Modifier.width(12.dp))
         Column {
             Text(
                 text = node.name,
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
             )
             node.departmentInfo?.description?.let { description ->
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -233,6 +262,7 @@ fun DepartmentNode(
 @Composable
 fun UserNode(
     node: OrgTreeNode,
+    depth: Int,
     onUserClick: (com.github.im.group.model.UserInfo) -> Unit
 ) {
     node.userInfo?.let { userInfo ->
@@ -240,7 +270,7 @@ fun UserNode(
             userInfo = userInfo,
             onClick = { onUserClick(userInfo) },
             modifier = Modifier
-                .padding(start = 40.dp) // 为用户添加额外的缩进
+                .padding(start = (depth * 20 + 28).dp)
         )
     }
 }

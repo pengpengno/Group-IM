@@ -1,16 +1,30 @@
 package com.github.im.group.ui.chat
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,20 +33,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.github.im.group.model.UserInfo
-import com.github.im.group.ui.ChatRoom
 import com.github.im.group.ui.UserAvatar
+import com.github.im.group.ui.conversation
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.ConversationDisplayState
 import com.github.im.group.viewmodel.UserViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
-/**
- * 聊天消息
- */
 @Composable
 fun ChatUI(
     navHostController: NavHostController,
@@ -40,66 +56,85 @@ fun ChatUI(
     val chatViewModel: ChatViewModel = koinViewModel()
     val userViewModel: UserViewModel = koinViewModel()
 
-    // 会话列表
     val conversations by chatViewModel.conversationState.collectAsState()
-    val loginState by userViewModel.loginState.collectAsState()
-    val userInfo  by  remember {mutableStateOf(userViewModel.getCurrentUser()) }
     var userSearchQuery by remember { mutableStateOf("") }
     val searchResults by userViewModel.searchResults.collectAsState()
+    val userInfo by userViewModel.currentLocalUserInfo.collectAsState()
 
     LaunchedEffect(userInfo) {
-
-        if (userInfo?.userId != 0L) {
-            userInfo?.userId?.let {
-                // 获取用户的所有会话消息
-                chatViewModel.getConversations(it) }
-        }
+        userInfo?.userId?.let { chatViewModel.getConversations(it) }
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(8.dp)
+        modifier = Modifier.fillMaxSize()
     ) {
-        if (userSearchQuery.isNotBlank()) {
+        // --- 搜索框区域 ---
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
             OutlinedTextField(
                 value = userSearchQuery,
                 onValueChange = {
                     userSearchQuery = it
                     userViewModel.searchUser(it)
                 },
-                label = { Text("搜索用户") },
+                placeholder = { Text("搜索联系人或消息...", fontSize = 14.sp) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(20.dp)) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 8.dp)
+                    .height(52.dp),
+                shape = RoundedCornerShape(26.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                ),
+                singleLine = true
             )
+        }
 
-            // 显示搜索结果
-            if (userSearchQuery.isNotBlank()) {
-                LazyColumn {
-                    items(searchResults) { user ->
-                        UserSearchItem(
-                            user = user,
-                            currentUser = userInfo,
-                            onAddFriend = { friendId ->
-                                userInfo?.userId?.let { userId ->
-//                                    userViewModel.addFriend(userId, friendId)
-                                }
-                            }
-                        )
-                    }
+        if (userSearchQuery.isNotBlank()) {
+            // --- 搜索结果列表 ---
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(searchResults) { user ->
+                    UserSearchItem(
+                        user = user,
+                        currentUser = userInfo,
+                        onAddFriend = { /* logic */ }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 72.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
         } else {
-            // 显示会话列表
-            conversations.forEach { conversation ->
-                ChatItem(
-                    conversation = conversation,
-                    userInfo = userInfo,
-                    onClick = {
-                        navHostController.navigate(ChatRoom.Conversation(conversation.conversation.conversationId))
+            // --- 聊天会话列表 ---
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            ) {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    item { Spacer(modifier = Modifier.height(8.dp)) }
+                    items(conversations) { conversation ->
+                        userInfo?.let { me ->
+                            ChatItem(
+                                conversation = conversation,
+                                userInfo = me,
+                                onClick = {
+                                    val conversationId = conversation.conversation.conversationId
+                                    navHostController.navigate(conversation(conversationId))
+                                }
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 76.dp, end = 16.dp),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            )
+                        }
                     }
-                )
+                }
             }
         }
     }
@@ -108,69 +143,70 @@ fun ChatUI(
 @Composable
 fun ChatItem(conversation: ConversationDisplayState, userInfo: UserInfo, onClick: () -> Unit) {
     Row(
-        Modifier
+        modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(12.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        UserAvatar(username = conversation.conversation.getName(userInfo), size = 56)
-        Spacer(Modifier.width(12.dp))
-        Column {
-            // 展示用户
+        UserAvatar(username = conversation.conversation.getName(userInfo), size = 52)
+        
+        Spacer(modifier = Modifier.width(14.dp))
+        
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = conversation.conversation.getName(userInfo),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = conversation.displayDateTime,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(2.dp))
+            
             Text(
-                conversation.conversation.getName(userInfo),
-                style = androidx.compose.material3.MaterialTheme.typography.titleMedium
-            )
-            //展示消息
-            Text(
-                text = conversation.lastMessage.takeIf { e -> e.isNotEmpty() } ?: "暂无消息",
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                color = androidx.compose.ui.graphics.Color.Gray
-            )
-            //   展示时间
-            Text(
-                text = conversation.displayDateTime,
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                color = androidx.compose.ui.graphics.Color.Gray
+                text = conversation.lastMessage.takeIf { it.isNotEmpty() } ?: "暂无消息",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
 }
 
 @Composable
-fun UserSearchItem(
-    user: UserInfo,
-    currentUser: UserInfo?,
-    onAddFriend: (Long) -> Unit
-) {
+fun UserSearchItem(user: UserInfo, currentUser: UserInfo?, onAddFriend: (Long) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp),
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        UserAvatar(username = user.username, size = 56)
-        Spacer(Modifier.width(12.dp))
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = user.username,
-                style = androidx.compose.material3.MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = user.email,
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                color = androidx.compose.ui.graphics.Color.Gray
-            )
+        UserAvatar(username = user.username, size = 48)
+        Spacer(Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(user.username, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(user.email, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
         }
         if (currentUser?.userId != user.userId) {
-            androidx.compose.material3.Button(
+            Button(
                 onClick = { onAddFriend(user.userId) },
-                modifier = Modifier
-                    .padding(4.dp)
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                modifier = Modifier.height(32.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Text("添加")
+                Text("添加", fontSize = 12.sp)
             }
         }
     }
