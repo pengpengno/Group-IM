@@ -153,6 +153,7 @@ fun ContactsUI(
                                 contactsViewModel.toggleDepartmentExpanded(nodeId)
                             },
                             onUserClick = { userInfo ->
+
                                 navHostController.navigate(createPrivate(userInfo.userId))
                             }
                         )

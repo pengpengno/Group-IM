@@ -184,7 +184,24 @@ class ChatRoomViewModel(
                     register(conversationId)
                 }
                 ChatRoomType.CREATE_PRIVATE -> {
-                    loadFriendInfo(room.roomId)
+                    // 查询是否存在私聊
+                    userRepository.getLocalUserInfo()?.let {
+
+                    val conversation = conversationRepository
+                        .getLocalConversationByMembers(it.userId, room.roomId)
+
+                        if (conversation != null){
+                            val conversationId = conversation.conversationId
+                            loadMessages(conversationId)
+                            loadConversationInfo(conversationId)
+                            register(conversationId)
+                        }else{
+                            loadFriendInfo(room.roomId)
+                        }
+
+                    }
+//                    val privateConversation = conversationRepository.getLocalConversationByMembers(, room.roomId)
+//                    loadFriendInfo(room.roomId)
                 }
             }
         }

@@ -258,7 +258,7 @@ object FileApi {
         val statusValue: Int = response.status.value
         if (statusValue !in 200..299) {
             val errorText: String = response.bodyAsText()
-            throw RuntimeException("下载文件失败：${'$'}{response.status}，内容: $errorText")
+            throw RuntimeException("下载文件失败：'${response.status}，内容: $errorText")
         }
 
         val contentLength: Long? = response.contentLength()
