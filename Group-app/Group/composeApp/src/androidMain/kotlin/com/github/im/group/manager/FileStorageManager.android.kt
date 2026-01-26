@@ -1,6 +1,6 @@
 package com.github.im.group.manager
 
-import android.net.Uri
+import androidx.core.net.toUri
 import com.github.im.group.androidContext
 import com.github.im.group.sdk.File
 import io.github.aakira.napier.Napier
@@ -16,11 +16,11 @@ actual fun FileStorageManager.isFileExists(fileId: String): Boolean {
 
         val localFilePath = getLocalFilePath(fileId)
         Napier.d("检查文件是否存在: $fileId, path $localFilePath")
-        // 如果 fileId 是 Content URI (以 content:// 开头 安卓平台 本地上传文件时 会是带有content的)
-        if (fileId.startsWith("content://")) {
-            Napier.d("检查 Content URI 文件是否存在: $fileId")
+        // 如果 localFilePath 是 Content URI (以 content:// 开头 安卓平台 本地上传文件时 会是带有content的)
+        if (localFilePath != null && localFilePath.startsWith("content://")) {
+            Napier.d("检查 Content URI 文件是否存在: $fileId, uri: $localFilePath")
             val context = androidContext
-            val uri = Uri.parse(fileId)
+            val uri = localFilePath.toUri() // 使用 localFilePath 而不是 fileId
 
             // 尝试打开输入流来检查 URI 是否有效
             return try {

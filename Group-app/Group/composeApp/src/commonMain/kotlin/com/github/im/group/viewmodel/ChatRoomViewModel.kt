@@ -78,6 +78,8 @@ data class ChatUiState(
     val sessionCreationState: SessionCreationState = SessionCreationState.Idle,
     val error: String? = null,
     val friend: UserInfo? = null,
+    val scrollToTop: Boolean = false, // 控制滚动到最新消息
+    val scrollToIndex: Int = -1, // 指定滚动到的索引
 ) {
     fun getRoomName(): String {
         return conversation?.let {
@@ -292,12 +294,13 @@ class ChatRoomViewModel(
             }
 //
 
+
             val messageItem = MessageWrapper(chatMessage)
-            updateOrInsertMessage(messageItem)
+            updateOrInsertMessage(messageItem, true) // 发送消息时滚动到最新
             val clientMsgId = messageItem.clientMsgId
             val type =  messageItem.type
 
-// 2. 持久化到离线库
+            // 2. 持久化到离线库
 
 
             offlineMessageRepository.saveOfflineMessage(
@@ -311,8 +314,17 @@ class ChatRoomViewModel(
                 fileSize = pickedFile?.size,
                 fileDuration = duration.toInt()
             )
+
+
+            //
             // 3. 尝试发送
             try {
+
+
+                // 添加文件的记录
+                pickedFile?.let {
+                    filesRepository.addPendingFileRecord(chatMessage.content, pickedFile.name, duration, pickedFile?.path ?: "")
+                }
 
 
                 // 更新离线库中的会话 ID
@@ -344,7 +356,7 @@ class ChatRoomViewModel(
                         // 从数据库获取最新消息并更新，确保包含最新的文件元数据
                         val updatedDbMessage = chatMessageRepository.getMessageByClientMsgId(clientMsgId)
                         updatedDbMessage?.let { msg ->
-                            updateOrInsertMessage(msg)
+                            updateOrInsertMessage(msg, true) // 文件上传成功后滚动到最新
                         }
 
 
@@ -600,14 +612,14 @@ class ChatRoomViewModel(
      * 逻辑4: 将消息添加到内存缓存
      * 逻辑5: 发出UI更新事件
      */
-    private fun updateOrInsertMessage(message: MessageItem) {
+    private fun updateOrInsertMessage(message: MessageItem, scrollToLatest: Boolean = false) {
         chatMessageRepository.insertOrUpdateMessage(message)
         val key = message.uniqueKey()
         if (message.seqId != 0L && message.clientMsgId.isNotBlank()) {
             messageStore.remove("C:${message.clientMsgId}")
         }
         messageStore[key] = message
-        emitUiMessages()
+        emitUiMessages(scrollToLatest)
     }
 
     /**
@@ -641,10 +653,20 @@ class ChatRoomViewModel(
      * 逻辑2: 过滤出媒体消息（图片和视频）
      * 逻辑3: 更新UI状态中的消息列表
      */
-    private fun emitUiMessages() {
+    private fun emitUiMessages(scrollToLatest: Boolean = false) {
         val sorted = messageStore.values.sortedByDescending { it.seqId.takeIf { it != 0L } ?: Long.MAX_VALUE }
         _mediaMessages.value = sorted.filter { it.type == MessageType.IMAGE || it.type == MessageType.VIDEO }
-        _uiState.update { it.copy(messages = sorted) }
+        
+        // 计算当前消息索引（最新的消息在列表顶部，所以索引为0）
+        val currentIndex = if (sorted.isNotEmpty()) 0 else -1
+        
+        _uiState.update { 
+            it.copy(
+                messages = sorted,
+                messageIndex = currentIndex,
+                scrollToTop = scrollToLatest
+            ) 
+        }
     }
 
     /**
@@ -782,6 +804,7 @@ class ChatRoomViewModel(
             val pending = offlineMessageRepository.getPendingOfflineMessages()
             pending.forEach { msg ->
                 // 这里应实现具体的离线重试逻辑，调用 performSend 类似的工作流
+
             }
         }
     }
@@ -805,5 +828,28 @@ class ChatRoomViewModel(
         conversationRepository.saveConversation(remote)
         _uiState.update { it.copy(conversation = remote) }
         return remote
+    }
+    
+    /**
+     * 更新消息索引
+     * 
+     * 逻辑1: 更新当前消息索引
+     * 逻辑2: 更新UI状态
+     */
+    fun updateMessageIndex(index: Int) {
+        _uiState.update { currentState ->
+            currentState.copy(messageIndex = index)
+        }
+    }
+    
+    /**
+     * 重置滚动到顶部标志
+     * 
+     * 逻辑1: 将scrollToTop标志重置为false
+     */
+    fun resetScrollToTopFlag() {
+        _uiState.update { currentState ->
+            currentState.copy(scrollToTop = false)
+        }
     }
 }

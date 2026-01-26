@@ -312,6 +312,43 @@ fun ChatRoomScreen(
                     }
                 }
 
+                // 处理滚动到最新消息
+                LaunchedEffect(chatUiState.scrollToTop) {
+                    if (chatUiState.scrollToTop) {
+                        listState.animateScrollToItem(0) // 滚动到最新消息（reverseLayout=true时，最新消息在索引0）
+                    }
+                }
+
+                // 监听滚动位置以更新消息索引
+                LaunchedEffect(listState) {
+                    snapshotFlow { listState.firstVisibleItemIndex }
+                        .collect { index ->
+                            // 当用户滚动时，可以在这里处理消息索引逻辑
+                            // 但注意不要覆盖发送消息时的自动滚动
+                        }
+                }
+
+                // 监听滚动状态变化以动态更新消息索引
+                LaunchedEffect(listState) {
+                    snapshotFlow { listState.isScrollInProgress }
+                        .collect { isScrolling ->
+                            if (!isScrolling) {
+                                // 滚动停止时，更新消息索引为当前可见的第一个消息
+                                val firstVisibleIndex = listState.firstVisibleItemIndex
+                                chatRoomViewModel.updateMessageIndex(firstVisibleIndex)
+                            }
+                        }
+                }
+                
+                // 重置滚动到顶部标志，防止重复滚动
+                LaunchedEffect(chatUiState.scrollToTop) {
+                    if (chatUiState.scrollToTop) {
+                        // 等待滚动完成后再重置标志
+                        kotlinx.coroutines.delay(300) // 等待动画完成
+                        chatRoomViewModel.resetScrollToTopFlag()
+                    }
+                }
+
                 // 下拉刷新指示器
                 PullRefreshIndicator(
                     refreshing = chatUiState.loading,
