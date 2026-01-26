@@ -63,3 +63,8 @@ data class VoiceRecordingResult(
     }
 }
 
+
+fun VoiceRecordingResult.toFile(): File {
+    return file
+}
+

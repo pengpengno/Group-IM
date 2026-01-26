@@ -42,7 +42,7 @@ class OfflineMessageRepository(
                 file_path = filePath,
                 file_size = fileSize,
                 file_duration = fileDuration.toLong(),
-                status = MessageStatus.SENDING,  // 修正：发送时状态应为SENDING
+                status = MessageStatus.SENDING,
                 created_at = currentTime,
                 retry_count = 0,
                 max_retry_count = 3

@@ -3,6 +3,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
+
+data class ProxySettingsState(
+
+    val host: String = "192.168.1.6",
+    val port: Int = 8080,
+    val tcpPort: Int = 8088,
+    val enableProxy: Boolean = false
+) {
+    fun getBaseUrl(): String {
+        return if (enableProxy) {
+            "http://$host:$port"
+        } else {
+            "http://$host:8080"
+        }
+    }
+}
+
 object ProxyConfig {
 //    var host by mutableStateOf("192.168.4.25")
 //    var host by mutableStateOf("192.168.71.57")
@@ -19,6 +36,18 @@ object ProxyConfig {
             "http://$host:8080"
         }
     }
+
+
+    fun setProxy(host: String, port: Int) {
+        this.host = host
+        this.port = port
+        TODO(" 代理的配置需要存储在本地")
+
+//        GlobalCredentialProvider.proxySettingsState.setProxyState(
+//
+//        )
+    }
+
 }
 
 //

@@ -80,6 +80,15 @@ import io.github.aakira.napier.Napier
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
+/**
+ * 聊天室屏幕组件
+ * 
+ * 逻辑1: 初始化聊天室信息
+ * 逻辑2: 处理消息列表显示
+ * 逻辑3: 实现下拉刷新功能
+ * 逻辑4: 管理视频通话功能
+ * 逻辑5: 处理会话创建状态
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun ChatRoomScreen(
@@ -102,12 +111,21 @@ fun ChatRoomScreen(
     var remoteUser by remember { mutableStateOf<UserInfo?>(chatUiState.friend) } // 在群聊场景中可能为null，表示多个用户
     var groupName by remember { mutableStateOf<String>(chatUiState.getRoomName()) } // 群聊名称加载中
 
-    // 实现 刷新的逻辑 ，优先本地获取， 边界 则从远程获取，而且是即将到达边界的时候就应该拉去刷新 ， loading的时候要有动画
+    /**
+     * 实现下拉刷新逻辑
+     * 
+     * 逻辑1: 优先从本地获取数据，提供即时反馈
+     * 逻辑2: 必要时从远程获取最新数据
+     * 逻辑3: 显示加载动画
+     * 逻辑4: 使用会话ID执行刷新
+     */
     val pullRefreshState = rememberPullRefreshState(
         refreshing = chatUiState.loading,
         onRefresh = {
-            //
-            chatRoomViewModel.loadMessages()
+            // 优先从本地获取数据，必要时从远程获取
+            chatUiState.conversation?.conversationId?.let { conversationId ->
+                chatRoomViewModel.loadMessages(conversationId)
+            }
         }
     )
     val isRefreshing = pullRefreshState.progress
@@ -140,6 +158,14 @@ fun ChatRoomScreen(
         }
     }
 
+    /**
+     * 滚动到顶部时加载更多历史消息
+     * 
+     * 逻辑1: 监听列表滚动状态
+     * 逻辑2: 检测是否滚动到顶部
+     * 逻辑3: 获取最早的消息序列ID
+     * 逻辑4: 加载更多历史消息
+     */
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .collect { firstVisibleIndex ->
@@ -395,10 +421,15 @@ fun ChatRoomScreen(
 
 /**
  * 判断是否应该显示头像
- * 在以下情况下显示头像：
- * 1. 第一条消息（最新的消息）
- * 2. 当前消息发送者与前一条消息发送者不同
- * 3. 当前消息与前一条消息间隔时间较长（可选）
+ * 
+ * 逻辑1: 如果是第一条消息（最新的消息），显示头像
+ * 逻辑2: 如果当前消息发送者与前一条消息发送者不同，显示头像
+ * 逻辑3: 根据UI设计决定是否显示自己的头像
+ * 
+ * @param currentMsg 当前消息
+ * @param allMessages 所有消息列表
+ * @param currentUser 当前用户
+ * @return 是否应该显示头像
  */
 fun shouldShowAvatar(currentMsg: MessageItem, allMessages: List<MessageItem>, currentUser: UserInfo?): Boolean {
     val currentIndex = allMessages.indexOf(currentMsg)
@@ -423,6 +454,11 @@ fun shouldShowAvatar(currentMsg: MessageItem, allMessages: List<MessageItem>, cu
 
 /**
  * 聊天气泡
+ * 
+ * 逻辑1: 根据消息方向布局（自己消息靠右，他人消息靠左）
+ * 逻辑2: 显示头像（对于他人消息）
+ * 逻辑3: 根据消息类型显示内容（文本、语音、文件等）
+ * 逻辑4: 显示消息状态（发送中、已发送、已读等）
  */
 @Composable
 fun MessageBubble(
@@ -608,6 +644,13 @@ fun MessageBubble(
 
 /**
  * 通用文件消息加载组件
+ * 
+ * 逻辑1: 获取文件元数据
+ * 逻辑2: 检查文件大小是否超出限制
+ * 逻辑3: 检查本地文件是否存在
+ * 逻辑4: 根据需要触发下载流程
+ * 逻辑5: 监听下载状态并更新UI
+ * 
  * @param msg 消息对象
  * @param messageViewModel 消息视图模型
  * @param maxDownloadSize 最大下载大小限制（字节），默认为50MB

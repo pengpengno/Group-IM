@@ -4,8 +4,15 @@ package com.github.im.group
 // commonMain
 object GlobalCredentialProvider {
     var storage: CredentialStorage = DefaultCredentialStorage
+
+
+   lateinit var proxySettingsState : ProxyConfigStorage
+
+
     var currentToken :String = ""
     var currentUserId: Long = 0L
     var companyId: Long? = null
+
+
 
 }
