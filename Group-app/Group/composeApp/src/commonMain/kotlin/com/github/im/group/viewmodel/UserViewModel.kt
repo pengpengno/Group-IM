@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 /***
  * 用于表明接口的调用状态
@@ -73,6 +72,7 @@ class UserViewModel(
             }
 
             _currentLocalUserInfo.value = GlobalCredentialProvider.storage.getUserInfo()
+            Napier.d { "当前用户信息为：${_currentLocalUserInfo.value}" }
 
         }
     }
@@ -109,7 +109,7 @@ class UserViewModel(
                     _friends.value = friendList
                 }
             } catch (e: Exception) {
-                Napier.d("获取联系人失败: $e")
+                Napier.e("获取联系人失败:",e)
             }
         }
     }
@@ -160,6 +160,7 @@ class UserViewModel(
             userRepository.updateToChecking()
             
             val userInfo = GlobalCredentialProvider.storage.getUserInfo()
+            Napier.d("自动登录用户信息为：${userInfo}")
             if (userInfo != null) {
                 // 更新状态为认证中
                 userRepository.updateToAuthenticating()
@@ -212,8 +213,8 @@ class UserViewModel(
                                e.message?.contains("network", ignoreCase = true) == true ||
                                e.message?.contains("connection", ignoreCase = true) == true ||
                                e.message?.contains("connect", ignoreCase = true) == true ||
-                               e is java.net.ConnectException ||
-                               e is java.net.SocketTimeoutException
+                               isConnectException(e) ||
+                               isSocketTimeoutException(e)
             
             userRepository.updateToAuthenticationFailed(e.message ?: "登录失败", isNetworkError)
             Napier.d("loginState ${userRepository.userState.value}")
@@ -226,14 +227,16 @@ class UserViewModel(
      * 登出方法
      */
     fun logout() {
+
         userRepository.updateToLoggingOut()
         loginStateManager.setLoggingOut()
         try {
 
             // 清除用户信息  避免下次自动登录
-            runBlocking {
+            viewModelScope.launch {
                 GlobalCredentialProvider.storage.clearUserInfo()
                 GlobalCredentialProvider.currentToken = ""
+
             }
 
             // 通知登录状态管理器用户已登出
@@ -259,5 +262,27 @@ class UserViewModel(
                 userRepository.updateToLoggedOut()
             }
         }
+    }
+}
+
+// 检查异常是否为连接异常的跨平台实现
+private fun isConnectException(e: Exception): Boolean {
+    return when {
+        // 在JVM平台上检查具体的异常类型
+        e::class.simpleName == "ConnectException" -> true
+        // 检查异常类名字符串
+        e.javaClass.name.contains("ConnectException") -> true
+        else -> false
+    }
+}
+
+// 检查异常是否为套接字超时异常的跨平台实现
+private fun isSocketTimeoutException(e: Exception): Boolean {
+    return when {
+        // 在JVM平台上检查具体的异常类型
+        e::class.simpleName == "SocketTimeoutException" -> true
+        // 检查异常类名字符串
+        e.javaClass.name.contains("SocketTimeoutException") -> true
+        else -> false
     }
 }

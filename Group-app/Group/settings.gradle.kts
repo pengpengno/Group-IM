@@ -3,44 +3,43 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
     repositories {
-        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        // 国内镜像（作为补充，不作为主源）
+        maven("https://maven.aliyun.com/repository/google")
+        maven("https://maven.aliyun.com/repository/public")
 
-        maven { url = uri("https://maven.pkg.jetbrains.space/public/p/compose/dev/") }
-
-//        maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
-//        gradlePluginPortal()
-        maven { url = uri("https://maven.aliyun.com/repository/google") }
-        mavenCentral()
         google()
-        google {
-            mavenContent {
-                includeGroupAndSubgroups("androidx")
-                includeGroupAndSubgroups("com.android")
-                includeGroupAndSubgroups("com.google")
-            }
-        }
+
+        // Kotlin / Compose / Gradle plugins
         mavenCentral()
         gradlePluginPortal()
+
+        // JetBrains Compose
+        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev/")
+
+
     }
 }
 
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
-    repositories {
-//        // JetBrains Space (只提供 Kamel)
-//        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev/")
 
-        // 国内镜像
-        maven { url = uri("https://maven.aliyun.com/repository/google") }
-        maven { url = uri("https://maven.aliyun.com/repository/public") }
-        mavenCentral()
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+
+    repositories {
+        // ⭐⭐⭐ aapt2 / AGP 必须
         google()
-        
-        // 添加 WebRTC KMP 库的仓库
-        maven { url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/") }
-        
-        // 添加Square Wire的官方仓库以解决JS依赖问题
-        maven { url = uri("https://repo.maven.apache.org/maven2") }
+
+        // 主仓库
+        mavenCentral()
+
+        // JetBrains Compose
+        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev/")
+
+        // 国内镜像（兜底）
+        maven("https://maven.aliyun.com/repository/google")
+        maven("https://maven.aliyun.com/repository/public")
+
+        // snapshots（你用 WebRTC / 实验性库才留）
+        maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
     }
 }
 
@@ -49,3 +48,4 @@ plugins {
 }
 
 include(":composeApp")
+//include(":proto-wire")

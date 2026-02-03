@@ -1,9 +1,7 @@
 package com.github.im.group.manager
 
 
-/**
- * 客户端 会话的管理
- */
+
 import com.github.im.group.db.AppDatabase
 import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.proto.BaseMessagePkg

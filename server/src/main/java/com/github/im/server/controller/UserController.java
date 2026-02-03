@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,10 +90,9 @@ public class UserController {
 
     /**
      * 查询用户信息
-     * @param userId
+     * @param userId 用户Id
      * @return 用户信息
      */
-
     @GetMapping("/id/{userId}")
     public Optional<UserBasicInfo> getUserById(@PathVariable Long userId,
                                                @AuthenticationPrincipal User user) {

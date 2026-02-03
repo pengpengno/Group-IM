@@ -1,32 +1,35 @@
 package com.github.im.group.sdk
 
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.awt.SwingPanel
-import javax.swing.JPanel
-import javax.swing.SwingUtilities
-import javax.swing.text.html.ImageView
+import io.github.aakira.napier.Napier
 
-class DesktopVoiceRecorder (): VoiceRecorder {
-
+class DesktopVoiceRecorder : VoiceRecorder {
+    private var outputFile: String? = null
+    private var recordingResult: VoiceRecordingResult? = null
 
     override fun startRecording() {
-        TODO("Not yet implemented")
+        Napier.d("Desktop: Starting voice recording")
+        // 实际录音逻辑将在后续开发中完成，可能使用Java Sound API
     }
 
     override fun stopRecording(): VoiceRecordingResult? {
-        TODO("Not yet implemented")
+        Napier.d("Desktop: Stopping voice recording")
+        // 实际录音逻辑将在后续开发中完成
+        return recordingResult
     }
 
     override fun getAmplitude(): Int {
-        TODO("Not yet implemented")
+        Napier.d("Desktop: Getting amplitude")
+        // 实际实现将在后续开发中完成
+        return 0
     }
 
     override fun getOutputFile(): String? {
-        TODO("Not yet implemented")
+        Napier.d("Desktop: Getting output file")
+        return outputFile
     }
 
     override fun getVoiceData(): VoiceRecordingResult? {
-        TODO("Not yet implemented")
+        Napier.d("Desktop: Getting voice data")
+        return recordingResult
     }
 }
-

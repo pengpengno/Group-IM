@@ -57,7 +57,7 @@ fun AppStartScreen() {
         if (userInfo!=null) {
             // 如果本地有登录凭据，立即跳转到主页，然后在后台进行自动登录
             appStartState = AppStartState.Authenticated
-            Napier.d { "appStartState $appStartState" }
+            Napier.d { "appStartState ${appStartState}" }
 
 //            userViewModel.autoLogin()
         } else {
@@ -66,8 +66,6 @@ fun AppStartScreen() {
         }
 
     }
-
-    Napier.d { "appStartState $appStartState globalUser $GlobalCredentialProvider.storage.getUserInfo()" }
 
     // 监听全局未认证事件
     LaunchedEffect(Unit) {

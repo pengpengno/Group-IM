@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 
 data class ProxySettingsState(
 
-    val host: String = "192.168.1.6",
+    val host: String = "10.122.155.252",
     val port: Int = 8080,
     val tcpPort: Int = 8088,
     val enableProxy: Boolean = false
@@ -20,10 +20,10 @@ data class ProxySettingsState(
     }
 }
 
-object ProxyConfig {
-//    var host by mutableStateOf("192.168.4.25")
+object  ProxyConfig {
+    var host by mutableStateOf("192.168.4.25")
 //    var host by mutableStateOf("192.168.71.57")
-    var host by mutableStateOf("10.122.155.252")
+//    var host by mutableStateOf("10.122.155.252")
 //    var host by mutableStateOf("192.168.244.252")
     var port by mutableStateOf(8080)
     var tcp_port by mutableStateOf(8088)

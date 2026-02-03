@@ -81,6 +81,13 @@ data class ChatUiState(
     val scrollToTop: Boolean = false, // 控制滚动到最新消息
     val scrollToIndex: Int = -1, // 指定滚动到的索引
 ) {
+
+    /**
+     * 是否有创建会话的请求
+     */
+    fun hasCreateConversation(): Boolean {
+        return conversation != null
+    }
     fun getRoomName(): String {
         return conversation?.let {
             if (it.type == ConversationType.PRIVATE_CHAT) {

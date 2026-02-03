@@ -1,4 +1,3 @@
-
 import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.GlobalErrorHandler
 import com.github.im.group.api.FileUploadResponse
@@ -21,6 +20,8 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.contentType
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.utils.io.charsets.Charsets
+import io.ktor.utils.io.core.toByteArray
 import kotlinx.serialization.json.Json
 import org.koin.core.component.KoinComponent
 
@@ -50,11 +51,7 @@ object ProxyApi
      */
     suspend fun uploadFile(fileId:String ,file: ByteArray, fileName: String , duration: Long=0):FileUploadResponse {
 
-        val baseUrl = if (ProxyConfig.enableProxy) {
-            "http://${ProxyConfig.host}:${ProxyConfig.port}"
-        } else {
-            "http://${ProxyConfig.host}:${ProxyConfig.port}"
-        }
+        val baseUrl = ProxyConfig.getBaseUrl()
 
 
         val response =  client.submitFormWithBinaryData(
@@ -66,7 +63,7 @@ object ProxyApi
                     append("duration", duration)
                 }
                 append("file", file, Headers.build {
-                append(HttpHeaders.ContentDisposition, "filename*=UTF-8''${java.net.URLEncoder.encode(fileName, "UTF-8")}")
+                append(HttpHeaders.ContentDisposition, "filename*=UTF-8''${encodeFileName(fileName)}")
                 })
             },
 
@@ -137,7 +134,7 @@ object ProxyApi
                     append("duration", duration)
                 }
                 append("file", file, Headers.build {
-                append(HttpHeaders.ContentDisposition, "filename*=UTF-8''${java.net.URLEncoder.encode(fileName, "UTF-8")}")
+                append(HttpHeaders.ContentDisposition, "filename*=UTF-8''${encodeFileName(fileName)}")
                 })
             },
 
@@ -190,7 +187,7 @@ object ProxyApi
         headers : Map<String,Any>?=null,
         block: HttpRequestBuilder.() -> Unit = {}
     ): R {
-//        val config = proxyConfigProvider()
+//        val config = proxyConfigProviderProvider()
 
         val baseUrl = if (ProxyConfig.enableProxy) {
             "http://${ProxyConfig.host}:${ProxyConfig.port}"
@@ -264,3 +261,39 @@ class UnauthorizedException(message: String) : Exception(message)
 class ClientRequestException(message: String) : Exception(message)
 class ServerException(message: String) : Exception(message)
 class UnknownResponseException(message: String) : Exception(message)
+
+/**
+ * 跨平台URL编码函数，用于对文件名进行编码
+ * 将特殊字符转换为百分号编码格式，符合RFC 3986标准
+ */
+internal fun encodeFileName(fileName: String): String {
+    return fileName.encodeToPercentEncodedString()
+}
+
+/**
+ * 将字符串编码为百分号编码格式，符合RFC 3986标准
+ * 这是一个简单的跨平台实现，用于替代Java的URLEncoder
+ */
+private fun String.encodeToPercentEncodedString(): String {
+    val allowedChars = setOf(
+        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        '-', '_', '.', '~', '*', '@', '!', '\'', '(', ')', '/'
+    )
+    
+    return buildString {
+        for (char in this@encodeToPercentEncodedString) {
+            if (char in allowedChars) {
+                append(char)
+            } else {
+                // 对字符进行UTF-8编码并转换为百分号编码
+                val bytes = char.toString().toByteArray(Charsets.UTF_8)
+                for (byte in bytes) {
+                    append("%")
+                    append(byte.toUByte().toString(16).padStart(2, '0').uppercase())
+                }
+            }
+        }
+    }
+}

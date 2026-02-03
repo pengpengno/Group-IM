@@ -1,8 +1,10 @@
 package com.github.im.group.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -37,7 +39,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.github.im.group.manager.LoginStateManager
@@ -49,9 +53,11 @@ import com.github.im.group.ui.video.VideoCallIncomingNotification
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.LoginState
 import com.github.im.group.viewmodel.UserViewModel
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import kotlin.math.roundToInt
 
 data class BottomNavItem(
     val title: String, 
@@ -75,6 +81,9 @@ fun ChatMainScreen(
 
     var isVideoCallMinimized by remember { mutableStateOf(false) }
     var selectedItem by remember { mutableIntStateOf(0) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    var dragOffset by remember { mutableStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
     
     val bottomNavItems = listOf(
         BottomNavItem("聊天", Icons.AutoMirrored.Filled.Chat, Icons.AutoMirrored.Filled.Chat),
@@ -98,16 +107,52 @@ fun ChatMainScreen(
             }
             else{
                 // 如果状态不是登陆中 且 也不是溢价登录的状态  那么就尝试登录一下， 并且如果失败了  那么就定期尝试重试
-
                 if (loginState !is LoginState.Authenticating  && loginState !is LoginState.Authenticated){
                     // Todo  检测失败后  定期重试一下
+                    Napier.d { "尝试自动登录" }
                     userViewModel.autoLogin()
                 }
-
-
             }
         }
     }
+    
+    // 刷新数据的函数
+    fun refreshData() {
+        if (!isRefreshing) {
+            isRefreshing = true
+            scope.launch {
+                when (loginState) {
+                    is LoginState.AuthenticationFailed -> {
+                        // 如果是登录失败状态，尝试重新登录
+                        if ((loginState as LoginState.AuthenticationFailed).isNetworkError) {
+                            // 如果是网络错误，尝试重新登录
+                            userViewModel.retryLogin()
+                        } else {
+                            // 如果是认证失败，跳转到登录页
+                            navHostController.navigate(Login)
+                        }
+                    }
+                    is LoginState.Authenticated -> {
+                        // 如果已经登录成功，刷新会话
+                        userInfo?.userId?.let { chatViewModel.getConversations(it) }
+                        userViewModel.loadFriends()
+                    }
+                    is LoginState.Authenticating -> {
+                        // 如果正在登录中，刷新数据
+                        userViewModel.autoLogin()
+                    }
+                    else -> {
+                        // 其他状态尝试自动登录
+                        userViewModel.autoLogin()
+                    }
+                }
+                // 模拟数据加载完成
+                kotlinx.coroutines.delay(1000) // 模拟网络延迟
+                isRefreshing = false
+            }
+        }
+    }
+
     LaunchedEffect(userInfo) {
         if(userInfo?.userId != 0L){
             userInfo?.userId?.let { chatViewModel.getConversations(it) }
@@ -172,82 +217,138 @@ fun ChatMainScreen(
         },
         drawerState = drawerState
     ) { 
-        Scaffold(
-            topBar = {
-                CenterAlignedTopAppBar(
-                    title = { 
-                        Text(
-                            text = topBarTitle, 
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                        ) 
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = "菜单")
-                        }
-                    },
-                    actions = {
-                        if (selectedItem == 0) {
-                            IconButton(onClick = { navHostController.navigate(Search) }) {
-                                Icon(Icons.Default.Add, contentDescription = "发起聊天")
+        // 主容器，添加手势检测
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = {
+                            // 检查是否在顶部，允许下拉刷新
+                            if (dragOffset == 0f) {
+                                isDragging = true
                             }
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            // 如果拖拽距离超过阈值，则触发刷新
+                            if (dragOffset > 100) {
+                                refreshData()
+                            }
+                            // 重置拖拽偏移
+                            dragOffset = 0f
+                        },
+                        onDragCancel = {
+                            isDragging = false
+                            dragOffset = 0f
+                        },
+                        onDrag = { change, dragAmount ->
+                            if (isDragging || !isRefreshing) {
+                                // 只允许向下拖拽，且在内容顶部时才响应
+                                if (dragAmount.y > 0) {
+                                    dragOffset += dragAmount.y * 0.5f // 减少灵敏度
+                                }
+                            }
+                            change.consume()
                         }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        titleContentColor = MaterialTheme.colorScheme.onSurface
                     )
-                )
-            },
-            bottomBar = {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 8.dp
-                ) {
-                    bottomNavItems.forEachIndexed { index, item ->
-                        val isSelected = selectedItem == index
-                        NavigationBarItem(
-                            icon = {
-                                Icon(
-                                    imageVector = item.icon,
-                                    contentDescription = item.title,
-                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            label = { 
+                }
+        ) {
+            // 主要内容区域，根据拖拽偏移量移动
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(0, dragOffset.roundToInt()) }
+                    .fillMaxSize()
+            ) {
+                Scaffold(
+                    topBar = {
+                        CenterAlignedTopAppBar(
+                            title = { 
                                 Text(
-                                    text = item.title,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = topBarTitle, 
+                                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                                 ) 
                             },
-                            selected = isSelected,
-                            onClick = { selectedItem = index },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                            navigationIcon = {
+                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                    Icon(Icons.Default.Menu, contentDescription = "菜单")
+                                }
+                            },
+                            actions = {
+                                if (selectedItem == 0) {
+                                    IconButton(onClick = { navHostController.navigate(Search) }) {
+                                        Icon(Icons.Default.Add, contentDescription = "发起聊天")
+                                    }
+                                }
+                            },
+                            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                titleContentColor = MaterialTheme.colorScheme.onSurface
                             )
                         )
+                    },
+                    bottomBar = {
+                        NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 8.dp
+                        ) {
+                            bottomNavItems.forEachIndexed { index, item ->
+                                val isSelected = selectedItem == index
+                                NavigationBarItem(
+                                    icon = {
+                                        Icon(
+                                            imageVector = item.icon,
+                                            contentDescription = item.title,
+                                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    },
+                                    label = { 
+                                        Text(
+                                            text = item.title,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        ) 
+                                    },
+                                    selected = isSelected,
+                                    onClick = { selectedItem = index },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                ) { padding ->
+                    Box(
+                        modifier = Modifier
+                            .padding(padding)
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+                    ) {
+                        when (selectedItem) {
+                            0 -> ChatUI(navHostController = navHostController)
+                            1 -> ContactsUI(navHostController = navHostController)
+                            2 -> ProfileUI(navHostController = navHostController)
+                        }
+                        
+                        if (isVideoCallMinimized) {
+                            DraggableVideoWindow(
+                                null,
+                                Modifier.align(Alignment.BottomEnd)
+                            )
+                        }
                     }
                 }
             }
-        ) { padding ->
-            Box(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
-            ) {
-                when (selectedItem) {
-                    0 -> ChatUI(navHostController = navHostController)
-                    1 -> ContactsUI(navHostController = navHostController)
-                    2 -> ProfileUI(navHostController = navHostController)
-                }
-                
-                if (isVideoCallMinimized) {
-                    DraggableVideoWindow(
-                        null,
-                        Modifier.align(Alignment.BottomEnd)
-                    )
+            
+            // 下拉刷新指示器 - 位于顶部
+            if (isRefreshing) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 56.dp) // 与顶部栏有一定距离
+                ) {
+                    androidx.compose.material3.CircularProgressIndicator()
                 }
             }
         }

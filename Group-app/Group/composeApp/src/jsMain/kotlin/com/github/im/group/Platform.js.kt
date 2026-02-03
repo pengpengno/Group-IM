@@ -8,7 +8,6 @@ class JsPlatform : Platform {
 
 actual fun getPlatform(): Platform = JsPlatform()
 
- fun createDatabaseDriverFactory(): DatabaseDriverFactory {
-    // Web平台暂时返回一个空实现，后续需要实现基于IndexedDB的数据库驱动
-    TODO("Not yet implemented for Web platform")
+fun createDatabaseDriverFactory(): DatabaseDriverFactory {
+    return JsDatabaseDriverFactory()
 }

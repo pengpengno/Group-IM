@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
@@ -32,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +49,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.github.im.group.api.FileMeta
+import com.github.im.group.manager.FileStorageManager
+import com.github.im.group.manager.getFile
+import com.github.im.group.manager.isFileExists
+import com.github.im.group.manager.toFile
 import com.github.im.group.model.MessageItem
 import com.github.im.group.sdk.AudioPlayer
 import com.github.im.group.sdk.File
@@ -54,6 +60,7 @@ import com.github.im.group.sdk.FileData
 import com.github.im.group.sdk.GalleryAwareMediaFileView
 import com.github.im.group.sdk.MediaFileView
 import com.github.im.group.viewmodel.ChatRoomViewModel
+import io.github.aakira.napier.Napier
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.math.abs
@@ -695,4 +702,169 @@ fun UnifiedFileMessage(
             Text("${message.type.name}文件过大或加载失败")
         }
     )
+}
+
+
+/**
+ * 通用文件消息加载组件
+ *
+ * 逻辑1: 获取文件元数据
+ * 逻辑2: 检查文件大小是否超出限制
+ * 逻辑3: 检查本地文件是否存在
+ * 逻辑4: 根据需要触发下载流程
+ * 逻辑5: 监听下载状态并更新UI
+ *
+ * @param msg 消息对象
+ * @param messageViewModel 消息视图模型
+ * @param maxDownloadSize 最大下载大小限制（字节），默认为50MB
+ * @param allMessages 所有消息列表，用于构建媒体画廊
+ * @param onContentReady 内容准备就绪回调
+ * @param onLoading 加载中状态
+ * @param onError 错误状态（可选）
+ */
+@Composable
+fun FileMessageLoader(
+    msg: MessageItem,
+    messageViewModel: ChatRoomViewModel,
+    maxDownloadSize: Long = 50 * 1024 * 1024, // 默认50MB
+    allMessages: List<MessageItem>? = null, // 添加所有消息列表参数
+    onContentReady: @Composable (File, FileMeta) -> Unit,
+    onLoading: @Composable () -> Unit,
+    onError: @Composable (() -> Unit)? = null
+) {
+
+
+    val fileStorageManager = koinInject<FileStorageManager>()
+    var fileMeta by remember { mutableStateOf<FileMeta?>(null) }
+    var file by remember { mutableStateOf<File?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var hasError by remember { mutableStateOf(false) }
+    var shouldDownload by remember { mutableStateOf(false) }
+    var showDownloadButton by remember { mutableStateOf(false) }  // 新增状态：显示下载按钮
+    val fileId = msg.content
+
+    LaunchedEffect(msg) {
+        try {
+            // 异步获取文件元数据（这是所有文件类型都需要的步骤）
+            val meta = messageViewModel.getFileMessageMetaAsync(msg)
+            file = fileStorageManager.getFile(fileId)
+            fileMeta = meta
+            Napier.d { "查询文件的 元数据：$meta  file $file" }
+
+            meta?.let { fileMeta ->
+                // 检查文件大小是否超过限制
+                if (fileMeta.size > maxDownloadSize) {
+                    // 文件太大，不自动下载，显示下载按钮
+                    showDownloadButton = true
+                    file = fileMeta.toFile() // 使用HTTP链接作为数据源
+                    isLoading = false
+                    return@LaunchedEffect
+                }
+
+                // 检查文件是否存在，如果不存在 则 获取其 下载链接 作为数据源
+                val fileExists = fileStorageManager.isFileExists(fileId)
+                if (!fileExists) {
+                    // 不存在则标记需要下载
+                    shouldDownload = true
+                    file = fileMeta.toFile()
+                } else {
+                    val path = messageViewModel.getLocalFilePath(fileId)
+                    path?.let { file = fileMeta.toFile(it) }
+                }
+
+                Napier.d { "文件存在 ：$fileExists 文件ID： ${fileMeta.fileId} 的数据源为：${file?.data}" }
+            }
+
+            isLoading = false
+        } catch (e: Exception) {
+            hasError = true
+            isLoading = false
+            Napier.e("加载文件消息失败", e)
+        }
+    }
+
+    // 当需要下载时，启动下载流程
+    LaunchedEffect(shouldDownload) {
+        if (shouldDownload) {
+            try {
+                messageViewModel.downloadFileMessage(fileId)
+            } catch (e: Exception) {
+                Napier.e("下载文件失败", e)
+                hasError = true
+            }
+        }
+    }
+
+    // 监听下载状态变化，更新文件对象
+    val downloadStates by  messageViewModel.fileDownloadStates.collectAsState()
+    LaunchedEffect(downloadStates) {
+        downloadStates[fileId]?.let { chatUiState ->
+            if (chatUiState.isSuccess && !chatUiState.isDownloading) {
+                // 下载完成后，获取本地路径并更新文件对象
+                val path = messageViewModel.getLocalFilePath(fileId)
+                path?.let {
+                    file = fileMeta?.toFile(it)
+                }
+            }
+        }
+    }
+
+    when {
+        hasError -> {
+            onError?.invoke() ?: Text("文件过大或加载失败")
+        }
+        isLoading -> {
+            onLoading()
+        }
+        showDownloadButton -> {
+            // 文件太大，显示缩略图和下载按钮
+            file?.let { fileObj ->
+                fileMeta?.let { meta ->
+                    // 显示缩略图和下载按钮
+                    Box {
+                        MediaFileView(
+                            file = fileObj,
+                            modifier = Modifier.size(120.dp),
+                            onDownloadFile = { fileId ->
+                                // 启动下载
+                                shouldDownload = true
+                            }
+                        )
+
+                        // 显示文件大小和下载图标
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .background(Color.Black.copy(alpha = 0.6f), shape = CircleShape)
+                                .padding(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FileDownload,
+                                contentDescription = "下载",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        // 显示文件大小
+                        Text(
+                            text = "${(meta.size / 1024 / 1024)}MB",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .background(Color.Black.copy(alpha = 0.6f), shape = RoundedCornerShape(4.dp))
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+        file != null  && fileMeta !=null-> {
+            onContentReady(file!!, fileMeta!!)
+        }
+        else -> {
+            onLoading()
+        }
+    }
 }

@@ -14,6 +14,7 @@ import org.springframework.data.redis.stream.Subscription;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.StreamOffset;
 import org.springframework.data.redis.connection.stream.Consumer;
+import org.springframework.data.redis.connection.stream.PendingMessagesSummary;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -68,6 +69,9 @@ public class RouteConsumer {
         String streamKey = STREAM_ROUTE_PREFIX + NodeId.NODE_ID;
 
         try {
+            // 确保Stream和Consumer Group存在
+            ensureStreamAndConsumerGroup(streamKey);
+            
             // 创建监听容器配置
             StreamMessageListenerContainer.StreamMessageListenerContainerOptions<String, MapRecord<String, String, String>> containerOptions =
                     StreamMessageListenerContainer.StreamMessageListenerContainerOptions
@@ -98,6 +102,29 @@ public class RouteConsumer {
             listenerContainer.start();
         } catch (Exception e) {
             log.error("Error starting stream consumer", e);
+        }
+    }
+    
+    /**
+     * 确保Redis Stream和Consumer Group存在
+     * 如果不存在，则创建它们
+     */
+    private void ensureStreamAndConsumerGroup(String streamKey) {
+        try {
+            // 首先尝试创建消费者组，如果它不存在的话
+            try {
+                redis.opsForStream().createGroup(streamKey, CONSUMER_GROUP);
+                log.info("Created consumer group '{}' for stream '{}'", CONSUMER_GROUP, streamKey);
+            } catch (Exception e) {
+                // 如果消费者组已经存在，会抛出异常，这是正常的
+                if (e.getMessage() != null && e.getMessage().contains("BUSYGROUP")) {
+                    log.debug("Consumer group '{}' for stream '{}' already exists", CONSUMER_GROUP, streamKey);
+                } else {
+                    log.warn("Could not create consumer group '{}': {}", CONSUMER_GROUP, e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error ensuring stream and consumer group exist", e);
         }
     }
 

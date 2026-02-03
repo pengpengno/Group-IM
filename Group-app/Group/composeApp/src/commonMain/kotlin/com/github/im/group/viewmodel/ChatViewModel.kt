@@ -71,115 +71,135 @@ class ChatViewModel (
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
 
 
-    /***
-     * 获取所有的会话列表
+    /**
+     * 获取会话列表 - 重构版本
+     * 分为两个阶段：
+     * 1. 快速显示本地缓存数据
+     * 2. 在后台异步获取远程数据并更新UI
      */
-    fun getConversations(uId: Long ) {
+    fun getConversations(uId: Long) {
         viewModelScope.launch {
             _loading.value = true
             try {
-                // 首先从本地数据库获取会话列表并立即更新UI
-                val localConversations = conversationRepository.getConversationsByUserId(uId)
+                // 第一步：立即加载本地数据并更新UI
+                loadLocalConversations(uId)
                 
-                /**
-                 * 获取消息的描述文本
-                 *
-                 * @param message 消息包装对象
-                 * @return 返回对应消息类型的描述文本
-                 */
-                fun getMessageDesc(message: MessageWrapper): String {
-                    return when (message.type) {
-                        MessageType.TEXT -> message.content
-                        MessageType.FILE -> "文件消息"
-                        MessageType.VOICE -> "语音消息"
-                        MessageType.VIDEO -> "视频消息"
-                        MessageType.IMAGE -> "图片消息"
-                    }
-                }
-                
-                // 将本地会话转换为显示状态并更新UI
-                val localConversationsWithLatestMessages = localConversations.map { conversation ->
-                    val latestMessage = messageRepository.getLatestMessage(conversation.conversationId)
-                    val lastMessageText = latestMessage?.let { message ->
-                        getMessageDesc(message)
-                    } ?: ""
-                    val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) } ?: ""
-                    ConversationDisplayState(
-                        conversation = conversation,
-                        lastMessage = lastMessageText,
-                        displayDateTime = displayDateTime // 计算显示时间
-                    )
-                }
-                
-                // 立即将本地数据更新到UI
-                _conversations.value = localConversationsWithLatestMessages
-                
-                // 然后从远程获取最新数据并更新
-                val response = ConversationApi.getActiveConversationsByUserId(uId)
-                
-                // 将远程数据转换为显示状态
-                val remoteConversationsWithLatestMessages = response.map { conversation ->
-                    val latestMessage = messageRepository.getLatestMessage(conversation.conversationId)
-                    val lastMessageText = latestMessage?.let { message ->
-                        getMessageDesc(message)
-                    } ?: ""
-                    val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) } ?: ""
-                    ConversationDisplayState(
-                        conversation = conversation,
-                        lastMessage = lastMessageText,
-                        displayDateTime = displayDateTime // 计算显示时间
-                    )
-                }
-                
-                // 保存远程获取的会话到本地数据库（这会更新本地数据）
-                response.forEach { conversation ->
-                    conversationRepository.saveConversation(conversation)
-                }
-                
-                // 更新UI为远程获取的最新数据
-                _conversations.value = remoteConversationsWithLatestMessages
-                
+                // 第二步：在后台获取远程数据并更新UI
+                loadRemoteConversations(uId)
             } catch (e: UnauthorizedException) {
-                // Token失效，通知登出
-                Napier.e("Token失效，需要重新登录", e)
-                // 更新用户仓库状态为登出
-                userRepository.updateToLoggedOut()
-                // 通知登录状态管理器用户已登出
-                loginStateManager.setLoggedOut()
+                handleUnauthorizedException(e)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // 协程被取消，通常是页面跳转导致的正常取消，不记录为错误
                 Napier.d("加载会话列表被取消")
             } catch (e: Exception) {
                 Napier.e("加载会话列表失败", e)
-                // 如果远程加载失败，至少保留本地缓存的数据
-                if (_conversations.value.isEmpty()) {
-                    // 如果之前没有加载过任何数据，尝试从本地加载
-                    val localConversations = conversationRepository.getConversationsByUserId(uId)
-                    val localConversationsWithLatestMessages = localConversations.map { conversation ->
-                        val latestMessage = messageRepository.getLatestMessage(conversation.conversationId)
-                        val lastMessageText = latestMessage?.let { message ->
-                            when (message.type) {
-                                MessageType.TEXT -> message.content
-                                MessageType.FILE -> "文件消息"
-                                MessageType.VOICE -> "语音消息"
-                                MessageType.VIDEO -> "视频消息"
-                                MessageType.IMAGE -> "图片消息"
-                            }
-                        } ?: ""
-                        val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) } ?: ""
-                        ConversationDisplayState(
-                            conversation = conversation,
-                            lastMessage = lastMessageText,
-                            displayDateTime = displayDateTime
-                        )
-                    }
-                    _conversations.value = localConversationsWithLatestMessages
-                }
+                handleLoadFailure(uId)
             } finally {
                 _loading.value = false
             }
         }
-
+    }
+    
+    /**
+     * 加载本地会话数据并立即更新UI
+     */
+    private suspend fun loadLocalConversations(uId: Long) {
+        try {
+            val localConversations = conversationRepository.getConversationsByUserId(uId)
+            val localConversationsWithLatestMessages = localConversations.map { conversation ->
+                createConversationDisplayState(conversation)
+            }
+            
+            // 立即将本地数据更新到UI
+            _conversations.value = localConversationsWithLatestMessages
+            Napier.d("已加载本地会话数据: ${localConversations.size} 个会话")
+        } catch (e: Exception) {
+            Napier.e("加载本地会话数据失败", e)
+        }
+    }
+    
+    /**
+     * 从远程加载会话数据并更新UI
+     */
+    private suspend fun loadRemoteConversations(uId: Long) {
+        try {
+            val response = ConversationApi.getActiveConversationsByUserId(uId)
+            
+            // 保存远程获取的会话到本地数据库
+            response.forEach { conversation ->
+                conversationRepository.saveConversation(conversation)
+            }
+            
+            // 将远程数据转换为显示状态并更新UI
+            val remoteConversationsWithLatestMessages = response.map { conversation ->
+                createConversationDisplayState(conversation)
+            }
+            
+            // 更新UI为远程获取的最新数据
+            _conversations.value = remoteConversationsWithLatestMessages
+            Napier.d("已加载远程会话数据: ${response.size} 个会话")
+        } catch (e: Exception) {
+            Napier.e("加载远程会话数据失败，继续使用本地缓存数据", e)
+            // 远程加载失败时，不更新UI，保持本地缓存数据
+        }
+    }
+    
+    /**
+     * 创建会话显示状态
+     */
+    suspend  fun createConversationDisplayState(conversation: ConversationRes): ConversationDisplayState {
+        val latestMessage = messageRepository.getLatestMessage(conversation.conversationId)
+        val lastMessageText = latestMessage?.let { message ->
+            getMessageDesc(message)
+        } ?: ""
+        val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) } ?: ""
+        
+        return ConversationDisplayState(
+            conversation = conversation,
+            lastMessage = lastMessageText,
+            displayDateTime = displayDateTime
+        )
+    }
+    
+    /**
+     * 获取消息的描述文本
+     *
+     * @param message 消息包装对象
+     * @return 返回对应消息类型的描述文本
+     */
+    private fun getMessageDesc(message: MessageWrapper): String {
+        return when (message.type) {
+            MessageType.TEXT -> message.content
+            MessageType.FILE -> "文件消息"
+            MessageType.VOICE -> "语音消息"
+            MessageType.VIDEO -> "视频消息"
+            MessageType.IMAGE -> "图片消息"
+        }
+    }
+    
+    /**
+     * 处理未授权异常
+     */
+    private fun handleUnauthorizedException(e: UnauthorizedException) {
+        Napier.e("Token失效，需要重新登录", e)
+        // 更新用户仓库状态为登出
+        userRepository.updateToLoggedOut()
+        // 通知登录状态管理器用户已登出
+        loginStateManager.setLoggedOut()
+    }
+    
+    /**
+     * 处理加载失败情况
+     */
+    private suspend fun handleLoadFailure(uId: Long) {
+        // 如果当前没有会话数据，尝试从本地加载
+        if (_conversations.value.isEmpty()) {
+            val localConversations = conversationRepository.getConversationsByUserId(uId)
+            val localConversationsWithLatestMessages = localConversations.map { conversation ->
+                createConversationDisplayState(conversation)
+            }
+            _conversations.value = localConversationsWithLatestMessages
+        }
     }
 
 
@@ -416,7 +436,7 @@ class ChatViewModel (
                 }
                 // 7天之内
                 (now.date.toEpochDays() - dateTime.date.toEpochDays()) <= 7 -> {
-                    when (dateTime.dayOfWeek.value) {
+                    when (dateTime.dayOfWeek.ordinal) {
                         1 -> "周一"
                         2 -> "周二"
                         3 -> "周三"

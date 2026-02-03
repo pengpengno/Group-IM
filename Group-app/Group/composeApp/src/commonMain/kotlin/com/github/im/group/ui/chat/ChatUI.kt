@@ -62,7 +62,9 @@ fun ChatUI(
     val userInfo by userViewModel.currentLocalUserInfo.collectAsState()
 
     LaunchedEffect(userInfo) {
-        userInfo?.userId?.let { chatViewModel.getConversations(it) }
+        userInfo?.userId?.let {
+            chatViewModel.getConversations(it)
+        }
     }
 
     Column(
