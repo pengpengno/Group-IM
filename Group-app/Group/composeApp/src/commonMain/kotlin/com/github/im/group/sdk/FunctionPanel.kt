@@ -17,22 +17,9 @@ import com.github.im.group.sdk.File
 /**
  * 文件选取
  */
-@Composable
-expect fun PlatformFilePickerPanel(
-    onDismiss: () -> Unit,
-    onFileSelected: (List<File>) -> Unit
-)
+//@Composable
+//expect fun PlatformFilePickerPanel(
+//    onDismiss: () -> Unit,
+//    onFileSelected: (List<File>) -> Unit
+//)
 
-
-@Composable
-fun IconTextButton(icon: ImageVector, text: String, onClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .padding(12.dp)
-            .clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(icon, contentDescription = text, modifier = Modifier.size(32.dp))
-        Text(text, style = MaterialTheme.typography.bodySmall)
-    }
-}

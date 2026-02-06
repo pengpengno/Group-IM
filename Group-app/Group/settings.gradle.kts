@@ -22,9 +22,30 @@ pluginManagement {
 
 dependencyResolutionManagement {
 
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
 
     repositories {
+//        // ---- Node.js distribution (给 kotlin js 用) ----
+//        ivy("https://nodejs.org/dist/") {
+//            patternLayout {
+//                artifact("v[revision]/[artifact]-v[revision]-[classifier].[ext]")
+//            }
+//            metadataSources {
+//                artifact()
+//            }
+//        }
+//
+//        // ---------- Yarn distribution ----------
+//        ivy("https://github.com/yarnpkg/yarn/releases/download/") {
+//            name = "yarn-dist"
+//            patternLayout {
+//                artifact("v[revision]/yarn-v[revision].tar.gz")
+//            }
+//            metadataSources {
+//                artifact()
+//            }
+//        }
+
         // ⭐⭐⭐ aapt2 / AGP 必须
         google()
 
@@ -39,7 +60,7 @@ dependencyResolutionManagement {
         maven("https://maven.aliyun.com/repository/public")
 
         // snapshots（你用 WebRTC / 实验性库才留）
-        maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+//        maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
     }
 }
 
@@ -48,4 +69,3 @@ plugins {
 }
 
 include(":composeApp")
-//include(":proto-wire")

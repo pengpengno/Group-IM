@@ -49,3 +49,4 @@ build/
 /uploads
 /downloads
 /postgres_data/**
+/Group-app/.idea/

@@ -14,6 +14,7 @@ import com.github.im.group.manager.FileStorageManager
 import com.github.im.group.manager.FileUploadService
 import com.github.im.group.manager.LoginStateListener
 import com.github.im.group.manager.LoginStateManager
+import com.github.im.group.manager.MessageRouter
 import com.github.im.group.manager.UserDataSyncListener
 import com.github.im.group.manager.VoiceFileManager
 import com.github.im.group.repository.ChatMessageRepository
@@ -35,7 +36,6 @@ import com.github.im.group.ui.video.VideoCallViewModel
 import com.github.im.group.viewmodel.ChatRoomViewModel
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.ContactsViewModel
-import com.github.im.group.viewmodel.TCPMessageViewModel
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
 import okio.FileSystem
@@ -54,7 +54,6 @@ val appmodule = module {
     single<FilePicker> { AndroidFilePicker(androidContext()) }
     single<AudioPlayer> { AndroidAudioPlayer(androidContext()) }
     single<WebRTCManager> { AndroidWebRTCManager(androidContext()) }
-
     single { UserRepository(get()) }
     single { ConversationRepository(get(),get()) }
     single { ChatMessageRepository(get(),get()) }
@@ -62,6 +61,7 @@ val appmodule = module {
     single { FriendRequestRepository(get()) }
     single { MessageSyncRepository(get(), get(), get(),get()) }
     single { com.github.im.group.repository.OfflineMessageRepository(get()) }
+    single<MessageRouter>{ ChatSessionManager(get())}
 
     single {
         val context = androidContext()
@@ -127,8 +127,6 @@ val appmodule = module {
         userRepository = get(),
     ) }
 
-    single { ChatSessionManager(get(),get()) }
-    single { TCPMessageViewModel(get()) }
     single {
         AndroidVoiceRecorder(
             androidContext(),

@@ -58,6 +58,13 @@ class UserViewModel(
 
     init {
         viewModelScope.launch {
+
+            if (hasLocalCredential()){
+                val userInfo = GlobalCredentialProvider.storage.getUserInfo()
+                _currentLocalUserInfo.value = userInfo
+
+            }
+
             // 监听登录状态
             loginState.collect { state ->
                 when (state) {
@@ -70,9 +77,6 @@ class UserViewModel(
                     }
                 }
             }
-
-            _currentLocalUserInfo.value = GlobalCredentialProvider.storage.getUserInfo()
-            Napier.d { "当前用户信息为：${_currentLocalUserInfo.value}" }
 
         }
     }
@@ -100,12 +104,13 @@ class UserViewModel(
     /**
      * 获取联系人列表
      */
+    @Deprecated("使用getConversations")
     fun loadFriends() {
         viewModelScope.launch {
             try {
                 val currentUser = currentLocalUserInfo.value
-                if (currentUser?.userId != 0L) {
-                    val friendList = FriendShipApi.getFriends(currentUser!!.userId)
+                if ( currentUser != null && currentUser.userId != 0L) {
+                    val friendList = FriendShipApi.getFriends(currentUser.userId)
                     _friends.value = friendList
                 }
             } catch (e: Exception) {

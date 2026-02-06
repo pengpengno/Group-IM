@@ -135,7 +135,7 @@ fun ChatMainScreen(
                     is LoginState.Authenticated -> {
                         // 如果已经登录成功，刷新会话
                         userInfo?.userId?.let { chatViewModel.getConversations(it) }
-                        userViewModel.loadFriends()
+//
                     }
                     is LoginState.Authenticating -> {
                         // 如果正在登录中，刷新数据
@@ -153,12 +153,6 @@ fun ChatMainScreen(
         }
     }
 
-    LaunchedEffect(userInfo) {
-        if(userInfo?.userId != 0L){
-            userInfo?.userId?.let { chatViewModel.getConversations(it) }
-            userViewModel.loadFriends()
-        }
-    }
 
     val topBarTitle = when (selectedItem) {
         0 -> when(loginState) {

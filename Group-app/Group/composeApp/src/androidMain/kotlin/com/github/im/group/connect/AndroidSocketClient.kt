@@ -1,9 +1,9 @@
 package com.github.im.group.connect
 
 import com.github.im.group.config.SocketClient
+import com.github.im.group.manager.MessageRouter
 import com.github.im.group.model.proto.BaseMessagePkg
 import com.github.im.group.model.proto.Heartbeat
-import com.github.im.group.viewmodel.TCPMessageViewModel
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +20,7 @@ import java.net.Socket
 import java.net.SocketException
 
 class AndroidSocketClient(
-    private val viewModel: TCPMessageViewModel
+    private val messageRouter: MessageRouter
 ) : SocketClient {
 
     private var socket: Socket? = null
@@ -219,7 +219,7 @@ class AndroidSocketClient(
                         } else {
                             // 处理其他消息
                             withContext(Dispatchers.Main) {
-                                viewModel.onNewMessage(message)
+                                messageRouter.routeMessage(message)
                             }
                         }
                     } catch (e: SocketException) {

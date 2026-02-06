@@ -13,6 +13,8 @@ import com.github.im.group.db.entities.MessageType
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.manager.FileStorageManager
 import com.github.im.group.manager.FileUploadService
+import com.github.im.group.manager.MessageHandler
+import com.github.im.group.manager.MessageRouter
 import com.github.im.group.manager.getFile
 import com.github.im.group.manager.getLocalFilePath
 import com.github.im.group.model.MessageItem
@@ -132,7 +134,7 @@ data class FileDownloadState(
  */
 class ChatRoomViewModel(
     val userRepository: UserRepository,
-    val chatSessionManager: ChatSessionManager,
+    val chatSessionManager: MessageRouter,
     val chatMessageRepository: ChatMessageRepository,
     val messageSyncRepository: MessageSyncRepository,
     val filesRepository: FilesRepository,
@@ -143,7 +145,7 @@ class ChatRoomViewModel(
     val senderSdk: SenderSdk,
     val chatMessageBuilder: ChatMessageBuilder,
     val fileUploadService: FileUploadService
-) : ViewModel() {
+) : ViewModel(), MessageHandler {
 
     private val _uiState = MutableStateFlow<ChatUiState>(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
@@ -157,6 +159,14 @@ class ChatRoomViewModel(
     
     init {
         initializeWithOfflineMessages()
+    }
+    
+    /**
+     * 实现MessageHandler接口
+     * 处理接收到的消息
+     */
+    override fun onMessageReceived(message: MessageWrapper) {
+        onReceiveMessage(message)
     }
     
     /**
@@ -426,7 +436,7 @@ class ChatRoomViewModel(
         clientMsgId: String,
         duration: Long = 0
     ) {
-        withContext(Dispatchers.IO) {
+        withContext(Dispatchers.Default) {
             val data = filePicker.readFileBytes(file)
             val chatMessage = chatMessageBuilder.fileMessage(conversationId, file.name, file.size, duration)
             val fileId = chatMessage.content
@@ -473,7 +483,7 @@ class ChatRoomViewModel(
             // 总是从远程获取最新数据，以确保数据是最新的
             _uiState.update { it.copy(loading = true) }
             try {
-                val newMessageCount = withContext(Dispatchers.IO) {
+                val newMessageCount = withContext(Dispatchers.Default) {
                     messageSyncRepository.syncMessages(conversationId)
                 }
                 if (newMessageCount > 0) {
@@ -498,7 +508,7 @@ class ChatRoomViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true) }
             try {
-                val newMessageCount = withContext(Dispatchers.IO) {
+                val newMessageCount = withContext(Dispatchers.Default) {
                     messageSyncRepository.syncMessages(conversationId)
                 }
                 if (newMessageCount > 0) {
@@ -543,7 +553,7 @@ class ChatRoomViewModel(
             handlePrivateChatInfo(local, currentInfo)
         }
         try {
-            val remote = withContext(Dispatchers.IO) { conversationRepository.getConversation(conversationId) }
+            val remote = withContext(Dispatchers.Default) { conversationRepository.getConversation(conversationId) }
             _uiState.update { it.copy(conversation = remote) }
             handlePrivateChatInfo(remote, currentInfo)
         } catch (e: Exception) {
@@ -598,7 +608,7 @@ class ChatRoomViewModel(
      * 逻辑1: 将当前ViewModel注册到会话管理器
      */
     fun register(conversationId: Long) {
-        chatSessionManager.register(conversationId, this)
+        chatSessionManager.registerHandler(conversationId, this)
     }
 
     /**
@@ -607,7 +617,7 @@ class ChatRoomViewModel(
      * 逻辑1: 从会话管理器中注销当前会话
      */
     fun unregister(conversationId: Long) {
-        chatSessionManager.unregister(conversationId)
+        chatSessionManager.unregisterHandler(conversationId)
     }
 
     /**
@@ -831,7 +841,7 @@ class ChatRoomViewModel(
             _uiState.update { it.copy(conversation = local) }
             return local
         }
-        val remote = withContext(Dispatchers.IO) { ConversationApi.createOrGetConversation(friendId) }
+        val remote = withContext(Dispatchers.Default) { ConversationApi.createOrGetConversation(friendId) }
         conversationRepository.saveConversation(remote)
         _uiState.update { it.copy(conversation = remote) }
         return remote

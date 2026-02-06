@@ -47,6 +47,7 @@ import com.github.im.group.ui.conversation
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.ConversationDisplayState
 import com.github.im.group.viewmodel.UserViewModel
+import io.github.aakira.napier.Napier
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -62,6 +63,8 @@ fun ChatUI(
     val userInfo by userViewModel.currentLocalUserInfo.collectAsState()
 
     LaunchedEffect(userInfo) {
+
+        Napier.d { "当前的用户为 ： $userInfo" }
         userInfo?.userId?.let {
             chatViewModel.getConversations(it)
         }

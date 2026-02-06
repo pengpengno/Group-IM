@@ -20,7 +20,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.github.im.group.androidContext
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -255,7 +254,7 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
  */
 @Composable
 @Preview
-actual fun CameraPreviewView() {
+fun CameraPreviewView() {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -275,5 +274,4 @@ actual fun CameraPreviewView() {
     )
 }
 
-
-actual fun getPlatformFilePicker(): FilePicker = AndroidFilePicker(androidContext)
+//actual fun getPlatformFilePicker(): FilePicker = AndroidFilePicker(LocalContext.current)

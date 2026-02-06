@@ -8,4 +8,6 @@ actual fun getPlatformFilePicker(): FilePicker {
 
 @Composable
 actual fun CameraPreviewView() {
+    // Native 平台暂不实现相机预览功能
+    TODO("Native 平台相机预览功能未实现")
 }

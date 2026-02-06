@@ -210,7 +210,7 @@ object ProxyApi
             }
 
 //            val token = GlobalCredentialProvider.storage.getUserInfo()?.token
-            val token = GlobalCredentialProvider.currentToken
+            val token = GlobalCredentialProvider.storage.getUserInfo()?.token?:""
             if (headers != null) {
                 headers.forEach { (key, value) ->
                     header(key, value)

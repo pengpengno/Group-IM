@@ -102,9 +102,12 @@ class ChatViewModel (
     
     /**
      * 加载本地会话数据并立即更新UI
+     * @param uId 当前的用户id
      */
     private suspend fun loadLocalConversations(uId: Long) {
         try {
+            _loading.value = true
+
             val localConversations = conversationRepository.getConversationsByUserId(uId)
             val localConversationsWithLatestMessages = localConversations.map { conversation ->
                 createConversationDisplayState(conversation)

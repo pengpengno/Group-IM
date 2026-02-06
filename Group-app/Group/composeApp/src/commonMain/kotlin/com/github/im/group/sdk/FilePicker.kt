@@ -96,14 +96,8 @@ fun FilePickerScreen(filePicker: FilePicker) {
             }
         }) {
             Text("Take Photo")
-            CameraPreviewView()
         }
-
-
     }
 }
 
-@Composable
-expect fun CameraPreviewView(): Unit
-
-expect fun getPlatformFilePicker(): FilePicker
+//expect fun getPlatformFilePicker(): FilePicker

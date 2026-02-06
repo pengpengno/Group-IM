@@ -31,9 +31,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.github.im.group.sdk.AndroidFilePicker
-import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.File
-import com.github.im.group.sdk.getPlatformFilePicker
+import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.rememberFilePickerLauncher
 import com.github.im.group.sdk.rememberTakePictureLauncher
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -41,6 +40,7 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -54,7 +54,7 @@ fun AndroidFilePickerPanel(
     var displayMediaPicker by remember { mutableStateOf(false) }
     // 使用 Accompanist 权限库请求相机权限
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
-    val filePicker = remember { getPlatformFilePicker() }
+    val filePicker = koinInject<FilePicker>()
 
     // 创建拍照启动器
     val takePictureLauncher = rememberTakePictureLauncher { success ->

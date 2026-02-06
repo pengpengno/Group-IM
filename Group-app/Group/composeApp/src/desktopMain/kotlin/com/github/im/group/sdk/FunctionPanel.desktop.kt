@@ -30,7 +30,7 @@ import com.github.im.group.sdk.getPlatformFilePicker
 import kotlinx.coroutines.launch
 
 @Composable
-actual fun PlatformFilePickerPanel(
+fun PlatformFilePickerPanel(
     onDismiss: () -> Unit,
     onFileSelected: (List<File>) -> Unit
 ) {

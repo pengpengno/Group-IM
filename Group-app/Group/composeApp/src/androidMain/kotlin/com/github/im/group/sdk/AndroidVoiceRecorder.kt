@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -27,7 +28,7 @@ class AndroidVoiceRecorder(
     private var voiceRecordingResult : VoiceRecordingResult? = null
 
     private val _amplitude = MutableStateFlow(0)
-    val amplitude: StateFlow<Int> = _amplitude
+    val amplitude: StateFlow<Int> = _amplitude.asStateFlow()
 
 
     @RequiresApi(Build.VERSION_CODES.S)

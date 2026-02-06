@@ -8,9 +8,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,13 +21,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Forward
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,9 +46,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,6 +71,7 @@ import com.github.im.group.sdk.GalleryAwareMediaFileView
 import com.github.im.group.sdk.MediaFileView
 import com.github.im.group.viewmodel.ChatRoomViewModel
 import io.github.aakira.napier.Napier
+import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.math.abs
@@ -68,23 +79,18 @@ import kotlin.math.sin
 
 /**
  * 从文件路径中提取文件ID
- * 这是一个简单的实现，实际情况可能需要根据实际URL结构调整
  */
 fun extractFileIdFromPath(path: String): String {
-    // 处理常见的API路径格式
     val pathSegments = path.split('/')
-    // 查找 "files" 或 "api" 段后的ID
     for ((index, segment) in pathSegments.withIndex()) {
         if (segment.equals("files", ignoreCase = true) && index + 1 < pathSegments.size) {
-            // 检查下一个段是否可能是文件ID（不是路径的一部分）
             val nextSegment = pathSegments[index + 1]
-            if (nextSegment.isNotEmpty() && !nextSegment.contains(".")) { // 排除文件扩展名
+            if (nextSegment.isNotEmpty() && !nextSegment.contains(".")) {
                 return nextSegment
             }
         }
     }
     
-    // 如果上面的逻辑没找到，尝试从URL参数中提取
     if (path.contains("?")) {
         val queryString = path.substringAfter('?')
         val params = queryString.split('&')
@@ -95,9 +101,8 @@ fun extractFileIdFromPath(path: String): String {
         }
     }
     
-    // 如果仍然找不到，返回最后一个段（如果它看起来像是一个ID）
     val lastSegment = pathSegments.lastOrNull { it.isNotEmpty() }
-    if (lastSegment != null && lastSegment.length > 5) { // 假设有效的文件ID至少有5个字符
+    if (lastSegment != null && lastSegment.length > 5) {
         return lastSegment
     }
     
@@ -107,17 +112,7 @@ fun extractFileIdFromPath(path: String): String {
 sealed class MessageContent {
     data class Text(val text: String) : MessageContent()
     data class Image(val file: com.github.im.group.sdk.File) : MessageContent()
-
-    /**
-     * @param audioPath 音频文件路径
-     * @param duration 音频时长 ms 展示的需要转化为秒
-     */
     data class Voice(val audioPath: String, val duration: Int) : MessageContent()
-
-    /**
-     * 文件信息
-     * @param fileMeta 文件元信息
-     */
     data class File(val fileMeta: FileMeta) : MessageContent()
     data class Video(val file: com.github.im.group.sdk.File) : MessageContent()
 }
@@ -136,22 +131,16 @@ fun MediaMessage(
     onDownloadFile: ((String) -> Unit)? = null,
     onShowMenu: ((com.github.im.group.sdk.File) -> Unit)? = null
 ) {
-    // 获取下载状态
     val messageViewModel: ChatRoomViewModel = koinViewModel()
     val downloadStates by messageViewModel.fileDownloadStates.collectAsState()
     
-    // 提取文件ID
-    val fileId = remember(file.path) {
-        extractFileIdFromPath(file.path)
-    }
-    
+    val fileId = remember(file.path) { extractFileIdFromPath(file.path) }
     val downloadState = remember(fileId, downloadStates) {
         if (fileId.isNotEmpty()) downloadStates[fileId] else null
     }
     
     Box {
         if (mediaList != null && mediaList.size > 1) {
-            // 如果有多个媒体资源，使用画廊感知的组件
             GalleryAwareMediaFileView(
                 file = file,
                 modifier = modifier.size(size),
@@ -161,7 +150,6 @@ fun MediaMessage(
                 onShowMenu = onShowMenu
             )
         } else {
-            // 否则使用普通的媒体文件视图
             MediaFileView(
                 file = file,
                 modifier = modifier.size(size),
@@ -170,9 +158,7 @@ fun MediaMessage(
             )
         }
         
-        // 显示下载进度
         if (downloadState?.isDownloading == true) {
-            // 在右下角显示进度指示器
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -181,27 +167,21 @@ fun MediaMessage(
                     .size(40.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // 显示圆形进度条
-                androidx.compose.material3.CircularProgressIndicator(
+                CircularProgressIndicator(
                     progress = downloadState.progress,
                     color = Color.Cyan,
                     strokeWidth = 3.dp
                 )
-                // 显示百分比文字
                 Text(
                     text = "${(downloadState.progress * 100).toInt()}%",
                     color = Color.White,
-                    fontSize = androidx.compose.ui.unit.TextUnit(10F, androidx.compose.ui.unit.TextUnitType.Sp),
-                    modifier = Modifier.align(Alignment.Center)
+                    fontSize = 10.sp
                 )
             }
         }
     }
 }
 
-/**
- * 图片气泡
- */
 @Composable
 fun ImageMessage(
     content: MessageContent.Image, 
@@ -210,7 +190,7 @@ fun ImageMessage(
     onDownloadFile: ((String) -> Unit)? = null, 
     onShowMenu: ((com.github.im.group.sdk.File) -> Unit)? = null
 ) {
-    val actualMediaList = mediaList?.map { it.file } // 转换为File列表
+    val actualMediaList = mediaList?.map { it.file }
     MediaMessage(
         file = content.file,
         mediaList = actualMediaList,
@@ -220,9 +200,6 @@ fun ImageMessage(
     )
 }
 
-/**
- * 视频气泡
- */
 @Composable
 fun VideoBubble(
     content: MessageContent.Video, 
@@ -231,7 +208,7 @@ fun VideoBubble(
     onDownloadFile: ((String) -> Unit)? = null, 
     onShowMenu: ((com.github.im.group.sdk.File) -> Unit)? = null
 ) {
-    val actualMediaList = mediaList?.map { it.file } // 转换为File列表
+    val actualMediaList = mediaList?.map { it.file }
     MediaMessage(
         file = content.file,
         mediaList = actualMediaList,
@@ -242,196 +219,211 @@ fun VideoBubble(
 }
 
 /**
- * 语音消息
+ * 语音消息气泡 - 优化版
  */
 @Composable
 fun VoiceMessage(
-    content: MessageContent.Voice, 
+    content: MessageContent.Voice,
+    isOwnMessage: Boolean // 建议传入此参数以统一风格
 ) {
-
     val audioPlayer: AudioPlayer = koinInject<AudioPlayer>()
-
     var isPlaying by remember { mutableStateOf(false) }
     var playbackPosition by remember { mutableStateOf(0f) }
     val audioPath = content.audioPath
-    val bubbleWidth = (60 + content.duration / 1000 * 3).dp.coerceAtMost(200.dp) // 修正宽度计算，使用秒为单位
+
+    // 根据时长动态计算宽度，但限制范围避免过长或过短
+    val bubbleWidth = (140 + (content.duration / 1000) * 5).dp.coerceIn(160.dp, 260.dp)
 
     Row(
         modifier = Modifier
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-            .width(bubbleWidth)
-            ,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 2.dp, vertical = 2.dp) // 减小外边距
+            .width(bubbleWidth),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(
             onClick = {
-                if (!isPlaying) {
-                    // 开始播放
-                    audioPlayer.play(audioPath)
-                } else {
-                    // 暂停播放
+                if (audioPlayer.isCurrentlyPlaying(audioPath)) {
                     audioPlayer.pause()
+                } else {
+                    // AudioPlayer 内部应处理停止上一个播放的逻辑
+                    audioPlayer.play(audioPath)
                 }
             },
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier.size(36.dp)
         ) {
+            val iconColor =
+                if (isOwnMessage) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
             Icon(
                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (isPlaying) "暂停" else "播放",
-                tint = Color(0xFF0088CC),
-                modifier = Modifier.size(24.dp)
+                contentDescription = null,
+                tint = iconColor,
+                modifier = Modifier.size(26.dp)
             )
         }
 
-        Column(
+        Box(
             modifier = Modifier
                 .weight(1f)
                 .height(36.dp)
+                .padding(horizontal = 4.dp),
+            contentAlignment = Alignment.Center
         ) {
             VoiceWaveform(
-                duration = content.duration.toLong(),
-                isPlaying = isPlaying,
                 playbackPosition = playbackPosition,
+                isOwnMessage = isOwnMessage,
                 onSeek = { position ->
+                    // 拖动过程中仅更新 UI 进度
                     playbackPosition = position
-                    // 根据波形位置计算实际播放位置
+                },
+                onSeekFinished = { position ->
+                    // 逻辑：松开后自动定位并播放
                     if (audioPlayer.duration > 0) {
-                        val seekPosition = (position * audioPlayer.duration).toLong()
-                        audioPlayer.seekTo(seekPosition)
+                        val seekTarget = (position * audioPlayer.duration).toLong()
+                        audioPlayer.seekTo(seekTarget)
+                        // 如果当前没在播放，松开后自动开始播放
+                        if (!audioPlayer.isCurrentlyPlaying(audioPath)) {
+                            audioPlayer.play(audioPath)
+                        }
                     }
                 }
             )
         }
 
         Text(
-            text = "${content.duration / 1000}s",
-            color = Color.Gray,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(end = 4.dp)
+            text = "${content.duration / 1000}\"",
+            style = MaterialTheme.typography.labelMedium,
+            color = if (isOwnMessage) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            modifier = Modifier.padding(end = 8.dp)
         )
     }
-    
-    // 监听音频播放状态变化
-    androidx.compose.runtime.LaunchedEffect(audioPath, audioPlayer.isPlaying) {
-        // 检查当前播放器是否正在播放当前音频
-        val isCurrentPlaying = audioPlayer.isCurrentlyPlaying( audioPath)
-        isPlaying = isCurrentPlaying
-    }
-    
-    // 每100毫秒更新一次播放位置 - 优化更新频率
-    androidx.compose.runtime.LaunchedEffect(audioPath) {
+
+    // 监听播放器状态：处理互斥停止和进度更新
+    LaunchedEffect(audioPath) {
         while (true) {
-            val isCurrentPlaying = audioPlayer.isCurrentlyPlaying( audioPath)
-            
-            if (isCurrentPlaying) {
-                val currentPosition = audioPlayer.currentPosition
-                val duration = audioPlayer.duration
-                if (duration > 0) {
-                    playbackPosition = (currentPosition.toFloat() / duration).coerceIn(0f, 1f)
+            val currentlyPlayingThis = audioPlayer.isCurrentlyPlaying(audioPath)
+            isPlaying = currentlyPlayingThis
+
+            if (currentlyPlayingThis) {
+                val dur = audioPlayer.duration
+                if (dur > 0) {
+                    playbackPosition =
+                        (audioPlayer.currentPosition.toFloat() / dur).coerceIn(0f, 1f)
+                }
+            } else {
+                // 如果不是在播放当前音频，且进度已接近完成，则重置
+                if (!audioPlayer.isPlaying && playbackPosition > 0.95f) {
+                    playbackPosition = 0f
                 }
             }
-            kotlinx.coroutines.delay(50) // 提高更新频率到每50毫秒更新一次
+            delay(100)
         }
     }
 }
 
 /**
- * 语音波形图
+ * 语音波形图组件 - 支持点击与拖动松开播放
  */
 @Composable
 fun VoiceWaveform(
-    duration: Long,
-    isPlaying: Boolean,
     playbackPosition: Float,
-    onSeek: (Float) -> Unit
+    isOwnMessage: Boolean,
+    onSeek: (Float) -> Unit,
+    onSeekFinished: (Float) -> Unit
 ) {
-    var currentPlaybackPosition by remember { mutableStateOf(playbackPosition) }
-    var selectedPlaybackPosition by remember { mutableStateOf(playbackPosition) }
+    val barColorActive = if (isOwnMessage) Color.White else MaterialTheme.colorScheme.primary
+    val barColorInactive = if (isOwnMessage) Color.White.copy(alpha = 0.4f) else Color.LightGray
 
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
-            .height(40.dp) // 增加高度
+            .height(28.dp)
+            .pointerInput(Unit) {
+                detectTapGestures { offset ->
+                    val pos = (offset.x / size.width).coerceIn(0f, 1f)
+                    onSeekFinished(pos)
+                }
+            }
             .pointerInput(Unit) {
                 detectDragGestures(
-                    onDrag = { change, dragAmount ->
-                        val xPosition = change.position.x
-                        val width = size.width
-                        if (width > 0) {
-                            val newPosition = (xPosition / width).coerceIn(0f, 1f)
-                            selectedPlaybackPosition = newPosition
-                            onSeek(newPosition)
-                        }
-                    },
-                    onDragEnd = {
-                        // 拖动结束后更新当前播放位置
-                        currentPlaybackPosition = selectedPlaybackPosition
-                    }
-                )
+                    onDragEnd = { onSeekFinished(playbackPosition) },
+                    onDragCancel = { onSeekFinished(playbackPosition) }
+                ) { change, _ ->
+                    val pos = (change.position.x / size.width).coerceIn(0f, 1f)
+                    onSeek(pos)
+                }
             }
     ) {
         val width = size.width
         val height = size.height
-        val barCount = 48 // 增加波形条数以获得更好的视觉效果
-        val barWidth = width / barCount
+        val barCount = 35
+        val barWidth = 3.dp.toPx()
+        val gap = (width - (barCount * barWidth)) / (barCount - 1)
         val centerY = height / 2
 
-        // 生成更自然的波形，增强视觉效果
         for (i in 0 until barCount) {
-            // 使用更复杂的波形算法，模拟真实音频波形
             val progressRatio = i.toFloat() / barCount
-            val baseWave = abs(sin(progressRatio * 5 * kotlin.math.PI.toFloat()))
-            val secondWave = abs(sin(progressRatio * 9 * kotlin.math.PI.toFloat())) * 0.4f
-            val thirdWave = abs(sin(progressRatio * 13 * kotlin.math.PI.toFloat())) * 0.2f
-            val waveValue = (baseWave + secondWave + thirdWave) / 2f // 组合多个波形
-            
-            // 增强波形高度对比，使其更明显
-            val baseHeight = if (isPlaying && i < barCount * currentPlaybackPosition) {
-                // 播放时的波形高度，使用组合波形，增强高度对比
-                height * 0.9f * (0.1f + 0.9f * waveValue)
-            } else {
-                // 静止时的波形高度，使用组合波形，增强高度对比
-                height * 0.6f * (0.1f + 0.7f * waveValue)
-            }
+            // 生成比较自然的伪波形
+            val waveFactor = abs(sin(progressRatio * 4f) * 0.4f + sin(progressRatio * 10f) * 0.6f)
+            val barHeight =
+                (height * 0.3f + height * 0.7f * waveFactor).coerceIn(4.dp.toPx(), height)
 
-            val x = i * barWidth + barWidth / 2
-            val barColor = if (isPlaying && i < barCount * currentPlaybackPosition) {
-                Color(0xFF0088CC) // 播放部分为蓝色
-            } else {
-                Color(0xFF888888) // 未播放部分为深灰色，更明显
-            }
+            val x = i * (barWidth + gap)
+            val isPlayed = progressRatio <= playbackPosition
 
-            drawLine(
-                color = barColor,
-                start = androidx.compose.ui.geometry.Offset(x, centerY - baseHeight / 2),
-                end = androidx.compose.ui.geometry.Offset(x, centerY + baseHeight / 2),
-                strokeWidth = barWidth * 0.7f // 调整线宽以增强视觉效果
+            drawRoundRect(
+                color = if (isPlayed) barColorActive else barColorInactive,
+                topLeft = Offset(x, centerY - barHeight / 2),
+                size = Size(barWidth, barHeight),
+                cornerRadius = CornerRadius(2.dp.toPx())
             )
         }
-
-        // 绘制播放头
-        val playheadX = width * currentPlaybackPosition
-        drawLine(
-            color = Color.Red,
-            start = androidx.compose.ui.geometry.Offset(playheadX, 0f),
-            end = androidx.compose.ui.geometry.Offset(playheadX, height),
-            strokeWidth = 2f
-        )
     }
 }
-
-
 /**
  * 文本消息气泡
  */
 @Composable
-fun TextMessage(content: MessageContent.Text) {
-    Text(
-        text = content.text,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        color = Color.Black
-    )
+fun TextMessage(content: MessageContent.Text, isOwnMessage: Boolean) {
+    val clipboardManager = LocalClipboardManager.current
+    var showMenu by remember { mutableStateOf(false) }
+
+    Box {
+        Text(
+            text = content.text,
+            modifier = Modifier
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onLongPress = { showMenu = true }
+                    )
+                },
+            color = if (isOwnMessage) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium
+        )
+
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("复制") },
+                onClick = {
+                    clipboardManager.setText(AnnotatedString(content.text))
+                    showMenu = false
+                },
+                leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp)) }
+            )
+            DropdownMenuItem(
+                text = { Text("转发") },
+                onClick = {
+                    // TODO: 转发逻辑
+                    showMenu = false
+                },
+                leadingIcon = { Icon(Icons.Default.Forward, contentDescription = null, modifier = Modifier.size(18.dp)) }
+            )
+        }
+    }
 }
 
 /**
@@ -439,12 +431,9 @@ fun TextMessage(content: MessageContent.Text) {
  */
 @Composable
 fun FileMessageBubble(meta: FileMeta, onDownloadFile: ((String) -> Unit)? = null) {
-    val messageViewModel: ChatRoomViewModel = koinViewModel()
-
     var showDialog by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
 
-    // 创建一个虚拟的File对象，用于MediaFileView显示
     val file = File(
         name = meta.fileName,
         path = "",
@@ -461,87 +450,71 @@ fun FileMessageBubble(meta: FileMeta, onDownloadFile: ((String) -> Unit)? = null
         "${meta.size}B"
     }
 
-    fun downloadFile() {
-        meta?.let {
-            onDownloadFile?.invoke(it.fileId)
-        }
-    }
-
     Column(
         modifier = Modifier
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 4.dp, vertical = 4.dp)
             .width(200.dp)
     ) {
-        // 使用MediaFileView显示文件预览
         MediaFileView(
             file = file,
             modifier = Modifier.fillMaxWidth(),
-            size = 120.dp,
+            size = 100.dp,
             onDownloadFile = onDownloadFile
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
-        // 文件信息
         Column {
             Text(
                 text = meta.fileName,
                 fontWeight = FontWeight.Medium,
-                maxLines = 1
+                maxLines = 1,
+                fontSize = 14.sp
             )
             Text(
                 text = displaySize,
                 color = Color.Gray,
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.labelSmall
             )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // 操作按钮
         Button(
             onClick = { showDialog = true },
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF1976D2),
-                contentColor = Color.White
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().height(36.dp),
+            contentPadding = PaddingValues(0.dp)
         ) {
-            Text("查看文件")
+            Text("查看文件", fontSize = 12.sp)
         }
     }
 
-    // 点击后显示文件操作对话框
     if (showDialog) {
         FileActionDialog(
             fileName = meta.fileName,
             fileSize = displaySize,
             onDismiss = { showDialog = false },
-            onView = {
-                showDialog = false
-                // 实际查看文件的逻辑
-                // 可以打开浏览器下载或者在应用内查看
-//                onClick(msg) TODO
-            },
+            onView = { showDialog = false },
             onDownload = {
                 isDownloading = true
-                downloadFile()
+                onDownloadFile?.invoke(meta.fileId)
                 isDownloading = false
             }
         )
     }
 
-    // 下载进度指示器
     if (isDownloading) {
-        Dialog(onDismissRequest = { /* 不允许取消 */ }) {
+        Dialog(onDismissRequest = { }) {
             Box(
                 modifier = Modifier
                     .background(Color.White, shape = RoundedCornerShape(8.dp))
                     .padding(16.dp)
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("文件下载中...")
@@ -565,7 +538,7 @@ fun FileActionDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = Color.White
+            color = MaterialTheme.colorScheme.surface
         ) {
             Column(
                 modifier = Modifier.padding(16.dp)
@@ -575,53 +548,22 @@ fun FileActionDialog(
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleMedium
                 )
-
                 Spacer(modifier = Modifier.height(4.dp))
-
                 Text(
                     text = fileSize,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium
                 )
-
                 Spacer(modifier = Modifier.height(16.dp))
-
-                Button(
-                    onClick = onView,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF1976D2),
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("在线查看")
-                }
-
+                Button(onClick = onView, modifier = Modifier.fillMaxWidth()) { Text("在线查看") }
                 Spacer(modifier = Modifier.height(8.dp))
-
-                Button(
-                    onClick = onDownload,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50),
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("下载文件")
-                }
-
+                Button(onClick = onDownload, modifier = Modifier.fillMaxWidth()) { Text("下载文件") }
                 Spacer(modifier = Modifier.height(8.dp))
-
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.LightGray,
-                        contentColor = Color.Black
-                    )
-                ) {
-                    Text("取消")
-                }
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                ) { Text("取消") }
             }
         }
     }
@@ -632,14 +574,11 @@ fun FileActionDialog(
  */
 @Composable
 fun SendingSpinner(modifier: Modifier = Modifier, color: Color = Color.Gray) {
-    // 无限旋转动画
     val infiniteTransition = rememberInfiniteTransition()
     val angle by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = LinearEasing)
-        )
+        animationSpec = infiniteRepeatable(animation = tween(800, easing = LinearEasing))
     )
 
     Canvas(modifier.size(12.dp)) {
@@ -649,15 +588,13 @@ fun SendingSpinner(modifier: Modifier = Modifier, color: Color = Color.Gray) {
                 startAngle = 0f,
                 sweepAngle = 270f,
                 useCenter = false,
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f)
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
             )
         }
     }
 }
 
-/**
- * 统一的文件消息组件 - 处理所有类型的文件消息（图片、视频、普通文件）
- */
+
 @Composable
 fun UnifiedFileMessage(
     message: MessageItem,
@@ -666,115 +603,103 @@ fun UnifiedFileMessage(
     FileMessageLoader(
         msg = message,
         messageViewModel = messageViewModel,
-        maxDownloadSize = 5 * 1024 * 1024,  // 5MB for all file types
+        maxDownloadSize = 5 * 1024 * 1024,
         onContentReady = { pickedFile, meta ->
             val downloadFile = { fileId: String -> messageViewModel.downloadFileMessage(fileId) }
-            val showMenu = { file: File ->
-                // 显示文件操作菜单
-                // 这里可以弹出一个BottomSheet或其他形式的菜单
-                // 暂时使用现有的文件操作对话框
-            }
             
-            // 使用消息视图模型中的媒体消息管理器
             val mediaManager = rememberMessageMediaManager(
                 messageViewModel = messageViewModel,
                 currentMessage = message
             )
             
-            // 使用统一的媒体消息组件
-            MediaMessage(
-                file = pickedFile,
-                mediaList = mediaManager.mediaFiles,
-                currentIndex = mediaManager.currentIndex,
-                onDownloadFile = downloadFile,
-                onShowMenu = showMenu
-            )
+            Box {
+                var showMenu by remember { mutableStateOf(false) }
+
+                MediaMessage(
+                    file = pickedFile,
+                    mediaList = mediaManager.mediaFiles,
+                    currentIndex = mediaManager.currentIndex,
+                    onDownloadFile = downloadFile,
+                    onShowMenu = { showMenu = true }
+                )
+
+                // 媒体文件的操作菜单
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("保存到本地") },
+                        onClick = {
+                            downloadFile(meta.fileId)
+                            showMenu = false
+                        },
+                        leadingIcon = { Icon(Icons.Default.FileDownload, null, modifier = Modifier.size(18.dp)) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("转发") },
+                        onClick = {
+                            // TODO: 转发逻辑
+                            showMenu = false
+                        },
+                        leadingIcon = { Icon(Icons.Default.Forward, null, modifier = Modifier.size(18.dp)) }
+                    )
+                }
+            }
         },
         onLoading = {
             CircularProgressIndicator(
-                modifier = Modifier
-                    .size(16.dp)
-                    .padding(4.dp),
+                modifier = Modifier.size(16.dp).padding(4.dp),
                 strokeWidth = 2.dp
             )
         },
-        onError = {
-            Text("${message.type.name}文件过大或加载失败")
-        }
+        onError = { Text("${message.type.name}加载失败", fontSize = 12.sp) }
     )
 }
 
 
-/**
- * 通用文件消息加载组件
- *
- * 逻辑1: 获取文件元数据
- * 逻辑2: 检查文件大小是否超出限制
- * 逻辑3: 检查本地文件是否存在
- * 逻辑4: 根据需要触发下载流程
- * 逻辑5: 监听下载状态并更新UI
- *
- * @param msg 消息对象
- * @param messageViewModel 消息视图模型
- * @param maxDownloadSize 最大下载大小限制（字节），默认为50MB
- * @param allMessages 所有消息列表，用于构建媒体画廊
- * @param onContentReady 内容准备就绪回调
- * @param onLoading 加载中状态
- * @param onError 错误状态（可选）
- */
 @Composable
 fun FileMessageLoader(
     msg: MessageItem,
     messageViewModel: ChatRoomViewModel,
-    maxDownloadSize: Long = 50 * 1024 * 1024, // 默认50MB
-    allMessages: List<MessageItem>? = null, // 添加所有消息列表参数
+    maxDownloadSize: Long = 50 * 1024 * 1024,
+    allMessages: List<MessageItem>? = null,
     onContentReady: @Composable (File, FileMeta) -> Unit,
     onLoading: @Composable () -> Unit,
     onError: @Composable (() -> Unit)? = null
 ) {
-
-
     val fileStorageManager = koinInject<FileStorageManager>()
     var fileMeta by remember { mutableStateOf<FileMeta?>(null) }
     var file by remember { mutableStateOf<File?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var hasError by remember { mutableStateOf(false) }
     var shouldDownload by remember { mutableStateOf(false) }
-    var showDownloadButton by remember { mutableStateOf(false) }  // 新增状态：显示下载按钮
+    var showDownloadButton by remember { mutableStateOf(false) }
     val fileId = msg.content
 
     LaunchedEffect(msg) {
         try {
-            // 异步获取文件元数据（这是所有文件类型都需要的步骤）
             val meta = messageViewModel.getFileMessageMetaAsync(msg)
             file = fileStorageManager.getFile(fileId)
             fileMeta = meta
-            Napier.d { "查询文件的 元数据：$meta  file $file" }
 
             meta?.let { fileMeta ->
-                // 检查文件大小是否超过限制
                 if (fileMeta.size > maxDownloadSize) {
-                    // 文件太大，不自动下载，显示下载按钮
                     showDownloadButton = true
-                    file = fileMeta.toFile() // 使用HTTP链接作为数据源
+                    file = fileMeta.toFile()
                     isLoading = false
                     return@LaunchedEffect
                 }
 
-                // 检查文件是否存在，如果不存在 则 获取其 下载链接 作为数据源
                 val fileExists = fileStorageManager.isFileExists(fileId)
                 if (!fileExists) {
-                    // 不存在则标记需要下载
                     shouldDownload = true
                     file = fileMeta.toFile()
                 } else {
                     val path = messageViewModel.getLocalFilePath(fileId)
                     path?.let { file = fileMeta.toFile(it) }
                 }
-
-                Napier.d { "文件存在 ：$fileExists 文件ID： ${fileMeta.fileId} 的数据源为：${file?.data}" }
             }
-
             isLoading = false
         } catch (e: Exception) {
             hasError = true
@@ -783,88 +708,51 @@ fun FileMessageLoader(
         }
     }
 
-    // 当需要下载时，启动下载流程
     LaunchedEffect(shouldDownload) {
         if (shouldDownload) {
             try {
                 messageViewModel.downloadFileMessage(fileId)
             } catch (e: Exception) {
-                Napier.e("下载文件失败", e)
                 hasError = true
             }
         }
     }
 
-    // 监听下载状态变化，更新文件对象
     val downloadStates by  messageViewModel.fileDownloadStates.collectAsState()
     LaunchedEffect(downloadStates) {
         downloadStates[fileId]?.let { chatUiState ->
             if (chatUiState.isSuccess && !chatUiState.isDownloading) {
-                // 下载完成后，获取本地路径并更新文件对象
                 val path = messageViewModel.getLocalFilePath(fileId)
-                path?.let {
-                    file = fileMeta?.toFile(it)
-                }
+                path?.let { file = fileMeta?.toFile(it) }
             }
         }
     }
 
     when {
-        hasError -> {
-            onError?.invoke() ?: Text("文件过大或加载失败")
-        }
-        isLoading -> {
-            onLoading()
-        }
+        hasError -> onError?.invoke() ?: Text("加载失败", fontSize = 12.sp)
+        isLoading -> onLoading()
         showDownloadButton -> {
-            // 文件太大，显示缩略图和下载按钮
             file?.let { fileObj ->
                 fileMeta?.let { meta ->
-                    // 显示缩略图和下载按钮
                     Box {
                         MediaFileView(
                             file = fileObj,
-                            modifier = Modifier.size(120.dp),
-                            onDownloadFile = { fileId ->
-                                // 启动下载
-                                shouldDownload = true
-                            }
+                            modifier = Modifier.size(100.dp),
+                            onDownloadFile = { shouldDownload = true }
                         )
-
-                        // 显示文件大小和下载图标
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
                                 .background(Color.Black.copy(alpha = 0.6f), shape = CircleShape)
                                 .padding(4.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.FileDownload,
-                                contentDescription = "下载",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Icon(Icons.Default.FileDownload, null, tint = Color.White, modifier = Modifier.size(14.dp))
                         }
-
-                        // 显示文件大小
-                        Text(
-                            text = "${(meta.size / 1024 / 1024)}MB",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .background(Color.Black.copy(alpha = 0.6f), shape = RoundedCornerShape(4.dp))
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                        )
                     }
                 }
             }
         }
-        file != null  && fileMeta !=null-> {
-            onContentReady(file!!, fileMeta!!)
-        }
-        else -> {
-            onLoading()
-        }
+        file != null  && fileMeta !=null-> onContentReady(file!!, fileMeta!!)
+        else -> onLoading()
     }
 }

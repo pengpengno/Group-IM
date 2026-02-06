@@ -27,63 +27,12 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
 @Composable
-actual fun PlatformFilePickerPanel(
-    filePicker: FilePicker,
+fun PlatformFilePickerPanel(
     onDismiss: () -> Unit,
-    onFileSelected: (List<PickedFile>) -> Unit
+    onFileSelected: (List<File>) -> Unit
 ) {
-    val scope = rememberCoroutineScope()
-    
-    Surface(
-        color = Color.White,
-        tonalElevation = 8.dp,
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight()
-            .padding(8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            IconTextButton(Icons.AutoMirrored.Filled.InsertDriveFile, "文件", {
-                scope.launch {
-                    try {
-                        val files = filePicker.pickFile()
-                        onFileSelected(files)
-                        onDismiss()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
-            })
-            IconTextButton(Icons.Default.PhotoCamera, "拍照", {
-                scope.launch {
-                    try {
-                        val photo = filePicker.takePhoto()
-                        if (photo != null) {
-                            onFileSelected(listOf(photo))
-                        }
-                        onDismiss()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
-            })
-            IconTextButton(Icons.Default.Mic, "视频", {
-                scope.launch {
-                    try {
-                        val videos = filePicker.pickVideo()
-                        onFileSelected(videos)
-                        onDismiss()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
-            })
-        }
-    }
+    // iOS platform implementation would go here
+    Text("iOS File Picker Panel")
 }
 
 @Composable

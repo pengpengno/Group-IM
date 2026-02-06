@@ -1,7 +1,7 @@
 package com.github.im.group.ui.chat
 
+import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
 import androidx.compose.animation.core.LinearEasing
-import com.github.im.group.sdk.TryGetPermission
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -40,28 +40,27 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.github.im.group.sdk.File
-import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
-import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.changedToUp
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.window.Dialog
-import com.github.im.group.ui.PlatformFilePickerPanel
+import com.github.im.group.sdk.File
+import com.github.im.group.sdk.TryGetPermission
 import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.VoiceViewModel
 import io.github.aakira.napier.Napier
@@ -158,10 +157,10 @@ fun ChatInputArea(
 
                 if (showMorePanel) {
 
-                    PlatformFilePickerPanel(
-                        onDismiss = { showMorePanel = false },
-                        onFileSelected = onFileSelected
-                    )
+//                    PlatformFilePickerPanel(
+//                        onDismiss = { showMorePanel = false },
+//                        onFileSelected = onFileSelected
+//                    )
                 }
             }
         }

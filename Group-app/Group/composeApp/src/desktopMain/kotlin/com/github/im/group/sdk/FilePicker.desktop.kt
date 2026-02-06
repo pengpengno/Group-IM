@@ -43,4 +43,5 @@ actual fun getPlatformFilePicker(): FilePicker = DesktopFilePicker()
 
 @Composable
 actual fun CameraPreviewView() {
+    // 桌面版暂不实现相机预览功能
 }

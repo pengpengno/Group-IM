@@ -1,5 +1,3 @@
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidApplication)
@@ -8,7 +6,7 @@ plugins {
     alias(libs.plugins.composeHotReload)
     alias(libs.plugins.kotlinxSerialization)
     alias(libs.plugins.sqldelight)
-    alias { libs.plugins.wire }
+    alias(libs.plugins.wire)
 }
 val voyagerVersion = "1.1.0-beta02"
 val camerax_version = "1.2.2"
@@ -59,25 +57,29 @@ kotlin {
             kotlinOptions.jvmTarget = "11"
         }
     }
-    jvm("desktop")
-    js {
-        browser {
-            commonWebpackConfig {
-                outputFileName = "composeApp.js"
-                outputModuleName = "composeApp"
-            }
-        }
-        binaries.executable()
-    }
+//    jvm("desktop"){
+//        compilations.all {
+//            kotlinOptions.jvmTarget = "11"
+//        }
+//    }
+//    js {
+//        nodejs {
+//            version = "20.11.1"
+//        }
+//        browser {
+//            commonWebpackConfig {
+//                outputFileName = "composeApp.js"
+//                outputModuleName = "composeApp"
+//            }
+//        }
+//        binaries.executable()
+//    }
 
     sourceSets {
         val commonMain by getting {
             dependencies {
 
                 implementation("io.github.aakira:napier:2.6.1")
-
-
-
                 implementation("org.jetbrains.androidx.navigation:navigation-compose:2.9.0-beta01")
 
                 implementation("com.squareup.okio:okio:3.7.0")
@@ -119,9 +121,23 @@ kotlin {
             kotlin.srcDir("src/generated/kotlin") // Wire proto 输出目录
 
         }
+//        val jvmMain by creating {
+//            dependsOn(commonMain)
+//            dependencies {
+//                implementation(libs.wire.runtime)
+//                implementation(compose.runtime)
+//                implementation(compose.foundation)
+//                // OkHttp for WebSocket connection
+//                implementation("com.squareup.okhttp3:okhttp:4.12.0")
+//                implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+//
+//            }
+//        }
 
         val androidMain by getting {
+//            dependsOn(jvmMain) // Android 继承 jvmMain
             dependencies {
+
                 //             图片文件预览
                 implementation("io.coil-kt.coil3:coil-compose:3.3.0")
                 implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
@@ -159,28 +175,19 @@ kotlin {
             }
         }
 
-        val desktopMain by getting {
-            dependencies {
-                implementation(libs.wire.runtime)
-
-//                implementation(project(":proto-wire"))
-                implementation(compose.desktop.currentOs)
-                implementation("org.openjfx:javafx-base:20")
-                implementation("org.openjfx:javafx-media:20")
-                implementation("org.openjfx:javafx-controls:20")
-            }
-
-        }
-//
-        val jsMain by getting {
-            dependencies {
-                implementation(compose.html.core)
-                implementation(compose.runtime)
-                implementation(npm("webrtc-adapter", "8.2.3"))
-                implementation(npm("sql.js", "1.8.0"))
-                implementation(npm("google-protobuf", "3.21.2"))
-            }
-        }
+        // 专注Android平台，移除desktop和js源集
+        // val desktopMain by getting {
+        //     dependsOn(jvmMain)
+        //     dependencies {
+        //         // desktop特定依赖
+        //     }
+        // }
+        //
+        // val jsMain by getting {
+        //     dependencies {
+        //         // js特定依赖
+        //     }
+        // }
     }
 }
 wire {
@@ -206,14 +213,14 @@ sqldelight {
         }
     }
 }
-
-compose.desktop {
-    application {
-        mainClass = "com.github.im.group.MainKt"
-        nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "Group"
-            packageVersion = "1.0.0"
-        }
-    }
-}
+//   不在 KMP 中实现 desktop 和web 了
+//compose.desktop {
+//    application {
+//        mainClass = "com.github.im.group.MainKt"
+//        nativeDistributions {
+//            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+//            packageName = "Group"
+//            packageVersion = "1.0.0"
+//        }
+//    }
+//}
