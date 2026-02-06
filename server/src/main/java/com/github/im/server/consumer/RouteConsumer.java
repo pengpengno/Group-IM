@@ -81,7 +81,10 @@ public class RouteConsumer {
 
             // 创建监听容器
             StreamMessageListenerContainer<String, MapRecord<String, String, String>> listenerContainer =
-                    StreamMessageListenerContainer.create(redis.getConnectionFactory(), containerOptions);
+                    null;
+            if (redis.getConnectionFactory() != null) {
+                listenerContainer = StreamMessageListenerContainer.create(redis.getConnectionFactory(), containerOptions);
+            }
 
             // 订阅流
             subscription = listenerContainer.receive(

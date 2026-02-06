@@ -3,40 +3,19 @@ package com.github.im.group
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import com.github.im.group.db.AppDatabase
 import com.github.im.group.db.DatabaseDriverFactory
-import com.github.im.group.listener.ConnectionLoginListener
-import com.github.im.group.listener.WebRTCLoginListener
-import com.github.im.group.manager.ChatSessionManager
-import com.github.im.group.manager.LoginStateListener
-import com.github.im.group.manager.LoginStateManager
-import com.github.im.group.manager.UserDataSyncListener
-import com.github.im.group.repository.ChatMessageRepository
-import com.github.im.group.repository.ConversationRepository
-import com.github.im.group.repository.FilesRepository
-import com.github.im.group.repository.FriendRequestRepository
-import com.github.im.group.repository.MessageSyncRepository
-import com.github.im.group.repository.UserRepository
+import com.github.im.group.db.DesktopDatabaseDriverFactory
 import com.github.im.group.sdk.DesktopFilePicker
-import com.github.im.group.sdk.FilePicker
-import com.github.im.group.manager.FileStorageManager
 import com.github.im.group.sdk.DesktopVoiceRecorder
-import com.github.im.group.sdk.SenderSdk
-import com.github.im.group.ui.video.VideoCallViewModel
-import com.github.im.group.viewmodel.ChatRoomViewModel
-import com.github.im.group.viewmodel.ChatViewModel
-import com.github.im.group.viewmodel.ContactsViewModel
-import com.github.im.group.viewmodel.TCPMessageViewModel
-import com.github.im.group.viewmodel.UserViewModel
-import com.github.im.group.viewmodel.VoiceViewModel
-import okio.FileSystem
-import okio.Path.Companion.toPath
+import com.github.im.group.sdk.FilePicker
+import com.github.im.group.sdk.VoiceRecorder
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
-import org.koin.core.module.dsl.viewModel
 
 fun main() = application {
     startKoin {
-        modules(desktopModule)
+        modules(mergedDesktopModule)
     }
 
     Window(
@@ -51,103 +30,36 @@ fun main() = application {
     }
 }
 
+/**
+ * 桌面端特定模块
+ * 包含桌面平台特有的实现
+ */
 val desktopModule = module {
+    // 桌面端特定的数据库工厂
     single<DatabaseDriverFactory> { DesktopDatabaseDriverFactory() }
-    single { get<DatabaseDriverFactory>().createDatabase() }
+    single<AppDatabase> { DesktopDatabaseDriverFactory().createDatabase() }
 
+    // 桌面端特定的文件选择器
     single<FilePicker> { DesktopFilePicker() }
-//    single<AudioPlayer> { com.github.im.group.sdk.AudioPlayer() }
-//    single<WebRTCManager> { com.github.im.group.sdk.WebRTCManager() }
-    single { UserRepository(get()) }
-    single { ChatMessageRepository(get(), get()) }
-    single { FilesRepository(get()) }
-    single { FriendRequestRepository(get()) }
-    single { MessageSyncRepository(get(), get(), get(), get()) }
-    single { ConversationRepository(get()) }
+    
+    // 桌面端特定的音频录制
+    single<VoiceRecorder> { DesktopVoiceRecorder() }
+}
 
-    single {
-        FileStorageManager(
-            filesRepository = get(),
-            fileSystem = FileSystem.SYSTEM,
-            baseDirectory = "./files".toPath()
-        )
-    }
-
-    // 为ChatViewModel添加所有必需的依赖项
-    viewModel {
-        ChatViewModel(
-            tcpClient = get(),
-            userRepository = get(),
-            filePicker = get(),
-            loginStateManager = get(),
-            messageRepository = get(),
-        )
-    }
-
-    // 为ChatMessageViewModel添加所有必需的依赖项
-    viewModel {
-        ChatRoomViewModel(
-            get(),
-            chatSessionManager = get(),
-            chatMessageRepository = get(),
-            messageSyncRepository = get(),
-            filesRepository = get(), // 添加文件仓库依赖
-            conversationRepository = get(),
-            senderSdk = get(),
-            filePicker = get(),
-            fileStorageManager = get(),
-            fileUploadService = get(),
-            chatMessageBuilder = get(),
-        )
-    }
-
-    single { ChatSessionManager(get(), get()) }
-    single { TCPMessageViewModel(get()) }
-    single { DesktopVoiceRecorder() }
-//    single { MessageClient(get()) } bind SocketClient::class
-    viewModel {
-        VoiceViewModel(
-            voiceRecorder = get(),
-            audioPlayer = get(),
-        )
-    }
-
-    single { SenderSdk(get(), get()) }
-
-    single<List<LoginStateListener>> {
-        listOf(
-            UserDataSyncListener(get()),
-            ConnectionLoginListener(get()),
-            WebRTCLoginListener(get())
-        )
-    }
-    single {
-        val manager = LoginStateManager(get())
-
-        get<List<LoginStateListener>>().forEach { manager.addListener(it) }
-        manager
-    }
-
-    viewModel {
-        UserViewModel(
-            userRepository = get(),
-            loginStateManager = get(),
-            friendRequestRepository = get()
-        )
-    }
-
-    // 注册VideoCallViewModel
-    viewModel {
-        val vm = VideoCallViewModel(get())
-        // 注入WebRTC管理器
-        vm.setWebRTCManager(get())
-        vm
-    }
-
-    // 注册ContactsViewModel
-    viewModel {
-        ContactsViewModel(
-            userRepository = get()
-        )
-    }
+/**
+ * 合并后的桌面端模块
+ * 按照依赖层次合并各个模块
+ */
+val mergedDesktopModule = module {
+    // 底层：数据访问层
+    includes(dataModule)        // 通用数据模块
+    includes(desktopModule)     // 桌面端平台实现
+    
+    // 中层：业务能力层
+    includes(sdkModule)         // SDK能力模块
+    includes(jvmModule)         // JVM平台网络模块
+    includes(managerModule)     // 业务管理层模块
+    
+    // 上层：UI业务层
+    includes(viewModelModule)   // ViewModel模块
 }
