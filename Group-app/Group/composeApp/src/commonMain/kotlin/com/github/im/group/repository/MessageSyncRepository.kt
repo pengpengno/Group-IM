@@ -40,14 +40,10 @@ class MessageSyncRepository(
         Napier.d("开始同步会话消息: conversationId=$conversationId")
         
         try {
-            // 获取会话信息，包括索引信息
-//            val conversation = ConversationApi.getConversation(conversationId)
-//            Napier.d("获取会话信息: $conversation")
-            
+
             // 获取本地最大序列号
             val localMaxSequenceId = messageRepository.getMaxSequenceId(conversationId)
-            Napier.d("本地最大序列号: $localMaxSequenceId")
-            
+
             // 从服务器获取消息，只获取比本地序列号大的消息
             val pageResult = ChatApi.getMessages(conversationId, localMaxSequenceId)
             val remoteMessages = pageResult.content

@@ -32,6 +32,8 @@ import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.SenderSdk
 import com.github.im.group.sdk.VoiceRecorder
 import com.github.im.group.sdk.WebRTCManager
+import com.github.im.group.service.SessionPreCreationService
+import com.github.im.group.service.SessionPreCreationServiceImpl
 import com.github.im.group.ui.video.VideoCallViewModel
 import com.github.im.group.viewmodel.ChatRoomViewModel
 import com.github.im.group.viewmodel.ChatViewModel
@@ -62,6 +64,8 @@ val appmodule = module {
     single { MessageSyncRepository(get(), get(), get(),get()) }
     single { com.github.im.group.repository.OfflineMessageRepository(get()) }
     single<MessageRouter>{ ChatSessionManager(get())}
+
+    single<SessionPreCreationService> { SessionPreCreationServiceImpl(get()) }
 
     single {
         val context = androidContext()
@@ -142,10 +146,8 @@ val appmodule = module {
 //            filesRepository = get()
         )
     }
-
     single { SenderSdk(get(),get()) }
     // 登录状态管理器和相关监听器
-
     single<List<LoginStateListener>> {
         listOf(
             UserDataSyncListener(get()),
@@ -179,9 +181,7 @@ val appmodule = module {
 
     // 注册ContactsViewModel
     viewModel {
-        ContactsViewModel(
-            userRepository = get()
-        )
+        ContactsViewModel(get(), get())
     }
 
 }

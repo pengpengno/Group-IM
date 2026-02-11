@@ -1,18 +1,27 @@
 package com.github.im.group.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.Contacts
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,10 +48,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.github.im.group.manager.LoginStateManager
 import com.github.im.group.ui.chat.ChatUI
@@ -86,9 +97,9 @@ fun ChatMainScreen(
     var isDragging by remember { mutableStateOf(false) }
     
     val bottomNavItems = listOf(
-        BottomNavItem("聊天", Icons.AutoMirrored.Filled.Chat, Icons.AutoMirrored.Filled.Chat),
-        BottomNavItem("联系人", Icons.Default.Contacts, Icons.Default.Contacts),
-        BottomNavItem("设置", Icons.Default.Person, Icons.Default.Person)
+        BottomNavItem("消息", Icons.AutoMirrored.Outlined.Chat, Icons.AutoMirrored.Filled.Chat),
+        BottomNavItem("联系人", Icons.Outlined.Contacts, Icons.Filled.Contacts),
+        BottomNavItem("我的", Icons.Outlined.Person, Icons.Filled.Person)
     )
 
     if(loginState is LoginState.AuthenticationFailed){
@@ -99,16 +110,13 @@ fun ChatMainScreen(
     }
 
     LaunchedEffect(userInfo) {
-        // 判断是否存在登录凭证 存在 则自动化登陆 ， 不存在则 返回到登录页面
         userViewModel.hasLocalCredential().let {
             if (!it) {
                 loginStateManager.setLoggedOut()
                 navHostController.navigate(Login)
             }
             else{
-                // 如果状态不是登陆中 且 也不是溢价登录的状态  那么就尝试登录一下， 并且如果失败了  那么就定期尝试重试
                 if (loginState !is LoginState.Authenticating  && loginState !is LoginState.Authenticated){
-                    // Todo  检测失败后  定期重试一下
                     Napier.d { "尝试自动登录" }
                     userViewModel.autoLogin()
                 }
@@ -116,38 +124,29 @@ fun ChatMainScreen(
         }
     }
     
-    // 刷新数据的函数
     fun refreshData() {
         if (!isRefreshing) {
             isRefreshing = true
             scope.launch {
                 when (loginState) {
                     is LoginState.AuthenticationFailed -> {
-                        // 如果是登录失败状态，尝试重新登录
                         if ((loginState as LoginState.AuthenticationFailed).isNetworkError) {
-                            // 如果是网络错误，尝试重新登录
                             userViewModel.retryLogin()
                         } else {
-                            // 如果是认证失败，跳转到登录页
                             navHostController.navigate(Login)
                         }
                     }
                     is LoginState.Authenticated -> {
-                        // 如果已经登录成功，刷新会话
                         userInfo?.userId?.let { chatViewModel.getConversations(it) }
-//
                     }
                     is LoginState.Authenticating -> {
-                        // 如果正在登录中，刷新数据
                         userViewModel.autoLogin()
                     }
                     else -> {
-                        // 其他状态尝试自动登录
                         userViewModel.autoLogin()
                     }
                 }
-                // 模拟数据加载完成
-                kotlinx.coroutines.delay(1000) // 模拟网络延迟
+                kotlinx.coroutines.delay(1000) 
                 isRefreshing = false
             }
         }
@@ -158,7 +157,7 @@ fun ChatMainScreen(
         0 -> when(loginState) {
             is LoginState.Authenticating -> "连接中..."
             is LoginState.Checking -> "正在更新..."
-            is LoginState.AuthenticationFailed -> if ((loginState as LoginState.AuthenticationFailed).isNetworkError) "网络异常" else "聊天"
+            is LoginState.AuthenticationFailed -> if ((loginState as LoginState.AuthenticationFailed).isNetworkError) "网络异常" else "消息"
             else -> "消息"
         }
         1 -> "联系人"
@@ -211,25 +210,21 @@ fun ChatMainScreen(
         },
         drawerState = drawerState
     ) { 
-        // 主容器，添加手势检测
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(Unit) {
                     detectDragGestures(
                         onDragStart = {
-                            // 检查是否在顶部，允许下拉刷新
                             if (dragOffset == 0f) {
                                 isDragging = true
                             }
                         },
                         onDragEnd = {
                             isDragging = false
-                            // 如果拖拽距离超过阈值，则触发刷新
                             if (dragOffset > 100) {
                                 refreshData()
                             }
-                            // 重置拖拽偏移
                             dragOffset = 0f
                         },
                         onDragCancel = {
@@ -238,9 +233,8 @@ fun ChatMainScreen(
                         },
                         onDrag = { change, dragAmount ->
                             if (isDragging || !isRefreshing) {
-                                // 只允许向下拖拽，且在内容顶部时才响应
                                 if (dragAmount.y > 0) {
-                                    dragOffset += dragAmount.y * 0.5f // 减少灵敏度
+                                    dragOffset += dragAmount.y * 0.5f 
                                 }
                             }
                             change.consume()
@@ -248,7 +242,6 @@ fun ChatMainScreen(
                     )
                 }
         ) {
-            // 主要内容区域，根据拖拽偏移量移动
             Box(
                 modifier = Modifier
                     .offset { IntOffset(0, dragOffset.roundToInt()) }
@@ -284,29 +277,53 @@ fun ChatMainScreen(
                     bottomBar = {
                         NavigationBar(
                             containerColor = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 8.dp
+                            tonalElevation = 0.dp,
+                            modifier = Modifier.height(80.dp)
                         ) {
                             bottomNavItems.forEachIndexed { index, item ->
                                 val isSelected = selectedItem == index
+                                
+                                val animatedScale by animateFloatAsState(
+                                    targetValue = if (isSelected) 1.2f else 1.0f,
+                                    animationSpec = tween(durationMillis = 300)
+                                )
+                                
+                                val animatedColor by animateColorAsState(
+                                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    animationSpec = tween(durationMillis = 300)
+                                )
+
                                 NavigationBarItem(
                                     icon = {
-                                        Icon(
-                                            imageVector = item.icon,
-                                            contentDescription = item.title,
-                                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Icon(
+                                                imageVector = if (isSelected) item.selectedIcon else item.icon,
+                                                contentDescription = item.title,
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .scale(animatedScale),
+                                                tint = animatedColor
+                                            )
+                                        }
                                     },
                                     label = { 
                                         Text(
                                             text = item.title,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            style = MaterialTheme.typography.labelMedium.copy(
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                fontSize = 12.sp
+                                            ),
+                                            color = animatedColor
                                         ) 
                                     },
                                     selected = isSelected,
                                     onClick = { selectedItem = index },
                                     colors = NavigationBarItemDefaults.colors(
-                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f),
+                                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 )
                             }
@@ -317,7 +334,7 @@ fun ChatMainScreen(
                         modifier = Modifier
                             .padding(padding)
                             .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+                            .background(MaterialTheme.colorScheme.surface)
                     ) {
                         when (selectedItem) {
                             0 -> ChatUI(navHostController = navHostController)
@@ -335,14 +352,16 @@ fun ChatMainScreen(
                 }
             }
             
-            // 下拉刷新指示器 - 位于顶部
             if (isRefreshing) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 56.dp) // 与顶部栏有一定距离
+                        .padding(top = 80.dp)
                 ) {
-                    androidx.compose.material3.CircularProgressIndicator()
+                    androidx.compose.material3.CircularProgressIndicator(
+                        strokeWidth = 3.dp,
+                        modifier = Modifier.size(32.dp)
+                    )
                 }
             }
         }

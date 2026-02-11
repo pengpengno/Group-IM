@@ -9,6 +9,7 @@ import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.UserInfo
 import db.Message
 import io.github.aakira.napier.Napier
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -72,7 +73,7 @@ class ChatMessageRepository (
             // 如果消息不存在，则插入新记录
             db.transaction {
                 val clientTime = messageItem.clientTime?.let {
-                    Instant.fromEpochMilliseconds(System.currentTimeMillis()).toLocalDateTime(TimeZone.currentSystemDefault())
+                    Instant.fromEpochMilliseconds(Clock.System.now().toEpochMilliseconds()).toLocalDateTime(TimeZone.currentSystemDefault())
                 }
                 messageItem.id.let {
                     if (it <= 0L){
@@ -173,9 +174,7 @@ class ChatMessageRepository (
         db.messageQueries
             .selectMaxSequenceIdByConversation(conversationId)
             .executeAsOneOrNull()
-            .let {
-                return it?.MAX ?: 0L
-            }
+            .let {return it?.MAX ?: 0L}
     }
     
     /**
@@ -242,60 +241,114 @@ class ChatMessageRepository (
 
     /**
      * 获取指定会话的最新消息
-     * 优先
+     * 优先从本地获取，网络异常时返回本地最新消息
      */
     suspend fun getLatestMessage(conversationId: Long): MessageWrapper? {
-
-        // 获取本地最新Index
-
-        val localMaxSequenceId = getMaxSequenceId(conversationId)
-        Napier.d("本地最大序列号: $localMaxSequenceId")
-
-        // 从服务器获取消息，只获取比本地序列号大的消息
-        val pageResult = ChatApi.getMessages(conversationId, localMaxSequenceId)
-        val remoteMessages = pageResult.content
-        Napier.d("从服务器获取到 ${remoteMessages.size} 条新消息")
-
-        if (remoteMessages.isNotEmpty()) {
-
-            // 先保存用户数据
-            val userInfos = remoteMessages.filter {
-                it.fromAccount != null && it.fromAccount.username.isNotBlank()
-            }.mapNotNull { it ->
-                it.fromAccount?.takeIf { it.username.isNotBlank() }
+        try {
+            // 获取本地最新Index
+            val localMaxSequenceId = getMaxSequenceId(conversationId)
+            if (localMaxSequenceId == 0L){
+                Napier.d("本地没有 conversationId ${conversationId} 消息")
+            }else{
+                Napier.d("本地最大序列号: $localMaxSequenceId")
             }
-            if (userInfos.isNotEmpty()) {
-                userRepository.addOrUpdateUsers(userInfos)
+
+            // 从服务器获取消息，只获取比本地序列号大的消息
+            val pageResult = ChatApi.getMessages(conversationId, localMaxSequenceId)
+            val remoteMessages = pageResult.content
+            Napier.d("从服务器获取到 ${remoteMessages.size} 条新消息")
+
+            if (remoteMessages.isNotEmpty()) {
+                // 先保存用户数据
+                val userInfos = remoteMessages.filter {
+                    it.fromAccount != null && it.fromAccount.username.isNotBlank()
+                }.mapNotNull { it ->
+                    it.fromAccount?.takeIf { it.username.isNotBlank() }
+                }
+                if (userInfos.isNotEmpty()) {
+                    userRepository.addOrUpdateUsers(userInfos)
+                }
+                // 批量保存新消息到本地（使用事务）
+                insertMessages(remoteMessages)
+
+                // 批量保存文件元数据
+                val fileMetas = remoteMessages
+                    .filter { it.type.isFile() }
+                    .mapNotNull { it.extraAs<com.github.im.group.api.FileMeta>() }
+
+                Napier.d("同步完成，新增 ${remoteMessages.size} 条消息")
             }
-            // 批量保存新消息到本地（使用事务）
-            insertMessages(remoteMessages)
-
-            // 批量保存文件元数据
-            val fileMetas = remoteMessages
-                .filter { it.type.isFile() }
-                .mapNotNull { it.extraAs<com.github.im.group.api.FileMeta>() }
-
-            Napier.d("同步完成，新增 ${remoteMessages.size} 条消息")
-        }
-        // 开始查询 展示 最新消息
-        val entity = db.messageQueries.selectLatestMessageWithUserInfoByConversation(conversationId).executeAsOneOrNull()
-        return entity?.let {
-            MessageWrapper(
-                messageDto = MessageDTO(
-                    msgId = entity.msg_id,  // 可能为空
-                    conversationId = entity.conversation_id,
-                    status = entity.status,
-                    content = entity.content,
-                    type =  entity.type,
-                    timestamp = entity.server_timestamp.toString(),  // 可能为空
-                    fromAccount = UserInfo(
-                        userId = entity.from_account_id,
-                        username = entity.username?:"",
-                        email = entity.email?:""
-                    ),
-
+            
+            // 开始查询展示最新消息
+            val entity = db.messageQueries.selectLatestMessageWithUserInfoByConversation(conversationId).executeAsOneOrNull()
+            return entity?.let {
+                MessageWrapper(
+                    messageDto = MessageDTO(
+                        msgId = entity.msg_id,  // 可能为空
+                        conversationId = entity.conversation_id,
+                        status = entity.status,
+                        content = entity.content,
+                        type =  entity.type,
+                        timestamp = entity.server_timestamp.toString(),  // 可能为空
+                        fromAccount = UserInfo(
+                            userId = entity.from_account_id,
+                            username = entity.username?:"",
+                            email = entity.email?:""
+                        ),
+                    )
                 )
-            )
+            }
+        } catch (e: Exception) {
+            Napier.e("获取最新消息失败，使用本地数据兜底: conversationId=$conversationId", e)
+            // 网络异常时，直接从本地获取最新消息
+            val localEntity = db.messageQueries.selectLatestMessageWithUserInfoByConversation(conversationId).executeAsOneOrNull()
+            return localEntity?.let {
+                MessageWrapper(
+                    messageDto = MessageDTO(
+                        msgId = localEntity.msg_id,
+                        conversationId = localEntity.conversation_id,
+                        status = localEntity.status,
+                        content = localEntity.content,
+                        type =  localEntity.type,
+                        timestamp = localEntity.server_timestamp.toString(),
+                        fromAccount = UserInfo(
+                            userId = localEntity.from_account_id,
+                            username = localEntity.username?:"",
+                            email = localEntity.email?:""
+                        ),
+                    )
+                )
+            }
+        }
+    }
+
+    /**
+     * 从本地获取会话的最新消息（纯本地操作，不调用网络）
+     * @param conversationId 会话的Id
+     */
+    fun getLocalLatestMessage(conversationId: Long): MessageWrapper? {
+        try {
+            val entity = db.messageQueries.selectLatestMessageWithUserInfoByConversation(conversationId).executeAsOneOrNull()
+            return entity?.let {
+                MessageWrapper(
+                    messageDto = MessageDTO(
+                        msgId = entity.msg_id,
+                        conversationId = entity.conversation_id,
+                        status = entity.status,
+                        content = entity.content,
+                        type =  entity.type,
+                        timestamp = entity.server_timestamp.toString(),
+                        fromAccount = UserInfo(
+                            userId = entity.from_account_id,
+                            username = entity.username?:"",
+                            email = entity.email?:""
+                        ),
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Napier.e("获取本地最新消息失败: conversationId=$conversationId", e)
+            return null
         }
     }
 

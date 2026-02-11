@@ -49,5 +49,3 @@ build/
 /uploads
 /downloads
 /postgres_data/**
-/Group-app/.idea/
-/Group-app/Group-Electronjs/node_modules/

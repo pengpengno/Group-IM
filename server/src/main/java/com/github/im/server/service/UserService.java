@@ -61,7 +61,7 @@ public class UserService {
 
         // 创建新用户并返回信息
         User newUser = saveNewUser(request);
-        return Optional.of(UserMapper.INSTANCE.userToUserInfo(newUser));
+        return Optional.of(userMapper.userToUserInfo(newUser));
     }
 
     /**

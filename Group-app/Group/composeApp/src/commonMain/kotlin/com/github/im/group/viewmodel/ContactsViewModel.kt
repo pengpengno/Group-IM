@@ -6,7 +6,10 @@ import com.github.im.group.api.OrganizationApi
 import com.github.im.group.api.UserApi
 import com.github.im.group.model.DepartmentInfo
 import com.github.im.group.model.OrgTreeNode
+import com.github.im.group.model.SessionCreationResult
 import com.github.im.group.repository.UserRepository
+import com.github.im.group.service.SessionPreCreationService
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,21 +17,30 @@ import kotlinx.coroutines.launch
 
 class ContactsViewModel(
     val userRepository: UserRepository,
+    private val sessionPreCreationService: SessionPreCreationService,
 ) : ViewModel() {
 
     private val _organizationStructureState = MutableStateFlow<DepartmentInfo?>(null)
     private val _organizationTreeState = MutableStateFlow<List<OrgTreeNode>>(emptyList())
+    private val _loading = MutableStateFlow(false)
+    private val _expandedDepartments = MutableStateFlow<Set<Long>>(emptySet())
+    private val _sessionCreationState = MutableStateFlow<SessionCreationState>(SessionCreationState.Idle)
 
     val organizationStructure: StateFlow<DepartmentInfo?> = _organizationStructureState.asStateFlow()
     val organizationTree: StateFlow<List<OrgTreeNode>> = _organizationTreeState.asStateFlow()
-
-    private val _loading = MutableStateFlow(false)
-
-    val loading: StateFlow<Boolean> = _loading
-
-    private val _expandedDepartments = MutableStateFlow<Set<Long>>(emptySet())
-
+    val loading: StateFlow<Boolean> = _loading.asStateFlow()
     val expandedDepartments: StateFlow<Set<Long>> = _expandedDepartments.asStateFlow()
+    val sessionCreationState: StateFlow<SessionCreationState> = _sessionCreationState.asStateFlow()
+
+    /**
+     * 会话创建状态
+     */
+    sealed class SessionCreationState {
+        object Idle : SessionCreationState()
+        data class Creating(val friendId: Long) : SessionCreationState()
+        data class Success(val conversationId: Long, val friendId: Long) : SessionCreationState()
+        data class Error(val message: String, val friendId: Long) : SessionCreationState()
+    }
 
     /**
      * 查询用户
@@ -59,6 +71,56 @@ class ContactsViewModel(
             // 可以添加错误处理
         } finally {
             _loading.value = false
+        }
+    }
+
+    /**
+     * 预创建会话并导航到聊天室
+     * @param friendId 好友ID
+     * @param onNavigate 导航回调函数
+     */
+    fun preCreateSessionAndNavigate(friendId: Long, onNavigate: (Long) -> Unit) {
+        viewModelScope.launch {
+            _sessionCreationState.value = SessionCreationState.Creating(friendId)
+            
+            try {
+                val currentUser = userRepository.getLocalUserInfo()
+                if (currentUser == null) {
+                    _sessionCreationState.value = SessionCreationState.Error(
+                        "用户未登录", friendId
+                    )
+                    return@launch
+                }
+
+                Napier.d("开始预创建会话: currentUser=${currentUser.userId}, friendId=$friendId")
+                
+                val result = sessionPreCreationService.ensureSessionExists(
+                    currentUserId = currentUser.userId,
+                    friendId = friendId
+                )
+
+                when (result) {
+                    is SessionCreationResult.Success -> {
+                        Napier.d("会话预创建成功: conversationId=${result.conversationId}")
+                        _sessionCreationState.value = SessionCreationState.Success(
+                            result.conversationId, friendId
+                        )
+                        // 执行导航
+                        onNavigate(result.conversationId)
+                    }
+                    is SessionCreationResult.Error -> {
+                        Napier.e("会话预创建失败: ${result.message}")
+                        _sessionCreationState.value = SessionCreationState.Error(
+                            result.message, friendId
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Napier.e("会话预创建异常", e)
+                _sessionCreationState.value = SessionCreationState.Error(
+                    e.message ?: "未知错误", friendId
+                )
+            }
         }
     }
 
@@ -149,5 +211,12 @@ class ContactsViewModel(
         val currentSet = _expandedDepartments.value.toMutableSet()
         currentSet.remove(departmentId)
         _expandedDepartments.value = currentSet
+    }
+
+    /**
+     * 重置会话创建状态
+     */
+    fun resetSessionCreationState() {
+        _sessionCreationState.value = SessionCreationState.Idle
     }
 }

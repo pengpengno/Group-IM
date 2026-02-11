@@ -2,6 +2,7 @@ package com.github.im.group.ui.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,30 +19,28 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.PrivacyTip
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -56,7 +54,6 @@ import com.github.im.group.viewmodel.UserViewModel
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileUI(
     navHostController: NavHostController
@@ -65,93 +62,73 @@ fun ProfileUI(
     val loginStateManager: LoginStateManager = koinInject()
     val currentUser by userViewModel.currentLocalUserInfo.collectAsState()
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("个人资料", fontWeight = FontWeight.SemiBold) },
-                navigationIcon = {
-                    IconButton(onClick = { navHostController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
-    ) { paddingValues ->
-        Column(
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+            .verticalScroll(rememberScrollState())
+    ) {
+        // --- 头部：漂亮的渐变背景和用户信息 ---
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(paddingValues)
+                .fillMaxWidth()
+                .height(220.dp)
         ) {
-            // --- 头部：用户基本信息 ---
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 1.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(contentAlignment = Alignment.BottomEnd) {
-                        UserAvatar(
-                            username = currentUser?.username ?: "",
-                            size = 100
+            // 背景渐变
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primaryContainer,
+                                MaterialTheme.colorScheme.surface
+                            )
                         )
-                        // 相机图标（暗示可点击更换头像）
-                        Surface(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .offset(x = 4.dp, y = 4.dp),
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primary,
-                            tonalElevation = 2.dp
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.CameraAlt,
-                                    contentDescription = "更换头像",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = currentUser?.username ?: "加载中...",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
                     )
+            )
 
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = currentUser?.email ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            // 用户信息卡片
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .align(Alignment.BottomCenter),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(20.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    UserAvatar(
+                        username = currentUser?.username ?: "User",
+                        size = 72
                     )
                     
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
                     
-                    // 在线状态标签
-                    Surface(
-                        color = Color(0xFFE8F5E9),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = currentUser?.username ?: "未设置昵称",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = currentUser?.email ?: "还没有添加邮箱",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        // 在线状态标签
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
@@ -162,111 +139,125 @@ fun ProfileUI(
                             Text(
                                 text = "在线",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF2E7D32),
-                                fontWeight = FontWeight.Medium
+                                color = Color(0xFF2E7D32)
                             )
                         }
                     }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // --- 功能分组：账号安全 ---
-            SettingSection(title = "账号设置") {
-                ProfileSettingItem(
-                    icon = Icons.Default.AccountCircle,
-                    iconColor = Color(0xFF42A5F5),
-                    title = "个人信息",
-                    subtitle = "昵称、二维码、更多资料",
-                    onClick = { /* TODO */ }
-                )
-                SettingDivider()
-                ProfileSettingItem(
-                    icon = Icons.Default.Lock,
-                    iconColor = Color(0xFFFFA726),
-                    title = "账号与安全",
-                    subtitle = "密码、手机绑定、设备管理",
-                    onClick = { /* TODO */ }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // --- 功能分组：应用设置 ---
-            SettingSection(title = "通用设置") {
-                ProfileSettingItem(
-                    icon = Icons.Default.PrivacyTip,
-                    iconColor = Color(0xFF66BB6A),
-                    title = "隐私管理",
-                    subtitle = "加好友验证、黑名单",
-                    onClick = { navHostController.navigate("PrivacySettings") }
-                )
-                SettingDivider()
-                ProfileSettingItem(
-                    icon = Icons.Default.Notifications,
-                    iconColor = Color(0xFFEF5350),
-                    title = "消息通知",
-                    subtitle = "提醒方式与免打扰设置",
-                    onClick = { /* TODO */ }
-                )
-                SettingDivider()
-                ProfileSettingItem(
-                    icon = Icons.Default.Info,
-                    iconColor = Color(0xFF78909C),
-                    title = "关于 IM",
-                    subtitle = "当前版本 v1.0.5",
-                    onClick = { /* TODO */ }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // --- 退出登录按钮 ---
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        loginStateManager.setLoggedOut()
-                        navHostController.navigate(Login) {
-                            popUpTo("Profile") { inclusive = true }
-                        }
-                    },
-                color = MaterialTheme.colorScheme.surface
-            ) {
-                Box(
-                    modifier = Modifier.padding(vertical = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "退出登录",
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
+                    
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.outline
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // --- 功能菜单区域 ---
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 个人信息组
+            ProfileSection(title = "账号信息") {
+                ProfileMenuItem(
+                    icon = Icons.Default.AccountBox,
+                    title = "个人资料",
+                    color = Color(0xFF42A5F5),
+                    onClick = { /* TODO */ }
+                )
+                HorizontalDivider(modifier = Modifier.padding(start = 48.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                ProfileMenuItem(
+                    icon = Icons.Default.Security,
+                    title = "账号安全",
+                    color = Color(0xFF66BB6A),
+                    onClick = { /* TODO */ }
+                )
+            }
+
+            // 系统设置组
+            ProfileSection(title = "系统设置") {
+                ProfileMenuItem(
+                    icon = Icons.Default.NotificationsNone,
+                    title = "消息通知",
+                    color = Color(0xFFFFA726),
+                    onClick = { /* TODO */ }
+                )
+                HorizontalDivider(modifier = Modifier.padding(start = 48.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                ProfileMenuItem(
+                    icon = Icons.Default.Palette,
+                    title = "个性装扮",
+                    color = Color(0xFFAB47BC),
+                    onClick = { /* TODO */ }
+                )
+                HorizontalDivider(modifier = Modifier.padding(start = 48.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                ProfileMenuItem(
+                    icon = Icons.Default.Settings,
+                    title = "通用设置",
+                    color = Color(0xFF78909C),
+                    onClick = { /* TODO */ }
+                )
+            }
+
+            // 其他信息组
+            ProfileSection(title = "其他") {
+                ProfileMenuItem(
+                    icon = Icons.Default.HelpOutline,
+                    title = "帮助与反馈",
+                    color = Color(0xFF26A69A),
+                    onClick = { /* TODO */ }
+                )
+            }
+
+            // 退出登录
+            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable {
+                        loginStateManager.setLoggedOut()
+                        navHostController.navigate(Login) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
+                contentColor = MaterialTheme.colorScheme.error
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("退出当前账号", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
     }
 }
 
 @Composable
-fun SettingSection(
+fun ProfileSection(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column {
         Text(
             text = title,
-            modifier = Modifier.padding(start = 20.dp, bottom = 8.dp),
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
         )
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surface
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+            modifier = Modifier.fillMaxWidth()
         ) {
             Column(content = content)
         }
@@ -274,20 +265,10 @@ fun SettingSection(
 }
 
 @Composable
-fun SettingDivider() {
-    HorizontalDivider(
-        modifier = Modifier.padding(start = 68.dp), // 对齐文字
-        thickness = 0.5.dp,
-        color = MaterialTheme.colorScheme.outlineVariant
-    )
-}
-
-@Composable
-fun ProfileSettingItem(
+fun ProfileMenuItem(
     icon: ImageVector,
-    iconColor: Color,
     title: String,
-    subtitle: String,
+    color: Color,
     onClick: () -> Unit
 ) {
     Row(
@@ -297,40 +278,29 @@ fun ProfileSettingItem(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 彩色图标容器
         Box(
             modifier = Modifier
-                .size(36.dp)
-                .background(iconColor.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),
+                .size(32.dp)
+                .background(color.copy(alpha = 0.1f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = iconColor,
-                modifier = Modifier.size(22.dp)
+                tint = color,
+                modifier = Modifier.size(18.dp)
             )
         }
-
         Spacer(modifier = Modifier.width(16.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f)
+        )
         Icon(
             imageVector = Icons.Default.ChevronRight,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.outline,
+            tint = MaterialTheme.colorScheme.outlineVariant,
             modifier = Modifier.size(20.dp)
         )
     }

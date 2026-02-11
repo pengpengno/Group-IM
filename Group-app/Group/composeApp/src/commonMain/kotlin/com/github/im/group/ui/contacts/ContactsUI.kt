@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -46,8 +48,9 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.github.im.group.model.OrgTreeNode
 import com.github.im.group.ui.UserItem
-import com.github.im.group.ui.createPrivate
+import com.github.im.group.ui.conversation
 import com.github.im.group.viewmodel.ContactsViewModel
+import io.github.aakira.napier.Napier
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -61,12 +64,33 @@ fun ContactsUI(
     val organizationTree by contactsViewModel.organizationTree.collectAsState()
     val loading by contactsViewModel.loading.collectAsState()
     val expandedDepartments by contactsViewModel.expandedDepartments.collectAsState()
+    val sessionCreationState by contactsViewModel.sessionCreationState.collectAsState()
     
     val scope = rememberCoroutineScope()
     var contactSearchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         contactsViewModel.getOrganizationStructure()
+    }
+
+    // 处理会话创建状态变化
+    LaunchedEffect(sessionCreationState) {
+        when (val state = sessionCreationState) {
+            is ContactsViewModel.SessionCreationState.Success -> {
+                // 会话创建成功，导航到聊天室
+                Napier.d("会话创建成功，导航到聊天室: conversationId=${state.conversationId}")
+                navHostController.navigate(conversation(state.conversationId))
+                // 重置状态
+                contactsViewModel.resetSessionCreationState()
+            }
+            is ContactsViewModel.SessionCreationState.Error -> {
+                Napier.e("会话创建失败: ${state.message}")
+                // 可以显示错误提示
+            }
+            else -> {
+                // 其他状态不需要特殊处理
+            }
+        }
     }
 
     Column(
@@ -99,11 +123,13 @@ fun ContactsUI(
             
             Spacer(modifier = Modifier.width(8.dp))
 
+            // --- 刷新按钮 ---
             Surface(
-                onClick = { contactsViewModel.getOrganizationStructure() },
-                shape = RoundedCornerShape(26.dp),
-                color = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.size(52.dp)
+                modifier = Modifier
+                    .size(40.dp)
+                    .clickable { contactsViewModel.getOrganizationStructure() },
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -115,110 +141,84 @@ fun ContactsUI(
                 }
             }
         }
-        
-        // --- 内容区域 ---
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-        ) {
-            if (loading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(strokeWidth = 3.dp)
-                }
-            } else if (organizationTree.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.Inbox, 
-                            contentDescription = null, 
-                            modifier = Modifier.size(48.dp), 
-                            tint = MaterialTheme.colorScheme.outline
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("暂无组织架构数据", color = MaterialTheme.colorScheme.outline)
-                    }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 12.dp)
-                ) {
-                    items(organizationTree, key = { it.id }) { node ->
-                        OrganizationNodeItem(
-                            node = node,
-                            depth = 0,
-                            expandedDepartments = expandedDepartments,
-                            onToggleExpand = { nodeId ->
-                                contactsViewModel.toggleDepartmentExpanded(nodeId)
-                            },
-                            onUserClick = { userInfo ->
 
-                                navHostController.navigate(createPrivate(userInfo.userId))
-                            }
-                        )
+        // --- 组织架构树 ---
+        if (loading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("加载中...", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 16.dp)
+            ) {
+                items(organizationTree) { node ->
+                    when (node.type) {
+                        OrgTreeNode.NodeType.DEPARTMENT -> {
+                            DepartmentItem(
+                                department = node,
+                                isExpanded = expandedDepartments.contains(node.id),
+                                onToggleExpand = { contactsViewModel.toggleDepartmentExpanded(node.id) }
+                            )
+                        }
+                        OrgTreeNode.NodeType.USER -> {
+                            UserItem(
+                                userInfo = node.userInfo!!,
+                                onClick = {
+                                    // 使用会话预创建功能替代直接导航
+                                    contactsViewModel.preCreateSessionAndNavigate(
+                                        friendId = node.userInfo!!.userId
+                                    ) { conversationId ->
+                                        // 导航逻辑在ViewModel中处理
+                                        Napier.d("准备导航到聊天室: conversationId=$conversationId")
+                                    }
+                                }
+                            )
+                        }
+
                     }
                 }
             }
         }
     }
-}
 
-@Composable
-fun OrganizationNodeItem(
-    node: OrgTreeNode,
-    depth: Int,
-    expandedDepartments: Set<Long>,
-    onToggleExpand: (Long) -> Unit,
-    onUserClick: (com.github.im.group.model.UserInfo) -> Unit
-) {
-    val isExpanded = expandedDepartments.contains(node.id)
-
-    Column {
-        when (node.type) {
-            OrgTreeNode.NodeType.DEPARTMENT -> {
-                DepartmentNode(
-                    node = node,
-                    depth = depth,
-                    isExpanded = isExpanded,
-                    onToggleExpand = onToggleExpand
-                )
-                if (isExpanded) {
-                    node.children.forEach { childNode ->
-                        OrganizationNodeItem(
-                            node = childNode,
-                            depth = depth + 1,
-                            expandedDepartments = expandedDepartments,
-                            onToggleExpand = onToggleExpand,
-                            onUserClick = onUserClick
-                        )
-                    }
-                }
-            }
-            OrgTreeNode.NodeType.USER -> {
-                UserNode(
-                    node = node,
-                    depth = depth,
-                    onUserClick = onUserClick
-                )
-            }
+    // 显示会话创建加载状态
+    when (val state = sessionCreationState) {
+        is ContactsViewModel.SessionCreationState.Creating -> {
+            SessionCreationDialog(friendId = state.friendId)
+        }
+        is ContactsViewModel.SessionCreationState.Error -> {
+            SessionCreationErrorDialog(
+                errorMessage = state.message,
+                onDismiss = { contactsViewModel.resetSessionCreationState() }
+            )
+        }
+        else -> {
+            // 不显示对话框
         }
     }
 }
 
 @Composable
-fun DepartmentNode(
-    node: OrgTreeNode,
-    depth: Int,
+private fun DepartmentItem(
+    department: OrgTreeNode,
     isExpanded: Boolean,
-    onToggleExpand: (Long) -> Unit
+    onToggleExpand: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onToggleExpand(node.id) }
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .padding(start = (depth * 20).dp),
+            .clickable(onClick = onToggleExpand)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -245,11 +245,11 @@ fun DepartmentNode(
         Spacer(modifier = Modifier.width(12.dp))
         Column {
             Text(
-                text = node.name,
+                text = department.name,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
-            node.departmentInfo?.description?.let { description ->
+            department.departmentInfo?.description?.let { description ->
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
@@ -261,17 +261,38 @@ fun DepartmentNode(
 }
 
 @Composable
-fun UserNode(
-    node: OrgTreeNode,
-    depth: Int,
-    onUserClick: (com.github.im.group.model.UserInfo) -> Unit
+private fun SessionCreationDialog(friendId: Long) {
+    AlertDialog(
+        onDismissRequest = { /* 不允许取消 */ },
+        title = { Text("创建会话") },
+        text = { Text("正在为您和用户 $friendId 创建聊天会话...") },
+        confirmButton = {
+            Row {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("请稍候")
+            }
+        },
+        dismissButton = {}
+    )
+}
+
+@Composable
+private fun SessionCreationErrorDialog(
+    errorMessage: String,
+    onDismiss: () -> Unit
 ) {
-    node.userInfo?.let { userInfo ->
-        UserItem(
-            userInfo = userInfo,
-            onClick = { onUserClick(userInfo) },
-            modifier = Modifier
-                .padding(start = (depth * 20 + 28).dp)
-        )
-    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("创建会话失败") },
+        text = { Text(errorMessage) },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("确定")
+            }
+        }
+    )
 }

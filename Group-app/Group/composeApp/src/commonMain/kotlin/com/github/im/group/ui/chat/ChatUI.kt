@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -61,9 +62,9 @@ fun ChatUI(
     var userSearchQuery by remember { mutableStateOf("") }
     val searchResults by userViewModel.searchResults.collectAsState()
     val userInfo by userViewModel.currentLocalUserInfo.collectAsState()
+    val loading by chatViewModel.loading.collectAsState()
 
     LaunchedEffect(userInfo) {
-
         Napier.d { "当前的用户为 ： $userInfo" }
         userInfo?.userId?.let {
             chatViewModel.getConversations(it)
@@ -73,6 +74,11 @@ fun ChatUI(
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
+        // --- 离线状态提示 ---
+        if (loading && conversations.isEmpty()) {
+            OfflineStatusBanner()
+        }
+
         // --- 搜索框区域 ---
         Box(
             modifier = Modifier
@@ -139,12 +145,84 @@ fun ChatUI(
                             )
                         }
                     }
+                    
+                    // 如果没有会话且不在加载中，显示空状态
+                    if (conversations.isEmpty() && !loading) {
+                        item {
+                            EmptyChatState()
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+@Composable
+private fun OfflineStatusBanner() {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.CloudOff,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "网络连接异常，正在加载本地数据...",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyChatState() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "暂无聊天会话",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "您可以搜索联系人开始聊天",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+// 保留原有的组件定义
 @Composable
 fun ChatItem(conversation: ConversationDisplayState, userInfo: UserInfo, onClick: () -> Unit) {
     Row(

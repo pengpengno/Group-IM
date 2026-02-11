@@ -152,6 +152,14 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Objenesis for Spock Mock creation -->
+        <dependency>
+            <groupId>org.objenesis</groupId>
+            <artifactId>objenesis</artifactId>
+            <version>3.3</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Apache POI for Excel processing -->
         <dependency>
             <groupId>org.apache.poi</groupId>

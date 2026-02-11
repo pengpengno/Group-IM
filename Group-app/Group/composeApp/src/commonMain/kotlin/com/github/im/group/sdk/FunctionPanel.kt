@@ -17,9 +17,9 @@ import com.github.im.group.sdk.File
 /**
  * 文件选取
  */
-//@Composable
-//expect fun PlatformFilePickerPanel(
-//    onDismiss: () -> Unit,
-//    onFileSelected: (List<File>) -> Unit
-//)
+@Composable
+expect fun PlatformFilePickerPanel(
+    onDismiss: () -> Unit,
+    onFileSelected: (List<File>) -> Unit
+)
 

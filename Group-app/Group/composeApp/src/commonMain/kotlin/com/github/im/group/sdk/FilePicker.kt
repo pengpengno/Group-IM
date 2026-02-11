@@ -100,4 +100,7 @@ fun FilePickerScreen(filePicker: FilePicker) {
     }
 }
 
-//expect fun getPlatformFilePicker(): FilePicker
+@Composable
+expect fun CameraPreviewView(): Unit
+
+expect fun getPlatformFilePicker(): FilePicker

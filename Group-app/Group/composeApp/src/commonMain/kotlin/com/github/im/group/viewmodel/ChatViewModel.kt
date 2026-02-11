@@ -81,9 +81,11 @@ class ChatViewModel (
         viewModelScope.launch {
             _loading.value = true
             try {
+                Napier.d { "开始加载本地会话列表" }
+
                 // 第一步：立即加载本地数据并更新UI
                 loadLocalConversations(uId)
-                
+                Napier.d { "开始加载远程会话列表" }
                 // 第二步：在后台获取远程数据并更新UI
                 loadRemoteConversations(uId)
             } catch (e: UnauthorizedException) {
@@ -151,7 +153,8 @@ class ChatViewModel (
      * 创建会话显示状态
      */
     suspend  fun createConversationDisplayState(conversation: ConversationRes): ConversationDisplayState {
-        val latestMessage = messageRepository.getLatestMessage(conversation.conversationId)
+        // 直接从本地获取就行了 ， 至于远程的消息 会有 其他逻辑调用刷新
+        val latestMessage = messageRepository.getLocalLatestMessage(conversation.conversationId)
         val lastMessageText = latestMessage?.let { message ->
             getMessageDesc(message)
         } ?: ""
@@ -195,17 +198,59 @@ class ChatViewModel (
      * 处理加载失败情况
      */
     private suspend fun handleLoadFailure(uId: Long) {
+        Napier.w("网络加载失败，切换到离线模式加载本地数据: userId=$uId")
+        
         // 如果当前没有会话数据，尝试从本地加载
         if (_conversations.value.isEmpty()) {
-            val localConversations = conversationRepository.getConversationsByUserId(uId)
-            val localConversationsWithLatestMessages = localConversations.map { conversation ->
-                createConversationDisplayState(conversation)
+            try {
+                val localConversations = conversationRepository.getConversationsByUserId(uId)
+                val localConversationsWithLatestMessages = localConversations.map { conversation ->
+                    // 使用本地数据创建会话显示状态，避免网络调用
+                    createLocalConversationDisplayState(conversation)
+                }
+                _conversations.value = localConversationsWithLatestMessages
+                Napier.d("离线模式加载了 ${localConversations.size} 个本地会话")
+            } catch (e: Exception) {
+                Napier.e("加载本地会话数据也失败", e)
+                // 如果连本地数据都无法加载，显示空状态
+                _conversations.value = emptyList()
             }
-            _conversations.value = localConversationsWithLatestMessages
+        } else {
+            // 如果已有部分数据，保持现有数据不变
+            Napier.d("保持现有的会话数据，等待网络恢复")
         }
     }
-
-
+    
+    /**
+     * 创建本地会话显示状态（不调用网络）
+     * 专门用于离线模式下的会话状态创建
+     */
+    private suspend fun createLocalConversationDisplayState(conversation: ConversationRes): ConversationDisplayState {
+        // 只从本地获取最新消息，避免网络调用
+        val latestMessage = getLocalLatestMessage(conversation.conversationId)
+        val lastMessageText = latestMessage?.let { message ->
+            getMessageDesc(message)
+        } ?: "暂无消息"
+        val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) } ?: ""
+        
+        return ConversationDisplayState(
+            conversation = conversation,
+            lastMessage = lastMessageText,
+            displayDateTime = displayDateTime
+        )
+    }
+    
+    /**
+     * 从本地获取会话的最新消息（纯本地操作）
+     */
+    private suspend fun getLocalLatestMessage(conversationId: Long): MessageWrapper? {
+        return try {
+            messageRepository.getLocalLatestMessage(conversationId)
+        } catch (e: Exception) {
+            Napier.e("获取本地最新消息失败: conversationId=$conversationId", e)
+            null
+        }
+    }
     /**
      * 获取私聊会话
      * 只需要
