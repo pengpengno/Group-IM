@@ -98,6 +98,7 @@ public class SecurityConfig  {
                                 "/api/users/import",
                                 "/api/users/login",
                                 "/api/auth/logout",
+                                "/api/mcp/**",
                                 "/static/**",
                                 "/socket.io/**",
                                 "/ws/**"  , // 信令服务器

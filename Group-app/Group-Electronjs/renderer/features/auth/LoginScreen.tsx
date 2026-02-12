@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { loginStart, loginSuccess, loginFailure } from './authSlice';
-import type { LoginCredentials, AuthData, LocalUser } from '../../types/index';
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { loginStart, loginSuccess, loginFailure, clearError } from './authSlice';
+import type { LoginCredentials, LocalUserInfo, AuthState } from '../../types/index';
 import { getElectronAPI } from '../../api/electronAPI';
 import './LoginScreen.css';
 
@@ -17,16 +17,24 @@ interface LoginScreenProps {
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToSettings, onNavigateToRegister }) => {
   const dispatch = useDispatch();
+  const { loading, error } = useSelector((state: { auth: AuthState }) => state.auth);
+  
   const [loginForm, setLoginForm] = useState<LoginForm>({
-    loginAccount: '',
-    password: ''
+    loginAccount: 'peng.wang',
+    password: '12345'
   });
   const [rememberMe, setRememberMe] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   
   const electronAPI = getElectronAPI();
+
+  // 当认证状态改变时清除表单错误
+  useEffect(() => {
+    if (error) {
+      // 可以在这里添加自动清除错误的逻辑
+      console.log('Login error:', error);
+    }
+  }, [error]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -40,12 +48,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToSettings, onNavig
     e.preventDefault();
     
     if (!electronAPI) {
-      setErrorMessage('应用环境不支持');
+      dispatch(loginFailure('应用环境不支持'));
       return;
     }
 
-    setErrorMessage('');
-    setIsLoading(true);
+    // 清除之前的错误
+    dispatch(clearError());
+    
     dispatch(loginStart());
 
     try {
@@ -57,8 +66,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToSettings, onNavig
 
       if (result.success && result.data) {
         // Create LocalUser object with correct structure
-        const userData: LocalUser = {
-          userId: result.data.user.id,
+        const userData: LocalUserInfo = {
+          userId: result.data.user.userId.toString(),
           username: result.data.user.username,
           email: result.data.user.email,
           phoneNumber: result.data.user.phoneNumber
@@ -66,21 +75,21 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToSettings, onNavig
         
         dispatch(loginSuccess({ 
           user: userData, 
-          token: result.data.token, 
+          token: result.data.token,
           refreshToken: result.data.refreshToken ?? '' 
         }));
       } else {
         const errorMsg = result.error || '登录失败';
-        setErrorMessage(errorMsg);
         dispatch(loginFailure(errorMsg));
       }
     } catch (error) {
       const errorMsg = '网络错误，请稍后重试';
-      setErrorMessage(errorMsg);
       dispatch(loginFailure(errorMsg));
-    } finally {
-      setIsLoading(false);
     }
+  };
+
+  const handleClearError = () => {
+    dispatch(clearError());
   };
 
   return (
@@ -111,6 +120,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToSettings, onNavig
               </svg>
             </div>
           </div>
+          <h1 className="app-title">Group IM</h1>
+          <p className="app-subtitle">连接你的工作与社交</p>
         </div>
 
         {/* Login Form Card */}
@@ -175,19 +186,29 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToSettings, onNavig
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={loading || !loginForm.loginAccount.trim() || !loginForm.password.trim()}
               className="login-button"
             >
-              {isLoading ? (
+              {loading ? (
                 <div className="loading-spinner"></div>
               ) : (
                 "登 录"
               )}
             </button>
 
-            {errorMessage && (
+            {error && (
               <div className="error-message">
-                {errorMessage}
+                <div className="error-content">
+                  <span>{error}</span>
+                  <button 
+                    type="button" 
+                    className="clear-error-btn"
+                    onClick={handleClearError}
+                    aria-label="清除错误"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
             )}
           </form>

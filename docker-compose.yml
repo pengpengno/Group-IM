@@ -50,38 +50,38 @@ services:
     depends_on:
       - openldap
       
-  server:
-    build:
-      context: .
-      dockerfile: deploy/dockerfiles/Dockerfile
-    ports:
-      - "8080:8080"
-      - "8088:8088"
-    environment:
-      - SPRING_PROFILES_ACTIVE=dev,ldap
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/group
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=postgres
-      - SPRING_LDAP_URLS=ldap://openldap:389
-      - SPRING_LDAP_USERNAME=cn=admin,dc=mycompany,dc=com
-      - SPRING_LDAP_PASSWORD=admin
-      - SPRING_LDAP_BASE=dc=mycompany,dc=com
-      # 系统初始化配置
-      - SYSTEM_INITIALIZER_ENABLED=true
-      - DEFAULT_COMPANY_NAME=public
-      - DEFAULT_COMPANY_SCHEMA=public
-      - DEFAULT_COMPANY_ACTIVE=true
-      - ADMIN_USERNAME=admin
-      - ADMIN_EMAIL=admin@example.com
-      - ADMIN_PHONE_NUMBER=1234567890
-      - ADMIN_PASSWORD=12345
-    volumes:
-      - ./logs/app:/app/logs
-    networks:
-      - app-network
-    depends_on:
-      - postgres
-      - openldap
+#  server:
+#    build:
+#      context: .
+#      dockerfile: deploy/dockerfiles/Dockerfile
+#    ports:
+#      - "8080:8080"
+#      - "8088:8088"
+#    environment:
+#      - SPRING_PROFILES_ACTIVE=dev,ldap
+#      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/group
+#      - SPRING_DATASOURCE_USERNAME=postgres
+#      - SPRING_DATASOURCE_PASSWORD=postgres
+#      - SPRING_LDAP_URLS=ldap://openldap:389
+#      - SPRING_LDAP_USERNAME=cn=admin,dc=mycompany,dc=com
+#      - SPRING_LDAP_PASSWORD=admin
+#      - SPRING_LDAP_BASE=dc=mycompany,dc=com
+#      # 系统初始化配置
+#      - SYSTEM_INITIALIZER_ENABLED=true
+#      - DEFAULT_COMPANY_NAME=public
+#      - DEFAULT_COMPANY_SCHEMA=public
+#      - DEFAULT_COMPANY_ACTIVE=true
+#      - ADMIN_USERNAME=admin
+#      - ADMIN_EMAIL=admin@example.com
+#      - ADMIN_PHONE_NUMBER=1234567890
+#      - ADMIN_PASSWORD=12345
+#    volumes:
+#      - ./logs/app:/app/logs
+#    networks:
+#      - app-network
+#    depends_on:
+#      - postgres
+#      - openldap
 
 networks:
   app-network:

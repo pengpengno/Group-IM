@@ -1,5 +1,5 @@
 import type { 
-  User, 
+  ApiUserResponse,
   AuthData, 
   LoginCredentials, 
   FileFilter, 

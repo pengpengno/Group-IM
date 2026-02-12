@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { LocalUser as User, AuthData, AuthState } from '../../types';
+import type { LocalUserInfo as User, AuthData, AuthState } from '../../types';
 
 const initialState: AuthState = {
   isAuthenticated: false,

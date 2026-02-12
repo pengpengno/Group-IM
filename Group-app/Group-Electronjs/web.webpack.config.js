@@ -39,9 +39,16 @@ module.exports = {
     })
   ],
   devServer: {
-    port: 3000,
+    port: 3002, // Changed from 3000 to avoid conflict
     historyApiFallback: true,
     open: true,
-    hot: true
+    hot: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false
+      }
+    }
   },
 };

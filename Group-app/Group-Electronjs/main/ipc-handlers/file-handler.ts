@@ -8,8 +8,7 @@ const BASE_URL = 'http://localhost:8080'; // This would come from environment/co
 
 // Handle file upload request
 ipcMain.handle('upload-file', async (_, filePath, clientId) => {
-  try {node --version
-npm --version
+  try {
     const fileBuffer = fs.readFileSync(filePath);
     const fileName = path.basename(filePath);
     
@@ -27,9 +26,10 @@ npm --version
     const response = await axios.post(`${BASE_URL}/api/files/upload`, form, {
       headers: form.getHeaders(),
       onUploadProgress: (progressEvent) => {
-        const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        // Send progress to renderer process
+        // Check if total is defined before calculating progress
         if (progressEvent.total) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          // Send progress to renderer process
           // mainWindow.webContents.send('upload-progress', { clientId, progress });
         }
       }

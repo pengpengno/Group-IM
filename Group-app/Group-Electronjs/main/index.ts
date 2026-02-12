@@ -27,7 +27,7 @@ function createWindow() {
 
   // Load either index.html (production) or localhost (development)
   if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:3000');
+    mainWindow.loadURL('http://localhost:3002');
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }

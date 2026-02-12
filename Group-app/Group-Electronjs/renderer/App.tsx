@@ -1,253 +1,94 @@
-import React, { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { loginStart, loginSuccess, loginFailure, logout, clearError } from './features/auth/authSlice';
-import type { User, AuthData, LoginCredentials, FileFilter, SelectFileOptions, SelectFileResult, ApiResponse, SearchResults, ApiUser, LocalUser } from './types';
-import { getElectronAPI } from './api/electronAPI';
-import {AuthState} from './features/auth/authSlice'
-// Main App component
-const App: React.FC = () => {
-  const [loginAccount, setLoginAccount] = useState('');
-  const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<User[]>([]);
-  
+import React, { useEffect } from 'react';
+import { Provider, useSelector, useDispatch } from 'react-redux';
+import { store } from './store';
+import LoginScreen from './features/auth/LoginScreen';
+import { logout, clearError } from './features/auth/authSlice';
+import MainScreen from './MainScreen';
+import './App.css';
+import type { AuthState } from './types';
+
+// AppContent component to access Redux store
+const AppContent: React.FC = () => {
   const dispatch = useDispatch();
-  const { isAuthenticated, user, loading, error } = useSelector(
-    (state: { auth: ReturnType<typeof import('./features/auth/authSlice').default> }) => state.auth
-  );
-  
-  const electronAPI = getElectronAPI();
+  const { isAuthenticated, user, loading, error } = useSelector((state: { auth: AuthState }) => state.auth);
 
-  // Handle login
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    dispatch(loginStart());
-    
-    try {
-      if (!electronAPI) {
-        throw new Error('Electron API not available');
-      }
-      
-      const credentials: LoginCredentials = { loginAccount, password };
-      const result = await electronAPI.login(credentials);
-      
-      if (result.success && result.data) {
-        const userData: LocalUser = {
-          userId: result.data.user?.id?.toString() || result.data.user.id?.toString() || '',
-          username: result.data.user?.username || result.data.user.username || '',
-          email: result.data.user?.email || result.data.user.email || '',
-          phoneNumber: result.data.user?.phoneNumber || result.data.user.phoneNumber || ''
-        };
-        dispatch(loginSuccess({ 
-          user: userData, 
-          token: result.data.token, 
-          refreshToken: result.data.refreshToken?.toString() || '',
-        }));
-      } else {
-        dispatch(loginFailure(result.error || '登录失败'));
-      }
-    } catch (err) {
-      dispatch(loginFailure('网络错误，请稍后重试'));
-    }
-  };
+  // Check authentication status on app start
+  useEffect(() => {
+    // In a real app, you would check for stored tokens and validate them
+    console.log('App started, auth state:', { isAuthenticated, user, loading, error });
+  }, [isAuthenticated, user, loading, error]);
 
-  // Handle search
-  const handleSearch = async () => {
-    if (!searchQuery.trim() || !electronAPI) return;
-    
-    try {
-      const result = await electronAPI.searchUsers(searchQuery);
-      let users: User[] = [];
-      
-      if (result.success && result.data) {
-        const dataObj = result.data as any;
-        // Handle different response formats
-        if (dataObj.users && Array.isArray(dataObj.users)) {
-          users = dataObj.users.map((u: any) => ({
-            id: u.userId?.toString() || u.id || '',
-            username: u.username || '',
-            email: u.email || '',
-            phoneNumber: u.phoneNumber || '',
-            status: u.status || 'online'
-          })) as User[];
-        } else if (dataObj.content && Array.isArray(dataObj.content)) {
-          // Convert ApiUser array to User array
-          users = (dataObj.content as ApiUser[]).map(apiUser => ({
-            id: apiUser.userId.toString(),
-            username: apiUser.username,
-            email: apiUser.email || '',
-            phoneNumber: apiUser.phoneNumber || '',
-            status: 'online'
-          }));
-        }
-      }
-      
-      setSearchResults(users);
-    } catch (err) {
-      console.error('Search error:', err);
-    }
-  };
-
-  // Handle file upload
-  const handleSelectFile = async () => {
-    try {
-      const result = await electronAPI.selectFile({
-        title: '选择文件',
-        filters: [
-          { name: 'Images', extensions: ['jpg', 'png', 'gif'] },
-          { name: 'Documents', extensions: ['pdf', 'doc', 'docx'] }
-        ]
-      });
-      
-      if (result && !result.canceled && result.filePaths && result.filePaths.length > 0) {
-        const uploadResult = await electronAPI.uploadFile(result.filePaths[0]);
-        console.log('Upload result:', uploadResult);
-      }
-    } catch (err) {
-      console.error('File upload error:', err);
-    }
-  };
-
-  // Render user list
-  const renderUserList = (users: User[]) => (
-    <ul>
-      {users.map(user => (
-        <li key={'id' in user ? user.id : (user as any).userId}>
-          {user.username} - {user.email}
-        </li>
-      ))}
-    </ul>
-  );
-
-  // Handle file select for upload testing
-  const handleFileSelect = async () => {
-    try {
-      const result = await getElectronAPI().selectFile({
-        title: '选择文件',
-        filters: [
-          { name: 'Images', extensions: ['jpg', 'png', 'gif'] },
-          { name: 'Documents', extensions: ['pdf', 'doc', 'docx'] }
-        ]
-      });
-      
-      if (result && !result.canceled) {
-        console.log('Selected files:', result.filePaths);
-      }
-    } catch (error) {
-      console.error('File selection failed:', error);
-    }
-  };
-
-  // Handle search input changes
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  };
-
-  // Handle logout
   const handleLogout = () => {
+    // Dispatch logout action
     dispatch(logout());
   };
 
-  // Effect for search with proper cleanup
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      const timer = setTimeout(handleSearch, 300); // Debounce search
-      return () => clearTimeout(timer);
-    } else {
-      setSearchResults([]);
-    }
-  }, [searchQuery]);
+  const handleNavigateToSettings = () => {
+    console.log('Navigate to settings');
+    // Implement settings navigation
+  };
 
+  const handleClearError = () => {
+    dispatch(clearError());
+  };
+
+  // 如果正在加载，显示加载界面
   if (loading) {
-    return <div className="app">Loading...</div>;
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner"></div>
+        <p>加载中...</p>
+      </div>
+    );
   }
 
-  if (error) {
+  // 如果有错误且未认证，显示错误界面
+  if (error && !isAuthenticated) {
     return (
       <div className="app">
         <div className="error-message">
           <h2>错误</h2>
           <p>{error}</p>
-          <button onClick={() => dispatch( clearError())}>
-            清除错误
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="app">
-        <div className="login-container">
-          <h1>Group IM Client</h1>
-          <form onSubmit={handleLogin} className="login-form">
-            <div className="form-group">
-              <label htmlFor="loginAccount">账号:</label>
-              <input
-                type="text"
-                id="loginAccount"
-                value={loginAccount}
-                onChange={(e) => setLoginAccount(e.target.value)}
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="password">密码:</label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            
-            <div className="form-group checkbox-group">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                记住我
-              </label>
-            </div>
-            
-            <button type="submit" disabled={loading}>
-              {loading ? '登录中...' : '登录'}
+          <div className="error-actions">
+            <button onClick={handleClearError} className="clear-error-btn">
+              清除错误
             </button>
-          </form>
-          
-          <div className="login-footer">
-            <button onClick={handleFileSelect}>选择文件测试</button>
+            <button onClick={() => window.location.reload()} className="reload-btn">
+              重新加载
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
+  // 如果未认证，显示登录界面
+  if (!isAuthenticated) {
+    return (
+      <LoginScreen 
+        onNavigateToSettings={handleNavigateToSettings}
+        onNavigateToRegister={() => console.log('Navigate to register')}
+      />
+    );
+  }
+
+  // 如果已认证，显示主界面
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>Group IM</h1>
-        <div className="user-info">
-          <span>欢迎, {user?.username || '用户'}</span>
-          <button onClick={handleLogout}>退出登录</button>
-        </div>
-      </header>
-      
-      <main className="app-main">
-        <div className="welcome-message">
-          <h2>欢迎使用 Group IM</h2>
-          <p>您已成功登录系统</p>
-          <p>用户ID: {user?.userId || 'N/A'}</p>
-          <p>邮箱: {user?.email || 'N/A'}</p>
-        </div>
-      </main>
-    </div>
+    <MainScreen 
+      onLogout={handleLogout}
+      onNavigateToSettings={handleNavigateToSettings}
+    />
+  );
+};
+
+// Main App component with Redux provider
+const App: React.FC = () => {
+  return (
+    <Provider store={store}>
+      <div className="app">
+        <AppContent />
+      </div>
+    </Provider>
   );
 };
 

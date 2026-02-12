@@ -1,24 +1,35 @@
-// 用户相关类型
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  phoneNumber?: string;
-  avatar?: string;
-  status: 'online' | 'offline' | 'away' | 'busy';
-  lastSeen?: Date;
-}
-
-// 数字ID用户类型（用于API响应）
-export interface ApiUser {
+// API用户信息接口
+export interface UserInfo {
   userId: number;
   username: string;
   email: string;
   phoneNumber: string;
+  refreshToken?: string;
 }
 
-// 字符串ID用户类型（用于本地状态）
-export interface LocalUser {
+// 基础用户信息接口
+export interface BaseUserInfo {
+  userId: number;
+  username: string;
+  email: string;
+  phoneNumber?: string;
+}
+
+// 扩展用户信息接口
+export interface ExtendedUserInfo extends BaseUserInfo {
+  avatar?: string;
+  department?: string;
+  position?: string;
+}
+
+// 完整用户信息接口（包含状态等）
+export interface FullUserInfo extends ExtendedUserInfo {
+  status?: 'online' | 'offline' | 'away' | 'busy';
+  lastSeen?: Date;
+}
+
+// 本地用户信息接口（字符串ID）
+export interface LocalUserInfo {
   userId: string;
   username: string;
   email?: string;
@@ -29,32 +40,14 @@ export interface LocalUser {
   refreshToken?: string;
 }
 
-// 联系人专用用户类型（简化版User）
-export interface ContactUser {
-  userId: number;
-  username: string;
-  email: string;
-  phoneNumber: string;
-}
-
 // 组织架构节点类型
 export interface OrganizationNode {
   id: string;
   name: string;
   type: 'DEPARTMENT' | 'USER';
   description?: string;
-  userInfo?: UserInfo;
+  userInfo?: ExtendedUserInfo;
   children?: OrganizationNode[];
-}
-
-// 用户信息类型（与User略有不同，用于组织架构）
-export interface UserInfo {
-  userId: number;
-  username: string;
-  email: string;
-  avatar?: string;
-  department?: string;
-  position?: string;
 }
 
 // 认证相关类型
@@ -65,7 +58,7 @@ export interface LoginCredentials {
 
 export interface AuthData {
   token: string;
-  user: User;
+  user: FullUserInfo;
   refreshToken?: string;
 }
 
@@ -73,16 +66,17 @@ export interface AuthState {
   isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
-  user: LocalUser | null;
+  user: LocalUserInfo | null;
+}
+
+// API用户响应接口
+export interface ApiUserResponse extends BaseUserInfo {
+  refreshToken?: string;
 }
 
 // 登录响应类型
-export interface LoginResponse {
-  userId: number;
-  username: string;
-  email: string;
+export interface LoginResponse extends ApiUserResponse {
   token: string;
-  phoneNumber: string;
   refreshToken: string;
 }
 
@@ -121,12 +115,12 @@ export interface ApiResponse<T = any> {
 
 // 搜索相关类型
 export interface SearchResults {
-  users: User[];
+  users: FullUserInfo[];
   total: number;
 }
 
 export interface QueryUsersResponse {
-  content?: ApiUser[];
+  content?: ApiUserResponse[];
   [key: string]: unknown; // Allow flexible response structure
 }
 
@@ -143,16 +137,27 @@ export interface Message {
 
 export interface ChatSession {
   id: string;
-  participants: User[];
+  participants: FullUserInfo[];
   lastMessage?: Message;
   unreadCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
+// 联系人用户接口
+export interface ContactUser {
+  userId: number;
+  username: string;
+  email: string;
+  phoneNumber?: string;
+  department?: string;
+  position?: string;
+  avatarColor?: string;
+}
+
 // 联系人相关类型
 export interface Contact {
-  user: User;
+  user: FullUserInfo;
   addedAt: Date;
   isFavorite: boolean;
   notes?: string;
@@ -164,10 +169,10 @@ export interface Group {
   name: string;
   description?: string;
   avatar?: string;
-  members: User[];
-  admins: User[];
+  members: FullUserInfo[];
+  admins: FullUserInfo[];
   createdAt: Date;
-  createdBy: User;
+  createdBy: FullUserInfo;
 }
 
 // 通知相关类型
