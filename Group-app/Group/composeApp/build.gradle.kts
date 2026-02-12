@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.sqldelight)
     alias(libs.plugins.wire)
 }
+
 val voyagerVersion = "1.1.0-beta02"
 val camerax_version = "1.2.2"
 
@@ -21,7 +22,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
-        
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -36,16 +37,28 @@ android {
 
     packaging {
         resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/LICENSE-notice.md"
+            excludes += "META-INF/NOTICE.md"
+            excludes += "META-INF/NOTICE"
+            excludes += "META-INF/LICENSE"
         }
     }
 
-//    packagingOptions {
-//        pickFirst("META-INF/AL2.0")
-//        pickFirst("META-INF/LGPL2.1")
-//        pickFirst("META-INF/licenses/ASM")
-//    }
+    // 配置测试选项以解决JUnit版本冲突
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+            all {
+                it.systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
+            }
+        }
+    }
 }
+
+
+
 
 kotlin {
     androidTarget {
@@ -148,18 +161,6 @@ kotlin {
         val iosX64Test by getting {
             dependsOn(iosTest)
         }
-//        val jvmMain by creating {
-//            dependsOn(commonMain)
-//            dependencies {
-//                implementation(libs.wire.runtime)
-//                implementation(compose.runtime)
-//                implementation(compose.foundation)
-//                // OkHttp for WebSocket connection
-//                implementation("com.squareup.okhttp3:okhttp:4.12.0")
-//                implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
-//
-//            }
-//        }
 
     val androidMain by getting {
         dependencies {
@@ -201,44 +202,39 @@ kotlin {
         }
     }
 
-    // 专注Android平台，移除desktop和js源集
-    // val desktopMain by getting {
-    //     dependsOn(jvmMain)
-    //     dependencies {
-    //         // desktop特定依赖
-    //     }
-    // }
-    //
-    // val jsMain by getting {
-    //     dependencies {
-    //         // js特定依赖
-    //     }
-    // }
-
-    val androidUnitTest by getting {
-        dependencies {
-            implementation(libs.kotlin.testJunit)
-            implementation(libs.junit)
-            implementation(libs.androidx.testExt.junit)
-            implementation(libs.androidx.espresso.core)
-            implementation("io.mockative:mockative:2.0.1")
+        val androidUnitTest by getting {
+            dependencies {
+                implementation("androidx.test:runner:1.5.2")
+                implementation("androidx.test:core:1.5.0")
+                implementation("androidx.test.ext:junit:1.1.5")
+                implementation("io.mockative:mockative:2.0.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+            }
+//            dependencies {
+//                // 现代Android单元测试依赖
+//                implementation("org.junit.jupiter:junit-jupiter-api:5.10.2")
+//                implementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
+//                runtimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
+//
+//                // Android测试支持
+//                implementation("androidx.test:core:1.5.0")
+//                implementation("androidx.test.ext:junit:1.1.5")
+//
+//                // Mock框架
+//                implementation("io.mockative:mockative:2.0.1")
+//            }
         }
-    }
-    
-    val androidInstrumentedTest by getting {
+
+        val androidInstrumentedTest by getting {
         dependencies {
-            implementation(libs.kotlin.testJunit)
-            implementation(libs.junit)
-            implementation(libs.androidx.testExt.junit)
-            implementation(libs.androidx.espresso.core)
-            implementation(libs.kotlinx.coroutines.test)
-            implementation("io.mockative:mockative:2.0.1")
-            implementation("org.mockito:mockito-core:5.7.0")
-            implementation("org.mockito.kotlin:mockito-kotlin:5.1.0")
-            implementation("io.mockk:mockk-android:1.13.7")
-            implementation("androidx.test:core:1.5.0")
+            // 现代Android Instrumentation测试依赖
             implementation("androidx.test:runner:1.5.2")
-            implementation("androidx.test:rules:1.5.0")
+            implementation("androidx.test:core:1.5.0")
+            implementation("androidx.test.ext:junit:1.1.5")
+            
+            // JUnit 5支持（如果需要的话）
+            implementation("org.junit.jupiter:junit-jupiter-api:5.10.2")
+            runtimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
         }
     }
     }
@@ -277,3 +273,4 @@ sqldelight {
 //        }
 //    }
 //}
+

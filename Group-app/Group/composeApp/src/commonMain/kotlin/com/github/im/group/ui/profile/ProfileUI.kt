@@ -19,9 +19,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Palette
@@ -45,7 +45,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.github.im.group.manager.LoginStateManager
 import com.github.im.group.ui.Login
@@ -204,7 +203,7 @@ fun ProfileUI(
             // 其他信息组
             ProfileSection(title = "其他") {
                 ProfileMenuItem(
-                    icon = Icons.Default.HelpOutline,
+                    icon = Icons.AutoMirrored.Filled.HelpOutline,
                     title = "帮助与反馈",
                     color = Color(0xFF26A69A),
                     onClick = { /* TODO */ }

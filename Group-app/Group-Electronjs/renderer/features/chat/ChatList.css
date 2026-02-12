@@ -1,0 +1,289 @@
+/* Existing Chat List Styles */
+.chat-list {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  border-radius: 24px 24px 0 0;
+  overflow: hidden;
+}
+
+/* Search Container */
+.search-container {
+  padding: 16px;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: #f5f5f5;
+  border-radius: 26px;
+  padding: 0 16px;
+  height: 52px;
+}
+
+.search-icon {
+  font-size: 20px;
+  margin-right: 12px;
+  color: #757575;
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  color: #333;
+}
+
+.search-input::placeholder {
+  color: #999;
+}
+
+/* List Container */
+.conversations-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+/* Chat Item Styles */
+.chat-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  gap: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.chat-item:hover {
+  background-color: #f5f5f5;
+}
+
+.avatar-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.user-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1976d2, #64b5f6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 20px;
+}
+
+.unread-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: #f44336;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.chat-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.contact-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timestamp {
+  font-size: 12px;
+  color: #757575;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.last-message {
+  margin: 0;
+  font-size: 14px;
+  color: #757575;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* New Action Buttons */
+.chat-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.action-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background-color: #f0f0f0;
+  color: #666;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.action-button:hover {
+  background-color: #e0e0e0;
+  transform: scale(1.1);
+}
+
+.video-call-btn {
+  background-color: #2196F3;
+  color: white;
+}
+
+.video-call-btn:hover {
+  background-color: #1976D2;
+}
+
+.chat-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.chat-btn:hover {
+  background-color: #388E3C;
+}
+
+/* Floating Video Call Button */
+.floating-video-btn {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1976d2, #64b5f6);
+  color: white;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+  transition: all 0.3s;
+  z-index: 100;
+}
+
+.floating-video-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(25, 118, 210, 0.4);
+}
+
+/* Divider */
+.chat-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 86px;
+  right: 16px;
+  height: 0.5px;
+  background-color: rgba(0, 0, 0, 0.12);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .search-container {
+    padding: 12px;
+  }
+  
+  .chat-item {
+    padding: 10px 12px;
+  }
+  
+  .user-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 18px;
+  }
+  
+  .contact-name {
+    font-size: 15px;
+  }
+  
+  .last-message {
+    font-size: 13px;
+  }
+  
+  .action-button {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  
+  .floating-video-btn {
+    bottom: 70px;
+    right: 16px;
+    width: 52px;
+    height: 52px;
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 480px) {
+  .chat-list {
+    border-radius: 16px 16px 0 0;
+  }
+  
+  .search-box {
+    height: 48px;
+    border-radius: 24px;
+  }
+  
+  .search-icon {
+    font-size: 18px;
+  }
+  
+  .search-input {
+    font-size: 16px;
+  }
+  
+  .chat-actions {
+    gap: 6px;
+  }
+  
+  .floating-video-btn {
+    bottom: 65px;
+    right: 12px;
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+}

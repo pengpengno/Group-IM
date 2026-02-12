@@ -1,0 +1,38 @@
+# GraalVM Native Image 构建 Dockerfile
+# 构建阶段
+FROM ghcr.io/graalvm/graalvm-community:21 AS build
+
+# 安装 native-image 工具
+RUN gu install native-image
+
+WORKDIR /build
+
+# 复制项目文件
+COPY pom.xml .
+COPY src src/
+
+# 预下载依赖
+RUN ./mvnw dependency:go-offline -q
+
+# 构建原生镜像
+RUN ./mvnw -Pnative -DskipTests native:compile
+
+# 运行时阶段
+FROM debian:bullseye-slim
+
+WORKDIR /app
+
+# 安装必要的运行时依赖
+RUN apt-get update && apt-get install -y --no-install-recommends libc6-compat && rm -rf /var/lib/apt/lists/*
+
+# 从构建阶段复制原生可执行文件
+COPY --from=build /build/target/server-* /app/im-server
+
+# 暴露端口
+EXPOSE 8080 8088
+
+# 创建应用目录
+RUN mkdir -p /app/logs /app/storage
+
+# 启动应用
+ENTRYPOINT ["/app/im-server"]

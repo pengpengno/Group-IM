@@ -19,7 +19,7 @@ logs/**
 data/**
 ldap_data/
 ldap_config/
-
+Group-app/.idea/**
 ### Eclipse ###
 .apt_generated
 .classpath
@@ -49,3 +49,9 @@ build/
 /uploads
 /downloads
 /postgres_data/**
+/Group-app/.idea/.gitignore
+/Group-app/.idea/.name
+/Group-app/.idea/AndroidProjectSystem.xml
+/Group-app/.idea/**
+/Group-app/.idea/
+/Group-app/.idea/androidTestResultsUserPreferences.xml

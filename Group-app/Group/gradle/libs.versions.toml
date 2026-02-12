@@ -31,6 +31,8 @@ kotlinx-serialization = "1.9.0"  # Appropriate version for Kotlin 2.x
 #kotlinpoet = "1.18.1"
 
 [libraries]
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version = "5.8.2" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version = "1.8.2" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
