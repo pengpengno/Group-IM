@@ -126,6 +126,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
             implementation("io.mockative:mockative:2.0.1")
             implementation("io.kotest:kotest-assertions-core:5.8.0")
+            implementation(libs.ktor.client.mock)
         }
     }
 

@@ -14,8 +14,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     height: 800,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      nodeIntegration: false,
+      contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
     resizable: true,
@@ -25,12 +25,9 @@ function createWindow() {
     minHeight: 600
   });
 
-  // Load either index.html (production) or localhost (development)
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:3002');
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
-  }
+  // Load index.html from the same directory (dist)
+  // In dev mode (concurrently), it's built to dist/index.html by HtmlWebpackPlugin
+  mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
   // Open dev tools in development
   if (process.env.NODE_ENV === 'development') {

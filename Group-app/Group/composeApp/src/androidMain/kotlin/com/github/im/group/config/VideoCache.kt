@@ -4,18 +4,17 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
-import androidx.annotation.OptIn
-import androidx.compose.ui.graphics.asImageBitmap
+import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.scale
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import java.io.File
 import java.util.WeakHashMap
-import android.util.LruCache
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.core.graphics.drawable.toBitmap
 
 @UnstableApi
 object VideoCache {
@@ -98,7 +97,7 @@ object VideoCache {
                 // 缩放为原图的1/4大小以节省内存
                 val scaledWidth = (it.width / 4).coerceAtLeast(1)
                 val scaledHeight = (it.height / 4).coerceAtLeast(1)
-                Bitmap.createScaledBitmap(it, scaledWidth, scaledHeight, true)
+                it.scale(scaledWidth, scaledHeight)
             }
         } catch (e: Exception) {
             null

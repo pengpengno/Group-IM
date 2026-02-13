@@ -1,94 +1,85 @@
 import React, { useEffect } from 'react';
-import { Provider, useSelector, useDispatch } from 'react-redux';
-import { store } from './store';
+import { useSelector, useDispatch } from 'react-redux';
+import { clearError } from './features/auth/authSlice';
+import IncomingCallAlert from './features/video-call/IncomingCallAlert';
+import VideoCallModal from './features/video-call/VideoCallModal';
 import LoginScreen from './features/auth/LoginScreen';
-import { logout, clearError } from './features/auth/authSlice';
-import MainScreen from './MainScreen';
-import './App.css';
-import type { AuthState } from './types';
+import Dashboard from './features/dashboard/Dashboard';
+import { signalingService } from './services/signaling';
+import { webRTCManager } from './services/webrtc';
+import { store } from './store';
 
-// AppContent component to access Redux store
-const AppContent: React.FC = () => {
-  const dispatch = useDispatch();
-  const { isAuthenticated, user, loading, error } = useSelector((state: { auth: AuthState }) => state.auth);
-
-  // Check authentication status on app start
-  useEffect(() => {
-    // In a real app, you would check for stored tokens and validate them
-    console.log('App started, auth state:', { isAuthenticated, user, loading, error });
-  }, [isAuthenticated, user, loading, error]);
-
-  const handleLogout = () => {
-    // Dispatch logout action
-    dispatch(logout());
-  };
-
-  const handleNavigateToSettings = () => {
-    console.log('Navigate to settings');
-    // Implement settings navigation
-  };
-
-  const handleClearError = () => {
-    dispatch(clearError());
-  };
-
-  // 如果正在加载，显示加载界面
-  if (loading) {
-    return (
-      <div className="app-loading">
-        <div className="loading-spinner"></div>
-        <p>加载中...</p>
-      </div>
-    );
-  }
-
-  // 如果有错误且未认证，显示错误界面
-  if (error && !isAuthenticated) {
-    return (
-      <div className="app">
-        <div className="error-message">
-          <h2>错误</h2>
-          <p>{error}</p>
-          <div className="error-actions">
-            <button onClick={handleClearError} className="clear-error-btn">
-              清除错误
-            </button>
-            <button onClick={() => window.location.reload()} className="reload-btn">
-              重新加载
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // 如果未认证，显示登录界面
-  if (!isAuthenticated) {
-    return (
-      <LoginScreen 
-        onNavigateToSettings={handleNavigateToSettings}
-        onNavigateToRegister={() => console.log('Navigate to register')}
-      />
-    );
-  }
-
-  // 如果已认证，显示主界面
-  return (
-    <MainScreen 
-      onLogout={handleLogout}
-      onNavigateToSettings={handleNavigateToSettings}
-    />
-  );
-};
-
-// Main App component with Redux provider
+// Main App component
 const App: React.FC = () => {
+  const dispatch = useDispatch();
+  const { isAuthenticated, user, loading, error } = useSelector(
+    (state: { auth: ReturnType<typeof import('./features/auth/authSlice').default> }) => state.auth
+  );
+
+  // Initialize signaling and WebRTC services when user logs in
+  useEffect(() => {
+    if (isAuthenticated && user && user.userId) {
+      signalingService.initialize(store, user.userId);
+      webRTCManager.initialize(store, user.userId);
+
+      return () => {
+        signalingService.disconnect();
+      };
+    }
+  }, [isAuthenticated, user]);
+
+  if (loading) {
+    return <div className="app">Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
+
+  // If there's a global error that isn't a login error (which LoginScreen handles),
+  // we might want to show it. For now, we'll let Dashboard render and relying on
+  // specific feature error handling, or simple overlay.
+  // We can keep the error boundary concept if needed, but for "Premium" feel,
+  // we shouldn't block the whole UI for a minor error if possible.
+
   return (
-    <Provider store={store}>
-      <div className="app">
-        <AppContent />
-      </div>
-    </Provider>
+    <div className="app">
+      <IncomingCallAlert />
+      <VideoCallModal />
+
+      {error && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 9999,
+          background: '#fee2e2',
+          color: '#b91c1c',
+          padding: '12px 20px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
+        }}>
+          <span>{error}</span>
+          <button
+            onClick={() => dispatch(clearError())}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#b91c1c',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      <Dashboard user={user} />
+    </div>
   );
 };
 

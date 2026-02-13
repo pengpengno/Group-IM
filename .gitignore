@@ -54,4 +54,5 @@ build/
 /Group-app/.idea/AndroidProjectSystem.xml
 /Group-app/.idea/**
 /Group-app/.idea/
+/Group-app/node_modules/
 /Group-app/.idea/androidTestResultsUserPreferences.xml

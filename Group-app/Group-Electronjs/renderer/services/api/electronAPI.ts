@@ -1,6 +1,6 @@
 // electronAPI.ts - API abstraction for both Electron and Web environments
 import { authAPI, LoginPayload } from './apiClient';
-import type { LoginResponse, LoginResult, UserInfo as User } from '../../types';
+import type { LoginResponse, LoginResult, ApiUser as User } from '../../types';
 
 type ApiResponse<T> = {
   data: T;

@@ -13,10 +13,17 @@ import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 
 class VideoCallViewModel(
     val userRepository: UserRepository
 ) : ViewModel() {
+    companion object {
+        private const val INCOMING_CALL_TIMEOUT_MILLIS = 30000L // 30秒超时
+        private const val STATE_RESET_DELAY_MILLIS = 500L
+        private const val RESOURCE_CLEANUP_TIMEOUT_MILLIS = 3000L
+    }
+    
     private val _videoCallState = MutableStateFlow(VideoCallState())
     val videoCallState: StateFlow<VideoCallState> = _videoCallState
 
@@ -43,6 +50,14 @@ class VideoCallViewModel(
     private val _remoteAudio = MutableStateFlow<AudioTrack?>(null)
     val remoteAudio: StateFlow<AudioTrack?> = _remoteAudio
 
+    // WebRTC管理器
+    private var webRTCManager: com.github.im.group.sdk.WebRTCManager? = null
+
+    // 当前来电ID和相关状态
+    private var currentCallId: String? = null
+    private var isIncomingCallProcessing = false
+    private var isEndingCall = false
+
     init {
         // 监听远程视频轨道变化，更新状态
         viewModelScope.launch {
@@ -67,28 +82,23 @@ class VideoCallViewModel(
         }
     }
 
-    // WebRTC管理器
-    private var webRTCManager: com.github.im.group.sdk.WebRTCManager? = null
-
-    // 当前来电ID
-    private var currentCallId: String? = null
-
-    init {
-        // WebRTCManager 通过依赖注入设置，不需要在此处初始化
-    }
-
     /**
      * 发起视频通话
      */
     fun startCall(callee: UserInfo) {
+        if (_videoCallState.value.callStatus != VideoCallStatus.IDLE) {
+            Napier.w("无法发起新通话：当前状态为 ${_videoCallState.value.callStatus}")
+            return
+        }
+        
         viewModelScope.launch {
             try {
-                // 更新 状态为 拨出
+                // 更新状态为拨出
                 _videoCallState.value = _videoCallState.value.copy(
                     callStatus = VideoCallStatus.OUTGOING,
                     callee = callee,
-                    participants = listOf(callee), // 添加被叫用户到参与者列表
-                    callStartTime = System.currentTimeMillis()
+                    participants = listOf(callee),
+                    callStartTime = Clock.System.now().toEpochMilliseconds()
                 )
 
                 // 创建本地媒体流
@@ -103,23 +113,82 @@ class VideoCallViewModel(
     }
 
     /**
-     * 接收到来电
+     * 接收到来电（改进版）
      */
-    fun receiveCall(caller: UserInfo) {
-        // 生成或接收callId
-        currentCallId = "call_${'$'}{System.currentTimeMillis()}"
+    fun receiveCall(caller: UserInfo, callId: String? = null) {
+        // 如果已经有活跃通话，拒绝新的来电
+        if (_videoCallState.value.callStatus.isActiveCall()) {
+            Napier.d("已有活跃通话，拒绝新来电")
+            webRTCManager?.rejectCall(callId ?: "")
+            return
+        }
+        
+        // 防止重复处理同一通来电
+        if (isIncomingCallProcessing) {
+            Napier.d("正在处理来电，忽略重复请求")
+            return
+        }
+        
+        isIncomingCallProcessing = true
+        currentCallId = callId ?: "call_${Clock.System.now().toEpochMilliseconds()}"
+        
         _videoCallState.value = _videoCallState.value.copy(
             callStatus = VideoCallStatus.INCOMING,
             caller = caller,
-            participants = listOf(caller), // 添加主叫用户到参与者列表
-            callStartTime = System.currentTimeMillis()
+            participants = listOf(caller),
+            callStartTime = Clock.System.now().toEpochMilliseconds(),
+            callId = currentCallId
         )
+        
+        // 启动来电超时计时器
+        startIncomingCallTimeout()
+        
+        Napier.d("收到新来电：${caller.username}, callId: $currentCallId")
     }
 
     /**
-     * 接受来电
+     * 启动来电超时计时器
+     */
+    private fun startIncomingCallTimeout() {
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(INCOMING_CALL_TIMEOUT_MILLIS)
+            if (_videoCallState.value.callStatus == VideoCallStatus.INCOMING) {
+                Napier.d("来电超时，自动拒绝")
+                autoRejectCall("超时未接听")
+            }
+        }
+    }
+
+    /**
+     * 自动拒绝来电
+     */
+    private fun autoRejectCall(reason: String) {
+        viewModelScope.launch {
+            try {
+                webRTCManager?.rejectCall(currentCallId ?: "")
+                _videoCallState.value = _videoCallState.value.copy(
+                    callStatus = VideoCallStatus.ENDED,
+                    errorMessage = reason
+                )
+                cleanupAfterCall()
+            } catch (e: Exception) {
+                Napier.e("自动拒绝来电失败", e)
+                forceResetState()
+            } finally {
+                isIncomingCallProcessing = false
+            }
+        }
+    }
+
+    /**
+     * 接受来电（改进版）
      */
     fun acceptCall() {
+        if (_videoCallState.value.callStatus != VideoCallStatus.INCOMING) {
+            Napier.w("当前状态不是来电状态，无法接受")
+            return
+        }
+        
         viewModelScope.launch {
             try {
                 _videoCallState.value = _videoCallState.value.copy(
@@ -136,8 +205,12 @@ class VideoCallViewModel(
                 _videoCallState.value = _videoCallState.value.copy(
                     callStatus = VideoCallStatus.ACTIVE
                 )
+                
+                Napier.d("成功接受来电")
             } catch (e: Exception) {
                 handleError("接受通话失败", e)
+            } finally {
+                isIncomingCallProcessing = false
             }
         }
     }
@@ -146,44 +219,179 @@ class VideoCallViewModel(
      * 拒绝来电
      */
     fun rejectCall() {
+        if (_videoCallState.value.callStatus != VideoCallStatus.INCOMING) {
+            Napier.w("当前状态不是来电状态，无法拒绝")
+            return
+        }
+        
         viewModelScope.launch {
             try {
-                // 通过WebRTC拒绝通话
                 currentCallId?.let { callId ->
                     webRTCManager?.rejectCall(callId)
                 }
-                endCall()
+                _videoCallState.value = _videoCallState.value.copy(
+                    callStatus = VideoCallStatus.ENDED
+                )
+                cleanupAfterCall()
             } catch (e: Exception) {
                 handleError("拒绝通话失败", e)
+            } finally {
+                isIncomingCallProcessing = false
             }
         }
     }
 
     /**
-     * 结束通话
+     * 结束通话（强化版）
      */
     fun endCall() {
+        // 防止重复调用
+        if (isEndingCall || _videoCallState.value.callStatus == VideoCallStatus.ENDED) {
+            Napier.d("通话已在结束过程中或已结束")
+            return
+        }
+        
+        isEndingCall = true
+        
         viewModelScope.launch {
             try {
-                // 通知远端结束通话
-                webRTCManager?.endCall()
-
-                // 释放媒体资源
-                releaseMediaResources()
-
-                // 重置状态
-                _videoCallState.value = VideoCallState(
-                    callStatus = VideoCallStatus.ENDED
+                // 1. 立即更新UI状态
+                _videoCallState.value = _videoCallState.value.copy(
+                    callStatus = VideoCallStatus.ENDING
                 )
                 
-                // 重置callId
-                currentCallId = null
+                Napier.d("开始结束通话流程")
+
+                // 2. 通知远端结束通话（异步执行）
+                webRTCManager?.endCall()
+
+                // 3. 并行释放本地资源
+                releaseLocalResources()
+
+                // 4. 重置状态
+                resetCallState()
                 
-                // 延迟一小段时间后重置为IDLE状态，以便能够重新发起通话
-                kotlinx.coroutines.delay(500) // 500毫秒延迟
-                _videoCallState.value = VideoCallState()
+                Napier.d("通话结束流程完成")
+                
             } catch (e: Exception) {
+                Napier.e("结束通话过程中发生错误", e)
                 handleError("结束通话失败", e)
+                // 即使出错也要确保状态重置
+                forceResetState()
+            } finally {
+                isEndingCall = false
+            }
+        }
+    }
+
+    /**
+     * 释放本地资源
+     */
+    private suspend fun releaseLocalResources() {
+        try {
+            Napier.d("开始释放本地资源")
+            
+            // 按顺序释放资源
+            releaseLocalMediaStream()
+            releaseRemoteMediaTracks()
+            resetControlStates()
+            
+            Napier.d("本地资源释放完成")
+        } catch (e: Exception) {
+            Napier.e("释放本地资源失败", e)
+        }
+    }
+
+    /**
+     * 释放本地媒体流
+     */
+    private fun releaseLocalMediaStream() {
+        _localMediaStream.value?.let { stream ->
+            try {
+                stream.videoTracks.forEach { track -> track.setEnabled(false) }
+                stream.audioTracks.forEach { track -> track.setEnabled(false) }
+                // 如果有release方法则调用
+                if (stream is com.github.im.group.sdk.MediaStream) {
+                    // stream.release() // 根据实际API决定是否调用
+                }
+            } catch (e: Exception) {
+                Napier.e("释放本地媒体流轨道失败", e)
+            }
+        }
+        _localMediaStream.value = null
+    }
+
+    /**
+     * 释放远程媒体轨道
+     */
+    private fun releaseRemoteMediaTracks() {
+        try {
+            _remoteVideo.value?.setEnabled(false)
+            _remoteAudio.value?.setEnabled(false)
+            _remoteVideo.value = null
+            _remoteAudio.value = null
+        } catch (e: Exception) {
+            Napier.e("释放远程媒体轨道失败", e)
+        }
+    }
+
+    /**
+     * 重置控制状态
+     */
+    private fun resetControlStates() {
+        _isCameraEnabled.value = true
+        _isMicrophoneEnabled.value = true
+        _isFrontCamera.value = true
+        _isSpeakerEnabled.value = true
+    }
+
+    /**
+     * 重置通话状态
+     */
+    private fun resetCallState() {
+        _videoCallState.value = VideoCallState(
+            callStatus = VideoCallStatus.ENDED
+        )
+        currentCallId = null
+        isIncomingCallProcessing = false
+        
+        // 延迟重置为IDLE状态
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(STATE_RESET_DELAY_MILLIS)
+            if (_videoCallState.value.callStatus == VideoCallStatus.ENDED) {
+                _videoCallState.value = VideoCallState()
+                Napier.d("状态已重置为IDLE")
+            }
+        }
+    }
+
+    /**
+     * 强制重置状态（异常情况下使用）
+     */
+    private fun forceResetState() {
+        try {
+            releaseMediaResources()
+            _videoCallState.value = VideoCallState()
+            currentCallId = null
+            isIncomingCallProcessing = false
+            isEndingCall = false
+            Napier.d("强制状态重置完成")
+        } catch (e: Exception) {
+            Napier.e("强制状态重置失败", e)
+        }
+    }
+
+    /**
+     * 通话结束后的清理工作
+     */
+    private fun cleanupAfterCall() {
+        viewModelScope.launch {
+            try {
+                releaseMediaResources()
+                currentCallId = null
+                isIncomingCallProcessing = false
+            } catch (e: Exception) {
+                Napier.e("通话结束后清理失败", e)
             }
         }
     }
@@ -192,11 +400,17 @@ class VideoCallViewModel(
      * 最小化通话（进入悬浮窗模式）
      */
     fun minimizeCall() {
+        if (_videoCallState.value.callStatus != VideoCallStatus.ACTIVE) {
+            Napier.w("只有活跃通话才能最小化")
+            return
+        }
+        
         viewModelScope.launch {
             _videoCallState.value = _videoCallState.value.copy(
                 callStatus = VideoCallStatus.MINIMIZED,
                 isMinimized = true
             )
+            Napier.d("通话已最小化")
         }
     }
 
@@ -204,11 +418,17 @@ class VideoCallViewModel(
      * 最大化通话（从悬浮窗模式恢复）
      */
     fun maximizeCall() {
+        if (_videoCallState.value.callStatus != VideoCallStatus.MINIMIZED) {
+            Napier.w("当前不是最小化状态")
+            return
+        }
+        
         viewModelScope.launch {
             _videoCallState.value = _videoCallState.value.copy(
                 callStatus = VideoCallStatus.ACTIVE,
                 isMinimized = false
             )
+            Napier.d("通话已恢复最大化")
         }
     }
 
@@ -243,7 +463,7 @@ class VideoCallViewModel(
     }
 
     /**
-     * 切换扬声器 - 这里映射到麦克风切换，因为WebRTCManager没有专门的扬声器控制
+     * 切换扬声器
      */
     fun toggleSpeaker() {
         viewModelScope.launch {
@@ -253,6 +473,7 @@ class VideoCallViewModel(
             )
             
             // 对于扬声器控制，通常在平台层处理，这里只是更新状态
+            Napier.d("扬声器状态切换: ${_isSpeakerEnabled.value}")
         }
     }
 
@@ -273,36 +494,29 @@ class VideoCallViewModel(
      */
     private suspend fun createLocalMediaStream() {
         try {
+            Napier.d("开始创建本地媒体流")
             val mediaStream = webRTCManager?.createLocalMediaStream()
             _localMediaStream.value = mediaStream
+            
+            if (mediaStream != null) {
+                Napier.d("本地媒体流创建成功，视频轨道数: ${mediaStream.videoTracks.size}, 音频轨道数: ${mediaStream.audioTracks.size}")
+            } else {
+                Napier.w("本地媒体流创建返回null")
+            }
         } catch (e: Exception) {
             Napier.e("创建本地媒体流失败", e)
+            throw e
         }
     }
 
     /**
-     * 释放媒体资源
+     * 释放媒体资源（向后兼容方法）
      */
     private fun releaseMediaResources() {
         try {
-            // 停止本地媒体流
-            _localMediaStream.value?.let { stream ->
-                stream.videoTracks.forEach { track -> track.setEnabled(false) }
-                stream.audioTracks.forEach { track -> track.setEnabled(false) }
-            }
-            _localMediaStream.value = null
-
-            // 释放远程媒体流
-            _remoteVideo.value?.setEnabled(false)
-            _remoteAudio.value?.setEnabled(false)
-            _remoteVideo.value = null
-            _remoteAudio.value = null
-
-            // 重置状态
-            _isCameraEnabled.value = true
-            _isMicrophoneEnabled.value = true
-            _isFrontCamera.value = true
-            _isSpeakerEnabled.value = true
+            releaseLocalMediaStream()
+            releaseRemoteMediaTracks()
+            resetControlStates()
         } catch (e: Exception) {
             Napier.e("释放媒体资源失败", e)
         }
@@ -331,6 +545,7 @@ class VideoCallViewModel(
      */
     override fun onCleared() {
         super.onCleared()
+        Napier.d("VideoCallViewModel正在清理资源")
         try {
             webRTCManager?.release()
             releaseMediaResources()
@@ -338,4 +553,12 @@ class VideoCallViewModel(
             Napier.e("清理视频通话资源失败", e)
         }
     }
+}
+
+/**
+ * 扩展函数：判断是否为活跃通话状态
+ */
+fun VideoCallStatus.isActiveCall(): Boolean {
+    return this in listOf(VideoCallStatus.OUTGOING, VideoCallStatus.INCOMING, 
+                         VideoCallStatus.CONNECTING, VideoCallStatus.ACTIVE)
 }

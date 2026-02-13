@@ -1,35 +1,24 @@
-// API用户信息接口
-export interface UserInfo {
+// 用户相关类型
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  phoneNumber?: string;
+  avatar?: string;
+  status: 'online' | 'offline' | 'away' | 'busy';
+  lastSeen?: Date;
+}
+
+// 数字ID用户类型（用于API响应）
+export interface ApiUser {
   userId: number;
   username: string;
   email: string;
   phoneNumber: string;
-  refreshToken?: string;
 }
 
-// 基础用户信息接口
-export interface BaseUserInfo {
-  userId: number;
-  username: string;
-  email: string;
-  phoneNumber?: string;
-}
-
-// 扩展用户信息接口
-export interface ExtendedUserInfo extends BaseUserInfo {
-  avatar?: string;
-  department?: string;
-  position?: string;
-}
-
-// 完整用户信息接口（包含状态等）
-export interface FullUserInfo extends ExtendedUserInfo {
-  status?: 'online' | 'offline' | 'away' | 'busy';
-  lastSeen?: Date;
-}
-
-// 本地用户信息接口（字符串ID）
-export interface LocalUserInfo {
+// 字符串ID用户类型（用于本地状态）
+export interface LocalUser {
   userId: string;
   username: string;
   email?: string;
@@ -40,14 +29,32 @@ export interface LocalUserInfo {
   refreshToken?: string;
 }
 
+// 联系人专用用户类型（简化版User）
+export interface ContactUser {
+  userId: number;
+  username: string;
+  email: string;
+  phoneNumber: string;
+}
+
 // 组织架构节点类型
 export interface OrganizationNode {
   id: string;
   name: string;
   type: 'DEPARTMENT' | 'USER';
   description?: string;
-  userInfo?: ExtendedUserInfo;
+  userInfo?: UserInfo;
   children?: OrganizationNode[];
+}
+
+// 用户信息类型（与User略有不同，用于组织架构）
+export interface UserInfo {
+  userId: number;
+  username: string;
+  email: string;
+  avatar?: string;
+  department?: string;
+  position?: string;
 }
 
 // 认证相关类型
@@ -58,7 +65,7 @@ export interface LoginCredentials {
 
 export interface AuthData {
   token: string;
-  user: FullUserInfo;
+  user: User;
   refreshToken?: string;
 }
 
@@ -66,17 +73,16 @@ export interface AuthState {
   isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
-  user: LocalUserInfo | null;
-}
-
-// API用户响应接口
-export interface ApiUserResponse extends BaseUserInfo {
-  refreshToken?: string;
+  user: LocalUser | null;
 }
 
 // 登录响应类型
-export interface LoginResponse extends ApiUserResponse {
+export interface LoginResponse {
+  userId: number;
+  username: string;
+  email: string;
   token: string;
+  phoneNumber: string;
   refreshToken: string;
 }
 
@@ -115,12 +121,12 @@ export interface ApiResponse<T = any> {
 
 // 搜索相关类型
 export interface SearchResults {
-  users: FullUserInfo[];
+  users: User[];
   total: number;
 }
 
 export interface QueryUsersResponse {
-  content?: ApiUserResponse[];
+  content?: ApiUser[];
   [key: string]: unknown; // Allow flexible response structure
 }
 
@@ -137,27 +143,16 @@ export interface Message {
 
 export interface ChatSession {
   id: string;
-  participants: FullUserInfo[];
+  participants: User[];
   lastMessage?: Message;
   unreadCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// 联系人用户接口
-export interface ContactUser {
-  userId: number;
-  username: string;
-  email: string;
-  phoneNumber?: string;
-  department?: string;
-  position?: string;
-  avatarColor?: string;
-}
-
 // 联系人相关类型
 export interface Contact {
-  user: FullUserInfo;
+  user: User;
   addedAt: Date;
   isFavorite: boolean;
   notes?: string;
@@ -169,10 +164,10 @@ export interface Group {
   name: string;
   description?: string;
   avatar?: string;
-  members: FullUserInfo[];
-  admins: FullUserInfo[];
+  members: User[];
+  admins: User[];
   createdAt: Date;
-  createdBy: FullUserInfo;
+  createdBy: User;
 }
 
 // 通知相关类型
@@ -208,4 +203,11 @@ export interface AppState {
     sidebarOpen: boolean;
     theme: 'light' | 'dark';
   };
+}
+
+export interface ConversationRes {
+  conversationId: string;
+  type: 'PRIVATE_CHAT' | 'GROUP';
+  groupName?: string;
+  members: ApiUser[];
 }

@@ -1,12 +1,11 @@
-import type { 
-  ApiUserResponse,
-  AuthData, 
-  LoginCredentials, 
-  FileFilter, 
-  SelectFileOptions, 
-  SelectFileResult, 
-  ApiResponse, 
-  SearchResults 
+import type {
+  AuthData,
+  LoginCredentials,
+  FileFilter,
+  SelectFileOptions,
+  SelectFileResult,
+  ApiResponse,
+  SearchResults
 } from '../types/index';
 import { authAPI } from '../services/api/apiClient';
 import type { LoginPayload } from '../services/api/apiClient';
@@ -23,19 +22,19 @@ export interface ElectronAPI {
   // 认证相关
   login: (credentials: LoginCredentials) => Promise<ApiResponse<AuthData>>;
   logout: () => Promise<void>;
-  
+
   // 文件操作相关
   selectFile: (options: SelectFileOptions) => Promise<SelectFileResult>;
   selectFiles: (options: SelectFileOptions) => Promise<SelectFileResult[]>;
   uploadFile: (filePath: string, clientId?: string) => Promise<any>; // 添加uploadFile方法
-  
+
   // 用户搜索相关
   searchUsers: (query: string) => Promise<ApiSearchResults>;
   queryUsers: (query: string) => Promise<ApiSearchResults>; // 添加queryUsers方法以保持兼容性
-  
+
   // 通知相关
   showNotification: (title: string, body: string) => void;
-  
+
   // 系统相关
   getVersion: () => Promise<string>;
   getPath: (name: string) => Promise<string>;
@@ -45,24 +44,28 @@ export interface ElectronAPI {
 const webAPI: ElectronAPI = {
   // 认证相关
   login: async (credentials: LoginCredentials): Promise<ApiResponse<AuthData>> => {
+    console.log('Renderer: Attempting login via WebAPI/Electron Bridge...', credentials.loginAccount);
     try {
       const response = await authAPI.login({
         loginAccount: credentials.loginAccount,
         password: credentials.password
       });
-      
+
+      console.log('Renderer: Login successful', response);
+
       return {
         success: true,
         data: response.data
       };
     } catch (error: any) {
+      console.error('Renderer: Login error', error);
       return {
         success: false,
         error: error.response?.data?.message || error.message || 'Login failed'
       };
     }
   },
-  
+
   logout: async (): Promise<void> => {
     try {
       localStorage.removeItem('token');
@@ -72,21 +75,21 @@ const webAPI: ElectronAPI = {
       console.error('Logout error:', error);
     }
   },
-  
+
   // 文件操作相关 - Web环境下使用浏览器API
   selectFile: async (options: SelectFileOptions): Promise<SelectFileResult> => {
     return new Promise((resolve) => {
       const input = document.createElement('input');
       input.type = 'file';
       input.multiple = false;
-      
+
       if (options.filters) {
-        const acceptTypes = options.filters.map(filter => 
+        const acceptTypes = options.filters.map(filter =>
           filter.extensions.map(ext => `.${ext}`).join(',')
         ).join(',');
         input.accept = acceptTypes;
       }
-      
+
       input.onchange = (event) => {
         const file = (event.target as HTMLInputElement)?.files?.[0];
         if (file) {
@@ -103,24 +106,24 @@ const webAPI: ElectronAPI = {
           });
         }
       };
-      
+
       input.click();
     });
   },
-  
+
   selectFiles: async (options: SelectFileOptions): Promise<SelectFileResult[]> => {
     return new Promise((resolve) => {
       const input = document.createElement('input');
       input.type = 'file';
       input.multiple = true;
-      
+
       if (options.filters) {
-        const acceptTypes = options.filters.map(filter => 
+        const acceptTypes = options.filters.map(filter =>
           filter.extensions.map(ext => `.${ext}`).join(',')
         ).join(',');
         input.accept = acceptTypes;
       }
-      
+
       input.onchange = (event) => {
         const files = (event.target as HTMLInputElement)?.files;
         if (files && files.length > 0) {
@@ -138,16 +141,16 @@ const webAPI: ElectronAPI = {
           }]);
         }
       };
-      
+
       input.click();
     });
   },
-  
+
   uploadFile: async (filePath: string, clientId?: string): Promise<any> => {
     // Web环境下文件上传需要通过表单或者其他方式处理
     throw new Error('File upload not implemented for web environment');
   },
-  
+
   // 用户搜索相关
   searchUsers: async (query: string): Promise<ApiSearchResults> => {
     try {
@@ -167,11 +170,11 @@ const webAPI: ElectronAPI = {
       };
     }
   },
-  
+
   queryUsers: async (query: string): Promise<ApiSearchResults> => {
     return webAPI.searchUsers(query);
   },
-  
+
   // 通知相关 - Web环境下使用浏览器通知API
   showNotification: (title: string, body: string): void => {
     if ('Notification' in window) {
@@ -186,12 +189,12 @@ const webAPI: ElectronAPI = {
       }
     }
   },
-  
+
   // 系统相关 - Web环境下返回默认值
   getVersion: async (): Promise<string> => {
     return '1.0.0-web';
   },
-  
+
   getPath: async (name: string): Promise<string> => {
     // Web环境下返回localStorage或其他web存储路径
     return `web-${name}`;
@@ -214,7 +217,7 @@ export function getElectronAPI(): ElectronAPI {
       }
     });
   }
-  
+
   // 在Web环境中返回web API实现
   return webAPI;
 }

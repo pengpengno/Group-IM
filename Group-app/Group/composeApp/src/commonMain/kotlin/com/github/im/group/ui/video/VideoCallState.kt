@@ -11,6 +11,7 @@ enum class VideoCallStatus {
     INCOMING,       // 来电通话
     CONNECTING,     // 正在连接
     ACTIVE,         // 通话中
+    ENDING,         // 结束中（新增）
     ENDED,          // 已结束
     MINIMIZED,      // 已最小化（悬浮窗状态）
     ERROR           // 错误状态
@@ -31,5 +32,6 @@ data class VideoCallState(
     val isMicrophoneEnabled: Boolean = true,  // 麦克风是否启用
     val isSpeakerEnabled: Boolean = true,     // 扬声器是否启用
     val errorMessage: String? = null,         // 错误信息
-    val isMinimized: Boolean = false          // 是否处于最小化状态
+    val isMinimized: Boolean = false,         // 是否处于最小化状态
+    val callId: String? = null                // 通话ID（新增）
 )

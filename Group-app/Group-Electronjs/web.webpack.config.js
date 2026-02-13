@@ -39,7 +39,7 @@ module.exports = {
     })
   ],
   devServer: {
-    port: 3002, // Changed from 3000 to avoid conflict
+    port: 3000,
     historyApiFallback: true,
     open: true,
     hot: true,

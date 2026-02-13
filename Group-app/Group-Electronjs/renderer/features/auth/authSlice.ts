@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { LocalUserInfo as User, AuthData, AuthState } from '../../types';
+import type { LocalUser as User, AuthData, AuthState } from '../../types';
 
 const initialState: AuthState = {
   isAuthenticated: false,
@@ -17,12 +17,17 @@ const authSlice = createSlice({
       state.error = null;
     },
     loginSuccess(state, action: PayloadAction<{ user: User; token: string; refreshToken: string }>) {
+      const { user, token, refreshToken } = action.payload;
       state.isAuthenticated = true;
       state.loading = false;
       state.user = {
-        ...action.payload.user,
-        token: action.payload.token,
-        refreshToken: action.payload.refreshToken
+        ...user,
+        userId: user.userId,
+        username: user.username,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        token: token,
+        refreshToken: refreshToken
       };
       state.error = null;
     },

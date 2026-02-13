@@ -2,16 +2,19 @@ import { ipcMain } from 'electron';
 import axios from 'axios';
 
 // Define the base URL for the API
-const BASE_URL = 'http://localhost:8080'; // This would come from environment/config
+const BASE_URL = 'http://127.0.0.1:8080'; // This would come from environment/config
 
 // Handle login request
 ipcMain.handle('login', async (_, credentials) => {
   try {
+    console.log('Main Process: Login attempt for:', credentials.loginAccount);
     const response = await axios.post(`${BASE_URL}/api/users/login`, credentials, {
       headers: {
         'Content-Type': 'application/json'
       }
     });
+
+    console.log('Main Process: Login success', response.data);
 
     // Return the token and user info
     return {
@@ -19,7 +22,12 @@ ipcMain.handle('login', async (_, credentials) => {
       data: response.data
     };
   } catch (error: any) {
-    console.error('Login error:', error);
+    console.error('Main Process: Login error detailed:', {
+      message: error.message,
+      code: error.code,
+      response: error.response?.data,
+      status: error.response?.status
+    });
     return {
       success: false,
       error: error.response?.data?.message || error.message || 'Login failed'

@@ -11,25 +11,23 @@ ipcMain.handle('upload-file', async (_, filePath, clientId) => {
   try {
     const fileBuffer = fs.readFileSync(filePath);
     const fileName = path.basename(filePath);
-    
+
     const formData = new FormData();
     formData.append('file', new Blob([fileBuffer]), fileName);
     formData.append('clientId', clientId || Math.random().toString(36).substring(2, 15));
-    
+
     // For Node.js we need to use a different approach since FormData is browser-specific
     // Using axios with form-data library instead
     const FormDataNode = require('form-data');
     const form = new FormDataNode();
     form.append('file', fs.createReadStream(filePath));
     form.append('clientId', clientId || Math.random().toString(36).substring(2, 15));
-    
+
     const response = await axios.post(`${BASE_URL}/api/files/upload`, form, {
       headers: form.getHeaders(),
       onUploadProgress: (progressEvent) => {
-        // Check if total is defined before calculating progress
         if (progressEvent.total) {
           const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          // Send progress to renderer process
           // mainWindow.webContents.send('upload-progress', { clientId, progress });
         }
       }
@@ -62,7 +60,7 @@ ipcMain.handle('select-file', async (_, options = {}) => {
 
     const filePath = result.filePaths[0];
     const stats = fs.statSync(filePath);
-    
+
     return {
       canceled: false,
       filePath,

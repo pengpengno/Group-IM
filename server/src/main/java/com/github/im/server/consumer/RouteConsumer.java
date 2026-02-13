@@ -15,6 +15,7 @@ import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.StreamOffset;
 import org.springframework.data.redis.connection.stream.Consumer;
 import org.springframework.data.redis.connection.stream.PendingMessagesSummary;
+import org.springframework.data.redis.connection.stream.ReadOffset;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -22,6 +23,8 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -114,9 +117,19 @@ public class RouteConsumer {
      */
     private void ensureStreamAndConsumerGroup(String streamKey) {
         try {
-            // 首先尝试创建消费者组，如果它不存在的话
+            // 首先确保Stream存在，添加一个空消息来创建Stream
             try {
-                redis.opsForStream().createGroup(streamKey, CONSUMER_GROUP);
+                Map<String, String> initMessage = new HashMap<>();
+                initMessage.put("init", "true");
+                redis.opsForStream().add(streamKey, initMessage);
+                log.debug("Ensured stream '{}' exists", streamKey);
+            } catch (Exception e) {
+                log.debug("Stream '{}' already exists or creation failed: {}", streamKey, e.getMessage());
+            }
+            
+            // 然后尝试创建消费者组
+            try {
+                redis.opsForStream().createGroup(streamKey, ReadOffset.from("0"), CONSUMER_GROUP);
                 log.info("Created consumer group '{}' for stream '{}'", CONSUMER_GROUP, streamKey);
             } catch (Exception e) {
                 // 如果消费者组已经存在，会抛出异常，这是正常的
