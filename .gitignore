@@ -55,4 +55,5 @@ build/
 /Group-app/.idea/**
 /Group-app/.idea/
 /Group-app/node_modules/
+/Group-app/Group-Electronjs/node_modules/
 /Group-app/.idea/androidTestResultsUserPreferences.xml
