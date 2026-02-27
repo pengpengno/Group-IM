@@ -35,7 +35,8 @@ class SignalingService {
         // For Electron dev with webpack proxy, it might be different. 
         // Let's assume the backend is at localhost:8080 for now as per apiClient.ts
         const host = 'localhost:8080';
-        const url = `${protocol}//${host}/ws?userId=${this.userId}`;
+        const token = localStorage.getItem('token') || '';
+        const url = `${protocol}//${host}/ws?userId=${this.userId}&token=${token}`;
 
         console.log('Connecting to WebSocket:', url);
 
@@ -99,7 +100,7 @@ class SignalingService {
                 this.store.dispatch(incomingCall({
                     callId: `call-${Date.now()}`, // Generate a temporary call ID if not provided
                     caller: {
-                        userId: parseInt(message.fromUser || '0'),
+                        userId: message.fromUser || '0',
                         username: `User ${message.fromUser}`,
                         email: ''
                     }

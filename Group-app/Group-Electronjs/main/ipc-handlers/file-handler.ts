@@ -7,24 +7,26 @@ import axios from 'axios';
 const BASE_URL = 'http://localhost:8080'; // This would come from environment/config
 
 // Handle file upload request
-ipcMain.handle('upload-file', async (_, filePath, clientId) => {
+ipcMain.handle('upload-file', async (_, filePath, clientId, token) => {
   try {
-    const fileBuffer = fs.readFileSync(filePath);
     const fileName = path.basename(filePath);
 
-    const formData = new FormData();
-    formData.append('file', new Blob([fileBuffer]), fileName);
-    formData.append('clientId', clientId || Math.random().toString(36).substring(2, 15));
-
-    // For Node.js we need to use a different approach since FormData is browser-specific
     // Using axios with form-data library instead
     const FormDataNode = require('form-data');
     const form = new FormDataNode();
     form.append('file', fs.createReadStream(filePath));
     form.append('clientId', clientId || Math.random().toString(36).substring(2, 15));
 
+    const headers: any = {
+      ...form.getHeaders()
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await axios.post(`${BASE_URL}/api/files/upload`, form, {
-      headers: form.getHeaders(),
+      headers,
       onUploadProgress: (progressEvent) => {
         if (progressEvent.total) {
           const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);

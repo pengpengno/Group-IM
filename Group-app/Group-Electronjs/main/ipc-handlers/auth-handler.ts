@@ -36,20 +36,20 @@ ipcMain.handle('login', async (_, credentials) => {
 });
 
 // Handle user query request
-ipcMain.handle('query-users', async (_, query) => {
+ipcMain.handle('query-users', async (_, query, token) => {
   try {
-    const formData = new FormData();
-    formData.append('query', query);
-
-    // Note: FormData is not available in Node.js context, so we'll use form-urlencoded
     const params = new URLSearchParams();
     params.append('query', query);
 
-    const response = await axios.post(`${BASE_URL}/api/users/query`, params, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    });
+    const headers: any = {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await axios.post(`${BASE_URL}/api/users/query`, params, { headers });
 
     return {
       success: true,

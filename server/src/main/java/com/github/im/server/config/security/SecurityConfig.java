@@ -99,6 +99,7 @@ public class SecurityConfig  {
                                 "/api/users/login",
                                 "/api/auth/logout",
                                 "/api/mcp/**",
+                                "/mcp/**",
                                 "/static/**",
                                 "/socket.io/**",
                                 "/ws/**"  , // 信令服务器

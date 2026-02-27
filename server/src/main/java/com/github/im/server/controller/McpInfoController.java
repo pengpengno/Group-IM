@@ -146,7 +146,7 @@ public class McpInfoController {
         result.set("capabilities", capabilities);
         response.set("result", result);
         
-        emitter.send(SseEmitter.event().name("tool_result").data(response.toString()));
+        emitter.send(SseEmitter.event().name("message").data(response.toString()));
         emitter.complete();
     }
 
@@ -171,7 +171,7 @@ public class McpInfoController {
         result.set("tools", toolsArray);
         response.set("result", result);
         
-        emitter.send(SseEmitter.event().name("tool_result").data(response.toString()));
+        emitter.send(SseEmitter.event().name("message").data(response.toString()));
         emitter.complete();
     }
 
@@ -259,7 +259,7 @@ public class McpInfoController {
         ObjectNode response = objectMapper.createObjectNode();
         response.put("tool_name", toolName);
         response.set("result", result);
-        emitter.send(SseEmitter.event().name("tool_result").data(response.toString()));
+        emitter.send(SseEmitter.event().name("message").data(response.toString()));
     }
 
     private void sendError(SseEmitter emitter, String errorMessage) throws IOException {

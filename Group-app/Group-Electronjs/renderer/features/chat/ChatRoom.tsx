@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useSelector } from 'react-redux';
-import type { ConversationRes, Message } from '../../types';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState, AppDispatch } from '../../store';
+import { fetchMessages, sendMessage as sendMessageAction } from './chatSlice';
+import type { ConversationRes, Message, MessageDTO } from '../../types';
 import { getElectronAPI } from '../../services/api/electronAPI';
 import './ChatRoom.css';
 import type { AuthState } from '../auth/authSlice';
@@ -17,8 +19,9 @@ const MessageBubble: React.FC<{
   isOwnMessage: boolean;
   currentUser: any;
 }> = ({ message, isOwnMessage, currentUser }) => {
-  const formatTime = (timestamp: Date) => {
-    return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const formatTime = (timestamp: any) => {
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -53,12 +56,13 @@ const MessageBubble: React.FC<{
 };
 
 const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onBack, onVideoCall }) => {
+  const dispatch = useDispatch<AppDispatch>();
   const electronAPI = getElectronAPI();
   const { user } = useSelector((state: { auth: AuthState }) => state.auth);
+  const { messages: allMessages, loading: chatLoading } = useSelector((state: RootState) => state.chat);
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const messages = allMessages[conversation.conversationId] || [];
   const [inputText, setInputText] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -83,70 +87,29 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onBack, onVideoCall }
 
   // 加载消息
   const loadMessages = async () => {
-    if (!electronAPI) {
-      setError('API服务不可用');
-      return;
-    }
-
     try {
-      setLoading(true);
       setError(null);
-
-      // 这里需要调用获取消息的API
-      // 暂时使用mock数据
-      const mockMessages: Message[] = [
-        {
-          id: '1',
-          senderId: 'user1',
-          receiverId: user?.userId || '',
-          content: '你好！',
-          timestamp: new Date(Date.now() - 3600000),
-          type: 'text',
-          status: 'read'
-        },
-        {
-          id: '2',
-          senderId: user?.userId || '',
-          receiverId: 'user1',
-          content: '你好，很高兴认识你！',
-          timestamp: new Date(Date.now() - 1800000),
-          type: 'text',
-          status: 'sent'
-        }
-      ];
-
-      setMessages(mockMessages);
+      await dispatch(fetchMessages(conversation.conversationId)).unwrap();
     } catch (err: any) {
       console.error('Failed to load messages:', err);
       setError(err.message || '加载消息失败');
-    } finally {
-      setLoading(false);
     }
   };
 
   // 发送消息
   const sendMessage = async () => {
-    if (!inputText.trim() || !electronAPI) return;
+    if (!inputText.trim()) return;
 
     try {
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        senderId: user?.userId || '',
-        receiverId: getOtherUserId() || '',
-        content: inputText.trim(),
-        timestamp: new Date(),
-        type: 'text',
-        status: 'sent'
-      };
-
-      // 立即显示消息
-      setMessages(prev => [...prev, newMessage]);
+      setError(null);
+      const content = inputText.trim();
       setInputText('');
 
-      // 调用API发送消息
-      // await electronAPI.sendMessage(conversation.conversationId, inputText.trim());
+      await dispatch(sendMessageAction({
+        conversationId: conversation.conversationId,
+        content: content
+      })).unwrap();
 
-      // 滚动到底部
       scrollToBottom();
     } catch (err: any) {
       console.error('Failed to send message:', err);
@@ -203,7 +166,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onBack, onVideoCall }
 
       {/* 消息列表 */}
       <div className="messages-container">
-        {loading ? (
+        {chatLoading ? (
           <div className="loading-messages">
             <div className="spinner"></div>
             <p>加载消息中...</p>
@@ -218,14 +181,26 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onBack, onVideoCall }
           </div>
         ) : (
           <div className="messages-list">
-            {messages.map((message) => (
-              <MessageBubble
-                key={message.id}
-                message={message}
-                isOwnMessage={message.senderId === user?.userId}
-                currentUser={user}
-              />
-            ))}
+            {messages.map((msg: MessageDTO) => {
+              // Convert MessageDTO to Message format for MessageBubble
+              const uiMsg: Message = {
+                id: msg.msgId.toString(),
+                senderId: msg.fromAccountId.toString(),
+                receiverId: '', // Not used in bubble
+                content: msg.content,
+                timestamp: new Date(msg.timestamp),
+                type: msg.type.toLowerCase(),
+                status: 'sent'
+              };
+              return (
+                <MessageBubble
+                  key={uiMsg.id}
+                  message={uiMsg}
+                  isOwnMessage={msg.fromAccountId.toString() === user?.userId}
+                  currentUser={user}
+                />
+              );
+            })}
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -241,12 +216,12 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onBack, onVideoCall }
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            disabled={loading}
+            disabled={chatLoading}
           />
           <button
             className="send-button"
             onClick={sendMessage}
-            disabled={!inputText.trim() || loading}
+            disabled={!inputText.trim() || chatLoading}
             aria-label="发送消息"
           >
             发送

@@ -1,39 +1,58 @@
-// electronAPI.ts - API abstraction for both Electron and Web environments
-import { authAPI, LoginPayload } from './apiClient';
-import type { LoginResponse, LoginResult, ApiUser as User } from '../../types';
+import type {
+  AuthData,
+  LoginCredentials,
+  SelectFileOptions,
+  SelectFileResult,
+  ApiResponse,
+  User,
+  ApiUser
+} from '../../types/index';
+import { authAPI } from './apiClient';
 
-type ApiResponse<T> = {
-  data: T;
-};
-
-// Define the shape of our API
-interface ElectronAPI {
-  login: (credentials: LoginPayload) => Promise<LoginResult>;
-  queryUsers: (query: string) => Promise<{ success: boolean; data?: User[]; error?: string }>;
-  getUserCompanies: () => Promise<{ success: boolean; data?: any; error?: string }>;
-  uploadFile: (filePath: string, clientId?: string) => Promise<any>;
-  selectFile: (options?: Record<string, unknown>) => Promise<any>;
-  showNotification: (options: {
-    title?: string;
-    body?: string;
-    icon?: string;
-    [key: string]: unknown;
-  }) => Promise<any>;
-  requestNotificationPermission: () => Promise<any>;
+// 定义搜索结果接口
+export interface SearchResults {
+  users: User[];
+  total: number;
 }
 
-// Type definition for the window object
-declare global {
-  interface Window {
-    electronAPI?: ElectronAPI;
-  }
+export interface ApiSearchResults extends ApiResponse<SearchResults> {
+  users: User[];
+  total: number;
 }
 
-// Default implementation for web environment
+// Electron API 接口定义
+export interface ElectronAPI {
+  // 认证相关
+  login: (credentials: LoginCredentials) => Promise<ApiResponse<AuthData>>;
+  logout: () => Promise<void>;
+
+  // 文件操作相关
+  selectFile: (options: SelectFileOptions) => Promise<SelectFileResult>;
+  selectFiles: (options: SelectFileOptions) => Promise<SelectFileResult[]>;
+  uploadFile: (filePath: string, clientId?: string, token?: string) => Promise<any>;
+
+  // 用户搜索相关
+  searchUsers: (query: string, token?: string) => Promise<ApiSearchResults>;
+  queryUsers: (query: string, token?: string) => Promise<ApiSearchResults>;
+
+  // 通知相关
+  showNotification: (title: string, body: string) => void;
+
+  // 系统相关
+  getVersion: () => Promise<string>;
+  getPath: (name: string) => Promise<string>;
+}
+
+// Web环境下的API实现
 const webAPI: ElectronAPI = {
-  login: async (credentials: LoginPayload): Promise<LoginResult> => {
+  // 认证相关
+  login: async (credentials: LoginCredentials): Promise<ApiResponse<AuthData>> => {
     try {
-      const response: ApiResponse<LoginResponse> = await authAPI.login(credentials);
+      const response = await authAPI.login({
+        loginAccount: credentials.loginAccount,
+        password: credentials.password
+      });
+
       return {
         success: true,
         data: response.data
@@ -46,93 +65,128 @@ const webAPI: ElectronAPI = {
     }
   },
 
-  queryUsers: async (query) => {
-    try {
-      const response = await authAPI.queryUsers(query);
-      return {
-        success: true,
-        data: response.data
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Query failed'
-      };
-    }
+  logout: async (): Promise<void> => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
   },
 
-  getUserCompanies: async () => {
-    try {
-      const response = await authAPI.getUserCompanies();
-      return {
-        success: true,
-        data: response.data
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message || 'Get companies failed'
-      };
-    }
-  },
-
-  uploadFile: async (filePath, clientId?) => {
-    // In web environment, this would be handled differently
-    // For now, returning a mock response
-    return {
-      success: true,
-      data: { filePath, clientId }
-    };
-  },
-
-  selectFile: async (options?) => {
-    // In web environment, we'd use an input element
-    // For now, returning a mock response
-    return {
-      canceled: true,
-      filePath: null
-    };
-  },
-
-  showNotification: async (options) => {
-    // Use the native browser notification API
-    if ('Notification' in window) {
-      if (Notification.permission === 'granted') {
-        new Notification(options.title || 'Notification', {
-          body: options.body,
-          icon: options.icon
-        });
-        return { success: true };
-      } else if (Notification.permission !== 'denied') {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-          new Notification(options.title || 'Notification', {
-            body: options.body,
-            icon: options.icon
-          });
-        }
-        return { success: true };
+  // 文件操作相关
+  selectFile: async (options: SelectFileOptions): Promise<SelectFileResult> => {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      if (options.filters && options.filters.length > 0) {
+        input.accept = options.filters.map(f => f.extensions.map(ext => `.${ext}`).join(',')).join(',');
       }
-    }
-    return { success: false, error: 'Notifications not supported or denied' };
+      input.onchange = (e) => {
+        const files = (e.target as HTMLInputElement).files;
+        if (files && files.length > 0) {
+          resolve({ canceled: false, filePaths: [files[0].name] });
+        } else {
+          resolve({ canceled: true, filePaths: [] });
+        }
+      };
+      input.click();
+    });
   },
 
-  requestNotificationPermission: async () => {
-    if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      return { success: true, permission };
+  selectFiles: async (options: SelectFileOptions): Promise<SelectFileResult[]> => {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.multiple = true;
+      if (options.filters && options.filters.length > 0) {
+        input.accept = options.filters.map(f => f.extensions.map(ext => `.${ext}`).join(',')).join(',');
+      }
+      input.onchange = (e) => {
+        const files = (e.target as HTMLInputElement).files;
+        if (files && files.length > 0) {
+          resolve([{ canceled: false, filePaths: Array.from(files).map(f => f.name) }]);
+        } else {
+          resolve([{ canceled: true, filePaths: [] }]);
+        }
+      };
+      input.click();
+    });
+  },
+
+  uploadFile: async (filePath: string, clientId?: string, token?: string) => {
+    // In web, we can't really upload a file by path. This is just for signature consistency.
+    throw new Error('Not implemented in web');
+  },
+
+  // 用户搜索相关
+  searchUsers: async (query: string, token?: string): Promise<ApiSearchResults> => {
+    try {
+      // If token is provided, it's already handled by apiClient's interceptor if we use authAPI.
+      // But we pass it here for clarity or if we want to override.
+      const response = await authAPI.queryUsers(query);
+      const content = response.data?.content || [];
+      const users: User[] = content.map((u: ApiUser) => ({
+        id: u.userId.toString(),
+        username: u.username,
+        email: u.email,
+        phoneNumber: u.phoneNumber,
+        status: 'online'
+      }));
+      return {
+        success: true,
+        data: { users, total: users.length },
+        users: users,
+        total: users.length
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message,
+        users: [],
+        total: 0
+      };
     }
-    return { success: false, error: 'Notifications not supported' };
-  }
+  },
+
+  queryUsers: async (query: string, token?: string) => webAPI.searchUsers(query, token),
+
+  // 通知相关
+  showNotification: (title: string, body: string) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, { body });
+    }
+  },
+
+  getVersion: async () => '1.0.0-web',
+  getPath: async (name: string) => `web-${name}`
 };
 
-// Return the appropriate API based on environment
-export const getElectronAPI = (): ElectronAPI | null => {
-  if (typeof window !== 'undefined' && window.electronAPI) {
-    // Running in Electron environment
-    return window.electronAPI;
-  } else {
-    // Running in web environment
-    return webAPI;
+// 获取Electron API实例
+export function getElectronAPI(): ElectronAPI {
+  const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
+
+  if (isElectron) {
+    const electron = (window as any).electronAPI;
+
+    // Wrap methods to automatically include token from localStorage
+    return {
+      ...electron,
+      queryUsers: async (query: string, token?: string) => {
+        const authToken = token || localStorage.getItem('token') || '';
+        return electron.queryUsers(query, authToken);
+      },
+      searchUsers: async (query: string, token?: string) => {
+        const authToken = token || localStorage.getItem('token') || '';
+        return electron.queryUsers(query, authToken); // searchUsers usually calls queryUsers in this app
+      },
+      uploadFile: async (filePath: string, clientId?: string, token?: string) => {
+        const authToken = token || localStorage.getItem('token') || '';
+        return electron.uploadFile(filePath, clientId, authToken);
+      }
+    };
   }
-};
+
+  return webAPI;
+}
+
+export function isElectronEnvironment(): boolean {
+  return typeof window !== 'undefined' && !!(window as any).electronAPI;
+}

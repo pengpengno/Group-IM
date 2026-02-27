@@ -8,9 +8,7 @@ export type LoginPayload = {
 
 type QueryUsersPayload = string;
 
-// In development, API calls will be proxied through webpack dev server
-// In production, use direct backend URL
-const BASE_URL = process.env.NODE_ENV === 'development' ? '' : 'http://localhost:8080';
+const BASE_URL = 'http://localhost:8080';
 
 const http = axios.create({
   baseURL: BASE_URL,
@@ -42,5 +40,45 @@ export const authAPI = {
   // GET /api/users/company/list
   getUserCompanies: async () => {
     return http.get('/api/users/company/list');
+  }
+};
+
+export const conversationAPI = {
+  // GET /api/conversations/{userId}/active
+  getActiveConversations: async (userId: string) => {
+    return http.get(`/api/conversations/${userId}/active`);
+  },
+
+  // POST /api/conversations/private-chat?userId={userId}&friendId={friendId}
+  createPrivateChat: async (userId: string, friendId: number) => {
+    return http.post('/api/conversations/private-chat', null, {
+      params: { userId, friendId }
+    });
+  },
+
+  // POST /api/messages/pull
+  pullMessages: async (conversationId: number, fromSequenceId: number = 0) => {
+    return http.post('/api/messages/pull', {
+      conversationId,
+      page: 0,
+      size: 50,
+      fromSequenceId
+    });
+  },
+
+  // POST /api/messages/send
+  sendMessage: async (conversationId: number, content: string, type: string = 'TEXT') => {
+    return http.post('/api/messages/send', {
+      conversationId,
+      content,
+      type
+    });
+  }
+};
+
+export const orgAPI = {
+  // GET /api/company/structure
+  getStructure: async () => {
+    return http.get('/api/company/structure');
   }
 };

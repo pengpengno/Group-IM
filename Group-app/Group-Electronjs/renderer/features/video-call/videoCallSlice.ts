@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { User, UserInfo } from '../../types';
+import { LocalUser as User } from '../../types';
 
 export enum VideoCallStatus {
     IDLE = 'IDLE',
@@ -16,8 +16,8 @@ export enum VideoCallStatus {
 export interface VideoCallState {
     callStatus: VideoCallStatus;
     callId: string | null;
-    caller: UserInfo | null;
-    participants: UserInfo[];
+    caller: User | null;
+    participants: User[];
     startTime: number | null;
     isMuted: boolean;
     isVideoEnabled: boolean;
@@ -45,13 +45,13 @@ const videoCallSlice = createSlice({
     name: 'videoCall',
     initialState,
     reducers: {
-        initiateCall(state, action: PayloadAction<{ callId: string; participants: UserInfo[] }>) {
+        initiateCall(state, action: PayloadAction<{ callId: string; participants: User[] }>) {
             state.callStatus = VideoCallStatus.OUTGOING;
             state.callId = action.payload.callId;
             state.participants = action.payload.participants;
             state.errorMessage = null;
         },
-        incomingCall(state, action: PayloadAction<{ callId: string; caller: UserInfo }>) {
+        incomingCall(state, action: PayloadAction<{ callId: string; caller: User }>) {
             if (state.callStatus === VideoCallStatus.IDLE) {
                 state.callStatus = VideoCallStatus.INCOMING;
                 state.callId = action.payload.callId;
