@@ -11,13 +11,17 @@ import com.github.im.server.model.enums.StorageType
 import com.github.im.server.repository.FileResourceRepository
 import com.github.im.server.repository.MediaFileResourceRepository
 import com.github.im.server.service.storage.StorageStrategy
-import com.github.im.server.service.storage.StorageStrategyFactory
+
 import org.springframework.core.io.UrlResource
 import org.springframework.web.multipart.MultipartFile
 import spock.lang.Specification
 
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.io.FileNotFoundException
+import java.time.LocalDateTime
+import java.util.UUID
+import java.time.LocalDateTime
 
 class FileStorageServiceSpec extends Specification {
 
@@ -26,10 +30,8 @@ class FileStorageServiceSpec extends Specification {
     def repository = Mock(FileResourceRepository)
     def mediaFileResourceRepository = Mock(MediaFileResourceRepository)
     def fileMapper = Mock(FileMapper)
-    def storageStrategyFactory = Mock(StorageStrategyFactory)
-
     def fileStorageService = new FileStorageService(
-            properties, storageStrategy, repository, mediaFileResourceRepository, fileMapper, storageStrategyFactory)
+            properties, storageStrategy, repository, mediaFileResourceRepository, fileMapper)
 
     def "getFileResourceById should return file resource when exists"() {
         given:
@@ -66,7 +68,8 @@ class FileStorageServiceSpec extends Specification {
         fileStorageService.getFileResourceById(invalidId)
 
         then:
-        thrown(FileNotFoundException)
+        def e = thrown(FileNotFoundException)
+        e.message.contains("Uuid in wrong format")
     }
 
     def "getFileMeta should return file meta with media info when media resource exists"() {
@@ -77,16 +80,20 @@ class FileStorageServiceSpec extends Specification {
         fileResource.setOriginalName("test.mp4")
         fileResource.setSize(1024L)
         fileResource.setContentType("video/mp4")
+        fileResource.setStatus(FileStatus.NORMAL)
 
         def mediaResource = new MediaFileResource()
+        mediaResource.setId(1L)
         mediaResource.setDuration(120.5f)
         mediaResource.setThumbnail("thumbnail-url")
+        mediaResource.setFile(fileResource)
 
         def fileMeta = new FileMeta()
         fileMeta.setFileId(fileId.toString())
         fileMeta.setFilename("test.mp4")
         fileMeta.setFileSize(1024L)
         fileMeta.setDuration(121L) // duration should come from media resource
+        fileMeta.setThumbnail("thumbnail-url")
 
         repository.findById(fileId) >> Optional.of(fileResource)
         mediaFileResourceRepository.findByFileId(fileId) >> mediaResource
@@ -99,6 +106,11 @@ class FileStorageServiceSpec extends Specification {
         result.getFileId() == fileId.toString()
         result.getDuration() == 121L // from media resource
         result.getThumbnail() == "thumbnail-url"
+        result.getFilename() == "test.mp4"
+        result.getFileSize() == 1024L
+        1 * repository.findById(fileId)
+        1 * mediaFileResourceRepository.findByFileId(fileId)
+        1 * fileMapper.toMetaWithMedia(fileResource, mediaResource)
     }
 
     def "getFileMeta should return file meta without media info when media resource does not exist"() {
@@ -109,11 +121,13 @@ class FileStorageServiceSpec extends Specification {
         fileResource.setOriginalName("test.txt")
         fileResource.setSize(1024L)
         fileResource.setContentType("text/plain")
+        fileResource.setStatus(FileStatus.NORMAL)
 
         def fileMeta = new FileMeta()
         fileMeta.setFileId(fileId.toString())
         fileMeta.setFilename("test.txt")
         fileMeta.setFileSize(1024L)
+        fileMeta.setDuration(null)
 
         repository.findById(fileId) >> Optional.of(fileResource)
         mediaFileResourceRepository.findByFileId(fileId) >> null
@@ -127,108 +141,164 @@ class FileStorageServiceSpec extends Specification {
         result.getFilename() == "test.txt"
         result.getFileSize() == 1024L
         result.getDuration() == null
+        result.getThumbnail() == null
+        1 * repository.findById(fileId)
+        1 * mediaFileResourceRepository.findByFileId(fileId)
+        1 * fileMapper.toMeta(fileResource)
     }
 
     def "storeFile should save file and return response"() {
         given:
         def multipartFile = Mock(MultipartFile)
-        def clientId = UUID.randomUUID()
+        def fileId = UUID.randomUUID()
         def duration = 100L
         def originalName = "test.mp4"
         def contentType = "video/mp4"
         def fileSize = 1024L
         def fileHash = "abc123"
-        def storagePath = "2025/04/25/test.mp4"
+        def storagePath = "2025/04/25/" + UUID.randomUUID().toString() + ".mp4"
 
-        def fileResource = new FileResource()
-        fileResource.setId(UUID.randomUUID())
-        fileResource.setOriginalName(originalName)
-        fileResource.setContentType(contentType)
-        fileResource.setSize(fileSize)
-        fileResource.setStorageType(StorageType.LOCAL)
-        fileResource.setStatus(FileStatus.NORMAL)
-        fileResource.setClientId(clientId)
-        fileResource.setHash(fileHash)
-        fileResource.setStoragePath(storagePath)
+        def existingResource = new FileResource()
+        existingResource.setId(fileId)
+        existingResource.setOriginalName(originalName)
+        existingResource.setContentType(contentType)
+        existingResource.setSize(fileSize)
+        existingResource.setStorageType(StorageType.LOCAL)
+        existingResource.setStatus(FileStatus.UPLOADING)
+        existingResource.setUploadTime(LocalDateTime.now())
+        existingResource.setExtension("mp4")
+
+        def updatedResource = new FileResource()
+        updatedResource.setId(fileId)
+        updatedResource.setOriginalName(originalName)
+        updatedResource.setContentType(contentType)
+        updatedResource.setSize(fileSize)
+        updatedResource.setStorageType(StorageType.LOCAL)
+        updatedResource.setStatus(FileStatus.NORMAL)
+        updatedResource.setStoragePath(storagePath)
+        updatedResource.setHash(fileHash)
+        updatedResource.setExtension("mp4")
 
         def mediaResource = new MediaFileResource()
         mediaResource.setDuration(100.0f)
+        mediaResource.setFile(existingResource)
 
         def fileUploadResponse = new FileUploadResponse()
+        fileUploadResponse.setId(fileId)
         def mappedFileMeta = new FileMeta()
+        mappedFileMeta.setFileId(fileId.toString())
+        mappedFileMeta.setDuration(100L)
 
         multipartFile.getOriginalFilename() >> originalName
         multipartFile.getContentType() >> contentType
         multipartFile.getSize() >> fileSize
 
-        storageStrategy.store(multipartFile, clientId, duration) >> fileResource
-        repository.save(fileResource) >> fileResource
-        mediaFileResourceRepository.save(mediaResource) >> mediaResource
-        fileMapper.toDTOMedia(fileResource, mediaResource) >> fileUploadResponse
-        fileMapper.toMetaWithMedia(fileResource, mediaResource) >> mappedFileMeta
+        repository.findById(fileId) >> Optional.of(existingResource)
+        storageStrategy.store(multipartFile, fileId, duration) >> updatedResource
+        repository.saveAndFlush(_) >> { FileResource fr -> 
+            fr.setId(fileId)
+            fr.setStatus(FileStatus.NORMAL)
+            fr.setStoragePath(storagePath)
+            fr.setStorageType(StorageType.LOCAL)
+            fr.setHash(fileHash)
+            fr.setSize(fileSize)
+            fr.setUploadTime(fr.getUploadTime())
+            return fr
+        }
+        mediaFileResourceRepository.findByFileId(fileId) >> null
+        mediaFileResourceRepository.save(_) >> mediaResource
+        fileMapper.toDTOMedia(_, _) >> fileUploadResponse
+        fileMapper.toMetaWithMedia(_, _) >> mappedFileMeta
 
         when:
-        def result = fileStorageService.storeFile(multipartFile, clientId, duration)
+        def result = fileStorageService.storeFile(multipartFile, fileId, duration)
 
         then:
         result == fileUploadResponse
-        1 * repository.save({ FileResource fr ->
-            fr.getOriginalName() == originalName &&
-            fr.getContentType() == contentType &&
-            fr.getSize() == fileSize &&
-            fr.getStorageType() == StorageType.LOCAL &&
+        result.getId() == fileId
+        1 * repository.findById(fileId)
+        1 * storageStrategy.store(multipartFile, fileId, duration)
+        1 * repository.saveAndFlush({ FileResource fr ->
+            fr.getId() == fileId &&
             fr.getStatus() == FileStatus.NORMAL &&
-            fr.getClientId() == clientId
+            fr.getStoragePath() != null
         })
-        1 * mediaFileResourceRepository.findByFileId(fileResource.getId())
+        1 * mediaFileResourceRepository.save({ MediaFileResource mr ->
+            mr.getFile().getId() == fileId &&
+            mr.getDuration() == 100.0f
+        })
+        1 * fileMapper.toDTOMedia(_, _)
     }
 
     def "storeFile should return simple response when not media file"() {
         given:
         def multipartFile = Mock(MultipartFile)
-        def clientId = UUID.randomUUID()
-        def duration = 100L
+        def fileId = UUID.randomUUID()
+        def duration = null
         def originalName = "test.txt"
         def contentType = "text/plain"
         def fileSize = 1024L
         def fileHash = "abc123"
-        def storagePath = "2025/04/25/test.txt"
+        def storagePath = "2025/04/25/" + UUID.randomUUID().toString() + ".txt"
 
-        def fileResource = new FileResource()
-        fileResource.setId(UUID.randomUUID())
-        fileResource.setOriginalName(originalName)
-        fileResource.setContentType(contentType)
-        fileResource.setSize(fileSize)
-        fileResource.setStorageType(StorageType.LOCAL)
-        fileResource.setStatus(FileStatus.NORMAL)
-        fileResource.setClientId(clientId)
-        fileResource.setHash(fileHash)
-        fileResource.setStoragePath(storagePath)
+        def existingResource = new FileResource()
+        existingResource.setId(fileId)
+        existingResource.setOriginalName(originalName)
+        existingResource.setContentType(contentType)
+        existingResource.setSize(fileSize)
+        existingResource.setStorageType(StorageType.LOCAL)
+        existingResource.setStatus(FileStatus.UPLOADING)
+        existingResource.setUploadTime(LocalDateTime.now())
+        existingResource.setExtension("txt")
+
+        def updatedResource = new FileResource()
+        updatedResource.setId(fileId)
+        updatedResource.setOriginalName(originalName)
+        updatedResource.setContentType(contentType)
+        updatedResource.setSize(fileSize)
+        updatedResource.setStorageType(StorageType.LOCAL)
+        updatedResource.setStatus(FileStatus.NORMAL)
+        updatedResource.setStoragePath(storagePath)
+        updatedResource.setHash(fileHash)
+        updatedResource.setExtension("txt")
 
         def fileUploadResponse = new FileUploadResponse()
+        fileUploadResponse.setId(fileId)
 
         multipartFile.getOriginalFilename() >> originalName
         multipartFile.getContentType() >> contentType
         multipartFile.getSize() >> fileSize
 
-        storageStrategy.store(multipartFile, clientId, duration) >> fileResource
-        repository.save(fileResource) >> fileResource
-        fileMapper.toDTO(fileResource) >> fileUploadResponse
+        repository.findById(fileId) >> Optional.of(existingResource)
+        storageStrategy.store(multipartFile, fileId, duration) >> updatedResource
+        repository.saveAndFlush(_) >> { FileResource fr -> 
+            fr.setId(fileId)
+            fr.setStatus(FileStatus.NORMAL)
+            fr.setStoragePath(storagePath)
+            fr.setStorageType(StorageType.LOCAL)
+            fr.setHash(fileHash)
+            fr.setSize(fileSize)
+            fr.setUploadTime(fr.getUploadTime())
+            return fr
+        }
+        mediaFileResourceRepository.findByFileId(fileId) >> null
+        fileMapper.toDTO(_) >> fileUploadResponse
 
         when:
-        def result = fileStorageService.storeFile(multipartFile, clientId, duration)
+        def result = fileStorageService.storeFile(multipartFile, fileId, duration)
 
         then:
         result == fileUploadResponse
-        1 * repository.save({ FileResource fr ->
-            fr.getOriginalName() == originalName &&
-            fr.getContentType() == contentType &&
-            fr.getSize() == fileSize &&
-            fr.getStorageType() == StorageType.LOCAL &&
+        result.getId() == fileId
+        1 * repository.findById(fileId)
+        1 * storageStrategy.store(multipartFile, fileId, duration)
+        1 * repository.saveAndFlush({ FileResource fr ->
+            fr.getId() == fileId &&
             fr.getStatus() == FileStatus.NORMAL &&
-            fr.getClientId() == clientId
+            fr.getStoragePath() != null
         })
         0 * mediaFileResourceRepository.save(_)
+        1 * fileMapper.toDTO(_)
     }
 
     def "uploadChunk should save chunk file"() {
@@ -296,7 +366,8 @@ class FileStorageServiceSpec extends Specification {
         fileStorageService.getFile(fileId)
 
         then:
-        thrown(FileNotFoundException)
+        def e = thrown(FileNotFoundException)
+        e.message.contains("File not found")
     }
 
     def "loadFileAsResource should return UrlResource when file exists"() {
@@ -331,28 +402,49 @@ class FileStorageServiceSpec extends Specification {
         fileStorageService.loadFileAsResource(fileResource)
 
         then:
-        thrown(FileNotFoundException)
+        def e = thrown(FileNotFoundException)
+        e.message.contains("文件不存在或不可读")
+
+        cleanup:
+        // 确保测试环境干净
+        def testFile = fileStorageService.baseDir.resolve("nonexistent.txt")
+        if (Files.exists(testFile)) {
+            Files.delete(testFile)
+        }
     }
 
     def "mergeChunks should merge all chunks and return response with media info"() {
         given:
         def fileHash = "abc123"
         def originalName = "merged.mp4"
-        def clientId = UUID.randomUUID()
+        def fileId = UUID.randomUUID()
         def duration = 150L
 
-        def fileResource = new FileResource()
-        fileResource.setId(UUID.randomUUID())
-        fileResource.setOriginalName(originalName)
-        fileResource.setSize(2048L)
-        fileResource.setStorageType(StorageType.LOCAL)
-        fileResource.setStatus(FileStatus.NORMAL)
-        fileResource.setClientId(clientId)
+        def existingResource = new FileResource()
+        existingResource.setId(fileId)
+        existingResource.setOriginalName(originalName)
+        existingResource.setSize(1024L)
+        existingResource.setStorageType(StorageType.LOCAL)
+        existingResource.setStatus(FileStatus.UPLOADING)
+        existingResource.setUploadTime(LocalDateTime.now())
+        existingResource.setExtension("mp4")
+
+        def updatedResource = new FileResource()
+        updatedResource.setId(fileId)
+        updatedResource.setOriginalName(originalName)
+        updatedResource.setSize(2048L)
+        updatedResource.setStorageType(StorageType.LOCAL)
+        updatedResource.setStatus(FileStatus.NORMAL)
+        updatedResource.setStoragePath("2025/04/25/" + UUID.randomUUID().toString() + ".mp4")
+        updatedResource.setHash("merged_hash")
+        updatedResource.setExtension("mp4")
 
         def mediaResource = new MediaFileResource()
         mediaResource.setDuration(150.0f)
+        mediaResource.setFile(existingResource)
 
         def fileUploadResponse = new FileUploadResponse()
+        fileUploadResponse.setId(fileId)
 
         and:
         fileStorageService.baseDir = Paths.get(System.getProperty("java.io.tmpdir"))
@@ -365,16 +457,35 @@ class FileStorageServiceSpec extends Specification {
         Files.createFile(sessionDir.resolve("00002.part"))
 
         and:
-        storageStrategy.storeMergedFile(fileHash, originalName, clientId, duration, _) >> fileResource
-        repository.save(fileResource) >> fileResource
-        mediaFileResourceRepository.save(mediaResource) >> mediaResource
-        fileMapper.toDTOMedia(fileResource, mediaResource) >> fileUploadResponse
+        repository.findById(fileId) >> Optional.of(existingResource)
+        storageStrategy.storeMergedFile(fileHash, originalName, fileId, duration, _) >> updatedResource
+        repository.save(_) >> { FileResource fr -> 
+            fr.setId(fileId)
+            fr.setStatus(FileStatus.NORMAL)
+            fr.setUploadTime(existingResource.getUploadTime())
+            return fr
+        }
+        mediaFileResourceRepository.findByFileId(fileId) >> null
+        mediaFileResourceRepository.save(_) >> mediaResource
+        fileMapper.toDTOMedia(_, _) >> fileUploadResponse
 
         when:
-        def result = fileStorageService.mergeChunks(fileHash, originalName, clientId, duration)
+        def result = fileStorageService.mergeChunks(fileHash, originalName, fileId, duration)
 
         then:
         result == fileUploadResponse
+        result.getId() == fileId
+        1 * repository.findById(fileId)
+        1 * storageStrategy.storeMergedFile(fileHash, originalName, fileId, duration, _)
+        1 * repository.save({ FileResource fr ->
+            fr.getId() == fileId &&
+            fr.getStatus() == FileStatus.NORMAL
+        })
+        1 * mediaFileResourceRepository.save({ MediaFileResource mr ->
+            mr.getFile().getId() == fileId &&
+            mr.getDuration() == 150.0f
+        })
+        1 * fileMapper.toDTOMedia(_, _)
 
         cleanup:
         Files.deleteIfExists(sessionDir.resolve("00001.part"))
@@ -386,18 +497,30 @@ class FileStorageServiceSpec extends Specification {
         given:
         def fileHash = "abc123"
         def originalName = "merged.txt"
-        def clientId = UUID.randomUUID()
+        def fileId = UUID.randomUUID()
         def duration = null
 
-        def fileResource = new FileResource()
-        fileResource.setId(UUID.randomUUID())
-        fileResource.setOriginalName(originalName)
-        fileResource.setSize(2048L)
-        fileResource.setStorageType(StorageType.LOCAL)
-        fileResource.setStatus(FileStatus.NORMAL)
-        fileResource.setClientId(clientId)
+        def existingResource = new FileResource()
+        existingResource.setId(fileId)
+        existingResource.setOriginalName(originalName)
+        existingResource.setSize(1024L)
+        existingResource.setStorageType(StorageType.LOCAL)
+        existingResource.setStatus(FileStatus.UPLOADING)
+        existingResource.setUploadTime(LocalDateTime.now())
+        existingResource.setExtension("txt")
+
+        def updatedResource = new FileResource()
+        updatedResource.setId(fileId)
+        updatedResource.setOriginalName(originalName)
+        updatedResource.setSize(2048L)
+        updatedResource.setStorageType(StorageType.LOCAL)
+        updatedResource.setStatus(FileStatus.NORMAL)
+        updatedResource.setStoragePath("2025/04/25/" + UUID.randomUUID().toString() + ".txt")
+        updatedResource.setHash("merged_hash")
+        updatedResource.setExtension("txt")
 
         def fileUploadResponse = new FileUploadResponse()
+        fileUploadResponse.setId(fileId)
 
         and:
         fileStorageService.baseDir = Paths.get(System.getProperty("java.io.tmpdir"))
@@ -410,19 +533,126 @@ class FileStorageServiceSpec extends Specification {
         Files.createFile(sessionDir.resolve("00002.part"))
 
         and:
-        storageStrategy.storeMergedFile(fileHash, originalName, clientId, duration, _) >> fileResource
-        repository.save(fileResource) >> fileResource
-        fileMapper.toDTO(fileResource) >> fileUploadResponse
+        repository.findById(fileId) >> Optional.of(existingResource)
+        storageStrategy.storeMergedFile(fileHash, originalName, fileId, duration, _) >> updatedResource
+        repository.save(_) >> { FileResource fr -> 
+            fr.setId(fileId)
+            fr.setStatus(FileStatus.NORMAL)
+            fr.setUploadTime(existingResource.getUploadTime())
+            return fr
+        }
+        mediaFileResourceRepository.findByFileId(fileId) >> null
+        fileMapper.toDTO(_) >> fileUploadResponse
 
         when:
-        def result = fileStorageService.mergeChunks(fileHash, originalName, clientId, duration)
+        def result = fileStorageService.mergeChunks(fileHash, originalName, fileId, duration)
 
         then:
         result == fileUploadResponse
+        result.getId() == fileId
+        1 * repository.findById(fileId)
+        1 * storageStrategy.storeMergedFile(fileHash, originalName, fileId, duration, _)
+        1 * repository.save({ FileResource fr ->
+            fr.getId() == fileId &&
+            fr.getStatus() == FileStatus.NORMAL
+        })
+        0 * mediaFileResourceRepository.save(_)
+        1 * fileMapper.toDTO(_)
 
         cleanup:
         Files.deleteIfExists(sessionDir.resolve("00001.part"))
         Files.deleteIfExists(sessionDir.resolve("00002.part"))
         Files.deleteIfExists(sessionDir)
+    }
+
+    def "getFileMeta should throw FileNotFoundException when file not exists"() {
+        given:
+        def fileId = UUID.randomUUID()
+        repository.findById(fileId) >> Optional.empty()
+
+        when:
+        fileStorageService.getFileMeta(fileId)
+
+        then:
+        def ex = thrown(FileNotFoundException)
+        ex.message.contains("File not found")
+        1 * repository.findById(fileId)
+        0 * mediaFileResourceRepository.findByFileId(_)
+        0 * fileMapper._(*_)
+    }
+
+    def "createFilePlaceholder should create file record and return response"() {
+        given:
+        def request = Mock(UploadFileRequest)
+        def fileId = UUID.randomUUID()
+        def fileName = "test.txt"
+        def fileSize = 1024L
+        
+        def fileResource = new FileResource()
+        fileResource.setId(fileId)
+        fileResource.setOriginalName(fileName)
+        fileResource.setSize(fileSize)
+        fileResource.setExtension("txt")
+        fileResource.setContentType("text/plain")
+        fileResource.setStatus(FileStatus.UPLOADING)
+        
+        def fileUploadResponse = new FileUploadResponse()
+        fileUploadResponse.setId(fileId)
+        
+        request.getFileName() >> fileName
+        request.getSize() >> fileSize
+        repository.save(_) >> fileResource
+        fileMapper.toDTO(fileResource) >> fileUploadResponse
+
+        when:
+        def result = fileStorageService.createFilePlaceholder(request)
+
+        then:
+        result.getId() != null
+        result.getFileStatus() == FileStatus.UPLOADING.name()
+        1 * repository.save({ FileResource fr ->
+            fr.getOriginalName() == fileName &&
+            fr.getSize() == fileSize &&
+            fr.getStatus() == FileStatus.UPLOADING
+        })
+        1 * fileMapper.toDTO(_)
+    }
+
+    def "loadFileAsBytes should return file content when file exists"() {
+        given:
+        def fileResource = new FileResource()
+        fileResource.setStoragePath("test.txt")
+        
+        and:
+        fileStorageService.baseDir = Paths.get(System.getProperty("java.io.tmpdir"))
+        def filePath = fileStorageService.baseDir.resolve("test.txt")
+        Files.createFile(filePath)
+        Files.write(filePath, "test content".bytes)
+
+        when:
+        def result = fileStorageService.loadFileAsBytes(fileResource)
+
+        then:
+        result != null
+        new String(result) == "test content"
+
+        cleanup:
+        Files.deleteIfExists(filePath)
+    }
+
+    def "loadFileAsBytes should throw FileNotFoundException when file not exists"() {
+        given:
+        def fileResource = new FileResource()
+        fileResource.setStoragePath("nonexistent.txt")
+        
+        and:
+        fileStorageService.baseDir = Paths.get(System.getProperty("java.io.tmpdir"))
+
+        when:
+        fileStorageService.loadFileAsBytes(fileResource)
+
+        then:
+        def ex = thrown(FileNotFoundException)
+        ex.message.contains("文件不存在或不可读")
     }
 }
