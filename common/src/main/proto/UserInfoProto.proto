@@ -16,7 +16,7 @@ message UserInfo{
   int64 userId  = 2 ;
 
   string eMail = 3;
-P
+
   string accessToken = 4;
 
   PlatformType platformType = 5 ;
