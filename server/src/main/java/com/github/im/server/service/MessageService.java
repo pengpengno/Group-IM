@@ -184,7 +184,6 @@ public class MessageService {
                 .build();
 
         final var newBaseMessage = BaseMessage.BaseMessagePkg.newBuilder()
-                .setPayloadCase(BaseMessage.BaseMessagePkg.PayloadCase.MESSAGE)
                 .setMessage(newChatMessage)
                 .build();
 

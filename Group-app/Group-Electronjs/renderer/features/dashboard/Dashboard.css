@@ -3,6 +3,7 @@
 
 :root {
     --sidebar-width: 260px;
+    --sidebar-collapsed-width: 80px;
     --bg-dark: #0c111b;
     --glass-white: rgba(255, 255, 255, 0.95);
     --glass-border: rgba(255, 255, 255, 0.3);
@@ -17,6 +18,9 @@
     font-family: 'Inter', -apple-system, sans-serif;
     overflow: hidden;
     position: relative;
+    padding: 24px;
+    /* Global padding for the floating look */
+    gap: 20px;
 }
 
 /* Base Background Spheres */
@@ -59,54 +63,72 @@
     height: 100%;
     background: rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(20px);
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    /* Rounded corners to match main */
     display: flex;
     flex-direction: column;
-    padding: 48px 24px 32px;
-    /* Increased top and side padding */
+    padding: 32px 16px;
     z-index: 10;
+    position: relative;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     -webkit-app-region: drag;
-    /* Allow window dragging from sidebar */
+}
+
+.sidebar-collapsed .dashboard-sidebar {
+    width: var(--sidebar-collapsed-width);
 }
 
 .sidebar-nav,
 .sidebar-footer,
 .user-profile-section {
     -webkit-app-region: no-drag;
-    /* Ensure interactive elements are clickable */
 }
 
 .user-profile-section {
     display: flex;
     align-items: center;
     gap: 16px;
-    margin-bottom: 48px;
+    margin-bottom: 40px;
     padding: 0 8px;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .user-avatar {
-    width: 52px;
-    height: 52px;
-    border-radius: 16px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 14px;
     background: var(--primary-gradient);
     color: white;
     display: flex;
     justify-content: center;
     align-items: center;
     font-weight: 800;
-    font-size: 20px;
-    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+    font-size: 18px;
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+}
+
+.sidebar-collapsed .user-profile-section {
+    justify-content: center;
+    padding: 0;
 }
 
 .user-info {
     display: flex;
     flex-direction: column;
+    opacity: 1;
+    transition: opacity 0.3s;
 }
 
 .user-name {
     color: white;
     font-weight: 700;
-    font-size: 16px;
+    font-size: 15px;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .user-status {
@@ -130,7 +152,7 @@
 .sidebar-nav {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     flex: 1;
 }
 
@@ -138,13 +160,24 @@
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 14px 18px;
-    border-radius: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
     color: #9ca3af;
     font-weight: 600;
-    font-size: 15px;
+    font-size: 14px;
     cursor: pointer;
     transition: all 0.3s;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sidebar-collapsed .nav-item {
+    justify-content: center;
+    padding: 12px;
+}
+
+.nav-item span {
+    transition: opacity 0.3s;
 }
 
 .nav-item:hover {
@@ -155,12 +188,13 @@
 .nav-item.active {
     background: var(--primary-gradient);
     color: white;
-    box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.4);
+    box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
 }
 
 .nav-icon {
     width: 20px;
     height: 20px;
+    min-width: 20px;
 }
 
 .sidebar-footer {
@@ -172,7 +206,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 14px;
+    padding: 12px;
     border-radius: 12px;
     background: rgba(239, 68, 68, 0.1);
     border: 1px solid rgba(239, 68, 68, 0.2);
@@ -180,6 +214,12 @@
     font-weight: 700;
     cursor: pointer;
     transition: all 0.3s;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sidebar-collapsed .logout-button {
+    justify-content: center;
 }
 
 .logout-button:hover {
@@ -193,10 +233,7 @@
     display: flex;
     flex-direction: column;
     background: var(--glass-white);
-    margin: 32px 24px 24px 0;
-    /* Increased top and right spacing */
     border-radius: 24px;
-    /* Slightly tighter radius for desktop balance */
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
     overflow: hidden;
     z-index: 5;
@@ -205,16 +242,13 @@
 }
 
 .dashboard-header {
-    height: 90px;
-    /* Increased height */
-    padding: 20px 40px 0;
-    /* Added top padding */
+    height: 80px;
+    padding: 10px 32px 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid #f3f4f6;
     -webkit-app-region: drag;
-    /* Allow window dragging from header */
 }
 
 .header-actions {
@@ -379,6 +413,82 @@
     animation: fade-in-up 0.5s ease-out;
 }
 
+.results-list {
+    margin-top: 12px;
+    background: white;
+    border-radius: 18px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    border: 1px solid #f3f4f6;
+    overflow: hidden;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.result-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    gap: 16px;
+    transition: all 0.2s;
+    cursor: pointer;
+    border-bottom: 1px solid #f9fafb;
+}
+
+.result-item:last-child {
+    border-bottom: none;
+}
+
+.result-item:hover {
+    background: #f8fafc;
+}
+
+.result-avatar {
+    width: 40px;
+    height: 40px;
+    background: var(--primary-gradient);
+    border-radius: 12px;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}
+
+.result-info {
+    flex: 1;
+}
+
+.result-name {
+    font-weight: 700;
+    color: #111827;
+    font-size: 14px;
+}
+
+.result-detail {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.call-action-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: none;
+    background: #eff6ff;
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.call-action-btn:hover {
+    background: #2563eb;
+    color: white;
+    transform: scale(1.05);
+}
+
 /* Chat View Layout Extensions */
 .chats-view-container {
     display: flex;
@@ -394,7 +504,7 @@
 
 .chat-room-area {
     flex: 1;
-    background: white;
+    background: transparent;
     display: flex;
     flex-direction: column;
 }
@@ -425,9 +535,7 @@
 /* Contacts View Extensions */
 .contacts-view-container {
     height: 100%;
-    background: white;
-    border-radius: 32px;
+    background: transparent;
     padding: 0;
     overflow: hidden;
-    border: 1px solid #f3f4f6;
 }

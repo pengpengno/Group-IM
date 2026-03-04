@@ -1,13 +1,13 @@
 .contacts-screen {
   height: 100%;
   display: flex;
-  background: #f8fafc;
+  background: transparent;
   overflow: hidden;
 }
 
 .contacts-sidebar {
   width: 260px;
-  background: white;
+  background: transparent;
   border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
@@ -59,7 +59,7 @@
 
 .contacts-main-content {
   flex: 1;
-  background: white;
+  background: transparent;
   position: relative;
 }
 

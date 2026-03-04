@@ -1,8 +1,10 @@
 .chat-room-premium {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background-color: white;
+  height: 100%;
+  /* Change from 100vh to 100% */
+  background: transparent;
+  /* Remove solid white */
   position: relative;
   overflow: hidden;
 }
@@ -107,7 +109,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 24px 32px;
-  background: #fbfbfb;
+  background: transparent;
   display: flex;
   flex-direction: column;
 }
@@ -232,7 +234,7 @@
 /* Input Bar Area */
 .message-input-bar {
   padding: 16px 32px 24px;
-  background: white;
+  background: transparent;
   border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 
