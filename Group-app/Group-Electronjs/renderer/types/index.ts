@@ -106,6 +106,7 @@ export interface MessageDTO {
   type: MessageType;
   timestamp: string;
   fromAccount?: ApiUser;
+  clientMsgId?: string;
 }
 
 export interface Message {

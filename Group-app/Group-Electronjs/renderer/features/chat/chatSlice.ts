@@ -56,14 +56,16 @@ export const sendMessageViaSocket = createAsyncThunk(
         content: string,
         type?: string,
         msgDto?: MessageDTO
-    }) => {
+    }, { getState }) => {
+        const state = getState() as any; // Using any to avoid circular import or complex type casting here
+        const currentUserId = state.auth.user?.userId;
+
         try {
             // 首先检查Socket是否连接
             const socketActive = await socketService.isActive();
 
             if (!socketActive) {
                 console.warn('Socket not active, falling back to HTTP');
-                // 降级到HTTP发送
                 const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
                 return response.data?.data || response.data;
             }
@@ -76,13 +78,20 @@ export const sendMessageViaSocket = createAsyncThunk(
 
             if (sendSuccess) {
                 console.log('Message sent via Socket successfully');
-                // 如果通过Socket发送成功，我们暂时还是通过HTTP补全消息状态或返回一个本地构造的消息
-                // 这里返回 msgDto 如果存在，否则通过 HTTP 同步一下
+                // 如果通过Socket发送成功，不再调用HTTP API，直接返回一个带有clientMsgId的乐观DTO
                 if (msgDto) {
-                    return msgDto;
+                    return { ...msgDto, clientMsgId: payload.message.clientMsgId };
                 }
-                const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
-                return response.data?.data || response.data;
+
+                return {
+                    msgId: -Date.now(), // 使用负数ID作为临时标识
+                    conversationId: conversationId,
+                    content: content,
+                    fromAccountId: Number(currentUserId),
+                    type: (type as any) || 'TEXT',
+                    timestamp: new Date().toISOString(),
+                    clientMsgId: payload.message.clientMsgId
+                } as MessageDTO;
             } else {
                 console.warn('Socket send failed, trying HTTP fallback');
                 const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
@@ -139,7 +148,19 @@ const chatSlice = createSlice({
             if (!state.messages[conversationId]) {
                 state.messages[conversationId] = [];
             }
-            state.messages[conversationId].push(action.payload);
+
+            // 去重逻辑：通过 msgId 或 clientMsgId 判断
+            const existingIndex = state.messages[conversationId].findIndex(m =>
+                (m.msgId === action.payload.msgId && m.msgId > 0) ||
+                (m.clientMsgId && action.payload.clientMsgId && m.clientMsgId === action.payload.clientMsgId)
+            );
+
+            if (existingIndex !== -1) {
+                // 更新现有消息（例如从临时状态变为服务器确认状态）
+                state.messages[conversationId][existingIndex] = action.payload;
+            } else {
+                state.messages[conversationId].push(action.payload);
+            }
         }
     },
     extraReducers: (builder) => {
@@ -164,7 +185,17 @@ const chatSlice = createSlice({
                 if (!state.messages[conversationId]) {
                     state.messages[conversationId] = [];
                 }
-                state.messages[conversationId].push(action.payload);
+
+                const existingIndex = state.messages[conversationId].findIndex(m =>
+                    (m.msgId === action.payload.msgId && m.msgId > 0) ||
+                    (m.clientMsgId && action.payload.clientMsgId && m.clientMsgId === action.payload.clientMsgId)
+                );
+
+                if (existingIndex !== -1) {
+                    state.messages[conversationId][existingIndex] = action.payload;
+                } else {
+                    state.messages[conversationId].push(action.payload);
+                }
             })
             .addCase(sendMessageViaSocket.pending, (state) => {
                 // Socket发送时不显示loading，保持UI响应性
@@ -174,7 +205,17 @@ const chatSlice = createSlice({
                 if (!state.messages[conversationId]) {
                     state.messages[conversationId] = [];
                 }
-                state.messages[conversationId].push(action.payload);
+
+                const existingIndex = state.messages[conversationId].findIndex(m =>
+                    (m.msgId === action.payload.msgId && m.msgId > 0) ||
+                    (m.clientMsgId && action.payload.clientMsgId && m.clientMsgId === action.payload.clientMsgId)
+                );
+
+                if (existingIndex !== -1) {
+                    state.messages[conversationId][existingIndex] = action.payload;
+                } else {
+                    state.messages[conversationId].push(action.payload);
+                }
             })
             .addCase(sendMessageViaSocket.rejected, (state, action) => {
                 state.error = action.error.message || '发送消息失败';

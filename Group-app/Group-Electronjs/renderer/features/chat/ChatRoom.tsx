@@ -203,7 +203,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
               };
               return (
                 <MessageBubble
-                  key={uiMsg.id}
+                  key={msg.clientMsgId || msg.msgId.toString()}
                   message={uiMsg}
                   isOwnMessage={msg.fromAccountId.toString() === user?.userId}
                 />

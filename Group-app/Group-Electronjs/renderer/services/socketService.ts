@@ -132,7 +132,8 @@ class SocketService {
             content: chatMsg.content,
             timestamp: chatMsg.serverTimeStamp || chatMsg.clientTimeStamp || Date.now(),
             conversationId: chatMsg.conversationId,
-            type: chatMsg.type === 'TEXT' ? 'TEXT' : chatMsg.type
+            type: chatMsg.type === 'TEXT' ? 'TEXT' : chatMsg.type,
+            clientMsgId: chatMsg.clientMsgId
           };
           this.store.dispatch(addMessage(messageDto));
         }
