@@ -2,8 +2,8 @@ package com.github.im.group.sdk
 
 import ProxyConfig
 import com.github.im.group.config.SocketClient
-import com.github.im.group.model.proto.BaseMessagePkg
-import com.github.im.group.model.proto.ChatMessage
+import com.github.im.common.connect.model.proto.BaseMessagePkg
+import com.github.im.common.connect.model.proto.ChatMessage
 import com.github.im.group.model.toUserInfo
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.viewmodel.LoginState

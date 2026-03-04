@@ -1,7 +1,7 @@
 package com.github.im.group.manager
 
 import com.github.im.group.model.MessageWrapper
-import com.github.im.group.model.proto.BaseMessagePkg
+import com.github.im.common.connect.model.proto.BaseMessagePkg
 
 /**
  * 消息路由接口

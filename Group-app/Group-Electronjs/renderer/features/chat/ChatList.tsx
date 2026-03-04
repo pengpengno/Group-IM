@@ -14,6 +14,8 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
   const { conversations, loading, activeConversationId } = useSelector((state: RootState) => state.chat);
   const { user } = useSelector((state: RootState) => state.auth);
 
+  const [searchQuery, setSearchQuery] = React.useState('');
+
   useEffect(() => {
     if (user?.userId) {
       dispatch(fetchConversations(user.userId));
@@ -24,23 +26,59 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
     dispatch(setActiveConversation(id));
   };
 
+  const filteredConversations = conversations.filter(item => {
+    const isGroup = item.conversation.type === 'GROUP';
+    const displayName = isGroup
+      ? item.conversation.groupName
+      : item.conversation.members.find((m: ApiUser) => m.userId.toString() !== user?.userId)?.username || '未知用户';
+    return displayName?.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
   if (loading && conversations.length === 0) {
-    return <div className="chat-list-loading">正在拉取会话...</div>;
+    return <div className="chat-list-loading">
+      <div className="spinner-small"></div>
+      正在同步会话...
+    </div>;
   }
 
   return (
     <div className="chat-list-container">
       <div className="chat-list-header">
-        <h2>最近会话</h2>
+        <div className="header-top">
+          <h2>消息</h2>
+          <div className="header-actions">
+            <button className="icon-btn" title="发起群聊">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14M5 12h14"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="search-bar">
+          <div className="search-input-wrapper">
+            <svg className="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              type="text"
+              placeholder="搜索联系人或群组..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="conversations-scroll">
-        {conversations.length === 0 ? (
+        {filteredConversations.length === 0 ? (
           <div className="empty-chats">
-            <p>暂无活跃会话</p>
+            <div className="empty-icon">💬</div>
+            <p>{searchQuery ? '未找到相关会话' : '暂无最近会话'}</p>
           </div>
         ) : (
-          conversations.map((item: ConversationDisplayState) => {
+          filteredConversations.map((item: ConversationDisplayState) => {
             const isGroup = item.conversation.type === 'GROUP';
             const displayName = isGroup
               ? item.conversation.groupName

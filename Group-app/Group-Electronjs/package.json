@@ -4,9 +4,9 @@
   "description": "跨平台IM即时通讯客户端 - Electron版",
   "main": "dist/main.js",
   "scripts": {
-    "start": "npm run build && electron .",
-    "dev": "npm run build && concurrently \"npm run build:main -- --watch\" \"npm run build:renderer -- --watch\" \"cross-env NODE_ENV=development electron .\"",
-    "build": "npm run build:main && npm run build:renderer",
+    "start": "npm run sync-protos && npm run build && electron .",
+    "dev": "npm run sync-protos && npm run build && concurrently \"npm run build:main -- --watch\" \"npm run build:renderer -- --watch\" \"cross-env NODE_ENV=development electron .\"",
+    "build": "npm run sync-protos && npm run build:main && npm run build:renderer",
     "build:main": "webpack --config webpack.config.js",
     "build:renderer": "webpack --config webpack.renderer.config.js",
     "dist": "electron-builder --dir",
@@ -17,7 +17,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "check-deps": "node scripts/install-deps.js",
     "install-all": "npm run check-deps",
-    "setup": "node scripts/install-deps.js"
+    "setup": "node scripts/install-deps.js",
+    "sync-protos": "node scripts/sync-protos.js && npm run generate-proto",
+    "generate-proto": "pbjs -t static-module -w commonjs -p protos -o main/generated/proto-bundle.js protos/BaseMessage.proto protos/Message.proto protos/Notification.proto protos/UserInfoProto.proto && pbts -o main/generated/proto-bundle.d.ts main/generated/proto-bundle.js"
   },
   "keywords": [
     "im",
@@ -42,6 +44,7 @@
     "express": "^4.18.2",
     "html-webpack-plugin": "^5.6.6",
     "nodemon": "^3.0.3",
+    "protobufjs-cli": "^1.1.2",
     "style-loader": "^3.3.4",
     "ts-loader": "^9.5.1",
     "typescript": "^5.3.3",
@@ -53,8 +56,11 @@
     "@reduxjs/toolkit": "^2.2.0",
     "axios": "^1.6.7",
     "form-data": "^4.0.0",
+    "long": "^5.2.3",
+    "protobufjs": "^7.2.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-redux": "^9.2.0",
     "socket.io-client": "^4.7.4",
     "ws": "^8.16.0"
   }

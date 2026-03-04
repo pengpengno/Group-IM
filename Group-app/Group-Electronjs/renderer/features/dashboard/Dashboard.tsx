@@ -258,7 +258,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                 {activeConversation ? (
                                     <ChatRoom
                                         conversation={activeConversation}
-                                        onBack={() => { }} // Could dispatch clear active conversation
                                     />
                                 ) : (
                                     <div className="empty-view-placeholder">

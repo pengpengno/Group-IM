@@ -8,6 +8,7 @@ import Dashboard from './features/dashboard/Dashboard';
 import Notification from './components/common/Notification';
 import { signalingService } from './services/signaling';
 import { webRTCManager } from './services/webrtc';
+import { socketService } from './services/socketService';
 import { store } from './store';
 
 const App: React.FC = () => {
@@ -21,8 +22,13 @@ const App: React.FC = () => {
       signalingService.initialize(store, user.userId);
       webRTCManager.initialize(store, user.userId);
 
+      // Initialize Socket connection
+      const token = localStorage.getItem('token') || '';
+      socketService.initialize(store, user.userId, 'localhost', 8088, token, user.username);
+
       return () => {
         signalingService.disconnect();
+        socketService.disconnect();
       };
     }
   }, [isAuthenticated, user]);

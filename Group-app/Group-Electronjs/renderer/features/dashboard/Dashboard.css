@@ -62,8 +62,18 @@
     border-right: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     flex-direction: column;
-    padding: 32px 20px;
+    padding: 48px 24px 32px;
+    /* Increased top and side padding */
     z-index: 10;
+    -webkit-app-region: drag;
+    /* Allow window dragging from sidebar */
+}
+
+.sidebar-nav,
+.sidebar-footer,
+.user-profile-section {
+    -webkit-app-region: no-drag;
+    /* Ensure interactive elements are clickable */
 }
 
 .user-profile-section {
@@ -183,22 +193,35 @@
     display: flex;
     flex-direction: column;
     background: var(--glass-white);
-    margin: 20px;
-    margin-left: 0;
-    border-radius: 32px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    margin: 32px 24px 24px 0;
+    /* Increased top and right spacing */
+    border-radius: 24px;
+    /* Slightly tighter radius for desktop balance */
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
     overflow: hidden;
     z-index: 5;
     position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .dashboard-header {
-    height: 80px;
-    padding: 0 40px;
+    height: 90px;
+    /* Increased height */
+    padding: 20px 40px 0;
+    /* Added top padding */
     display: flex;
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid #f3f4f6;
+    -webkit-app-region: drag;
+    /* Allow window dragging from header */
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+    -webkit-app-region: no-drag;
+    /* Ensure buttons are clickable */
 }
 
 .header-title h1 {
@@ -234,14 +257,14 @@
 
 .content-view {
     flex: 1;
-    padding: 40px;
-    overflow-y: auto;
+    overflow: hidden;
+    /* This should let the chat segments handle scroll */
 }
 
 /* Home View Layout */
 .home-view-container {
     max-width: 800px;
-    margin: 0 auto;
+    margin: 40px auto;
 }
 
 .welcome-hero-banner {
@@ -360,11 +383,10 @@
 .chats-view-container {
     display: flex;
     height: 100%;
-    gap: 24px;
 }
 
 .chats-list-sidebar {
-    width: 380px;
+    width: 320px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -373,10 +395,6 @@
 .chat-room-area {
     flex: 1;
     background: white;
-    border-radius: 32px;
-    overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
-    border: 1px solid #f3f4f6;
     display: flex;
     flex-direction: column;
 }

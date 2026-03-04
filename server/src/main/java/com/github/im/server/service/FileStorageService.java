@@ -81,8 +81,8 @@ public class FileStorageService {
 
     /**
      * 根据文件Id 获取文件的元信息数据
-     * @param fileID
-     * @return
+     * @param fileID 文件的 UUID
+     * @return 返回文件元数据信息
      * @throws FileNotFoundException
      */
 

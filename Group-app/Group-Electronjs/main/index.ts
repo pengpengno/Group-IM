@@ -9,25 +9,35 @@ let tray: Tray | null = null;
 import './ipc-handlers/auth-handler';
 import './ipc-handlers/file-handler';
 import './ipc-handlers/notification-handler';
+import { initializeSocketHandler } from './ipc-handlers/socket-handler';
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     height: 800,
+    width: 1200,
+    minWidth: 800,
+    minHeight: 600,
+    frame: false, // Remove native frame
+    titleBarStyle: 'hidden', // Hidden title bar
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
     resizable: true,
-    icon: path.join(__dirname, '../assets/icon.png'),
-    width: 1200,
-    minWidth: 800,
-    minHeight: 600
+    icon: path.join(__dirname, '../assets/icon.png')
   });
 
   // Load index.html from the same directory (dist)
   // In dev mode (concurrently), it's built to dist/index.html by HtmlWebpackPlugin
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
+
+  // Initialize Socket Handler
+  if (mainWindow) {
+    initializeSocketHandler(mainWindow).catch(err => {
+      console.error('Failed to initialize socket handler:', err);
+    });
+  }
 
   // Open dev tools in development
   if (process.env.NODE_ENV === 'development') {

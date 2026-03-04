@@ -19,7 +19,8 @@
         <module>common</module>
         <module>entity</module>
         <module>server</module>
-        <module>gui</module>
+<!--        不再使用 gluon javafx 实现客户端-->
+<!--        <module>gui</module>-->
     </modules>
 
     <properties>

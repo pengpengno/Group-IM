@@ -2,6 +2,7 @@ package com.github.im.server.controller;
 
 import com.github.im.dto.message.MessageDTO;
 import com.github.im.dto.message.MessagePayLoad;
+import com.github.im.dto.message.MessagePostRequest;
 import com.github.im.dto.message.MessagePullRequest;
 import com.github.im.dto.message.MessageSearchRequest;
 import com.github.im.server.model.User;
@@ -23,6 +24,14 @@ public class MessageController {
 
     private final MessageService messageService;
 
+    // 发送消息
+    @PostMapping("/send")
+    public ResponseEntity<MessageDTO<MessagePayLoad>> sendMessage(@RequestBody MessagePostRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User user = (User) authentication.getPrincipal();
+        return ResponseEntity.ok(messageService.sendMessage(request, user));
+    }
+
     // 根据信息Id 查询
     @GetMapping("/{msgId}")
     public ResponseEntity<MessageDTO<MessagePayLoad>> getMessageById(@PathVariable Long msgId) {
@@ -32,28 +41,27 @@ public class MessageController {
 
     // 拉取历史消息
     @PostMapping("/pull")
-    public ResponseEntity<PagedModel<MessageDTO<MessagePayLoad>>> pullHistoryMessages(@RequestBody MessagePullRequest request) {
+    public ResponseEntity<PagedModel<MessageDTO<MessagePayLoad>>> pullHistoryMessages(
+            @RequestBody MessagePullRequest request) {
 
-
-        Page<MessageDTO<MessagePayLoad>> messages = messageService.pullHistoryMessages(request );
+        Page<MessageDTO<MessagePayLoad>> messages = messageService.pullHistoryMessages(request);
 
         return ResponseEntity.ok(new PagedModel<>(messages));
     }
 
-
     // 标记消息为已读
     @PostMapping("/mark-as-read")
-    public ResponseEntity<Void> markAsRead(@RequestParam Long msgId ) {
+    public ResponseEntity<Void> markAsRead(@RequestParam Long msgId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Object principal = authentication.getPrincipal();
-        messageService.markAsRead(msgId,(User) principal);
+        messageService.markAsRead(msgId, (User) principal);
         return ResponseEntity.ok().build();
     }
 
     // 搜索消息
     @PostMapping("/search")
     public ResponseEntity<Page<MessageDTO<MessagePayLoad>>> searchMessages(@RequestBody MessageSearchRequest request,
-                                                                           @PageableDefault(size = 50) Pageable pageable) {
+            @PageableDefault(size = 50) Pageable pageable) {
         Page<MessageDTO<MessagePayLoad>> messages = messageService.searchMessages(request, pageable);
         return ResponseEntity.ok(messages);
     }

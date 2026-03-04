@@ -1,11 +1,11 @@
 package com.github.im.group.model
 
+import com.github.im.common.connect.model.proto.ChatMessage
 import com.github.im.group.api.FileMeta
 import com.github.im.group.api.MessageDTO
 import com.github.im.group.api.extraAs
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
-import com.github.im.group.model.proto.ChatMessage
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -140,7 +140,7 @@ data class MessageWrapper(
         }
 }
 
-fun accountInfoTransForm ( accountInfo: com.github.im.group.model.proto.UserInfo) : UserInfo{
+fun accountInfoTransForm ( accountInfo: com.github.im.common.connect.model.proto.UserInfo) : UserInfo{
     return UserInfo(
         accountInfo.userId,
         accountInfo.username,

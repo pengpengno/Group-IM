@@ -16,5 +16,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showNotification: (options: any) => ipcRenderer.invoke('show-notification', options),
   requestNotificationPermission: () => ipcRenderer.invoke('request-notification-permission'),
 
+  // Socket related
+  socketConnect: (config: any) => ipcRenderer.invoke('socket:connect', config),
+  socketSend: (dataBase64: string) => ipcRenderer.invoke('socket:send', dataBase64),
+  socketDisconnect: () => ipcRenderer.invoke('socket:disconnect'),
+  socketIsActive: () => ipcRenderer.invoke('socket:is-active'),
+  socketSendMessage: (payload: any) => ipcRenderer.invoke('socket:send-message', payload),
+
+  // Socket events
+  onSocketMessage: (handler: (data: any) => void) => {
+    ipcRenderer.on('socket:message', (_, data) => handler(data));
+  },
+  onSocketConnected: (handler: () => void) => {
+    ipcRenderer.on('socket:connected', () => handler());
+  },
+  onSocketDisconnected: (handler: () => void) => {
+    ipcRenderer.on('socket:disconnected', () => handler());
+  },
+  onSocketError: (handler: (error: any) => void) => {
+    ipcRenderer.on('socket:error', (_, error) => handler(error));
+  },
+  onSocketReconnecting: (handler: (data: any) => void) => {
+    ipcRenderer.on('socket:reconnecting', (_, data) => handler(data));
+  },
+
   // Other APIs could go here...
 });

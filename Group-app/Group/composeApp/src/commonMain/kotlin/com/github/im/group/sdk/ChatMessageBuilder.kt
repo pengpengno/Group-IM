@@ -1,9 +1,9 @@
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.UploadFileRequest
 import com.github.im.group.manager.FileTypeDetector
-import com.github.im.group.model.proto.ChatMessage
-import com.github.im.group.model.proto.MessageType
-import com.github.im.group.model.proto.MessagesStatus
+import com.github.im.common.connect.model.proto.ChatMessage
+import com.github.im.common.connect.model.proto.MessageType
+import com.github.im.common.connect.model.proto.MessagesStatus
 import com.github.im.group.model.toUserInfo
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.viewmodel.LoginState
@@ -80,7 +80,7 @@ class ChatMessageBuilderImpl(
             return ChatMessage(
                 content = messageContent,
                 conversationId = conversationId,
-                fromUser = com.github.im.group.model.proto.UserInfo(
+                fromUser = com.github.im.common.connect.model.proto.UserInfo(
                     userId = 0L,
                     username = "Unknown",
                     eMail = ""
@@ -112,7 +112,7 @@ class ChatMessageBuilderImpl(
      * - Authenticating: 尝试从本地存储获取
      * - 其他状态: 返回null并记录日志
      */
-    private suspend fun getUserInfoSafely(): com.github.im.group.model.proto.UserInfo? {
+    private suspend fun getUserInfoSafely(): com.github.im.common.connect.model.proto.UserInfo? {
         return try {
             val loginState = userRepository.userState.value
             

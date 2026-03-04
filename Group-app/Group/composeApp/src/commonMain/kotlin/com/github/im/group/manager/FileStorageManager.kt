@@ -3,7 +3,7 @@ package com.github.im.group.manager
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.FileMeta
 import com.github.im.group.db.entities.FileStatus
-import com.github.im.group.model.proto.MessageType
+import com.github.im.common.connect.model.proto.MessageType
 import com.github.im.group.repository.FilesRepository
 import com.github.im.group.sdk.File
 import com.github.im.group.sdk.FileData

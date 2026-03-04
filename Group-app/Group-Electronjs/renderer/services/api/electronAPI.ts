@@ -38,6 +38,20 @@ export interface ElectronAPI {
   // 通知相关
   showNotification: (title: string, body: string) => void;
 
+  // Socket相关
+  socketConnect: (config: { host: string; port: number; userId: string; token: string; username: string }) => Promise<any>;
+  socketSend: (dataBase64: string) => Promise<any>;
+  socketDisconnect: () => Promise<any>;
+  socketIsActive: () => Promise<any>;
+  socketSendMessage: (payload: any) => Promise<any>;
+
+  // Socket事件监听
+  onSocketMessage?: (handler: (data: any) => void) => void;
+  onSocketConnected?: (handler: () => void) => void;
+  onSocketDisconnected?: (handler: () => void) => void;
+  onSocketError?: (handler: (error: any) => void) => void;
+  onSocketReconnecting?: (handler: (data: any) => void) => void;
+
   // 系统相关
   getVersion: () => Promise<string>;
   getPath: (name: string) => Promise<string>;
@@ -153,6 +167,27 @@ const webAPI: ElectronAPI = {
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification(title, { body });
     }
+  },
+
+  // Socket相关 - Web环境下的实现为空或返回错误
+  socketConnect: async (config: { host: string; port: number; userId: string; token: string; username: string }) => {
+    throw new Error('Socket not supported in web environment');
+  },
+
+  socketSend: async (dataBase64: string) => {
+    throw new Error('Socket not supported in web environment');
+  },
+
+  socketDisconnect: async () => {
+    throw new Error('Socket not supported in web environment');
+  },
+
+  socketIsActive: async () => {
+    return { active: false };
+  },
+
+  socketSendMessage: async (payload: any) => {
+    throw new Error('Socket not supported in web environment');
   },
 
   getVersion: async () => '1.0.0-web',

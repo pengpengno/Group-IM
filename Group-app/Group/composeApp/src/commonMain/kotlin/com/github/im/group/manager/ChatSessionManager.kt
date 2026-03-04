@@ -1,8 +1,8 @@
 package com.github.im.group.manager
 
 import com.github.im.group.model.MessageWrapper
-import com.github.im.group.model.proto.BaseMessagePkg
-import com.github.im.group.model.proto.ChatMessage
+import com.github.im.common.connect.model.proto.BaseMessagePkg
+import com.github.im.common.connect.model.proto.ChatMessage
 import com.github.im.group.repository.ChatMessageRepository
 import io.github.aakira.napier.Napier
 

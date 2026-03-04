@@ -3,12 +3,17 @@ package com.github.im.server.service;
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.dto.message.*;
 import com.github.im.enums.MessageStatus;
+import com.github.im.enums.MessageType;
 import com.github.im.server.mapstruct.MessageMapper;
 import com.github.im.server.model.Conversation;
 import com.github.im.server.model.Message;
 import com.github.im.server.model.User;
 import com.github.im.server.repository.MessageRepository;
 import com.github.im.server.utils.EnumsTransUtil;
+import com.github.im.common.connect.connection.ReactiveConnectionManager;
+import com.github.im.common.connect.connection.server.BindAttr;
+import com.github.im.common.connect.model.proto.BaseMessage;
+import com.github.im.dto.user.UserInfo;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Predicate;
@@ -36,13 +41,14 @@ import java.util.UUID;
 public class MessageService {
 
     private final MessageRepository messageRepository;
-    
+
     private final MessageMapper messageMapper;
 
     private final FileStorageService fileStorageService;
 
-
     private final ConversationSequenceService conversationSequenceService;
+
+    private final ConversationService conversationService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -51,7 +57,7 @@ public class MessageService {
     public MessageDTO<MessagePayLoad> getMessageById(Long msgId) {
         return messageRepository.findById(msgId)
                 .map(this::convertMessage)
-                .orElseThrow(()-> new IllegalStateException("消息不存在"));
+                .orElseThrow(() -> new IllegalStateException("消息不存在"));
     }
 
     // 拉取历史消息
@@ -66,9 +72,8 @@ public class MessageService {
                 request.getPage(),
                 request.getSize(),
                 Sort.by(Optional.ofNullable(request.getSort())
-                        .orElse("createTime")).descending()
-        );
-          return messageRepository.findAll((root, query, cb) -> {
+                        .orElse("createTime")).descending());
+        return messageRepository.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("conversation").get("conversationId"), conversationId));
             if (startTime != null) {
@@ -78,21 +83,21 @@ public class MessageService {
                 predicates.add(cb.lessThanOrEqualTo(root.get("timestamp"), endTime));
             }
             // 获取指定会话中指定时间段内指定序列之后的消息
-            if (fromSequenceId != null  ) {
-                if (fromSequenceId > 0L){
+            if (fromSequenceId != null) {
+                if (fromSequenceId > 0L) {
                     predicates.add(cb.greaterThan(root.get("sequenceId"), fromSequenceId));
-                }else {
+                } else {
                     // 如果传入的 fromSequenceId 为0L 则 获取该会话中 最新的条数据 不添加过滤条件
 
                 }
             }
             // 获取指定会话中指定时间段内指定序列之前的消息
-            if ( toSequenceId != null && toSequenceId > 0L) {
+            if (toSequenceId != null && toSequenceId > 0L) {
                 predicates.add(cb.lessThan(root.get("sequenceId"), toSequenceId));
             }
-          return cb.and(predicates.toArray(new Predicate[0]));
+            return cb.and(predicates.toArray(new Predicate[0]));
         }, pageable)
-        .map(this::convertMessage);
+                .map(this::convertMessage);
     }
 
     // 搜索消息
@@ -103,7 +108,7 @@ public class MessageService {
 
     // 标记消息为已读
     @Transactional
-    public void markAsRead(Long msgId,User user) {
+    public void markAsRead(Long msgId, User user) {
         messageRepository.findById(msgId).ifPresent(message -> {
             message.setStatus(MessageStatus.READ);
             messageRepository.save(message);
@@ -117,33 +122,100 @@ public class MessageService {
         message.setConversation(proxy);
         message.setContent(chatMessage.getContent());
         message.setClientMsgId(chatMessage.getClientMsgId());
-        var userProxy = entityManager.getReference(User.class,chatMessage.getFromUser().getUserId());
+        var userProxy = entityManager.getReference(User.class, chatMessage.getFromUser().getUserId());
         // 生成 会话中的消息序列
         message.setSequenceId(conversationSequenceService.nextSequence(chatMessage.getConversationId()));
         message.setFromAccountId(userProxy);
         message.setType(EnumsTransUtil.convertMessageType(chatMessage.getType()));
-        if(chatMessage.getMessagesStatus() == Chat.MessagesStatus.SENDING){
+        if (chatMessage.getMessagesStatus() == Chat.MessagesStatus.SENDING) {
             message.setStatus(MessageStatus.SENT);
-        }else{
+        } else {
             message.setStatus(EnumsTransUtil.convertMessageStatus(chatMessage.getMessagesStatus()));
         }
         long clientTimeStamp = chatMessage.getClientTimeStamp();
-        if(clientTimeStamp == 0L){
+        if (clientTimeStamp == 0L) {
             clientTimeStamp = System.currentTimeMillis();
         }
         // 时间戳转为日期
-        message.setClientTimestamp(LocalDateTime.ofInstant(Instant.ofEpochMilli(clientTimeStamp), ZoneId.systemDefault()));
+        message.setClientTimestamp(
+                LocalDateTime.ofInstant(Instant.ofEpochMilli(clientTimeStamp), ZoneId.systemDefault()));
         message.setTimestamp(LocalDateTime.now());
         return messageRepository.save(message);
     }
 
     /**
+     * 处理 HTTP 发送的消息
+     */
+    @Transactional
+    public MessageDTO<MessagePayLoad> sendMessage(MessagePostRequest request, User sender) {
+        // 将 HTTP 请求转为 Protobuf 对象，保持内部逻辑一致
+        Chat.ChatMessage chatMessage = Chat.ChatMessage.newBuilder()
+                .setConversationId(request.getConversationId())
+                .setContent(request.getContent())
+                .setType(EnumsTransUtil
+                        .convertMessageType(request.getType() != null ? request.getType() : MessageType.TEXT))
+                .setClientMsgId(
+                        request.getClientMsgId() != null ? request.getClientMsgId() : UUID.randomUUID().toString())
+                .setFromUser(com.github.im.common.connect.model.proto.User.UserInfo.newBuilder()
+                        .setUserId(sender.getUserId())
+                        .setUsername(sender.getUsername())
+                        .build())
+                .setClientTimeStamp(System.currentTimeMillis())
+                .build();
+
+        return handleMessage(chatMessage);
+    }
+
+    /**
+     * 统一处理消息：保存并推送
+     */
+    @Transactional
+    public MessageDTO<MessagePayLoad> handleMessage(Chat.ChatMessage chatMessage) {
+        // 1. 保存到数据库
+        Message savedMessage = saveMessage(chatMessage);
+
+        // 2. 构造推送到各个客户端的 BaseMessagePkg
+        long epochMilli = savedMessage.getTimestamp().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        final var newChatMessage = Chat.ChatMessage.newBuilder(chatMessage)
+                .setSequenceId(savedMessage.getSequenceId())
+                .setServerTimeStamp(epochMilli)
+                .setMsgId(savedMessage.getMsgId())
+                .setMessagesStatus(EnumsTransUtil.convertMessageStatus(savedMessage.getStatus()))
+                .build();
+
+        final var newBaseMessage = BaseMessage.BaseMessagePkg.newBuilder()
+                .setPayloadCase(BaseMessage.BaseMessagePkg.PayloadCase.MESSAGE)
+                .setMessage(newChatMessage)
+                .build();
+
+        // 3. 异步推送到在线客户端
+        pushToMembers(chatMessage.getConversationId(), newBaseMessage);
+
+        return convertMessage(savedMessage);
+    }
+
+    /**
+     * 推送消息给会话中的所有成员
+     */
+    public void pushToMembers(Long conversationId, BaseMessage.BaseMessagePkg pushPkg) {
+        var membersByGroupId = conversationService.getMembersByGroupId(conversationId);
+        if (membersByGroupId != null) {
+            membersByGroupId.parallelStream().forEach(member -> {
+                var bindAttr = BindAttr.getBindAttrForPush(member.getUsername());
+                log.debug("Pushing message to user: {}", member.getUsername());
+                ReactiveConnectionManager.addBaseMessage(bindAttr, pushPkg);
+            });
+        }
+    }
+
+    /**
      * message.getContent()
      * <ul>
-     *     <li>TEXT: 纯文本</li>
-     *     <li>FILE: 文件  内容为 文件UUid</li>
+     * <li>TEXT: 纯文本</li>
+     * <li>FILE: 文件 内容为 文件UUid</li>
      * </ul>
      * 出现一场无法解析 获取文件/ 音频内容资源时候，直接返回原始Content
+     * 
      * @param message
      * @return 返回给到前台战士 的 MessageDto
      */
@@ -153,8 +225,8 @@ public class MessageService {
         var type = message.getType();
 
         MessageDTO<MessagePayLoad> dto = messageMapper.toDTO(message);
-        try{
-            switch(type) {
+        try {
+            switch (type) {
                 case TEXT:
                     dto.setPayload(new DefaultMessagePayLoad(message.getContent()));
                     return dto;
@@ -171,7 +243,7 @@ public class MessageService {
                     return messageMapper.toDTO(message);
             }
         } catch (Exception e) {
-            log.error("error message format ",e);
+            log.error("error message format ", e);
         }
         dto.setPayload(new DefaultMessagePayLoad(message.getContent()));
         return dto;

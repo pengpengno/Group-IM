@@ -19,8 +19,8 @@ data class UserInfo(
 /**
  * 转换为Protobuf格式
  */
-fun UserInfo.toUserInfo(): com.github.im.group.model.proto.UserInfo {
-    return com.github.im.group.model.proto.UserInfo(
+fun UserInfo.toUserInfo(): com.github.im.common.connect.model.proto.UserInfo {
+    return com.github.im.common.connect.model.proto.UserInfo(
         userId = userId,
         username = username,
         eMail = email,

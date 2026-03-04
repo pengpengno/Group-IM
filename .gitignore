@@ -57,3 +57,5 @@ build/
 /Group-app/node_modules/
 /Group-app/Group-Electronjs/node_modules/
 /Group-app/.idea/androidTestResultsUserPreferences.xml
+/Group-app/Group-Electronjs/protos/UserInfoProto.proto
+/Group-app/Group-Electronjs/protos/**

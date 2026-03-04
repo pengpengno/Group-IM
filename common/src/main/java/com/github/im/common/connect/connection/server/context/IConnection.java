@@ -9,7 +9,7 @@ import reactor.netty.Connection;
 /**
  * 服务端使用的 connection 抽象接口
  * @author pengpeng
- * @description
+ * @description 用于服务端使用的 connection 抽象接口
  * @date 2023/3/3
  */
 public interface IConnection {

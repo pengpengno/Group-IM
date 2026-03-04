@@ -241,16 +241,12 @@ kotlin {
     }
 }
 wire {
+    sourcePath {
+        srcDir("../../../common/src/main/proto")
+    }
     kotlin {
-//        val androidMain by getting{
-//            android = false
-//            javaInterop = false
-//            out = "src/generated/kotlin"
-//        }
-
         android = false
         javaInterop = false
-//        out = "src/generated/kotlin"
     }
 }
 

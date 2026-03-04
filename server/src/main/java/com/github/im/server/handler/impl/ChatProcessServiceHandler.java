@@ -29,7 +29,6 @@ import java.util.Optional;
 @Slf4j
 public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
 
-    private final ConversationService conversationService;
     private final MessageService messageService;
     private final CompanyUserService companyUserService;
     private final CompanyService companyService;
@@ -44,7 +43,7 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
         final var chatMessage = message.getMessage();
         final var clientMsgId = chatMessage.getClientMsgId();
         if (clientMsgId.isEmpty()) {
-            // 不存在直接返回  ，打印数据信息日志
+            // 不存在直接返回 ，打印数据信息日志
             log.error("消息 {} 的 clientMsgId 为空 payload {}", chatMessage.getMsgId(), chatMessage);
             return;
         }
@@ -63,40 +62,7 @@ public class ChatProcessServiceHandler implements ProtoBufProcessHandler {
 
         // 使用响应式方式处理消息保存和推送
         SchemaSwitcher.executeInSchema(schemaName, () -> {
-            // 保存消息
-            var saveMessage = messageService.saveMessage(chatMessage);
-            var sequenceId = saveMessage.getSequenceId();
-            val msgId = saveMessage.getMsgId();
-            // 复制一份 用于推送到各个客户端
-            var epochMilli = saveMessage.getTimestamp().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            final var newChatMessage = Chat.ChatMessage.newBuilder(chatMessage)
-                    .setSequenceId(sequenceId)
-                    .setFromUser(com.github.im.common.connect.model.proto.User.UserInfo.newBuilder(fromAccountInfo).setAccessToken("").build())
-                    .setServerTimeStamp(epochMilli)
-                    .setMsgId(msgId)
-                    .setMessagesStatus(EnumsTransUtil.convertMessageStatus(saveMessage.getStatus()))
-                    .build();
-
-            final var newBaseMessage = BaseMessage.BaseMessagePkg.newBuilder(message)
-                    .setMessage(newChatMessage)
-                    .build();
-
-            var conversationId = chatMessage.getConversationId();
-            
-            // 在同一个schema上下文中获取会话成员
-            var membersByGroupId = conversationService.getMembersByGroupId(conversationId);
-
-            Optional.ofNullable(membersByGroupId)
-                .ifPresent(members -> {
-                    members.parallelStream()
-//                        .filter(e-> !Objects.equals(e.getUsername(), fromAccountInfo.getAccount()))
-                        .forEach(member -> {
-                            var bindAttr = BindAttr.getBindAttrForPush(member.getUsername());
-                            ReactiveConnectionManager.addBaseMessage(bindAttr, newBaseMessage);
-                        });
-                });
-
-            return saveMessage; // 返回值，但在这里我们不使用它
+            return messageService.handleMessage(chatMessage);
         });
     }
 
