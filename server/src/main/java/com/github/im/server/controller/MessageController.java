@@ -14,6 +14,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,9 +27,9 @@ public class MessageController {
 
     // 发送消息
     @PostMapping("/send")
-    public ResponseEntity<MessageDTO<MessagePayLoad>> sendMessage(@RequestBody MessagePostRequest request) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        User user = (User) authentication.getPrincipal();
+
+    public ResponseEntity<MessageDTO<MessagePayLoad>> sendMessage(@RequestBody MessagePostRequest request,
+                                                                  @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(messageService.sendMessage(request, user));
     }
 

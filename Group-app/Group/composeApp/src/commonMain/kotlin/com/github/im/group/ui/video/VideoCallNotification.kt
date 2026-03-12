@@ -2,114 +2,114 @@ package com.github.im.group.ui.video
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
-import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.github.im.group.model.UserInfo
+import com.github.im.group.ui.UserAvatar
 
-/**
- * 视频通话来电通知组件
- */
+/** 视频通话来电通知组件 (Incoming Video Call) */
 @Composable
 fun VideoCallIncomingNotification(
-    caller: UserInfo,
-    onAccept: () -> Unit,
-    onReject: () -> Unit,
-    onSwipeToReject: () -> Unit = onReject,
-    onSwipeToAccept: () -> Unit = onAccept
+        caller: UserInfo,
+        onAccept: () -> Unit,
+        onReject: () -> Unit,
+        onSwipeToReject: () -> Unit = onReject,
+        onSwipeToAccept: () -> Unit = onAccept
 ) {
     Dialog(
-        onDismissRequest = onReject,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-//            decorFitsSystemWindows = false,
-            dismissOnBackPress = false,
-            dismissOnClickOutside = false
-        )
+            onDismissRequest = onReject,
+            properties =
+                    DialogProperties(
+                            usePlatformDefaultWidth = false,
+                            dismissOnBackPress = false,
+                            dismissOnClickOutside = false
+                    )
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.9f)),
-            contentAlignment = Alignment.Center
+                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.85f)),
+                contentAlignment = Alignment.Center
         ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .wrapContentHeight(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF1E1E1E)
-                )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
+            Column(
+                    modifier = Modifier.fillMaxWidth().padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // 来电标题
-                    Text(
-                        text = "视频通话",
-                        color = Color.White,
-                        style = MaterialTheme.typography.headlineMedium
-                    )
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // 来电人信息
-                    Text(
+            ) {
+                // Caller Avatar
+                UserAvatar(username = caller.username, size = 120)
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
                         text = caller.username,
                         color = Color.White,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    // 操作按钮
-                    Row(
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                        text = "邀请你进行视频通话...",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Normal
+                )
+
+                Spacer(modifier = Modifier.height(64.dp))
+
+                // Action Buttons
+                Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        // 拒绝按钮
-                        Button(
-                            onClick = onReject,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.Red
-                            ),
-                            modifier = Modifier.size(72.dp),
-                            shape = RoundedCornerShape(36.dp)
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Reject Button
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        FloatingActionButton(
+                                onClick = onReject,
+                                containerColor = Color(0xFFFF3B30),
+                                contentColor = Color.White,
+                                shape = CircleShape,
+                                modifier = Modifier.size(72.dp)
                         ) {
                             Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Default.CallEnd,
-                                contentDescription = "拒绝",
-                                tint = Color.White
+                                    imageVector = Icons.Default.CallEnd,
+                                    contentDescription = "拒绝",
+                                    modifier = Modifier.size(32.dp)
                             )
                         }
-                        
-                        // 接听按钮
-                        Button(
-                            onClick = onAccept,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.Green
-                            ),
-                            modifier = Modifier.size(72.dp),
-                            shape = RoundedCornerShape(36.dp)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("拒绝", color = Color.White, fontSize = 14.sp)
+                    }
+
+                    // Accept Button
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        FloatingActionButton(
+                                onClick = onAccept,
+                                containerColor = Color(0xFF34C759),
+                                contentColor = Color.White,
+                                shape = CircleShape,
+                                modifier = Modifier.size(72.dp)
                         ) {
                             Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Default.VideoCall,
-                                contentDescription = "接听",
-                                tint = Color.White
+                                    imageVector = Icons.Default.Call,
+                                    contentDescription = "接听",
+                                    modifier = Modifier.size(32.dp)
                             )
                         }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("接听", color = Color.White, fontSize = 14.sp)
                     }
                 }
             }
@@ -117,79 +117,66 @@ fun VideoCallIncomingNotification(
     }
 }
 
-/**
- * 视频通话拨出通知组件
- */
+/** 视频通话拨出通知组件 (Outgoing Video Call) */
 @Composable
-fun VideoCallOutgoingNotification(
-    callee: UserInfo,
-    onCancel: () -> Unit
-) {
+fun VideoCallOutgoingNotification(callee: UserInfo, onCancel: () -> Unit) {
     Dialog(
-        onDismissRequest = onCancel,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-//            decorFitsSystemWindows = false,
-            dismissOnBackPress = false,
-            dismissOnClickOutside = false
-        )
+            onDismissRequest = onCancel,
+            properties =
+                    DialogProperties(
+                            usePlatformDefaultWidth = false,
+                            dismissOnBackPress = false,
+                            dismissOnClickOutside = false
+                    )
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.9f)),
-            contentAlignment = Alignment.Center
+                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.85f)),
+                contentAlignment = Alignment.Center
         ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .wrapContentHeight(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF1E1E1E)
-                )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
+            Column(
+                    modifier = Modifier.fillMaxWidth().padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // 拨出标题
-                    Text(
-                        text = "正在拨打视频通话",
-                        color = Color.White,
-                        style = MaterialTheme.typography.headlineMedium
-                    )
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // 被叫人信息
-                    Text(
+            ) {
+                // Callee Avatar
+                UserAvatar(username = callee.username, size = 120)
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
                         text = callee.username,
                         color = Color.White,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // 连接状态
-                    CircularProgressIndicator(
-                        color = Color.Cyan,
-                        strokeWidth = 4.dp
-                    )
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    // 取消按钮
-                    Button(
-                        onClick = onCancel,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Red
-                        )
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                        text = "正在呼叫...",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Normal
+                )
+
+                Spacer(modifier = Modifier.height(64.dp))
+
+                // Cancel Button
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    FloatingActionButton(
+                            onClick = onCancel,
+                            containerColor = Color(0xFFFF3B30),
+                            contentColor = Color.White,
+                            shape = CircleShape,
+                            modifier = Modifier.size(72.dp)
                     ) {
-                        Text("取消")
+                        Icon(
+                                imageVector = Icons.Default.CallEnd,
+                                contentDescription = "取消呼叫",
+                                modifier = Modifier.size(32.dp)
+                        )
                     }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("取消", color = Color.White, fontSize = 14.sp)
                 }
             }
         }

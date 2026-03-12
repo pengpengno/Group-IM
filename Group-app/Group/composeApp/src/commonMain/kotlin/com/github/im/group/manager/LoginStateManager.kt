@@ -43,6 +43,7 @@ class UserDataSyncListener(private val userRepository: UserRepository) : LoginSt
 
     override fun onStateChanged() {
         // 状态变化时可以执行一些通用操作
+
     }
 }
 

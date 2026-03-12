@@ -16,7 +16,7 @@ export enum VideoCallStatus {
 export interface VideoCallState {
     callStatus: VideoCallStatus;
     callId: string | null;
-    caller: User | null;
+    remoteUser: User | null;
     participants: User[];
     startTime: number | null;
     isMuted: boolean;
@@ -25,12 +25,18 @@ export interface VideoCallState {
     errorMessage: string | null;
     localStreamId: string | null;
     remoteStreamId: string | null;
+    // Additional UI state fields for compatibility
+    isMicrophoneEnabled: boolean;
+    isSpeakerEnabled: boolean;
+    isLocalVideoEnabled: boolean;
+    isRemoteVideoEnabled: boolean;
+    duration: number;
 }
 
 const initialState: VideoCallState = {
     callStatus: VideoCallStatus.IDLE,
     callId: null,
-    caller: null,
+    remoteUser: null,
     participants: [],
     startTime: null,
     isMuted: false,
@@ -38,25 +44,32 @@ const initialState: VideoCallState = {
     isMinimized: false,
     errorMessage: null,
     localStreamId: null,
-    remoteStreamId: null
+    remoteStreamId: null,
+    // UI state defaults
+    isMicrophoneEnabled: true,
+    isSpeakerEnabled: true,
+    isLocalVideoEnabled: true,
+    isRemoteVideoEnabled: true,
+    duration: 0
 };
 
 const videoCallSlice = createSlice({
     name: 'videoCall',
     initialState,
     reducers: {
-        initiateCall(state, action: PayloadAction<{ callId: string; participants: User[] }>) {
+        initiateCall(state, action: PayloadAction<{ callId: string; remoteUser: User }>) {
             state.callStatus = VideoCallStatus.OUTGOING;
             state.callId = action.payload.callId;
-            state.participants = action.payload.participants;
+            state.remoteUser = action.payload.remoteUser;
+            state.participants = [action.payload.remoteUser];
             state.errorMessage = null;
         },
-        incomingCall(state, action: PayloadAction<{ callId: string; caller: User }>) {
+        incomingCall(state, action: PayloadAction<{ callId: string; remoteUser: User }>) {
             if (state.callStatus === VideoCallStatus.IDLE) {
                 state.callStatus = VideoCallStatus.INCOMING;
                 state.callId = action.payload.callId;
-                state.caller = action.payload.caller;
-                state.participants = [action.payload.caller];
+                state.remoteUser = action.payload.remoteUser;
+                state.participants = [action.payload.remoteUser];
                 state.errorMessage = null;
             }
         },
@@ -79,9 +92,11 @@ const videoCallSlice = createSlice({
         },
         toggleMute(state) {
             state.isMuted = !state.isMuted;
+            state.isMicrophoneEnabled = !state.isMuted; // sync mic state
         },
         toggleVideo(state) {
             state.isVideoEnabled = !state.isVideoEnabled;
+            state.isLocalVideoEnabled = state.isVideoEnabled; // sync video state
         },
         minimizeCall(state) {
             state.isMinimized = true;

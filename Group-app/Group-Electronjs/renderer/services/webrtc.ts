@@ -131,24 +131,31 @@ class WebRTCManager {
         });
     }
 
-    async acceptCall(remoteUserId: string) {
-        this.remoteUserId = remoteUserId;
+    async acceptCall(callId: string, remoteUserId?: string) {
+        if (remoteUserId) this.remoteUserId = remoteUserId;
         await this.startLocalStream();
         this.createPeerConnection();
 
         signalingService.sendMessage({
             type: 'call/accept',
             fromUser: this.userId,
-            toUser: remoteUserId
+            toUser: this.remoteUserId
         });
-
-        // Android: handleCallAccept -> createAndSendOffer.
-        // Wait, usually the Caller sends Offer.
-        // Doc: "为避免冲突：由 join 较晚的一方创建 offer" (To avoid conflict: the one joining later creates offer).
-        // Or simplified: Caller sends call/request. Callee sends call/accept.
-        // Upon receiving call/accept, Caller creates Offer.
-        // So here (Callee), we just send call/accept and wait for Offer.
     }
+
+    rejectCall(callId: string, remoteUserId?: string) {
+        signalingService.sendMessage({
+            type: 'call/end',
+            fromUser: this.userId,
+            toUser: remoteUserId || this.remoteUserId
+        });
+        this.endCall();
+    }      // Android: handleCallAccept -> createAndSendOffer.
+    // Wait, usually the Caller sends Offer.
+    // Doc: "为避免冲突：由 join 较晚的一方创建 offer" (To avoid conflict: the one joining later creates offer).
+    // Or simplified: Caller sends call/request. Callee sends call/accept.
+    // Upon receiving call/accept, Caller creates Offer.
+    // So here (Callee), we just send call/accept and wait for Offer.
 
     // Caller logic: receives call/accept, creates offer
     async handleCallAccepted(remoteUserId: string) {

@@ -17,6 +17,7 @@ import com.github.im.dto.user.UserInfo;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -125,6 +126,7 @@ public class MessageService {
         var userProxy = entityManager.getReference(User.class, chatMessage.getFromUser().getUserId());
         // 生成 会话中的消息序列
         message.setSequenceId(conversationSequenceService.nextSequence(chatMessage.getConversationId()));
+
         message.setFromAccountId(userProxy);
         message.setType(EnumsTransUtil.convertMessageType(chatMessage.getType()));
         if (chatMessage.getMessagesStatus() == Chat.MessagesStatus.SENDING) {
@@ -170,7 +172,14 @@ public class MessageService {
      * 统一处理消息：保存并推送
      */
     @Transactional
-    public MessageDTO<MessagePayLoad> handleMessage(Chat.ChatMessage chatMessage) {
+    public MessageDTO<MessagePayLoad> handleMessage(@NotNull  Chat.ChatMessage chatMessage) {
+        final var conversationId = chatMessage.getConversationId();
+        final var fromUser = chatMessage.getFromUser();
+        boolean fromUserIdEqualZero = fromUser.getUserId() == 0L;
+        if (fromUserIdEqualZero) {
+            throw new IllegalArgumentException("fromUserId cannot be zero");
+        }
+
         // 1. 保存到数据库
         Message savedMessage = saveMessage(chatMessage);
 

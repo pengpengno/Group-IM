@@ -98,11 +98,12 @@ class SignalingService {
             case 'call/request':
                 // Dispatch incoming call
                 this.store.dispatch(incomingCall({
-                    callId: `call-${Date.now()}`, // Generate a temporary call ID if not provided
-                    caller: {
+                    callId: `call-${Date.now()}`,
+                    remoteUser: {
                         userId: message.fromUser || '0',
                         username: `User ${message.fromUser}`,
-                        email: ''
+                        email: '',
+                        status: 'online'
                     }
                 }));
                 break;

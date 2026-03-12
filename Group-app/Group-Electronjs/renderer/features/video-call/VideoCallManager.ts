@@ -1,21 +1,29 @@
 import { EventEmitter } from 'events';
+import { VideoCallStatus } from './videoCallSlice';
 
-// Video call status enumeration
-export enum VideoCallStatus {
-  IDLE = 'idle',
-  OUTGOING = 'outgoing',
-  INCOMING = 'incoming',
-  CONNECTING = 'connecting',
-  ACTIVE = 'active',
-  ENDED = 'ended',
-  ERROR = 'error'
+// WebRTC 消息协议
+
+// WebRTC 消息协议
+export interface WebrtcMessage {
+  type: string;              // 消息类型: call/request, call/accept, call/end, offer, answer, candidate
+  fromUser?: string;         // 发送方用户ID
+  toUser?: string;           // 接收方用户ID
+  sdp?: string;              // SDP描述信息
+  sdpType?: string;          // SDP类型: offer/answer
+  candidate?: IceCandidateData; // ICE候选信息
+  reason?: string;           // 失败原因
 }
 
-// Video call state interface
+export interface IceCandidateData {
+  candidate: string;
+  sdpMid: string;
+  sdpMLineIndex: number;
+}
+
+// 视频通话状态
 export interface VideoCallState {
   callStatus: VideoCallStatus;
-  callerId?: string;
-  calleeId?: string;
+  remoteUserId?: string;
   callStartTime?: number;
   duration: number;
   isLocalVideoEnabled: boolean;
@@ -25,25 +33,20 @@ export interface VideoCallState {
   errorMessage?: string;
 }
 
-// WebRTC configuration
-interface WebRTCConfig {
-  iceServers: RTCIceServer[];
-}
-
-// Default WebRTC configuration
-const DEFAULT_WEBRTC_CONFIG: WebRTCConfig = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
-  ]
-};
+const DEFAULT_ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' }
+];
 
 export class VideoCallManager extends EventEmitter {
   private peerConnection: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
   private websocket: WebSocket | null = null;
-  private config: WebRTCConfig;
+  private userId: string = '';
+  private remoteUserId: string = '';
+  private iceServers: RTCIceServer[];
+
   private callState: VideoCallState = {
     callStatus: VideoCallStatus.IDLE,
     duration: 0,
@@ -53,451 +56,301 @@ export class VideoCallManager extends EventEmitter {
     isSpeakerEnabled: true
   };
 
-  constructor(config: Partial<WebRTCConfig> = {}) {
+  private reconnectAttempts = 0;
+  private readonly MAX_RECONNECT_ATTEMPTS = 5;
+
+  constructor(iceServers: RTCIceServer[] = DEFAULT_ICE_SERVERS) {
     super();
-    this.config = { ...DEFAULT_WEBRTC_CONFIG, ...config };
+    this.iceServers = iceServers;
   }
 
-  // Get current call state
   public getCallState(): VideoCallState {
     return { ...this.callState };
   }
 
-  // Get local media stream
   public getLocalStream(): MediaStream | null {
     return this.localStream;
   }
 
-  // Get remote media stream
   public getRemoteStream(): MediaStream | null {
     return this.remoteStream;
   }
 
-  // Initialize video call manager
   public async initialize(): Promise<void> {
-    try {
-      // Create peer connection
-      this.peerConnection = new RTCPeerConnection({
-        iceServers: this.config.iceServers
-      });
+    if (this.peerConnection) return;
 
-      // Set up event listeners
-      this.setupPeerConnectionEvents();
-      
-      console.log('VideoCallManager initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize VideoCallManager:', error);
-      throw error;
-    }
-  }
-
-  // Create local media stream
-  public async createLocalMediaStream(
-    enableVideo: boolean = true,
-    enableAudio: boolean = true
-  ): Promise<MediaStream> {
-    try {
-      const constraints: MediaStreamConstraints = {
-        video: enableVideo ? { facingMode: 'user' } : false,
-        audio: enableAudio
-      };
-
-      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      
-      // Add tracks to peer connection
-      if (this.peerConnection && this.localStream) {
-        this.localStream.getTracks().forEach(track => {
-          this.peerConnection!.addTrack(track, this.localStream!);
-        });
-      }
-
-      this.updateCallState({ isLocalVideoEnabled: enableVideo });
-      console.log('Local media stream created successfully');
-      
-      return this.localStream;
-    } catch (error) {
-      console.error('Failed to create local media stream:', error);
-      throw error;
-    }
-  }
-
-  // Start outgoing video call
-  public async startVideoCall(calleeId: string): Promise<void> {
-    try {
-      // Ensure we have local stream
-      if (!this.localStream) {
-        await this.createLocalMediaStream();
-      }
-
-      // Update state
-      this.updateCallState({
-        callStatus: VideoCallStatus.OUTGOING,
-        calleeId,
-        callStartTime: Date.now()
-      });
-
-      // Create offer
-      const offer = await this.peerConnection!.createOffer();
-      await this.peerConnection!.setLocalDescription(offer);
-
-      // Send offer through signaling
-      this.sendSignalingMessage({
-        type: 'offer',
-        sdp: offer.sdp,
-        to: calleeId
-      });
-
-      console.log(`Started video call to ${calleeId}`);
-    } catch (error) {
-      console.error('Failed to start video call:', error);
-      this.handleError(error as Error);
-    }
-  }
-
-  // Accept incoming video call
-  public async acceptVideoCall(callerId: string): Promise<void> {
-    try {
-      // Ensure we have local stream
-      if (!this.localStream) {
-        await this.createLocalMediaStream();
-      }
-
-      // Update state
-      this.updateCallState({
-        callStatus: VideoCallStatus.CONNECTING,
-        callerId,
-        callStartTime: Date.now()
-      });
-
-      console.log(`Accepted video call from ${callerId}`);
-    } catch (error) {
-      console.error('Failed to accept video call:', error);
-      this.handleError(error as Error);
-    }
-  }
-
-  // Reject video call
-  public rejectVideoCall(callerId: string): void {
-    this.sendSignalingMessage({
-      type: 'reject',
-      from: callerId
+    this.peerConnection = new RTCPeerConnection({
+      iceServers: this.iceServers
     });
 
-    this.endVideoCall();
+    this.setupPeerConnectionEvents();
   }
 
-  // End current video call
-  public endVideoCall(): void {
-    try {
-      // Close peer connection
-      if (this.peerConnection) {
-        this.peerConnection.close();
-        this.peerConnection = null;
-      }
-
-      // Stop local stream
-      if (this.localStream) {
-        this.localStream.getTracks().forEach(track => track.stop());
-        this.localStream = null;
-      }
-
-      // Clear remote stream
-      this.remoteStream = null;
-
-      // Close websocket
-      if (this.websocket) {
-        this.websocket.close();
-        this.websocket = null;
-      }
-
-      // Update state
-      this.updateCallState({
-        callStatus: VideoCallStatus.ENDED,
-        callStartTime: undefined,
-        duration: 0
-      });
-
-      console.log('Video call ended');
-    } catch (error) {
-      console.error('Error ending video call:', error);
-    }
-  }
-
-  // Toggle camera
-  public toggleCamera(enabled: boolean): void {
-    if (this.localStream) {
-      const videoTrack = this.localStream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = enabled;
-        this.updateCallState({ isLocalVideoEnabled: enabled });
-        
-        // Notify remote peer
-        this.sendSignalingMessage({
-          type: 'control',
-          controlType: 'camera',
-          enabled
-        });
-      }
-    }
-  }
-
-  // Toggle microphone
-  public toggleMicrophone(enabled: boolean): void {
-    if (this.localStream) {
-      const audioTrack = this.localStream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = enabled;
-        this.updateCallState({ isMicrophoneEnabled: enabled });
-        
-        // Notify remote peer
-        this.sendSignalingMessage({
-          type: 'control',
-          controlType: 'microphone',
-          enabled
-        });
-      }
-    }
-  }
-
-  // Toggle speaker
-  public toggleSpeaker(enabled: boolean): void {
-    this.updateCallState({ isSpeakerEnabled: enabled });
-    // Speaker toggle logic would depend on the specific audio output device API
-  }
-
-  // Connect to signaling server
-  public connectToSignalingServer(url: string, userId: string): void {
-    this.websocket = new WebSocket(`${url}?userId=${userId}`);
-    
-    this.websocket.onopen = () => {
-      console.log('Connected to signaling server');
-    };
-
-    this.websocket.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      this.handleSignalingMessage(message);
-    };
-
-    this.websocket.onerror = (error) => {
-      console.error('Signaling server error:', error);
-      this.handleError(new Error('Signaling server connection failed'));
-    };
-
-    this.websocket.onclose = () => {
-      console.log('Disconnected from signaling server');
-    };
-  }
-
-  // Handle incoming signaling messages
-  private handleSignalingMessage(message: any): void {
-    switch (message.type) {
-      case 'offer':
-        this.handleOffer(message);
-        break;
-      case 'answer':
-        this.handleAnswer(message);
-        break;
-      case 'ice-candidate':
-        this.handleIceCandidate(message);
-        break;
-      case 'call-request':
-        this.handleCallRequest(message);
-        break;
-      case 'call-accepted':
-        this.handleCallAccepted(message);
-        break;
-      case 'call-rejected':
-        this.handleCallRejected(message);
-        break;
-      case 'call-ended':
-        this.handleCallEnded(message);
-        break;
-      case 'control':
-        this.handleControlMessage(message);
-        break;
-    }
-  }
-
-  // Handle offer from remote peer
-  private async handleOffer(message: any): Promise<void> {
-    try {
-      if (!this.peerConnection) {
-        await this.initialize();
-      }
-
-      const offer = new RTCSessionDescription({
-        type: 'offer',
-        sdp: message.sdp
-      });
-
-      await this.peerConnection!.setRemoteDescription(offer);
-
-      // Create and send answer
-      const answer = await this.peerConnection!.createAnswer();
-      await this.peerConnection!.setLocalDescription(answer);
-
-      this.sendSignalingMessage({
-        type: 'answer',
-        sdp: answer.sdp,
-        to: message.from
-      });
-
-      this.updateCallState({ callStatus: VideoCallStatus.CONNECTING });
-    } catch (error) {
-      console.error('Error handling offer:', error);
-      this.handleError(error as Error);
-    }
-  }
-
-  // Handle answer from remote peer
-  private async handleAnswer(message: any): Promise<void> {
-    try {
-      const answer = new RTCSessionDescription({
-        type: 'answer',
-        sdp: message.sdp
-      });
-
-      await this.peerConnection!.setRemoteDescription(answer);
-      this.updateCallState({ callStatus: VideoCallStatus.ACTIVE });
-    } catch (error) {
-      console.error('Error handling answer:', error);
-      this.handleError(error as Error);
-    }
-  }
-
-  // Handle ICE candidate
-  private handleIceCandidate(message: any): void {
-    try {
-      const candidate = new RTCIceCandidate({
-        candidate: message.candidate,
-        sdpMid: message.sdpMid,
-        sdpMLineIndex: message.sdpMLineIndex
-      });
-
-      this.peerConnection!.addIceCandidate(candidate);
-    } catch (error) {
-      console.error('Error handling ICE candidate:', error);
-    }
-  }
-
-  // Handle incoming call request
-  private handleCallRequest(message: any): void {
-    this.updateCallState({
-      callStatus: VideoCallStatus.INCOMING,
-      callerId: message.from,
-      callStartTime: Date.now()
-    });
-
-    // Emit event for UI to handle
-    this.emit('incoming-call', { callerId: message.from });
-  }
-
-  // Handle call accepted
-  private handleCallAccepted(message: any): void {
-    this.updateCallState({ callStatus: VideoCallStatus.CONNECTING });
-    // Emit event for UI updates
-    this.emit('call-accepted', { calleeId: message.from });
-  }
-
-  // Handle call rejected
-  private handleCallRejected(message: any): void {
-    this.updateCallState({
-      callStatus: VideoCallStatus.ENDED,
-      errorMessage: 'Call was rejected'
-    });
-    
-    this.emit('call-rejected', { callerId: message.from });
-  }
-
-  // Handle call ended
-  private handleCallEnded(message: any): void {
-    this.endVideoCall();
-    this.emit('call-ended', { remoteId: message.from });
-  }
-
-  // Handle control messages
-  private handleControlMessage(message: any): void {
-    switch (message.controlType) {
-      case 'camera':
-        this.updateCallState({ isRemoteVideoEnabled: message.enabled });
-        break;
-      case 'microphone':
-        // Handle remote microphone toggle
-        break;
-    }
-  }
-
-  // Set up peer connection events
   private setupPeerConnectionEvents(): void {
     if (!this.peerConnection) return;
 
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
-        this.sendSignalingMessage({
-          type: 'ice-candidate',
-          candidate: event.candidate.candidate,
-          sdpMid: event.candidate.sdpMid,
-          sdpMLineIndex: event.candidate.sdpMLineIndex
+        this.sendMessage({
+          type: 'candidate',
+          fromUser: this.userId,
+          toUser: this.remoteUserId,
+          candidate: {
+            candidate: event.candidate.candidate,
+            sdpMid: event.candidate.sdpMid || '',
+            sdpMLineIndex: event.candidate.sdpMLineIndex || 0
+          }
         });
       }
     };
 
     this.peerConnection.ontrack = (event) => {
+      console.log('Received remote track:', event.track.kind);
       this.remoteStream = event.streams[0];
-      this.updateCallState({ isRemoteVideoEnabled: true });
       this.emit('remote-stream', this.remoteStream);
+      this.updateCallState({ isRemoteVideoEnabled: true });
     };
 
     this.peerConnection.onconnectionstatechange = () => {
-      const state = this.peerConnection?.connectionState;
-      console.log('Connection state changed:', state);
-      
-      switch (state) {
-        case 'connected':
-          this.updateCallState({ callStatus: VideoCallStatus.ACTIVE });
-          this.startDurationTimer();
-          break;
-        case 'disconnected':
-        case 'failed':
-          this.handleError(new Error('Connection failed'));
-          break;
-        case 'closed':
-          this.endVideoCall();
-          break;
+      console.log('WebRTC connection state:', this.peerConnection?.connectionState);
+      if (this.peerConnection?.connectionState === 'connected') {
+        this.updateCallState({ callStatus: VideoCallStatus.ACTIVE });
+      } else if (this.peerConnection?.connectionState === 'failed' || this.peerConnection?.connectionState === 'disconnected') {
+        this.handleError(new Error('WebRTC connection failed'));
       }
     };
   }
 
-  // Start duration timer
-  private startDurationTimer(): void {
-    if (this.callState.callStartTime) {
-      const interval = setInterval(() => {
-        if (this.callState.callStatus === VideoCallStatus.ACTIVE) {
-          const duration = Math.floor((Date.now() - this.callState.callStartTime!) / 1000);
-          this.updateCallState({ duration });
-        } else {
-          clearInterval(interval);
-        }
-      }, 1000);
+  public async createLocalStream(): Promise<MediaStream> {
+    try {
+      this.localStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+      });
+
+      if (this.peerConnection) {
+        this.localStream.getTracks().forEach(track => {
+          this.peerConnection!.addTrack(track, this.localStream!);
+        });
+      }
+
+      return this.localStream;
+    } catch (error) {
+      console.error('Failed to get user media:', error);
+      throw error;
     }
   }
 
-  // Send signaling message
-  private sendSignalingMessage(message: any): void {
-    if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+  public connectSignaling(host: string, port: number, userId: string, token: string): void {
+    this.userId = userId;
+    const protocol = host.startsWith('https') ? 'wss' : 'ws';
+    const cleanHost = host.replace(/^https?:\/\//, '');
+    const url = `${protocol}://${cleanHost}:${port}/ws?userId=${userId}`;
+
+    console.log('Connecting to signaling server:', url);
+    this.websocket = new WebSocket(url);
+
+    // Auth header is usually handled via URL param or cookies in standard Browser WebSocket,
+    // but Android implementation used a header. Browser WebSocket doesn't support custom headers.
+    // However, if the server expects it in URL or session, we follow.
+
+    this.websocket.onopen = () => {
+      console.log('Signaling connection opened');
+      this.reconnectAttempts = 0;
+    };
+
+    this.websocket.onmessage = (event) => {
+      try {
+        const message: WebrtcMessage = JSON.parse(event.data);
+        this.handleMessage(message);
+      } catch (e) {
+        console.error('Failed to parse signaling message:', e);
+      }
+    };
+
+    this.websocket.onclose = () => {
+      console.log('Signaling connection closed');
+      if (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
+        this.reconnectAttempts++;
+        setTimeout(() => this.connectSignaling(host, port, userId, token), 5000);
+      }
+    };
+
+    this.websocket.onerror = (error) => {
+      console.error('Signaling error:', error);
+    };
+  }
+
+  private handleMessage(message: WebrtcMessage): void {
+    console.log('Received signaling message:', message.type);
+
+    switch (message.type) {
+      case 'call/request':
+        this.remoteUserId = message.fromUser || '';
+        this.updateCallState({
+          callStatus: VideoCallStatus.INCOMING,
+          remoteUserId: this.remoteUserId
+        });
+        this.emit('incoming-call', { callerId: this.remoteUserId });
+        break;
+
+      case 'call/accept':
+        this.remoteUserId = message.fromUser || '';
+        this.initiateOffer();
+        break;
+
+      case 'offer':
+        this.handleOffer(message);
+        break;
+
+      case 'answer':
+        this.handleAnswer(message);
+        break;
+
+      case 'candidate':
+        this.handleIceCandidate(message);
+        break;
+
+      case 'call/end':
+        this.cleanup();
+        this.emit('call-ended', { remoteId: message.fromUser });
+        break;
+
+      case 'call/failed':
+        this.handleError(new Error(message.reason || 'Call failed'));
+        break;
+    }
+  }
+
+  private async initiateOffer(): Promise<void> {
+    try {
+      if (!this.peerConnection) await this.initialize();
+      if (!this.localStream) await this.createLocalStream();
+
+      const offer = await this.peerConnection!.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      });
+      await this.peerConnection!.setLocalDescription(offer);
+
+      this.sendMessage({
+        type: 'offer',
+        fromUser: this.userId,
+        toUser: this.remoteUserId,
+        sdp: offer.sdp,
+        sdpType: 'offer'
+      });
+
+      this.updateCallState({ callStatus: VideoCallStatus.CONNECTING });
+    } catch (e) {
+      this.handleError(e as Error);
+    }
+  }
+
+  private async handleOffer(message: WebrtcMessage): Promise<void> {
+    try {
+      if (!this.peerConnection) await this.initialize();
+      if (!this.localStream) await this.createLocalStream();
+
+      await this.peerConnection!.setRemoteDescription(new RTCSessionDescription({
+        type: 'offer',
+        sdp: message.sdp
+      }));
+
+      const answer = await this.peerConnection!.createAnswer();
+      await this.peerConnection!.setLocalDescription(answer);
+
+      this.sendMessage({
+        type: 'answer',
+        fromUser: this.userId,
+        toUser: this.remoteUserId,
+        sdp: answer.sdp,
+        sdpType: 'answer'
+      });
+
+      this.updateCallState({ callStatus: VideoCallStatus.CONNECTING });
+    } catch (e) {
+      this.handleError(e as Error);
+    }
+  }
+
+  private async handleAnswer(message: WebrtcMessage): Promise<void> {
+    try {
+      if (this.peerConnection) {
+        await this.peerConnection.setRemoteDescription(new RTCSessionDescription({
+          type: 'answer',
+          sdp: message.sdp
+        }));
+      }
+    } catch (e) {
+      this.handleError(e as Error);
+    }
+  }
+
+  private handleIceCandidate(message: WebrtcMessage): void {
+    if (this.peerConnection && message.candidate) {
+      this.peerConnection.addIceCandidate(new RTCIceCandidate({
+        candidate: message.candidate.candidate,
+        sdpMid: message.candidate.sdpMid,
+        sdpMLineIndex: message.candidate.sdpMLineIndex
+      })).catch(e => console.error('Error adding ICE candidate:', e));
+    }
+  }
+
+  public initiateCall(remoteUserId: string): void {
+    this.remoteUserId = remoteUserId;
+    this.updateCallState({
+      callStatus: VideoCallStatus.OUTGOING,
+      remoteUserId
+    });
+
+    this.sendMessage({
+      type: 'call/request',
+      fromUser: this.userId,
+      toUser: remoteUserId
+    });
+  }
+
+  public acceptCall(): void {
+    if (!this.remoteUserId) return;
+
+    this.sendMessage({
+      type: 'call/accept',
+      fromUser: this.userId,
+      toUser: this.remoteUserId
+    });
+
+    this.updateCallState({ callStatus: VideoCallStatus.CONNECTING });
+  }
+
+  public rejectCall(): void {
+    this.endCall();
+  }
+
+  public endCall(): void {
+    if (this.remoteUserId) {
+      this.sendMessage({
+        type: 'call/end',
+        fromUser: this.userId,
+        toUser: this.remoteUserId
+      });
+    }
+    this.cleanup();
+  }
+
+  private sendMessage(message: WebrtcMessage): void {
+    if (this.websocket?.readyState === WebSocket.OPEN) {
       this.websocket.send(JSON.stringify(message));
     }
   }
 
-  // Update call state and emit change event
   private updateCallState(updates: Partial<VideoCallState>): void {
     this.callState = { ...this.callState, ...updates };
-    this.emit('state-change', { ...this.callState });
+    this.emit('state-change', this.callState);
   }
 
-  // Handle errors
   private handleError(error: Error): void {
-    console.error('Video call error:', error);
+    console.error('VideoCallManager Error:', error);
     this.updateCallState({
       callStatus: VideoCallStatus.ERROR,
       errorMessage: error.message
@@ -505,9 +358,42 @@ export class VideoCallManager extends EventEmitter {
     this.emit('error', error);
   }
 
-  // Cleanup resources
+  private cleanup(): void {
+    if (this.peerConnection) {
+      this.peerConnection.close();
+      this.peerConnection = null;
+    }
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(t => t.stop());
+      this.localStream = null;
+    }
+    this.remoteStream = null;
+    this.updateCallState({
+      callStatus: VideoCallStatus.ENDED,
+      remoteUserId: undefined
+    });
+  }
+
   public destroy(): void {
-    this.endVideoCall();
+    this.cleanup();
+    if (this.websocket) {
+      this.websocket.close();
+      this.websocket = null;
+    }
     this.removeAllListeners();
+  }
+
+  public toggleCamera(enabled: boolean): void {
+    if (this.localStream) {
+      this.localStream.getVideoTracks().forEach(t => t.enabled = enabled);
+      this.updateCallState({ isLocalVideoEnabled: enabled });
+    }
+  }
+
+  public toggleMicrophone(enabled: boolean): void {
+    if (this.localStream) {
+      this.localStream.getAudioTracks().forEach(t => t.enabled = enabled);
+      this.updateCallState({ isMicrophoneEnabled: enabled });
+    }
   }
 }

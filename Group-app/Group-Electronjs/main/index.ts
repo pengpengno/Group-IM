@@ -9,7 +9,11 @@ let tray: Tray | null = null;
 import './ipc-handlers/auth-handler';
 import './ipc-handlers/file-handler';
 import './ipc-handlers/notification-handler';
+import { registerVideoHandlers } from './ipc-handlers/video-handler';
 import { initializeSocketHandler } from './ipc-handlers/socket-handler';
+
+// Initialize Handlers
+registerVideoHandlers();
 
 function createWindow() {
   mainWindow = new BrowserWindow({

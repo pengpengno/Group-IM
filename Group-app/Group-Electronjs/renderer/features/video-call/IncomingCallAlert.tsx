@@ -5,16 +5,16 @@ import { acceptCall, VideoCallStatus, endCall } from './videoCallSlice';
 import { webRTCManager } from '../../services/webrtc';
 
 const IncomingCallAlert: React.FC = () => {
-    const { callStatus, caller } = useSelector((state: RootState) => state.videoCall);
+    const { callStatus, remoteUser } = useSelector((state: RootState) => state.videoCall);
     const dispatch = useDispatch();
 
-    if (callStatus !== VideoCallStatus.INCOMING || !caller) {
+    if (callStatus !== VideoCallStatus.INCOMING || !remoteUser) {
         return null;
     }
 
     const handleAccept = () => {
         dispatch(acceptCall());
-        webRTCManager.acceptCall(caller.userId.toString());
+        webRTCManager.acceptCall(remoteUser?.userId?.toString() ?? '');
     };
 
     const handleReject = () => {
@@ -39,7 +39,7 @@ const IncomingCallAlert: React.FC = () => {
             gap: '10px'
         }}>
             <div style={{ fontWeight: 'bold' }}>Incoming Call</div>
-            <div>{caller.username} is calling...</div>
+            <div>{remoteUser?.username} is calling...</div>
             <div style={{ display: 'flex', gap: '10px' }}>
                 <button
                     onClick={handleReject}

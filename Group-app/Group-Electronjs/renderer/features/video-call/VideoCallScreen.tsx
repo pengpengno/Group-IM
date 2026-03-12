@@ -1,19 +1,19 @@
 import React, { useEffect, useRef } from 'react';
 import { useVideoCall } from './useVideoCall';
-import { VideoCallStatus } from './VideoCallManager';
-import './VideoCallScreen.css';
+import { VideoCallStatus } from './videoCallSlice';
+import { useVideoCall } from './useVideoCall';
 
 interface VideoCallScreenProps {
   onCallEnd: () => void;
   remoteUserId?: string;
 }
 
-const VideoCallScreen: React.FC<VideoCallScreenProps> = ({ 
-  onCallEnd, 
-  remoteUserId 
+const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
+  onCallEnd,
+  remoteUserId
 }) => {
   const {
-    callState,
+    state: callState,
     localStream,
     remoteStream,
     startCall,
@@ -128,7 +128,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
           playsInline
           className={`remote-video ${!remoteStream ? 'hidden' : ''}`}
         />
-        
+
         {/* Remote video placeholder */}
         {!remoteStream && (
           <div className="remote-placeholder">
@@ -151,7 +151,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
           muted
           className={`local-video ${!callState.isLocalVideoEnabled ? 'hidden' : ''}`}
         />
-        
+
         {/* Camera off indicator */}
         {!callState.isLocalVideoEnabled && (
           <div className="camera-off-indicator">
@@ -166,7 +166,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
         {/* Status Bar */}
         <div className="status-bar">
           <div className="status-info">
-            <div 
+            <div
               className="network-indicator"
               style={{ backgroundColor: getNetworkQualityColor() }}
             />
@@ -178,9 +178,8 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
         <div className="control-buttons">
           {/* Microphone Toggle */}
           <button
-            className={`control-button mic-button ${
-              !callState.isMicrophoneEnabled ? 'muted' : ''
-            }`}
+            className={`control-button mic-button ${!callState.isMicrophoneEnabled ? 'muted' : ''
+              }`}
             onClick={() => toggleMicrophone(!callState.isMicrophoneEnabled)}
             title={callState.isMicrophoneEnabled ? 'Mute' : 'Unmute'}
           >
@@ -191,9 +190,8 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
 
           {/* Camera Toggle */}
           <button
-            className={`control-button camera-button ${
-              !callState.isLocalVideoEnabled ? 'disabled' : ''
-            }`}
+            className={`control-button camera-button ${!callState.isLocalVideoEnabled ? 'disabled' : ''
+              }`}
             onClick={() => toggleCamera(!callState.isLocalVideoEnabled)}
             title={callState.isLocalVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
           >
@@ -216,9 +214,8 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
 
           {/* Speaker Toggle */}
           <button
-            className={`control-button speaker-button ${
-              callState.isSpeakerEnabled ? 'active' : ''
-            }`}
+            className={`control-button speaker-button ${callState.isSpeakerEnabled ? 'active' : ''
+              }`}
             onClick={() => toggleSpeaker(!callState.isSpeakerEnabled)}
             title={callState.isSpeakerEnabled ? 'Speaker off' : 'Speaker on'}
           >
@@ -238,7 +235,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
             </div>
             <h2>Incoming Video Call</h2>
             <p>From: {callState.callerId || 'Unknown'}</p>
-            
+
             <div className="incoming-call-actions">
               <button
                 className="accept-button"

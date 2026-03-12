@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { VideoCallManager, VideoCallState, VideoCallStatus } from './VideoCallManager';
+import { VideoCallManager } from './VideoCallManager';
+import { VideoCallState, VideoCallStatus } from './videoCallSlice';
 
 interface UseVideoCallReturn {
   // State
-  callState: VideoCallState;
+  state: VideoCallState;
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
-  
+
   // Actions
   initialize: () => Promise<void>;
   startCall: (calleeId: string) => Promise<void>;
@@ -16,8 +17,8 @@ interface UseVideoCallReturn {
   toggleCamera: (enabled: boolean) => void;
   toggleMicrophone: (enabled: boolean) => void;
   toggleSpeaker: (enabled: boolean) => void;
-  connectSignaling: (url: string, userId: string) => void;
-  
+  connectSignaling: (host: string, port: number, userId: string, token: string) => void;
+
   // Events
   onIncomingCall: (callback: (callerId: string) => void) => void;
   onCallAccepted: (callback: (calleeId: string) => void) => void;
@@ -29,120 +30,128 @@ interface UseVideoCallReturn {
 export const useVideoCall = (): UseVideoCallReturn => {
   const [callState, setCallState] = useState<VideoCallState>({
     callStatus: VideoCallStatus.IDLE,
-    duration: 0,
+    callId: null,
+    remoteUser: null,
+    participants: [],
+    startTime: null,
+    isMuted: false,
+    isVideoEnabled: true,
+    isMinimized: false,
+    errorMessage: null,
+    localStreamId: null,
+    remoteStreamId: null,
+    isMicrophoneEnabled: true,
+    isSpeakerEnabled: true,
     isLocalVideoEnabled: true,
     isRemoteVideoEnabled: true,
-    isMicrophoneEnabled: true,
-    isSpeakerEnabled: true
+    duration: 0
   });
-  
+
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  
+
   const videoCallManagerRef = useRef<VideoCallManager | null>(null);
-  
+
   // Initialize video call manager
   const initialize = async (): Promise<void> => {
     if (!videoCallManagerRef.current) {
       videoCallManagerRef.current = new VideoCallManager();
-      
+
       // Set up event listeners
       videoCallManagerRef.current.on('state-change', (state: VideoCallState) => {
         setCallState(state);
       });
-      
+
       videoCallManagerRef.current.on('remote-stream', (stream: MediaStream) => {
         setRemoteStream(stream);
       });
-      
+
       await videoCallManagerRef.current.initialize();
       setLocalStream(videoCallManagerRef.current.getLocalStream());
     }
   };
-  
+
   // Start outgoing call
   const startCall = async (calleeId: string): Promise<void> => {
     if (!videoCallManagerRef.current) {
       await initialize();
     }
-    await videoCallManagerRef.current!.startVideoCall(calleeId);
+    videoCallManagerRef.current!.initiateCall(calleeId);
   };
-  
+
   // Accept incoming call
   const acceptCall = async (callerId: string): Promise<void> => {
     if (!videoCallManagerRef.current) {
       await initialize();
     }
-    await videoCallManagerRef.current!.acceptVideoCall(callerId);
+    videoCallManagerRef.current!.acceptCall();
   };
-  
+
   // Reject incoming call
   const rejectCall = (callerId: string): void => {
     if (videoCallManagerRef.current) {
-      videoCallManagerRef.current.rejectVideoCall(callerId);
+      videoCallManagerRef.current.rejectCall();
     }
   };
-  
+
   // End current call
   const endCall = (): void => {
     if (videoCallManagerRef.current) {
-      videoCallManagerRef.current.endVideoCall();
+      videoCallManagerRef.current.endCall();
     }
   };
-  
+
   // Toggle camera
   const toggleCamera = (enabled: boolean): void => {
     if (videoCallManagerRef.current) {
       videoCallManagerRef.current.toggleCamera(enabled);
     }
   };
-  
+
   // Toggle microphone
   const toggleMicrophone = (enabled: boolean): void => {
     if (videoCallManagerRef.current) {
       videoCallManagerRef.current.toggleMicrophone(enabled);
     }
   };
-  
+
   // Toggle speaker
   const toggleSpeaker = (enabled: boolean): void => {
-    if (videoCallManagerRef.current) {
-      videoCallManagerRef.current.toggleSpeaker(enabled);
-    }
+    // Speaker toggle logic would depend on the specific audio output device API
   };
-  
+
   // Connect to signaling server
-  const connectSignaling = (url: string, userId: string): void => {
+  const connectSignaling = (host: string, port: number, userId: string, token: string): void => {
     if (!videoCallManagerRef.current) {
       initialize().then(() => {
-        videoCallManagerRef.current!.connectToSignalingServer(url, userId);
+        videoCallManagerRef.current!.connectSignaling(host, port, userId, token);
       });
     } else {
-      videoCallManagerRef.current.connectToSignalingServer(url, userId);
+      videoCallManagerRef.current.connectSignaling(host, port, userId, token);
     }
   };
-  
+
   // Event handlers
   const onIncomingCall = (callback: (callerId: string) => void): void => {
     videoCallManagerRef.current?.on('incoming-call', ({ callerId }) => callback(callerId));
   };
-  
+
   const onCallAccepted = (callback: (calleeId: string) => void): void => {
     videoCallManagerRef.current?.on('call-accepted', ({ calleeId }) => callback(calleeId));
   };
-  
+
   const onCallRejected = (callback: (callerId: string) => void): void => {
     videoCallManagerRef.current?.on('call-rejected', ({ callerId }) => callback(callerId));
   };
-  
+
   const onCallEnded = (callback: (remoteId: string) => void): void => {
     videoCallManagerRef.current?.on('call-ended', ({ remoteId }) => callback(remoteId));
   };
-  
+
   const onError = (callback: (error: Error) => void): void => {
     videoCallManagerRef.current?.on('error', callback);
   };
-  
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -151,14 +160,11 @@ export const useVideoCall = (): UseVideoCallReturn => {
       }
     };
   }, []);
-  
+
   return {
-    // State
-    callState,
+    state: callState,
     localStream,
     remoteStream,
-    
-    // Actions
     initialize,
     startCall,
     acceptCall,
@@ -168,8 +174,6 @@ export const useVideoCall = (): UseVideoCallReturn => {
     toggleMicrophone,
     toggleSpeaker,
     connectSignaling,
-    
-    // Events
     onIncomingCall,
     onCallAccepted,
     onCallRejected,

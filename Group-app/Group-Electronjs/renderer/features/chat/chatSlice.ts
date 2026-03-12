@@ -71,7 +71,7 @@ export const sendMessageViaSocket = createAsyncThunk(
             }
 
             // 构建消息负载对象
-            const payload = buildSocketPayload(conversationId, content, type, msgDto);
+            const payload = buildSocketPayload(conversationId, content, type || 'TEXT', msgDto);
 
             // 通过Socket发送负载
             const sendSuccess = await socketService.sendPayload(payload);
@@ -112,7 +112,7 @@ export const sendMessageViaSocket = createAsyncThunk(
 function buildSocketPayload(
     conversationId: number,
     content: string,
-    type?: string,
+    type: string,
     msgDto?: MessageDTO
 ): any {
     const timestamp = msgDto?.timestamp ? new Date(msgDto.timestamp).getTime() : Date.now();
@@ -121,7 +121,7 @@ function buildSocketPayload(
         message: {
             conversationId: conversationId,
             content: content,
-            type: type || 'TEXT',
+            type: type, // Use the passed type
             clientTimeStamp: timestamp,
             clientMsgId: msgDto?.msgId?.toString() || Math.random().toString(36).substring(7),
         }

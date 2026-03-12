@@ -34,7 +34,21 @@ const MessageBubble: React.FC<{
       )}
       <div className="msg-content-wrapper">
         <div className="msg-bubble">
-          <div className="msg-text">{message.content}</div>
+          {message.type === 'image' ? (
+            <div className="msg-image-wrapper">
+              <img src={message.content} alt="Sent image" className="msg-image" />
+            </div>
+          ) : message.type === 'file' ? (
+            <div className="msg-file-wrapper" onClick={() => window.open(message.content)}>
+              <div className="msg-file-icon">📄</div>
+              <div className="msg-file-info">
+                <div className="msg-file-name">文件已发送</div>
+                <div className="msg-file-link">点击打开</div>
+              </div>
+            </div>
+          ) : (
+            <div className="msg-text">{message.content}</div>
+          )}
           <div className="msg-meta">
             <span className="msg-time">{formatTime(message.timestamp)}</span>
             {isOwnMessage && (
@@ -58,6 +72,10 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
   const messages = allMessages[conversation.conversationId] || [];
   const [inputText, setInputText] = useState('');
   const [toast, setToast] = useState<{ message: string; type: NotificationType } | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showScreenPicker, setShowScreenPicker] = useState(false);
+  const [screenSources, setScreenSources] = useState<any[]>([]);
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 获取会话名称
@@ -116,6 +134,82 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
       setInputText(content);
     }
   };
+
+  // 处理文件选取和上传
+  const handleFileSelect = async (isImage: boolean = false) => {
+    try {
+      const options = isImage ? {
+        filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }]
+      } : {};
+
+      const result = await (window as any).electronAPI.selectFile(options);
+
+      if (result.canceled) return;
+
+      showToast('正在上传文件...', 'info' as any);
+
+      // 上传文件
+      const uploadRes = await (window as any).electronAPI.uploadFile(result.filePath);
+
+      if (uploadRes.success) {
+        // 发送文件消息
+        // 假设服务器返回的url在 uploadRes.data.url
+        const fileUrl = uploadRes.data.url || uploadRes.data.path || result.fileName;
+
+        await dispatch(sendMessageViaSocket({
+          conversationId: conversation.conversationId,
+          content: fileUrl,
+          type: isImage ? 'IMAGE' : 'FILE'
+        })).unwrap();
+
+        showToast('发送成功', 'success' as any);
+        scrollToBottom();
+      } else {
+        showToast(uploadRes.error || '文件上传失败');
+      }
+    } catch (err: any) {
+      console.error('File selection/upload error:', err);
+      showToast(err.message || '操作失败');
+    }
+  };
+
+  // 处理表情选择
+  const handleEmojiSelect = (emoji: string) => {
+    setInputText(prev => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  // 开启桌面分享选择器
+  const startScreenShare = async () => {
+    try {
+      const sources = await (window as any).electronAPI.getDesktopSources();
+      setScreenSources(sources);
+      setShowScreenPicker(true);
+    } catch (err: any) {
+      console.error('Failed to get screen sources:', err);
+      showToast('获取屏幕资源失败');
+    }
+  };
+
+  // 完成屏幕录制选择并发送
+  const handleScreenShareConfirm = async () => {
+    if (!selectedSourceId) return;
+
+    const source = screenSources.find(s => s.id === selectedSourceId);
+    if (source) {
+      showToast('准备开始桌面分享: ' + source.name, 'success' as any);
+      await dispatch(sendMessageViaSocket({
+        conversationId: conversation.conversationId,
+        content: `Desktop Sharing: ${source.name}`,
+        type: 'TEXT'
+      })).unwrap();
+    }
+
+    setShowScreenPicker(false);
+    setSelectedSourceId(null);
+  };
+
+  const EMOJIS = ['😊', '😂', '🤣', '❤️', '👍', '🔥', '✨', '🙌', '🙏', '🎉', '💡', '✅', '❌', '👀', '👋', '💬'];
 
   // 滚动到底部
   const scrollToBottom = () => {
@@ -184,7 +278,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
       </div>
 
       {/* 消息列表 */}
-      <div className="messages-viewport">
+      <div className="messages-viewport" onClick={() => setShowEmojiPicker(false)}>
         {chatLoading && messages.length === 0 ? (
           <div className="viewport-loading">
             <div className="spinner-medium"></div>
@@ -214,12 +308,88 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
         )}
       </div>
 
+      {/* 表情包选择器 */}
+      {showEmojiPicker && (
+        <div className="emoji-picker-popover">
+          {EMOJIS.map(emoji => (
+            <div
+              key={emoji}
+              className="emoji-item"
+              onClick={() => handleEmojiSelect(emoji)}
+            >
+              {emoji}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 桌面分享选择器弹窗 */}
+      {showScreenPicker && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>选择分享的内容</h3>
+              <button className="close-btn" onClick={() => setShowScreenPicker(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="source-grid">
+                {screenSources.map(source => (
+                  <div
+                    key={source.id}
+                    className={`source-item ${selectedSourceId === source.id ? 'selected' : ''}`}
+                    onClick={() => setSelectedSourceId(source.id)}
+                  >
+                    <img src={source.thumbnail} alt={source.name} className="source-thumbnail" />
+                    <div className="source-name">{source.name}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setShowScreenPicker(false)}>取消</button>
+              <button
+                className="btn-primary"
+                onClick={handleScreenShareConfirm}
+                disabled={!selectedSourceId}
+              >
+                开始分享
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 输入区域 */}
       <div className="message-input-bar">
         <div className="toolbar">
-          <button className="tool-btn" title="表情">😊</button>
-          <button className="tool-btn" title="上传图片">🖼️</button>
-          <button className="tool-btn" title="发送文件">📁</button>
+          <button
+            className="tool-btn"
+            title="表情"
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+          >
+            😊
+          </button>
+          <button
+            className="tool-btn"
+            title="上传图片"
+            onClick={() => handleFileSelect(true)}
+          >
+            🖼️
+          </button>
+          <button
+            className="tool-btn"
+            title="发送文件"
+            onClick={() => handleFileSelect(false)}
+          >
+            📁
+          </button>
+          <button
+            className="tool-btn"
+            title="屏幕分享"
+            onClick={startScreenShare}
+          >
+            💻
+          </button>
         </div>
         <div className="input-row">
           <textarea

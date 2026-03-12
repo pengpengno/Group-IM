@@ -40,5 +40,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('socket:reconnecting', (_, data) => handler(data));
   },
 
+  // Video/Desktop sharing related
+  getDesktopSources: () => ipcRenderer.invoke('get-desktop-sources'),
+
   // Other APIs could go here...
 });
