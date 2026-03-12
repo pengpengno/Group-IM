@@ -10,7 +10,7 @@ COPY server/ server/
 COPY gui/ gui/
 
 # 预下载依赖
-RUN mvn dependency:go-offline -q -pl server
+# RUN mvn dependency:go-offline -q -pl server
 
 # 构建server模块
 RUN mvn clean package -DskipTests -q -pl server -am
