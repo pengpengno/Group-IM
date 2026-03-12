@@ -59,3 +59,7 @@ build/
 /Group-app/.idea/androidTestResultsUserPreferences.xml
 /Group-app/Group-Electronjs/protos/UserInfoProto.proto
 /Group-app/Group-Electronjs/protos/**
+
+# AI Skills (keep these for all AI agents)
+!.ai/
+!.ai/**/*
