@@ -1,72 +1,72 @@
-name: Deploy Server
-
-on:
-  push:
-    branches:
-      - main
-      - master
-    paths:
-      - 'server/**'
-      - 'common/**'
-      - 'entity/**'
-      - 'deploy/dockerfiles/**'
-      - '.github/workflows/deploy-server.yml'
-
-jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set lower case repository name
-        run: |
-          echo "REPO=${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./deploy/dockerfiles/Dockerfile
-          push: true
-          tags: ghcr.io/${{ env.REPO }}/group-im-server:latest
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    steps:
-      - name: Deploy to Server via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USERNAME }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
-          script: |
-            # 转换为小写
-            REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-            
-            # 进入部署目录
-            cd ${{ secrets.TARGET_DIR }}
-            
-            # 确保使用最新的代码获取配置文件（可选，取决于您服务器如何同步仓库代码。通常可以通过git pull同步，这里我们假设已经有了对应的docker-compose.cicd.yml文件）
-            git pull origin main || echo "Git pull ignored."
-            
-            # 登录 GHCR，需要使用 GITHUB_TOKEN 的秘钥（您可以选择设置为仓库公开，或者在服务器上提前 docker login）
-            # docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GHCR_PAT }}
-            
-            # 拉取最新镜像
-            docker pull ghcr.io/$REPO/group-im-server:latest
-            
-            # 启动或更新服务
-            docker-compose -f deploy/docker/docker-compose.cicd.yml up -d server
-            
-            # 清理悬空镜像释放空间
-            docker image prune -f
+#name: Deploy Server
+#
+#on:
+#  push:
+#    branches:
+#      - main
+#      - master
+#    paths:
+#      - 'server/**'
+#      - 'common/**'
+#      - 'entity/**'
+#      - 'deploy/dockerfiles/**'
+#      - '.github/workflows/deploy-server.yml'
+#
+#jobs:
+#  build-and-push:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout code
+#        uses: actions/checkout@v4
+#
+#      - name: Log in to GitHub Container Registry
+#        uses: docker/login-action@v3
+#        with:
+#          registry: ghcr.io
+#          username: ${{ github.actor }}
+#          password: ${{ secrets.GITHUB_TOKEN }}
+#
+#      - name: Set lower case repository name
+#        run: |
+#          echo "REPO=${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
+#
+#      - name: Build and push Docker image
+#        uses: docker/build-push-action@v5
+#        with:
+#          context: .
+#          file: ./deploy/dockerfiles/Dockerfile
+#          push: true
+#          tags: ghcr.io/${{ env.REPO }}/group-im-server:latest
+#
+#  deploy:
+#    runs-on: ubuntu-latest
+#    needs: build-and-push
+#    steps:
+#      - name: Deploy to Server via SSH
+#        uses: appleboy/ssh-action@v1.0.3
+#        with:
+#          host: ${{ secrets.SERVER_HOST }}
+#          username: ${{ secrets.SERVER_USERNAME }}
+#          key: ${{ secrets.SERVER_SSH_KEY }}
+#          port: ${{ secrets.SERVER_PORT }}
+#          script: |
+#            # 转换为小写
+#            REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+#
+#            # 进入部署目录
+#            cd ${{ secrets.TARGET_DIR }}
+#
+#            # 确保使用最新的代码获取配置文件（可选，取决于您服务器如何同步仓库代码。通常可以通过git pull同步，这里我们假设已经有了对应的docker-compose.cicd.yml文件）
+#            git pull origin master || echo "Git pull ignored."
+#
+#            # 登录 GHCR，需要使用 GITHUB_TOKEN 的秘钥（您可以选择设置为仓库公开，或者在服务器上提前 docker login）
+#            # docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GHCR_PAT }}
+#
+#            # 拉取最新镜像
+#            docker pull ghcr.io/$REPO/group-im-server:latest
+#
+#            # 启动或更新服务
+#            docker-compose -f deploy/docker/docker-compose.cicd.yml up -d server
+#
+#            # 清理悬空镜像释放空间
+#            docker image prune -f
