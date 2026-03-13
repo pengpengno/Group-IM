@@ -27,3 +27,13 @@ jobs:
           file: ./deploy/dockerfiles/Dockerfile  # Dockerfile 路径
           push: true
           tags: pengpeng163/groupim:${{ github.ref_name }}
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: deploy
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /opt/app
+            docker compose pull
+            docker compose up -d
