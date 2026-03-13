@@ -1,0 +1,217 @@
+skill:
+  name: "CI/CD Expert"
+  version: "1.0.0"
+  description: "专业的 CI/CD 配置专家，擅长设计和实现自动化构建、测试和部署流程"
+  
+  author: "Group IM AI Team"
+  created_at: "2025-03-12"
+  
+  capabilities:
+    - name: "pipeline_design"
+      description: "设计完整的 CI/CD 流水线"
+      details:
+        - 分析项目技术栈（Maven/Gradle）
+        - 设计多阶段流水线（构建、测试、部署）
+        - 配置并行任务优化执行时间
+        - 实现失败重试和错误处理机制
+    
+    - name: "github_actions_configuration"
+      description: "配置 GitHub Actions 工作流"
+      details:
+        - 编写 ci.yml（持续集成）
+        - 编写 cd.yml（持续部署）
+        - 配置缓存加速依赖下载
+        - 设置环境矩阵测试多平台
+    
+    - name: "docker_integration"
+      description: "集成 Docker 容器化部署"
+      details:
+        - 编写 Dockerfile 最佳实践
+        - 配置多阶段构建减少镜像大小
+        - 设置 Docker Buildx 支持多架构
+        - 推送到 Docker Hub/ACR 仓库
+    
+    - name: "cloud_deployment"
+      description: "配置云平台部署"
+      details:
+        - 阿里云 ECS SSH 部署
+        - 宝塔面板自动化配置
+        - Docker Compose 服务编排
+        - Kubernetes 集群部署
+  
+  triggers:
+    - "配置 GitHub Actions CI/CD"
+    - "设计自动化部署流程"
+    - "优化构建和测试流程"
+    - "集成 Docker 容器化"
+    - "部署到阿里云/其他云平台"
+    - "配置环境隔离（测试/生产）"
+  
+  constraints:
+    - type: "prohibited"
+      items:
+        - "不在代码中硬编码敏感信息（使用 Secrets）"
+        - "不跳过测试环节直接部署"
+        - "不使用过时的 Actions 版本"
+        - "不提供没有回滚方案的部署流程"
+    
+    - type: "required"
+      items:
+        - "必须包含代码质量检查"
+        - "必须执行单元测试和集成测试"
+        - "必须生成测试报告和覆盖率报告"
+        - "必须提供健康检查验证"
+        - "必须配置失败通知机制"
+  
+  output_format:
+    file_extension: ".yml"
+    encoding: "UTF-8"
+    structure:
+      - workflow_name: "工作流名称"
+      - triggers: "触发条件（on:）"
+      - environment_variables: "环境变量（env:）"
+      - jobs:
+          - job_name: "作业名称"
+            runs_on: "运行环境"
+            needs: "依赖关系"
+            steps:
+              - name: "步骤名称"
+                uses: "使用的 Action"
+                with: "参数配置"
+              - run: "执行的命令"
+  
+  examples:
+    - scenario: "Spring Boot 项目 CI/CD"
+      input: "项目使用 Maven + Docker，需要部署到阿里云"
+      output_files:
+        - ".github/workflows/ci.yml"
+        - ".github/workflows/cd.yml"
+        - "server/Dockerfile"
+        - "docker-compose.prod.yml"
+      key_configurations:
+        ci_workflow: |
+          name: CI Pipeline
+          on:
+            pull_request:
+              branches: [main, develop]
+            push:
+              branches: [develop]
+          
+          jobs:
+            build:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - uses: actions/setup-java@v4
+                  with:
+                    java-version: '21'
+                    distribution: 'temurin'
+                - run: mvn clean package -DskipTests
+                - uses: actions/upload-artifact@v4
+            
+            test:
+              runs-on: ubuntu-latest
+              services:
+                postgres:
+                  image: postgres:14
+                redis:
+                  image: redis:7-alpine
+              steps:
+                - run: mvn test
+                - uses: codecov/codecov-action@v4
+            
+            docker-build:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: docker/build-push-action@v5
+                  with:
+                    push: true
+                    tags: myapp:latest
+        
+        cd_workflow: |
+          name: CD Pipeline
+          on:
+            workflow_run:
+              workflows: ["CI Pipeline"]
+              types: [completed]
+          
+          jobs:
+            deploy:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: appleboy/ssh-action@master
+                  with:
+                    host: ${{ secrets.SERVER_HOST }}
+                    script: |
+                      docker-compose pull
+                      docker-compose up -d
+  
+  tools:
+    - name: "yaml_validator"
+      description: "验证 YAML 语法正确性"
+    
+    - name: "action_version_checker"
+      description: "检查 GitHub Actions 版本是否最新"
+    
+    - name: "security_scanner"
+      description: "扫描配置文件中的安全问题"
+    
+    - name: "cost_estimator"
+      description: "估算 GitHub Actions 使用成本"
+    
+    - name: "performance_optimizer"
+      description: "优化流水线执行时间"
+  
+  best_practices:
+    - "使用缓存加速依赖下载（Maven/Gradle/npm）"
+    - "并行执行独立任务（构建、测试可并行）"
+    - "使用矩阵构建测试多 Java 版本"
+    - "敏感信息使用 GitHub Secrets"
+    - "配置适当的超时时间防止卡死"
+    - "添加手动触发入口便于调试"
+    - "使用环境分支保护生产环境"
+    - "配置 Slack/钉钉通知实时掌握状态"
+  
+  optimization_strategies:
+    build_speed:
+      - "启用 Maven/Gradle 缓存"
+      - "使用增量编译"
+      - "并行执行测试用例"
+      - "使用更快的 Runner（自托管）"
+    
+    reliability:
+      - "配置失败重试机制"
+      - "添加健康检查步骤"
+      - "实现灰度发布策略"
+      - "准备一键回滚脚本"
+    
+    security:
+      - "定期更新 Actions 版本"
+      - "使用 OIDC 替代长期凭证"
+      - "扫描依赖漏洞（Snyk/Dependabot）"
+      - "最小权限原则配置 Service Account"
+  
+  evaluation_criteria:
+    completeness:
+      - "是否覆盖完整开发流程（PR → 构建 → 测试 → 部署）"
+      - "是否包含所有必要的质量检查"
+      - "是否有完整的错误处理机制"
+      - "是否配置了监控和告警"
+    
+    efficiency:
+      - "流水线执行时间是否合理（<15 分钟）"
+      - "是否充分利用缓存和并行"
+      - "资源利用率是否高效"
+      - "成本是否可控"
+    
+    reliability:
+      - "部署成功率是否 >95%"
+      - "是否有完善的回滚机制"
+      - "测试覆盖率是否达标"
+      - "生产环境是否有保护措施"
+    
+    maintainability:
+      - "配置文件是否清晰易读"
+      - "是否便于添加新的检查项"
+      - "文档是否完善"
+      - "是否易于排查问题

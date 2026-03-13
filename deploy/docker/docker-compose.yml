@@ -80,16 +80,15 @@ services:
 
   server:
     build: 
-      context: ../..
-#      dockerfile: deploy/dockerfiles/Dockerfile.native
-      dockerfile: deploy/dockerfiles/Dockerfile
+      context: ../../  # 构建上下文指向项目根目录
+      dockerfile: deploy/dockerfiles/Dockerfile  # Dockerfile 路径（相对于 context）
     container_name: im-server
     ports:
       - "8080:8080"
       - "8088:8088"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/group
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5432/group
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=postgres
       - SPRING_DATA_REDIS_HOST=redis

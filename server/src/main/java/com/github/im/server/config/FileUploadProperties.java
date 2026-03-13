@@ -9,6 +9,15 @@ import org.springframework.context.annotation.Configuration;
 @Data
 public class FileUploadProperties {
 
-    private String basePath; //文件存户路径
-    private String chunkTempPath; // 分段上传文件存储路径
+    /**
+     * 文件存储路径（支持相对路径和绝对路径）
+     * 相对路径会以 user.dir 为基准
+     */
+    private String basePath;
+    
+    /**
+     * 分片上传临时文件存储路径（支持相对路径和绝对路径）
+     * 相对路径会以 user.dir 为基准
+     */
+    private String chunkTempPath;
 }
