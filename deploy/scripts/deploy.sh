@@ -6,6 +6,7 @@
 set -e
 
 DEPLOY_DIR="/opt/app"
+GIT_REPOS_USER="pengpengno"
 
 echo "=========================================="
 echo "  IM Group Server 一键部署"
@@ -24,7 +25,7 @@ cd "$DEPLOY_DIR"
 
 # 下载配置文件（覆盖旧版本）
 echo "下载配置文件..."
-GITHUB_RAW_BASE="https://raw.githubusercontent.com/Group-IM/master"
+GITHUB_RAW_BASE="https://raw.githubusercontent.com/${GIT_REPOS_USER}/Group-IM"
 
 curl -sL "${GITHUB_RAW_BASE}/deploy/docker/docker-compose.cicd.yml" -o docker-compose.yml || exit 1
 curl -sL "${GITHUB_RAW_BASE}/deploy/docker/nginx.conf" -o nginx.conf || exit 1
