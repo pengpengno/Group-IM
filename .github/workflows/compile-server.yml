@@ -35,5 +35,5 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /opt/app
-            docker compose pull
-            docker compose up -d
+            docker-compose pull
+            docker-compose up -d
