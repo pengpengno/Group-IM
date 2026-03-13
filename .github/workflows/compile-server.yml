@@ -36,6 +36,7 @@ jobs:
           username: deploy
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            cd /opt/app
             curl -sL https://raw.githubusercontent.com/${{ github.repository }}/Group-IM/master/deploy/scripts/deploy.sh | bash
 
       - name: Send DingTalk notification
