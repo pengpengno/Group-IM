@@ -23,10 +23,21 @@ cd "$DEPLOY_DIR"
 #    chmod -R 755 "$DEPLOY_DIR"
 #fi
 
-# 下载配置文件（覆盖旧版本）
+# 下载配置文件（覆盖旧版本，先备份）
 echo "下载配置文件..."
 GITHUB_RAW_BASE="https://raw.githubusercontent.com/${GIT_REPOS_USER}/Group-IM/master"
 
+# 备份旧配置文件
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+echo "备份现有配置文件..."
+for file in docker-compose.yml nginx-tcp.conf create_company_schema_function.sql nginx.conf; do
+    if [ -f "$file" ]; then
+        cp "$file" "${file}.${TIMESTAMP}.backup"
+        echo "已备份：$file -> ${file}.${TIMESTAMP}.backup"
+    fi
+done
+
+# 下载新配置文件
 wget "${GITHUB_RAW_BASE}/deploy/docker/docker-compose.cicd.yml" -O docker-compose.yml || { echo "错误：下载 docker-compose.cicd.yml 失败"; exit 1; }
 wget "${GITHUB_RAW_BASE}/deploy/docker/nginx-tcp.conf" -O nginx-tcp.conf || { echo "错误：下载 nginx-tcp.conf 失败"; exit 1; }
 wget "${GITHUB_RAW_BASE}/scripts/create_company_schema_function.sql" -O create_company_schema_function.sql || { echo "错误：下载 create_company_schema_function.sql 失败"; exit 1; }
