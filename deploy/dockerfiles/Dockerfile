@@ -48,5 +48,9 @@ EXPOSE 8080 8088
 ENV DB_IP=host.docker.internal
 ENV REDIS_HOST=host.docker.internal
 
+# 健康检查配置
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:8080/actuator/health/liveness || exit 1
+
 # 启动 SpringBoot
 ENTRYPOINT ["java","-jar","/app/server.jar"]

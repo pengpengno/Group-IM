@@ -37,48 +37,48 @@ services:
       timeout: 10s
       retries: 3
 
-  openldap:
-    image: osixia/openldap:1.5.0
-    container_name: local-openldap-prod
-    environment:
-      LDAP_ORGANISATION: "MyCompany"
-      LDAP_DOMAIN: "mycompany.com"
-      LDAP_ADMIN_PASSWORD: "admin"
-      LDAP_CONFIG_PASSWORD: "config"
-      LDAP_READONLY_USER: "false"
-      LDAP_REMOVE_CONFIG_AFTER_SETUP: "true"
-      LDAP_SSL_HELPER_PREFIX: "ldap"
-    ports:
-      - "389:389"     # LDAP
-      - "636:636"     # LDAPS
-    volumes:
-      - ../../ldap_data:/var/lib/ldap
-      - ../../ldap_config:/etc/ldap/slapd.d
-    networks:
-      - app-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost", "-b", "dc=mycompany,dc=com", "-D", "cn=admin,dc=mycompany,dc=com", "-w", "admin"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-  
-  phpldapadmin:
-    image: dinkel/phpldapadmin
-    container_name: phpldapadmin-prod
-    ports:
-      - "8085:80"
-    environment:
-      LDAP_SERVER_HOST: openldap
-      LDAP_SERVER_PORT: 389
-    networks:
-      - app-network
-    depends_on:
-      - openldap
-    restart: unless-stopped
+#  openldap:
+#    image: osixia/openldap:1.5.0
+#    container_name: local-openldap-prod
+#    environment:
+#      LDAP_ORGANISATION: "MyCompany"
+#      LDAP_DOMAIN: "mycompany.com"
+#      LDAP_ADMIN_PASSWORD: "admin"
+#      LDAP_CONFIG_PASSWORD: "config"
+#      LDAP_READONLY_USER: "false"
+#      LDAP_REMOVE_CONFIG_AFTER_SETUP: "true"
+#      LDAP_SSL_HELPER_PREFIX: "ldap"
+#    ports:
+#      - "389:389"     # LDAP
+#      - "636:636"     # LDAPS
+#    volumes:
+#      - ../../ldap_data:/var/lib/ldap
+#      - ../../ldap_config:/etc/ldap/slapd.d
+#    networks:
+#      - app-network
+#    restart: unless-stopped
+#    healthcheck:
+#      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost", "-b", "dc=mycompany,dc=com", "-D", "cn=admin,dc=mycompany,dc=com", "-w", "admin"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 3
+#
+#  phpldapadmin:
+#    image: dinkel/phpldapadmin
+#    container_name: phpldapadmin-prod
+#    ports:
+#      - "8085:80"
+#    environment:
+#      LDAP_SERVER_HOST: openldap
+#      LDAP_SERVER_PORT: 389
+#    networks:
+#      - app-network
+#    depends_on:
+#      - openldap
+#    restart: unless-stopped
 
   server:
-    image: ghcr.io/${REPO}/group-im-server:latest
+    image: pengpeng163/groupim:master
     container_name: im-server-cicd
     ports:
       - "8080:8080"
@@ -117,15 +117,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      openldap:
-        condition: service_started
+#      openldap:
+#        condition: service_started
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 60s  # 应用启动宽限期
 
 networks:
   app-network:

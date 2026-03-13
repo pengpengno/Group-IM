@@ -1,73 +1,54 @@
 #!/bin/bash
 
-# IM Group Server 部署脚本
+# IM Group Server 一键部署脚本
+# 用法：curl ... | bash
 
-set -e  # 遇到错误立即退出
+set -e
 
-echo "=== IM Group Server 部署脚本 ==="
+DEPLOY_DIR="/opt/app"
 
-# 检查是否安装了必要的工具
-if ! command -v docker &> /dev/null; then
-    echo "错误: 未找到 docker 命令，请先安装 Docker"
-    exit 1
+echo "=========================================="
+echo "  IM Group Server 一键部署"
+echo "=========================================="
+
+# 创建目录
+echo "创建部署目录..."
+mkdir -p "$DEPLOY_DIR"/{logs/app,storage,ssl,scripts}
+cd "$DEPLOY_DIR"
+
+# 设置权限
+if id "deploy" &>/dev/null; then
+    chown -R deploy:deploy "$DEPLOY_DIR"
+    chmod -R 755 "$DEPLOY_DIR"
 fi
 
-if ! command -v docker-compose &> /dev/null; then
-    echo "警告: 未找到 docker-compose 命令，尝试使用 docker compose (Docker Desktop v2.0.0.0+)"
-    if ! docker compose version &> /dev/null; then
-        echo "错误: 未找到 docker compose 命令，请先安装 Docker Compose"
-        exit 1
-    fi
-    COMPOSE_CMD="docker compose"
-else
-    COMPOSE_CMD="docker-compose"
-fi
+# 下载配置文件（覆盖旧版本）
+echo "下载配置文件..."
+GITHUB_RAW_BASE="https://raw.githubusercontent.com/Group-IM/master"
 
-# 创建必要的目录
-echo "创建必要目录..."
-mkdir -p ../../logs/app
-mkdir -p ../../postgres_data
-mkdir -p ../../redis_data
-mkdir -p ../../ldap_data
-mkdir -p ../../ldap_config
-mkdir -p ../../storage
-mkdir -p ../../ssl
+curl -sL "${GITHUB_RAW_BASE}/deploy/docker/docker-compose.cicd.yml" -o docker-compose.yml || exit 1
+curl -sL "${GITHUB_RAW_BASE}/deploy/docker/nginx.conf" -o nginx.conf || exit 1
+curl -sL "${GITHUB_RAW_BASE}/deploy/docker/nginx-tcp.conf" -o nginx-tcp.conf || exit 1
+curl -sL "${GITHUB_RAW_BASE}/scripts/create_company_schema_function.sql" -o scripts/create_company_schema_function.sql || exit 1
 
-# 构建并启动服务
-echo "启动 IM Group Server..."
+echo "配置文件下载完成"
 
-if [ "$1" = "prod-native" ]; then
-    echo "使用生产模式 (GraalVM Native) 启动..."
-    $COMPOSE_CMD -f ../../docker-compose.prod.yml up -d --build
-elif [ "$1" = "prod" ]; then
-    echo "使用生产模式启动..."
-    $COMPOSE_CMD -f ../../docker-compose.prod.yml up -d --build
-elif [ "$1" = "dev" ]; then
-    echo "使用开发模式启动..."
-    $COMPOSE_CMD -f ../../docker-compose.yml up -d --build
-else
-    echo "使用默认模式启动..."
-    $COMPOSE_CMD -f ../../docker-compose.yml up -d --build
-fi
-
-# 等待服务启动
-echo "等待服务启动..."
-sleep 10
-
-# 检查服务状态
-echo "检查服务状态..."
-$COMPOSE_CMD -f ../../docker-compose.yml ps
+# 启动服务
+echo "启动 Docker 服务..."
+docker-compose up -d
 
 echo ""
-echo "=== 部署完成 ==="
-echo "服务已启动，可以通过以下地址访问："
-echo "  - 应用服务: http://localhost:8080"
-echo "  - TCP 服务: localhost:8088"
-echo "  - HTTPS 服务: https://localhost:443 (Nginx SSL代理)"
-echo "  - LDAP 管理: http://localhost:8085 (phpLDAPadmin)"
-echo "  - PostgreSQL: localhost:5432 (数据库)"
-echo "  - Redis: localhost:6379 (缓存)"
+echo "=========================================="
+echo "  部署完成！"
+echo "=========================================="
 echo ""
-echo "要查看日志，请运行: $COMPOSE_CMD -f ../../docker-compose.yml logs -f"
-echo "要停止服务，请运行: $COMPOSE_CMD -f ../../docker-compose.yml down"
+echo "访问地址："
+echo "  - 应用：http://localhost:8080"
+echo "  - TCP: localhost:8088"
+echo ""
+echo "管理命令："
+echo "  - 查看状态：docker-compose ps"
+echo "  - 查看日志：docker-compose logs -f"
+echo "  - 停止：docker-compose down"
+echo "  - 重启：docker-compose restart"
 echo ""

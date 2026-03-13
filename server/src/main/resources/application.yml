@@ -66,6 +66,23 @@ server:
   tomcat:
     max-http-form-post-size: 104857600  # 100MB
 
+# Spring Boot Actuator 健康检查配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus  # 暴露的端点
+  endpoint:
+    health:
+      show-details: always  # 显示详细健康信息
+      probes:
+        enabled: true  # 启用 Kubernetes 探针
+  health:
+    livenessState:
+      enabled: true  # 存活探针 - 用于 Docker/K8s 检查应用是否存活
+    readinessState:
+      enabled: true  # 就绪探针 - 用于 K8s 检查应用是否就绪
+
 tcp:
   port: ${TCP_PORT:8088}
 

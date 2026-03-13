@@ -1,6 +1,5 @@
 package com.github.im.server.config.security;
 
-import com.github.im.server.config.mult.SchemaContext;
 import com.github.im.server.config.mult.TenantContextFilter;
 import com.github.im.server.security.CompanyAccessDeniedHandler;
 import com.github.im.server.service.AuthenticationService;
@@ -102,8 +101,9 @@ public class SecurityConfig  {
                                 "/mcp/**",
                                 "/static/**",
                                 "/socket.io/**",
-                                "/ws/**"  , // 信令服务器
-                                "/signaling/**"    // 专用信令端点
+                                "/ws/**",  // 信令服务器
+                                "/signaling/**",    // 专用信令端点
+                                "/actuator/**"  // Spring Boot Actuator 健康检查端点（免认证）
                         )
                         .permitAll()
                         .anyRequest()

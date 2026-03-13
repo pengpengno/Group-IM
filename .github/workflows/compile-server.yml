@@ -1,4 +1,5 @@
-name: Build and Push Docker
+name: Build and Deploy
+
 on:
   push:
     branches:
@@ -23,25 +24,25 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: .  # 构建上下文为项目根目录
-          file: ./deploy/dockerfiles/Dockerfile  # Dockerfile 路径
+          context: .
+          file: ./deploy/dockerfiles/Dockerfile
           push: true
           tags: pengpeng163/groupim:${{ github.ref_name }}
-      - name: Deploy to server
-        uses: appleboy/ssh-action@v1
+
+      - name: Deploy to Production Server
+        uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.SERVER_IP }}
+          host: ${{ secrets.SERVER_HOST }}
           username: deploy
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd /opt/app
-            docker-compose pull
-            docker-compose up -d
-#            钉钉通知
+            curl -sL https://raw.githubusercontent.com/${{ github.repository }}/master/deploy/scripts/deploy.sh | bash
+
       - name: Send DingTalk notification
         env:
           DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
           GITHUB_COMMIT: ${{ github.sha }}
+          GITHUB_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           GITHUB_BRANCH: ${{ github.ref_name }}
           GITHUB_AUTHOR: ${{ github.actor }}
           DEPLOY_STATUS: ${{ job.status }}
