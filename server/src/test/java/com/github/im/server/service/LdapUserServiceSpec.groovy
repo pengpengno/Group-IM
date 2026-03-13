@@ -2,6 +2,7 @@ package com.github.im.server.service
 
 import com.github.im.server.model.User
 import com.github.im.server.repository.UserRepository
+import org.springframework.ldap.core.LdapClient
 import org.springframework.ldap.core.LdapTemplate
 import spock.lang.Specification
 
@@ -12,8 +13,9 @@ import java.time.LocalDateTime
 class LdapUserServiceSpec extends Specification {
 
     LdapTemplate ldapTemplate = Mock()
+    LdapClient ldapClient = Mock()
     UserRepository userRepository = Mock()
-    LdapUserService ldapUserService = new LdapUserService(ldapTemplate, userRepository)
+    LdapUserService ldapUserService = new LdapUserService(ldapClient, userRepository)
 
     def "test createLdapUser creates user in LDAP and local database"() {
         given: "User details"
