@@ -25,12 +25,12 @@ cd "$DEPLOY_DIR"
 
 # 下载配置文件（覆盖旧版本）
 echo "下载配置文件..."
-GITHUB_RAW_BASE="https://raw.githubusercontent.com/${GIT_REPOS_USER}/Group-IM"
+GITHUB_RAW_BASE="https://raw.githubusercontent.com/${GIT_REPOS_USER}/Group-IM/master"
 
-curl -sL "${GITHUB_RAW_BASE}/deploy/docker/docker-compose.cicd.yml" -o docker-compose.yml || exit 1
-curl -sL "${GITHUB_RAW_BASE}/deploy/docker/nginx.conf" -o nginx.conf || exit 1
-curl -sL "${GITHUB_RAW_BASE}/deploy/docker/nginx-tcp.conf" -o nginx-tcp.conf || exit 1
-curl -sL "${GITHUB_RAW_BASE}/scripts/create_company_schema_function.sql" -o scripts/create_company_schema_function.sql || exit 1
+wget "${GITHUB_RAW_BASE}/deploy/docker/docker-compose.cicd.yml" -O docker-compose.yml || { echo "错误：下载 docker-compose.cicd.yml 失败"; exit 1; }
+wget "${GITHUB_RAW_BASE}/deploy/docker/nginx-tcp.conf" -O nginx-tcp.conf || { echo "错误：下载 nginx-tcp.conf 失败"; exit 1; }
+wget "${GITHUB_RAW_BASE}/scripts/create_company_schema_function.sql" -O create_company_schema_function.sql || { echo "错误：下载 create_company_schema_function.sql 失败"; exit 1; }
+wget "${GITHUB_RAW_BASE}/deploy/docker/nginx.conf" -O nginx.conf || { echo "错误：下载 nginx.conf 失败"; exit 1; }
 
 echo "配置文件下载完成"
 

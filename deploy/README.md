@@ -18,42 +18,37 @@
 
 ## 快速开始
 
-### 1. 首次部署（生产环境）
+### 1. 生产环境部署（CI/CD 方式 - 推荐）
 
-在目标服务器上以 `deploy` 用户执行：
+使用预构建的 Docker 镜像，无需本地编译：
 
 ```bash
-# 下载并执行部署脚本
-curl -sL https://raw.githubusercontent.com/your-repo/main/deploy/scripts/deploy-production.sh | bash -s -- install
+# 一键部署脚本
+curl -sL https://raw.githubusercontent.com/pengpengno/Group-IM/master/deploy/scripts/deploy.sh | bash
 ```
 
 或手动执行：
 
 ```bash
 cd /opt/app
-bash deploy-production.sh install
+docker-compose -f docker-compose.cicd.yml up -d
 ```
 
-### 2. 更新部署
+### 2. 开发环境部署（本地构建）
+
+在项目根目录执行：
 
 ```bash
-bash deploy-production.sh update
+./start.sh
 ```
 
-### 3. 服务管理
+选择选项 `1) 本地开发部署`
+
+或使用 Docker Compose：
 
 ```bash
-# 查看状态
-bash deploy-production.sh status
-
-# 查看日志
-bash deploy-production.sh logs
-
-# 重启服务
-bash deploy-production.sh restart
-
-# 停止服务
-bash deploy-production.sh stop
+cd deploy/docker
+docker-compose -f docker-compose.yml up -d --build
 ```
 
 ## GitHub Actions 自动部署
@@ -88,19 +83,60 @@ bash deploy-production.sh stop
 
 ## 配置文件说明
 
-### docker-compose.cicd.yml
+### docker-compose.cicd.yml（生产环境）
 
-包含以下服务：
+使用远程 Docker Hub 镜像，适用于生产环境快速部署：
+
+**包含服务：**
+- **nginx**: Nginx 反向代理（HTTP/HTTPS/TCP）
 - **postgres**: PostgreSQL 数据库
 - **redis**: Redis 缓存
-- **server**: Spring Boot 应用服务
+- **server**: Spring Boot 应用服务（JVM 版本）
+
+**特点：**
+- 无需本地构建镜像
+- 使用 `pengpeng163/groupim:master` 镜像
+- 配置了完整的健康检查
+- 支持 TCP 长连接（端口 8088）
+
+### docker-compose.yml（开发环境）
+
+本地构建 Docker 镜像，适用于开发测试：
+
+**包含服务：**
+- **postgres**: PostgreSQL 数据库
+- **redis**: Redis 缓存
+- **openldap**: LDAP 目录服务（仅开发环境）
+- **phpldapadmin**: LDAP 管理界面（仅开发环境）
+- **server**: Spring Boot 应用服务（本地构建）
 - **nginx**: Nginx 反向代理
+
+**特点：**
+- 从源代码构建镜像
+- 支持热更新
+- 包含完整的开发环境组件
 
 ### nginx.conf
 
-- 端口 80: HTTP 反向代理
-- 端口 443: HTTPS (需配置 SSL 证书)
+**功能：**
+- 端口 80: HTTP 反向代理到应用服务
+- 端口 443: HTTPS（需配置 SSL 证书）
+- 端口 8088: TCP 长连接代理（用于 IM 消息推送）
 - 健康检查端点：`/actuator/health/liveness`
+
+### nginx-tcp.conf
+
+**功能：**
+- TCP 长连接代理配置
+- 将 8088 端口的流量转发到后端服务
+- 支持 WebSocket 协议升级
+
+### create_company_schema_function.sql
+
+**功能：**
+- PostgreSQL 数据库初始化脚本
+- 创建公司 schema 管理函数
+- 支持多租户架构
 
 ### 环境变量 (.env)
 
@@ -146,15 +182,31 @@ docker inspect --format='{{json .State.Health.Log}}' im-server-cicd | jq
 
 ## 常见问题
 
-### 1. 端口冲突
+### 1. 下载配置文件失败
 
-如果端口被占用，修改 `.env` 文件：
+**问题：** 使用 `deploy.sh` 脚本时提示下载失败
 
+**解决：**
 ```bash
-SERVER_PORT=8081  # 改为其他端口
+# 检查网络连接
+curl -I https://raw.githubusercontent.com
+
+# 手动下载配置文件
+cd /opt/app
+wget https://raw.githubusercontent.com/pengpengno/Group-IM/master/deploy/docker/docker-compose.cicd.yml -O docker-compose.yml
 ```
 
-### 2. 磁盘空间不足
+### 2. 端口冲突
+
+如果端口被占用，修改对应配置文件：
+
+```yaml
+# docker-compose.cicd.yml
+ports:
+  - "8081:8080"  # 改为其他端口
+```
+
+### 3. 磁盘空间不足
 
 清理旧镜像：
 
@@ -162,20 +214,36 @@ SERVER_PORT=8081  # 改为其他端口
 docker image prune -a
 ```
 
-### 3. 服务启动失败
+### 4. 服务启动失败
 
 查看日志：
 
 ```bash
-docker compose logs -f server
+# 生产环境
+docker-compose -f docker-compose.cicd.yml logs -f server
+
+# 开发环境
+docker-compose -f docker-compose.yml logs -f server
 ```
 
-### 4. 数据库初始化失败
+### 5. 数据库初始化失败
 
 确保 SQL 脚本已正确挂载：
 
 ```bash
-ls -la /opt/groupim/scripts/create_company_schema_function.sql
+ls -la /opt/app/create_company_schema_function.sql
+```
+
+### 6. 健康检查一直不通过
+
+等待应用启动完成（默认 60s 宽限期）：
+
+```bash
+# 查看容器状态
+docker ps
+
+# 查看详细健康信息
+docker inspect --format='{{json .State.Health}}' im-server-cicd | jq
 ```
 
 ## 备份与恢复

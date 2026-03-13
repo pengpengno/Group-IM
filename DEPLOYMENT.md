@@ -6,18 +6,20 @@
 
 **Docker Compose 方式 (推荐):**
 ```bash
-# Linux/macOS
-./deploy/scripts/deploy.sh                 # 开发模式
-./deploy/scripts/deploy.sh prod           # 生产模式
-./deploy/scripts/deploy.sh prod-native    # 生产模式 (GraalVM Native)
+# Linux/macOS - 生产环境（CI/CD 方式，使用远程镜像）
+./deploy/scripts/deploy.sh
 
-# Windows
-deploy\\scripts\\deploy.bat                 # 开发模式
-deploy\\scripts\\deploy.bat prod           # 生产模式
-deploy\\scripts\\deploy.bat prod-native    # 生产模式 (GraalVM Native)
+# Linux/macOS - 开发环境（本地构建镜像）
+./start.sh
+
+# Windows - 生产环境
+deploy\scripts\deploy.bat
+
+# Windows - 开发环境
+start.bat
 ```
 
-**Kubernetes 方式 (适用于k3s单节点环境):**
+**Kubernetes 方式 (适用于 k3s 单节点环境):**
 ```bash
 # Linux/macOS
 ./deploy/scripts/deploy-k8s-simple.sh
@@ -54,10 +56,11 @@ deploy/
 │   ├── k8s-nginx-ingress.yaml
 │   └── README.md
 ├── docker/                 # Docker Compose 部署文件
-│   ├── docker-compose.yml
-│   ├── docker-compose.prod.yml
-│   ├── nginx.conf
-│   ├── nginx-tcp.conf
+│   ├── docker-compose.yml           # 开发环境（本地构建）
+│   ├── docker-compose.cicd.yml      # 生产环境（远程镜像）
+│   ├── nginx.conf                   # Nginx HTTP/HTTPS配置
+│   ├── nginx-tcp.conf               # Nginx TCP长连接配置
+│   ├── create_company_schema_function.sql  # 数据库初始化脚本
 │   └── README.md
 ├── dockerfiles/            # Docker 镜像构建文件
 │   ├── Dockerfile          # JVM 版本构建文件
@@ -65,7 +68,7 @@ deploy/
 ├── scripts/                # 部署脚本
 │   ├── deploy-k8s.sh
 │   ├── deploy-k8s.ps1
-│   ├── deploy.sh
+│   ├── deploy.sh          # 生产环境一键部署脚本
 │   └── deploy.bat
 ├── K8S-DEPLOYMENT.md      # Kubernetes 部署文档
 └── README.md
@@ -82,22 +85,33 @@ deploy/
 
 ### 1. 使用部署脚本（推荐）
 
-**Linux/macOS:**
+**生产环境部署（CI/CD 方式 - 使用远程镜像）：**
+
+Linux/macOS:
 ```bash
-chmod +x deploy/scripts/deploy.sh
-./deploy/scripts/deploy.sh                 # 默认模式 (开发)
-./deploy/scripts/deploy.sh dev            # 开发模式
-./deploy/scripts/deploy.sh prod           # 生产模式
-./deploy/scripts/deploy.sh prod-native    # 生产模式 (GraalVM Native)
+./deploy/scripts/deploy.sh
 ```
 
-**Windows:**
+Windows:
 ```cmd
-deploy\scripts\deploy.bat                 REM 默认模式 (开发)
-deploy\scripts\deploy.bat dev            REM 开发模式
-deploy\scripts\deploy.bat prod           REM 生产模式
-deploy\scripts\deploy.bat prod-native    REM 生产模式 (GraalVM Native)
+deploy\scripts\deploy.bat
 ```
+
+**开发环境部署（本地构建镜像）：**
+
+在项目根目录执行：
+
+Linux/macOS:
+```bash
+./start.sh
+```
+
+Windows:
+```cmd
+start.bat
+```
+
+然后选择选项 `1) 本地开发部署`
 
 ## GraalVM Native Image 支持
 
@@ -168,32 +182,46 @@ deploy\scripts\deploy.bat prod-native
 
 部署后，以下服务将在容器中运行：
 
-- **PostgreSQL**: 数据库服务 (端口 5432)
-- **Redis**: 缓存服务 (端口 6379)
-- **OpenLDAP**: 目录服务 (端口 389/636)
-- **Nginx**: 反向代理服务 (端口 80, 443, 8088)
-- **phpLDAPadmin**: LDAP 管理界面 (端口 8085)
-- **IM Server**: 主应用服务 (端口 8080, 8088)
+### 生产环境（docker-compose.cicd.yml）
+- **nginx**: Nginx 反向代理服务 (端口 80, 443, 8088)
+- **postgres**: PostgreSQL 数据库服务 (端口 5432)
+- **redis**: Redis 缓存服务 (端口 6379)
+- **server**: Spring Boot 应用服务 (端口 8080 HTTP, 8088 TCP)
+
+### 开发环境（docker-compose.yml）
+- **postgres**: PostgreSQL 数据库服务 (端口 5432)
+- **redis**: Redis 缓存服务 (端口 6379)
+- **openldap**: LDAP 目录服务 (端口 389/636)
+- **phpldapadmin**: LDAP 管理界面 (端口 8085)
+- **server**: Spring Boot 应用服务 (端口 8080, 8088)
+- **nginx**: Nginx 反向代理服务 (端口 80, 443, 8088)
 
 ## 访问服务
 
-- **应用服务 (HTTP)**: http://localhost:8080 (经Nginx代理)
-- **TCP 长连接服务**: localhost:8088 (经Nginx TCP代理)
-- **HTTPS 服务**: https://localhost:443 (Nginx SSL代理)
+### 生产环境（CI/CD）
+- **应用服务 (HTTP)**: http://服务器 IP:8080 (经 Nginx 代理)
+- **TCP 长连接服务**: 服务器 IP:8088 (经 Nginx TCP 代理)
+- **HTTPS 服务**: https://服务器 IP:443 (Nginx SSL 代理)
+
+### 开发环境
+- **应用服务 (HTTP)**: http://localhost:8080 (经 Nginx 代理)
+- **TCP 长连接服务**: localhost:8088 (经 Nginx TCP 代理)
+- **HTTPS 服务**: https://localhost:443 (Nginx SSL 代理)
 - **LDAP 管理**: http://localhost:8085
-  - 用户名: `cn=admin,dc=mycompany,dc=com`
-  - 密码: `admin`
+  - 用户名：`cn=admin,dc=mycompany,dc=com`
+  - 密码：`admin`
 
 ## Nginx 配置
 
 Nginx 配置包含两个部分：
 
-1. **HTTP/HTTPS 代理**: 用于处理Web请求和WebSocket连接
-2. **TCP 代理**: 专门用于处理IM系统的TCP长连接
+1. **HTTP/HTTPS 代理**: 用于处理 Web 请求和 WebSocket 连接
+2. **TCP 代理**: 专门用于处理 IM 系统的 TCP 长连接
 
 配置文件：
-- `nginx.conf`: 主配置文件，包含HTTP/HTTPS设置
-- `nginx-tcp.conf`: TCP代理配置，用于8088端口的长连接
+- `nginx.conf`: 主配置文件，包含 HTTP/HTTPS 设置
+- `nginx-tcp.conf`: TCP 代理配置，用于 8088 端口的长连接
+- `create_company_schema_function.sql`: PostgreSQL 数据库初始化脚本
 
 ## 生产环境建议
 
@@ -263,29 +291,58 @@ JAVA_OPTS=-Xmx1g -Xms512m -XX:+UseG1GC
 
 ## 管理命令
 
-### 启动服务
+### 生产环境（CI/CD）
+
+启动服务：
 ```bash
-docker-compose up -d
+docker-compose -f docker-compose.cicd.yml up -d
 ```
 
-### 停止服务
+停止服务：
 ```bash
-docker-compose down
+docker-compose -f docker-compose.cicd.yml down
 ```
 
-### 重启服务
+重启服务：
 ```bash
-docker-compose restart server
+docker-compose -f docker-compose.cicd.yml restart server
 ```
 
-### 查看服务状态
+查看服务状态：
 ```bash
-docker-compose ps
+docker-compose -f docker-compose.cicd.yml ps
 ```
 
-### 构建并重启服务
+查看日志：
 ```bash
-docker-compose up -d --build
+docker-compose -f docker-compose.cicd.yml logs -f server
+```
+
+### 开发环境
+
+启动服务：
+```bash
+docker-compose -f docker-compose.yml up -d
+```
+
+停止服务：
+```bash
+docker-compose -f docker-compose.yml down
+```
+
+重启服务：
+```bash
+docker-compose -f docker-compose.yml restart server
+```
+
+查看服务状态：
+```bash
+docker-compose -f docker-compose.yml ps
+```
+
+构建并重启服务：
+```bash
+docker-compose -f docker-compose.yml up -d --build
 ```
 
 ## 扩容和负载均衡
@@ -311,15 +368,31 @@ cat backup.sql | docker-compose exec -T postgres psql -U postgres group
 
 ## 版本升级
 
-### 1. 拉取最新代码
+### 生产环境（CI/CD）
+
 ```bash
-git pull origin main
+# 1. 拉取最新镜像
+docker pull pengpeng163/groupim:master
+
+# 2. 停止当前服务
+docker-compose -f docker-compose.cicd.yml down
+
+# 3. 启动新版本
+docker-compose -f docker-compose.cicd.yml up -d
+
+# 4. 查看日志确认启动成功
+docker-compose -f docker-compose.cicd.yml logs -f server
 ```
 
-### 2. 重建并启动服务
+### 开发环境
+
 ```bash
-docker-compose down
-docker-compose up -d --build
+# 1. 拉取最新代码
+git pull origin main
+
+# 2. 重建并启动服务
+docker-compose -f docker-compose.yml down
+docker-compose -f docker-compose.yml up -d --build
 ```
 
 ## 联系支持

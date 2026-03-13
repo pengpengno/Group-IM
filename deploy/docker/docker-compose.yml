@@ -134,7 +134,7 @@ services:
       start_period: 60s  # 应用启动宽限期
 
   nginx:
-    image: nginx:alpine
+    image: nginx:1.29.4
     container_name: nginx-proxy
     ports:
       - "80:80"

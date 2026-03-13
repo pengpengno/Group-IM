@@ -1,4 +1,21 @@
 services:
+  nginx:
+    image: nginx:1.29.4
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8088:8088"  # TCP长连接端口
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx-tcp.conf:/etc/nginx/stream.conf.d/tcp-proxy.conf:ro
+#      - ./ssl:/etc/nginx/ssl
+    networks:
+      - app-network
+    depends_on:
+      - server
+    restart: unless-stopped
+
   postgres:
     image: postgres:14.13
     container_name: postgres-db-prod
@@ -9,8 +26,8 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ../../postgres_data:/var/lib/postgresql/data
-      - ../../scripts/create_company_schema_function.sql:/docker-entrypoint-initdb.d/01-create_company_schema_function.sql
+      - ./postgres_data:/var/lib/postgresql/data
+      - ./create_company_schema_function.sql:/docker-entrypoint-initdb.d/01-create_company_schema_function.sql
     networks:
       - app-network
     restart: unless-stopped
@@ -27,7 +44,7 @@ services:
       - "6379:6379"
     command: redis-server --appendonly yes
     volumes:
-      - ../../redis_data:/data
+      - ./redis_data:/data
     networks:
       - app-network
     restart: unless-stopped
@@ -108,8 +125,8 @@ services:
       # WebRTC配置
       - WEBRTC_SESSION_TIMEOUT=300000
     volumes:
-      - ../../logs/app:/app/logs
-      - ../../storage:/app/storage
+      - ./logs/app:/app/logs
+      - ./storage:/app/storage
     networks:
       - app-network
     depends_on:
