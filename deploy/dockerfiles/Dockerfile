@@ -15,7 +15,8 @@ COPY entity/ entity/
 COPY server/ server/
 
 # 构建 server 模块（同时构建依赖模块）
-RUN mvn -B clean package  -DskipTests -s alisettings.xml
+# RUN mvn -B clean package  -DskipTests -s alisettings.xml
+RUN mvn -B clean package  -DskipTests
 
 
 # ==========================================
