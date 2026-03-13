@@ -1,0 +1,260 @@
+skill:
+  name: "Deployment Documentation Sync"
+  version: "1.0.0"
+  description: "专业的部署文档同步助手，在修改部署配置文件时自动识别并更新相关文档，确保文档与实际配置保持同步"
+  
+  author: "Group IM AI Team"
+  created_at: "2025-03-13"
+  
+  capabilities:
+    - name: "change_detection"
+      description: "自动识别部署相关文件的变更"
+      details:
+        - Docker Compose 配置文件变更检测
+        - 部署脚本（shell/bat）变更检测
+        - Nginx 配置文件变更检测
+        - 环境变量配置变更检测
+        - Kubernetes 部署文件变更检测
+    
+    - name: "impact_analysis"
+      description: "分析配置文件变更对文档的影响"
+      details:
+        - 服务组件变更影响分析
+        - 端口配置变更影响分析
+        - 环境变量变更影响分析
+        - 卷挂载变更影响分析
+        - 部署脚本变更影响分析
+    
+    - name: "document_updating"
+      description: "自动更新相关文档"
+      details:
+        - deploy/README.md 更新
+        - deploy/docker/README.md 更新
+        - DEPLOYMENT.md 更新
+        - ENVIRONMENT_VARIABLES.md 更新
+        - doc/部署运维/*.md 更新
+    
+    - name: "consistency_checking"
+      description: "检查文档一致性"
+      details:
+        - 文件名统一性检查
+        - 端口一致性验证
+        - 环境区分说明验证
+        - 命令可执行性验证
+  
+  triggers:
+    - "修改了 deploy/ 目录下的配置文件"
+    - "修改了 docker-compose*.yml 文件"
+    - "修改了部署脚本（deploy.sh, deploy.bat）"
+    - "修改了 nginx.conf, nginx-tcp.conf"
+    - "更新部署文档"
+    - "同步部署配置到文档"
+  
+  constraints:
+    - type: "prohibited"
+      items:
+        - "禁止只修改配置文件不同步文档"
+        - "禁止使用未经验证的命令示例"
+        - "禁止混淆开发环境和生产环境的说明"
+        - "禁止使用模糊的路径描述"
+    
+    - type: "required"
+      items:
+        - "必须立即更新文档，不允许延迟"
+        - "必须区分开发环境和生产环境"
+        - "必须提供完整可执行的命令示例"
+        - "必须进行一致性检查"
+        - "必须输出详细的更新报告"
+  
+  output_format:
+    file_extension: ".md"
+    encoding: "UTF-8"
+    structure:
+      - title: "变更摘要"
+      - change_summary: "配置文件变更清单"
+      - document_updates:
+          - file: "更新的文档文件"
+            sections: "更新的章节"
+            content: "具体更新内容"
+      - consistency_check: "一致性检查结果"
+      - todo_items: "待确认和后续事项"
+  
+  examples:
+    - scenario: "修改 docker-compose.cicd.yml 添加环境变量"
+      input: |
+        在 server 服务的 environment 中添加：
+        - WEBRTC_SESSION_TIMEOUT=300000
+      
+      output_guide: |
+        ## 本次更新摘要
+        
+        **配置文件变更：** 1 个文件
+        - deploy/docker/docker-compose.cicd.yml
+          - server 服务新增环境变量 WEBRTC_SESSION_TIMEOUT
+        
+        **文档更新：** 2 个文件
+        1. deploy/README.md
+           - 更新了"配置文件说明"中 docker-compose.cicd.yml 的环境变量示例
+           - 添加了 WebRTC 配置的说明
+        
+        2. DEPLOYMENT.md
+           - 更新了"环境变量配置"章节
+           - 添加了 WEBRTC_SESSION_TIMEOUT 的说明
+        
+        **一致性检查：**
+        ✅ 文件名统一性检查通过
+        ✅ 端口一致性检查通过
+        ✅ 环境区分说明清晰
+        ✅ 命令可执行性验证通过
+        
+        **待办事项：**
+        - [ ] 确认是否需要更新 ENVIRONMENT_VARIABLES.md
+        - [ ] 通知开发团队新增的配置项
+  
+  tools:
+    - name: "file_diff_analyzer"
+      description: "分析文件变更内容"
+    
+    - name: "document_locator"
+      description: "定位需要更新的文档章节"
+    
+    - name: "content_updater"
+      description: "更新文档内容"
+    
+    - name: "consistency_checker"
+      description: "检查文档一致性"
+    
+    - name: "command_validator"
+      description: "验证命令的可执行性"
+    
+    - name: "port_mapper"
+      description: "检查和映射端口配置"
+  
+  best_practices:
+    - "配置文件变更后第一时间更新文档"
+    - "始终区分开发环境和生产环境的说明"
+    - "提供完整可复制的命令示例"
+    - "包含清晰的目录结构说明"
+    - "添加常见问题和解决方案"
+    - "定期进行文档审查和更新"
+  
+  checklists:
+    pre_update:
+      - [ ] 已识别所有配置文件变更
+      - [ ] 已分析变更类型和影响范围
+      - [ ] 已确定需要更新的文档列表
+    
+    during_update:
+      - [ ] 按章节逐一更新文档
+      - [ ] 确保命令可直接复制执行
+      - [ ] 区分开发环境和生产环境
+      - [ ] 更新所有相关文件
+    
+    post_update:
+      - [ ] 执行一致性检查
+      - [ ] 验证所有命令可执行
+      - [ ] 确认端口配置一致
+      - [ ] 输出完整的更新报告
+      - [ ] 列出待确认事项
+  
+  workflow:
+    - step: 1
+      name: "识别变更文件"
+      actions:
+        - "分析 Git diff 或文件变更"
+        - "列出所有配置文件变更"
+        - "确定变更类型（服务、端口、环境变量等）"
+    
+    - step: 2
+      name: "分析变更影响"
+      actions:
+        - "判断变更类型（A-E）"
+        - "确定需要更新的文档"
+        - "定位到具体章节"
+    
+    - step: 3
+      name: "更新文档内容"
+      actions:
+        - "快速开始部分"
+        - "配置文件说明部分"
+        - "服务组件部分"
+        - "访问服务部分"
+        - "目录结构部分"
+        - "管理命令部分"
+        - "常见问题部分"
+    
+    - step: 4
+      name: "一致性检查"
+      actions:
+        - "文件名统一性检查"
+        - "端口一致性验证"
+        - "环境区分说明验证"
+        - "命令可执行性验证"
+    
+    - step: 5
+      name: "输出更新报告"
+      actions:
+        - "变更文件清单"
+        - "已更新的文档"
+        - "待确认事项"
+        - "建议的后续操作"
+  
+  special_scenarios:
+    - scenario: "新增服务组件"
+      actions:
+        - "在服务组件部分新增条目"
+        - "在访问服务部分添加访问信息"
+        - "在目录结构部分添加持久化目录"
+        - "在管理命令部分添加对应命令"
+    
+    - scenario: "删除服务组件"
+      actions:
+        - "从服务组件部分删除条目"
+        - "从访问服务部分删除信息"
+        - "检查依赖关系并说明"
+        - "添加迁移说明（如适用）"
+    
+    - scenario: "端口变更"
+      actions:
+        - "全局搜索旧端口号"
+        - "更新所有文档中的端口引用"
+        - "在常见问题中添加端口冲突说明"
+        - "添加端口变更迁移指南"
+    
+    - scenario: "部署脚本重构"
+      actions:
+        - "更新所有引用该脚本的文档"
+        - "提供新旧命令对比表"
+        - "添加迁移步骤说明"
+        - "更新快速开始示例"
+    
+    - scenario: "环境变量变更"
+      actions:
+        - "更新 ENVIRONMENT_VARIABLES.md"
+        - "更新相关文档的环境变量示例"
+        - "添加环境变量变更说明"
+        - "提供默认值和必填说明"
+  
+  evaluation_criteria:
+    completeness:
+      - "是否识别了所有配置文件变更"
+      - "是否更新了所有相关文档"
+      - "是否提供了完整的更新报告"
+      - "是否列出了待确认事项"
+    
+    accuracy:
+      - "文档内容是否与配置文件一致"
+      - "命令是否可直接复制执行"
+      - "端口号是否准确无误"
+      - "路径描述是否清晰"
+    
+    timeliness:
+      - "是否在修改配置后立即更新文档"
+      - "是否避免了延迟更新"
+      - "是否保持了文档与代码同步"
+    
+    clarity:
+      - "开发环境和生产环境是否清晰分离"
+      - "文档结构是否清晰易懂"
+      - "示例是否完整可用"
+      - "说明是否准确简洁"
