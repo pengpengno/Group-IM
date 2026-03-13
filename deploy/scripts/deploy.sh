@@ -13,14 +13,14 @@ echo "=========================================="
 
 # 创建目录
 echo "创建部署目录..."
-mkdir -p "$DEPLOY_DIR"/{logs/app,storage,ssl,scripts}
+#mkdir -p "$DEPLOY_DIR"/{logs/app,storage,ssl,scripts}
 cd "$DEPLOY_DIR"
 
 # 设置权限
-if id "deploy" &>/dev/null; then
-    chown -R deploy:deploy "$DEPLOY_DIR"
-    chmod -R 755 "$DEPLOY_DIR"
-fi
+#if id "deploy" &>/dev/null; then
+#    chown -R deploy:deploy "$DEPLOY_DIR"
+#    chmod -R 755 "$DEPLOY_DIR"
+#fi
 
 # 下载配置文件（覆盖旧版本）
 echo "下载配置文件..."
