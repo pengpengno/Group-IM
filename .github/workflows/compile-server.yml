@@ -23,7 +23,7 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Dockerfile
+          context: .  # 构建上下文为项目根目录
+          file: ./deploy/dockerfiles/Dockerfile  # Dockerfile 路径
           push: true
           tags: pengpeng163/groupim:${{ github.ref_name }}

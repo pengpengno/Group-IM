@@ -1,0 +1,81 @@
+# AI Skill Template
+# This is a standard template for defining AI skills
+# Any AI agent (Claude, GPT, Copilot, etc.) can understand and use these skills
+
+skill:
+  name: "Skill Name Here"
+  version: "1.0.0"
+  description: "Brief description of what this skill does"
+  
+  # Metadata
+  author: "Your Team"
+  created_at: "2025-03-12"
+  language: "zh-CN"  # or "en", "ja", etc.
+  
+  # What this AI can do
+  capabilities:
+    - name: "capability_name_1"
+      description: "What this capability does"
+      details:
+        - "Specific detail 1"
+        - "Specific detail 2"
+    
+    - name: "capability_name_2"
+      description: "What this capability does"
+      details:
+        - "Specific detail 1"
+        - "Specific detail 2"
+  
+  # When to activate this skill
+  triggers:
+    - "User request pattern 1"
+    - "User request pattern 2"
+    - "Task type 1"
+  
+  # Constraints and rules
+  constraints:
+    - type: "prohibited"  # Things NOT to do
+      items:
+        - "Never do X"
+        - "Always avoid Y"
+    
+    - type: "required"  # Things that MUST be done
+      items:
+        - "Always verify Z"
+        - "Include A in output"
+  
+  # Output format specification
+  output_format:
+    file_extension: ".md"  # or ".yml", ".json", etc.
+    encoding: "UTF-8"
+    structure:
+      - section_1: "Section name"
+      - section_2: "Section name"
+  
+  # Examples of how to use this skill
+  examples:
+    - scenario: "When user wants to achieve X"
+      input: "User's request"
+      output: "Expected output or action"
+      key_points:
+        - "Important consideration 1"
+        - "Important consideration 2"
+  
+  # Tools that may be used
+  tools:
+    - name: "tool_name"
+      description: "What the tool does"
+  
+  # Best practices
+  best_practices:
+    - "Practice recommendation 1"
+    - "Practice recommendation 2"
+  
+  # How to evaluate success
+  evaluation_criteria:
+    quality:
+      - "Quality metric 1"
+      - "Quality metric 2"
+    efficiency:
+      - "Efficiency metric 1"
+      - "Efficiency metric 2"
