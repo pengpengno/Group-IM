@@ -118,7 +118,7 @@ public class CompanyService {
 
             Long companyId = saveCompany.getCompanyId();
 
-            if (entityManager != null && schemaName != null  && !schemaName.equalsIgnoreCase("public"))   {
+            if (entityManager != null && schemaName != null && !schemaName.equalsIgnoreCase("public")) {
                 // 使用参数化查询来防止SQL注入
                 String sql = "SELECT public.create_or_sync_company_schema(:schemaName, :companyId)";
 

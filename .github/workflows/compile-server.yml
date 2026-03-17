@@ -38,8 +38,10 @@ jobs:
           username: deploy
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd /opt/app
-            curl -sL https://raw.githubusercontent.com/pengpengno/Group-IM/master/deploy/scripts/deploy.sh | bash
+            docker-compose pull
+            docker-compose up -d
+#            curl -sL https://raw.githubusercontent.com/pengpengno/Group-IM/master/deploy/scripts/deploy.sh | bash
+#            curl -sL https://raw.githubusercontent.com/pengpengno/Group-IM/master/deploy/scripts/deploy.sh | bash
 
       - name: Determine deployment status
         id: status
