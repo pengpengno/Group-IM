@@ -1,0 +1,48 @@
+# Maven 构建产物
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE 配置
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+.vscode/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker 相关文件（在根目录）
+Dockerfile
+docker-compose.yml
+
+# 文档
+README.md
+doc/
+docs/
+*.md
+
+# 脚本
+start.bat
+start.sh
+
+# 日志和数据
+logs/
+*.log
+postgres_data/
+data/
+
+# 其他模块（如果只需要构建 server）
+gui/
+Group-app/
+common/target/
+entity/target/
+
+# 测试
+test/
+**/test/

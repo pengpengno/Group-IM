@@ -4,7 +4,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 module.exports = {
   mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
   entry: './renderer/index.tsx',
-  target: 'electron-renderer',
+  target: 'web', // changed from 'electron-renderer' because contextIsolation is true
   module: {
     rules: [
       {

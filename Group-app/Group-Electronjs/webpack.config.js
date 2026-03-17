@@ -18,7 +18,9 @@ module.exports = {
     ],
   },
   plugins: [
-    new CleanWebpackPlugin(),
+    // Removed CleanWebpackPlugin here because when running concurrent watch
+    // (main and renderer), it deletes index.html emitted by the renderer.
+    // new CleanWebpackPlugin(),
   ],
   resolve: {
     extensions: ['.ts', '.js'],

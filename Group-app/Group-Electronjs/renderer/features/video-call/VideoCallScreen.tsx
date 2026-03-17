@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useVideoCall } from './useVideoCall';
 import { VideoCallStatus } from './videoCallSlice';
-import { useVideoCall } from './useVideoCall';
 
 interface VideoCallScreenProps {
   onCallEnd: () => void;
@@ -231,22 +230,22 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
         <div className="incoming-call-overlay">
           <div className="incoming-call-content">
             <div className="caller-avatar">
-              {callState.callerId?.charAt(0).toUpperCase() || 'U'}
+              {(callState.remoteUser?.username || callState.remoteUser?.userId)?.charAt(0).toUpperCase() || 'U'}
             </div>
             <h2>Incoming Video Call</h2>
-            <p>From: {callState.callerId || 'Unknown'}</p>
+            <p>From: {callState.remoteUser?.username || callState.remoteUser?.userId || 'Unknown'}</p>
 
             <div className="incoming-call-actions">
               <button
                 className="accept-button"
-                onClick={() => acceptCall(callState.callerId!)}
+                onClick={() => acceptCall(callState.remoteUser?.userId || '')}
               >
                 Accept
               </button>
               <button
                 className="reject-button"
                 onClick={() => {
-                  // rejectCall(callState.callerId!);
+                  // rejectCall(callState.remoteUser?.userId || '');
                   endCall();
                   onCallEnd();
                 }}

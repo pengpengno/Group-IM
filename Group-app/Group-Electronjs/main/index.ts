@@ -41,6 +41,11 @@ function createWindow() {
     initializeSocketHandler(mainWindow).catch(err => {
       console.error('Failed to initialize socket handler:', err);
     });
+    
+    // Log renderer console to main terminal to debug blank page
+    mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+      console.log(`[Renderer Console] ${message}`);
+    });
   }
 
   // Open dev tools in development

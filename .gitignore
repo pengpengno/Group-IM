@@ -63,3 +63,4 @@ build/
 # AI Skills (keep these for all AI agents)
 !.ai/
 !.ai/**/*
+server/logs/server/app/project.log
