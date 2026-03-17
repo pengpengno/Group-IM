@@ -209,14 +209,18 @@
 .input-icon {
   position: absolute;
   left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
   color: #9ca3af;
   display: flex;
   align-items: center;
+  pointer-events: none; /* Ensure clicks pass through to input */
+  z-index: 5;
 }
 
 .input-field-container input {
   width: 100%;
-  padding: 14px 16px 14px 48px;
+  padding: 14px 48px 14px 48px; /* Increased padding on both sides for icons */
   border: 2px solid #e5e7eb;
   border-radius: 12px;
   font-size: 15px;
@@ -233,14 +237,17 @@
 .password-eye-toggle {
   position: absolute;
   right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   color: #9ca3af;
   cursor: pointer;
-  padding: 4px;
+  padding: 8px; /* Increased padding for better touch target */
   display: flex;
   align-items: center;
   border-radius: 6px;
+  z-index: 10;
 }
 
 .password-eye-toggle:hover {

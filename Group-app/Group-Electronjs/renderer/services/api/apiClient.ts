@@ -25,8 +25,13 @@ http.interceptors.request.use((config) => {
 });
 
 export const authAPI = {
+  // POST /api/users/register
+  register: async (payload: any) => {
+    return http.post('/api/users/register', payload);
+  },
+
   // POST /api/users/login
-  login: async (payload: LoginPayload) => {
+  login: async (payload: LoginPayload & { companyCode?: string }) => {
     return http.post('/api/users/login', payload);
   },
 
@@ -40,6 +45,11 @@ export const authAPI = {
   // GET /api/users/company/list
   getUserCompanies: async () => {
     return http.get('/api/users/company/list');
+  },
+
+  // POST /api/organization/company/register
+  registerCompany: async (name: string, code: string) => {
+    return http.post('/api/organization/company/register', { name, code });
   }
 };
 
@@ -80,5 +90,27 @@ export const orgAPI = {
   // GET /api/company/structure
   getStructure: async () => {
     return http.get('/api/company/structure');
+  },
+
+  // GET /api/organization/company (Admin only)
+  getAllCompanies: async () => {
+    return http.get('/api/organization/company');
+  },
+
+  // POST /api/organization/users/import
+  importUsers: async (companyId: number, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return http.post(`/api/organization/users/import`, formData, {
+      params: { companyId },
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  // GET /api/organization/users/template
+  getImportTemplate: async () => {
+    return http.get('/api/organization/users/template', {
+      responseType: 'blob'
+    });
   }
 };

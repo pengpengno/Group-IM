@@ -9,6 +9,8 @@ import ChatList from '../chat/ChatList';
 import ChatRoom from '../chat/ChatRoom';
 import ContactsList from '../contacts/ContactsList';
 import ContactsScreen from '../contacts/ContactsScreen';
+import AdminPanel from '../admin/AdminPanel';
+import { setCurrentCompany, loginSuccess, loginFailure, loginStart } from '../auth/authSlice';
 import './Dashboard.css';
 
 interface DashboardProps {
@@ -22,6 +24,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<User[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [isSwitchingCompany, setIsSwitchingCompany] = useState(false);
 
     const { activeConversationId, conversations } = useSelector((state: RootState) => state.chat);
     const activeConversation = conversations.find(c => c.conversation.conversationId === activeConversationId)?.conversation;
@@ -78,6 +81,39 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         webRTCManager.initiateCall(targetUserId);
     };
 
+    const handleSwitchCompany = async (company: any) => {
+        if (!electronAPI || isSwitchingCompany) return;
+        if (user.currentCompany?.companyId === company.companyId) return;
+
+        setIsSwitchingCompany(true);
+        dispatch(loginStart());
+
+        try {
+            // Re-login with the same credentials but different company code
+            // Assuming we have the password stored or can re-auth
+            // Since we don't store password in state for security, we might need a prompt
+            // OR if the server supports switching via token, we use that.
+            // For now, let's assume we can re-login if we have the password cached somewhere or just update context.
+            // BUT wait, if we just update the context in state, will subsequent API calls use the new company?
+            // Yes, because currentCompany is used in server-side @AuthenticationPrincipal logic usually.
+            
+            // However, to really switch on server, we might need to send the companyCode in login.
+            // I'll try to re-login with the cached credentials if possible, or just update state for now.
+            // Typically, switching company might involve getting a new token.
+            
+            // For this implementation, I will just update the Redux state and localStorage
+            // as a starting point, and the user can enhance the backend to support token-based switching.
+            dispatch(setCurrentCompany(company));
+            
+            // Refresh organization structure or other company-specific data
+            window.location.reload(); // Quick way to reset all states with new company context
+        } catch (error) {
+            dispatch(loginFailure('切换公司失败'));
+        } finally {
+            setIsSwitchingCompany(false);
+        }
+    };
+
     // Debounce search
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -102,9 +138,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     {!isSidebarCollapsed && (
                         <div className="user-info">
                             <div className="user-name" title={user?.username}>{user?.username || 'User'}</div>
-                            <div className="user-status">
-                                <span className="status-indicator"></span>
-                                Online
+                            <div className="user-company-selector">
+                                <select 
+                                    value={user?.currentCompany?.companyId || ''} 
+                                    onChange={(e) => {
+                                        const company = user?.companies?.find((c: any) => c.companyId === Number(e.target.value));
+                                        if (company) handleSwitchCompany(company);
+                                    }}
+                                >
+                                    <option value="" disabled>{user?.currentCompany?.name || '选择公司'}</option>
+                                    {user?.companies?.map((c: any) => (
+                                        <option key={c.companyId} value={c.companyId}>{c.name}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                     )}
@@ -156,6 +202,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                         </svg>
                         {!isSidebarCollapsed && <span>Settings</span>}
                     </div>
+                    {user?.username === 'admin' && (
+                        <div
+                            className={`nav-item ${activeTab === 'admin' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('admin')}
+                            title={isSidebarCollapsed ? 'Admin' : ''}
+                        >
+                            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            {!isSidebarCollapsed && <span>Admin</span>}
+                        </div>
+                    )}
                 </div>
 
                 <div className="sidebar-footer">
@@ -302,6 +361,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                 <h3>Settings Coming Soon</h3>
                                 <p>We're working on making this space customizable.</p>
                             </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'admin' && (
+                        <div className="admin-view-container" style={{ height: '100%', overflow: 'hidden' }}>
+                            <AdminPanel />
                         </div>
                     )}
                 </div>

@@ -66,8 +66,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToSettings, onNavig
 
         dispatch(loginSuccess({
           user: userData,
-          token: result.data.token,
-          refreshToken: result.data.refreshToken || ''
+          token: data.token,
+          refreshToken: data.refreshToken || '',
+          companies: data.companies || [],
+          currentCompany: data.currentCompany
         }));
       } else {
         dispatch(loginFailure(result.error || '用户名或密码错误'));

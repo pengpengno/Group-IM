@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { LocalUser as User, AuthData, AuthState } from '../../types';
+import type { LocalUser as User, AuthData, AuthState, CompanyDTO } from '../../types';
 
 const getInitialState = (): AuthState => {
   const token = localStorage.getItem('token');
@@ -41,13 +41,23 @@ const authSlice = createSlice({
       state.loading = true;
       state.error = null;
     },
-    loginSuccess(state, action: PayloadAction<{ user: User; token: string; refreshToken: string }>) {
-      const { user, token, refreshToken } = action.payload;
+    loginSuccess(state, action: PayloadAction<{ 
+      user: User; 
+      token: string; 
+      refreshToken: string;
+      companies?: CompanyDTO[];
+      currentCompany?: CompanyDTO;
+    }>) {
+      const { user, token, refreshToken, companies, currentCompany } = action.payload;
 
       // 保存到本地存储
       localStorage.setItem('token', token);
       localStorage.setItem('refreshToken', refreshToken);
-      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('user', JSON.stringify({
+        ...user,
+        companies,
+        currentCompany
+      }));
 
       state.isAuthenticated = true;
       state.loading = false;
@@ -58,9 +68,23 @@ const authSlice = createSlice({
         email: user.email,
         phoneNumber: user.phoneNumber,
         token: token,
-        refreshToken: refreshToken
+        refreshToken: refreshToken,
+        companies: companies,
+        currentCompany: currentCompany
       };
       state.error = null;
+    },
+    setCompanies(state, action: PayloadAction<CompanyDTO[]>) {
+      if (state.user) {
+        state.user.companies = action.payload;
+        localStorage.setItem('user', JSON.stringify(state.user));
+      }
+    },
+    setCurrentCompany(state, action: PayloadAction<CompanyDTO>) {
+      if (state.user) {
+        state.user.currentCompany = action.payload;
+        localStorage.setItem('user', JSON.stringify(state.user));
+      }
     },
     loginFailure(state, action: PayloadAction<string>) {
       state.loading = false;
@@ -92,7 +116,7 @@ const authSlice = createSlice({
   }
 });
 
-export const { loginStart, loginSuccess, loginFailure, logout, clearError } = authSlice.actions;
+export const { loginStart, loginSuccess, loginFailure, logout, clearError, setCompanies, setCurrentCompany } = authSlice.actions;
 
 export default authSlice.reducer;
 

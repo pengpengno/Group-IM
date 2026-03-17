@@ -58,20 +58,22 @@ export const sendMessageViaSocket = createAsyncThunk(
         msgDto?: MessageDTO
     }, { getState }) => {
         const state = getState() as any; // Using any to avoid circular import or complex type casting here
-        const currentUserId = state.auth.user?.userId;
+        const currentUser = state.auth.user;
+        const currentUserId = currentUser?.userId;
 
         try {
             // 首先检查Socket是否连接
             const socketActive = await socketService.isActive();
 
             if (!socketActive) {
+                // 如果长连接 没有开启 那么就尝试 使用http 发送
                 console.warn('Socket not active, falling back to HTTP');
                 const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
                 return response.data?.data || response.data;
             }
 
             // 构建消息负载对象
-            const payload = buildSocketPayload(conversationId, content, type || 'TEXT', msgDto);
+            const payload = buildSocketPayload(conversationId, content, type || 'TEXT', currentUser, msgDto);
 
             // 通过Socket发送负载
             const sendSuccess = await socketService.sendPayload(payload);
@@ -113,17 +115,28 @@ function buildSocketPayload(
     conversationId: number,
     content: string,
     type: string,
+    currentUser: any,
     msgDto?: MessageDTO
 ): any {
     const timestamp = msgDto?.timestamp ? new Date(msgDto.timestamp).getTime() : Date.now();
+    
+    // Ensure messageType matches enum format (TEXT, IMAGE, FILE, VOICE, VIDEO)
+    const messageType = type ? type.toUpperCase() : 'TEXT';
+
+    // 默认使用 crypto.randomUUID() 作为 clientMsgId，这是 UUID 标准实现
+    const clientMsgId = msgDto?.clientMsgId || (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36));
 
     return {
         message: {
             conversationId: conversationId,
             content: content,
-            type: type, // Use the passed type
+            type: messageType, 
             clientTimeStamp: timestamp,
-            clientMsgId: msgDto?.msgId?.toString() || Math.random().toString(36).substring(7),
+            clientMsgId: clientMsgId,
+            fromUser: {
+                userId: currentUser?.userId,
+                username: currentUser?.username
+            }
         }
     };
 }

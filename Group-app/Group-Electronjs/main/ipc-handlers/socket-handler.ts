@@ -151,9 +151,10 @@ class ElectronSocketClient {
     this.config = { host, port, userId, token, username };
 
     this.connectionPromise = new Promise((resolve, reject) => {
-      console.log(`Establishing TCP connection to ${host}:${port}...`);
+      const connectHost = host === 'localhost' ? '127.0.0.1' : host;
+      console.log(`Establishing TCP connection to ${connectHost}:${port}...`);
 
-      const socket = net.createConnection(port, host);
+      const socket = net.createConnection(port, connectHost);
       this.socket = socket;
 
       socket.on('connect', async () => {

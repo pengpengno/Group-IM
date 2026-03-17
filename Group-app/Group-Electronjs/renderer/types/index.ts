@@ -17,6 +17,13 @@ export interface ApiUser {
   phoneNumber: string;
 }
 
+export interface CompanyDTO {
+  companyId: number;
+  name: string;
+  code: string;
+  description?: string;
+}
+
 // 字符串ID用户类型（用于本地状态）
 export interface LocalUser {
   userId: string;
@@ -27,6 +34,8 @@ export interface LocalUser {
   status?: 'online' | 'offline' | 'away';
   token?: string;
   refreshToken?: string;
+  currentCompany?: CompanyDTO;
+  companies?: CompanyDTO[];
 }
 
 // 组织架构节点类型
@@ -59,6 +68,8 @@ export interface AuthData {
   token: string;
   user: User;
   refreshToken?: string;
+  companies?: CompanyDTO[];
+  currentCompany?: CompanyDTO;
 }
 
 export interface AuthState {
