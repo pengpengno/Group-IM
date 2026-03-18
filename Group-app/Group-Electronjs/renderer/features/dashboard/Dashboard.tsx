@@ -4,7 +4,9 @@ import { logout } from '../auth/authSlice';
 import { getElectronAPI } from '../../services/api/electronAPI';
 import type { User, ApiUser, ActiveTab } from '../../types';
 import { RootState, AppDispatch } from '../../store';
-import { webRTCManager } from '../../services/webrtc';
+import { webRTCService } from '../../services/WebRTCService';
+import { VideoCallStatus } from '../video-call/videoCallSlice';
+import VideoCallScreen from '../video-call/VideoCallScreen';
 import ChatList from '../chat/ChatList';
 import ChatRoom from '../chat/ChatRoom';
 import ContactsList from '../contacts/ContactsList';
@@ -12,6 +14,7 @@ import ContactsScreen from '../contacts/ContactsScreen';
 import AdminPanel from '../admin/AdminPanel';
 import { setCurrentCompany, loginSuccess, loginFailure, loginStart } from '../auth/authSlice';
 import './Dashboard.css';
+import { useVideoCall } from '../video-call/useVideoCall';
 
 interface DashboardProps {
     user: any;
@@ -25,6 +28,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     const [searchResults, setSearchResults] = useState<User[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [isSwitchingCompany, setIsSwitchingCompany] = useState(false);
+    
+    // Connect to Video Call Service
+    const { state: callState } = useVideoCall();
 
     const { activeConversationId, conversations } = useSelector((state: RootState) => state.chat);
     const activeConversation = conversations.find(c => c.conversation.conversationId === activeConversationId)?.conversation;
@@ -76,9 +82,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         }
     };
 
-    const handleCall = (targetUserId: string) => {
+    const handleCall = (targetUserId: string, targetUserName?: string) => {
         console.log('Initiating call to:', targetUserId);
-        webRTCManager.initiateCall(targetUserId);
+        webRTCService.initiateCall(targetUserId);
     };
 
     const handleSwitchCompany = async (company: any) => {
@@ -89,30 +95,37 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         dispatch(loginStart());
 
         try {
-            // Re-login with the same credentials but different company code
-            // Assuming we have the password stored or can re-auth
-            // Since we don't store password in state for security, we might need a prompt
-            // OR if the server supports switching via token, we use that.
-            // For now, let's assume we can re-login if we have the password cached somewhere or just update context.
-            // BUT wait, if we just update the context in state, will subsequent API calls use the new company?
-            // Yes, because currentCompany is used in server-side @AuthenticationPrincipal logic usually.
+            // In a real scenario, we might want to call an API to get a new token for the company
+            // Or if the backend uses the token to identify the user and then looks up the company
+            // we just need to update the client-side context.
             
-            // However, to really switch on server, we might need to send the companyCode in login.
-            // I'll try to re-login with the cached credentials if possible, or just update state for now.
-            // Typically, switching company might involve getting a new token.
-            
-            // For this implementation, I will just update the Redux state and localStorage
-            // as a starting point, and the user can enhance the backend to support token-based switching.
+            // For now, we update the Redux state which persisted to localStorage
             dispatch(setCurrentCompany(company));
             
-            // Refresh organization structure or other company-specific data
-            window.location.reload(); // Quick way to reset all states with new company context
+            // Simulate a small delay for the "switching" feel
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Refresh to apply new company context across all services
+            window.location.reload(); 
         } catch (error) {
             dispatch(loginFailure('切换公司失败'));
-        } finally {
             setIsSwitchingCompany(false);
         }
     };
+
+    // Connect to signaling on mount
+    useEffect(() => {
+        if (user?.userId) {
+            // Use host from window location or env
+            const host = window.location.hostname || 'localhost';
+            const port = 8080; // Signaling port
+            const token = localStorage.getItem('token') || '';
+            webRTCService.connectSignaling(host, port, user.userId, token);
+        }
+        return () => {
+            webRTCService.destroy();
+        };
+    }, [user?.userId]);
 
     // Debounce search
     useEffect(() => {
@@ -132,25 +145,44 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             >
 
                 <div className="user-profile-section">
-                    <div className="user-avatar">
+                    <div className="user-avatar" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
                         {user?.username?.charAt(0).toUpperCase() || 'U'}
                     </div>
                     {!isSidebarCollapsed && (
                         <div className="user-info">
                             <div className="user-name" title={user?.username}>{user?.username || 'User'}</div>
-                            <div className="user-company-selector">
-                                <select 
-                                    value={user?.currentCompany?.companyId || ''} 
-                                    onChange={(e) => {
-                                        const company = user?.companies?.find((c: any) => c.companyId === Number(e.target.value));
-                                        if (company) handleSwitchCompany(company);
-                                    }}
-                                >
-                                    <option value="" disabled>{user?.currentCompany?.name || '选择公司'}</option>
-                                    {user?.companies?.map((c: any) => (
-                                        <option key={c.companyId} value={c.companyId}>{c.name}</option>
+                            <div className="company-switcher-container">
+                                <div className="company-active-badge" onClick={(e) => {
+                                    const dropdown = e.currentTarget.nextElementSibling;
+                                    dropdown?.classList.toggle('show');
+                                }}>
+                                    <span>{user.currentCompany?.name || '选择公司'}</span>
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </div>
+                                <div className="company-dropdown-list">
+                                    {user.companies?.map((c: any) => (
+                                        <div 
+                                            key={c.companyId} 
+                                            className={`company-option ${user.currentCompany?.companyId === c.companyId ? 'active' : ''}`}
+                                            onClick={() => handleSwitchCompany(c)}
+                                        >
+                                            <div className="company-icon">{c.name.charAt(0)}</div>
+                                            <div className="company-details">
+                                                <div className="name">{c.name}</div>
+                                                <div className="code">{c.code}</div>
+                                            </div>
+                                            {user.currentCompany?.companyId === c.companyId && (
+                                                <div className="check-icon">
+                                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3">
+                                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                                    </svg>
+                                                </div>
+                                            )}
+                                        </div>
                                     ))}
-                                </select>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -371,6 +403,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     )}
                 </div>
             </div>
+
+            {/* Switching Overlay */}
+            {isSwitchingCompany && (
+                <div className="switching-overlay">
+                    <div className="switching-content">
+                        <div className="switching-loader"></div>
+                        <h3>Switching Workspace...</h3>
+                        <p>Preparing your environment for {user.currentCompany?.name}</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Global Video Call Overlay */}
+            {callState.callStatus !== VideoCallStatus.IDLE && (
+                <VideoCallScreen 
+                    remoteUserId={callState.remoteUserId} 
+                    onCallEnd={() => {
+                        // The service handles cleanup, we just need the UI to hide
+                    }} 
+                />
+            )}
         </div>
     );
 };

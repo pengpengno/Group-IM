@@ -1,17 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
-import { VideoCallManager } from './VideoCallManager';
+import { useState, useEffect, useCallback } from 'react';
+import { webRTCService, CallInternalState } from '../../services/WebRTCService';
 import { VideoCallState, VideoCallStatus } from './videoCallSlice';
 
 interface UseVideoCallReturn {
   // State
-  state: VideoCallState;
+  state: CallInternalState;
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
 
   // Actions
   initialize: () => Promise<void>;
-  startCall: (calleeId: string) => Promise<void>;
-  acceptCall: (callerId: string) => Promise<void>;
+  startCall: (calleeId: string) => void;
+  acceptCall: (callerId: string) => void;
   rejectCall: (callerId: string) => void;
   endCall: () => void;
   toggleCamera: (enabled: boolean) => void;
@@ -28,141 +28,91 @@ interface UseVideoCallReturn {
 }
 
 export const useVideoCall = (): UseVideoCallReturn => {
-  const [callState, setCallState] = useState<VideoCallState>({
-    callStatus: VideoCallStatus.IDLE,
-    callId: null,
-    remoteUser: null,
-    participants: [],
-    startTime: null,
-    isMuted: false,
-    isVideoEnabled: true,
-    isMinimized: false,
-    errorMessage: null,
-    localStreamId: null,
-    remoteStreamId: null,
-    isMicrophoneEnabled: true,
-    isSpeakerEnabled: true,
-    isLocalVideoEnabled: true,
-    isRemoteVideoEnabled: true,
-    duration: 0
-  });
+  const [state, setState] = useState<CallInternalState>(webRTCService.getState());
+  const [localStream, setLocalStream] = useState<MediaStream | null>(webRTCService.getLocalStream());
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(webRTCService.getRemoteStream());
 
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-
-  const videoCallManagerRef = useRef<VideoCallManager | null>(null);
-
-  // Initialize video call manager
-  const initialize = async (): Promise<void> => {
-    if (!videoCallManagerRef.current) {
-      videoCallManagerRef.current = new VideoCallManager();
-
-      // Set up event listeners
-      videoCallManagerRef.current.on('state-change', (state: VideoCallState) => {
-        setCallState(state);
-      });
-
-      videoCallManagerRef.current.on('remote-stream', (stream: MediaStream) => {
-        setRemoteStream(stream);
-      });
-
-      await videoCallManagerRef.current.initialize();
-      setLocalStream(videoCallManagerRef.current.getLocalStream());
-    }
-  };
-
-  // Start outgoing call
-  const startCall = async (calleeId: string): Promise<void> => {
-    if (!videoCallManagerRef.current) {
-      await initialize();
-    }
-    videoCallManagerRef.current!.initiateCall(calleeId);
-  };
-
-  // Accept incoming call
-  const acceptCall = async (callerId: string): Promise<void> => {
-    if (!videoCallManagerRef.current) {
-      await initialize();
-    }
-    videoCallManagerRef.current!.acceptCall();
-  };
-
-  // Reject incoming call
-  const rejectCall = (callerId: string): void => {
-    if (videoCallManagerRef.current) {
-      videoCallManagerRef.current.rejectCall();
-    }
-  };
-
-  // End current call
-  const endCall = (): void => {
-    if (videoCallManagerRef.current) {
-      videoCallManagerRef.current.endCall();
-    }
-  };
-
-  // Toggle camera
-  const toggleCamera = (enabled: boolean): void => {
-    if (videoCallManagerRef.current) {
-      videoCallManagerRef.current.toggleCamera(enabled);
-    }
-  };
-
-  // Toggle microphone
-  const toggleMicrophone = (enabled: boolean): void => {
-    if (videoCallManagerRef.current) {
-      videoCallManagerRef.current.toggleMicrophone(enabled);
-    }
-  };
-
-  // Toggle speaker
-  const toggleSpeaker = (enabled: boolean): void => {
-    // Speaker toggle logic would depend on the specific audio output device API
-  };
-
-  // Connect to signaling server
-  const connectSignaling = (host: string, port: number, userId: string, token: string): void => {
-    if (!videoCallManagerRef.current) {
-      initialize().then(() => {
-        videoCallManagerRef.current!.connectSignaling(host, port, userId, token);
-      });
-    } else {
-      videoCallManagerRef.current.connectSignaling(host, port, userId, token);
-    }
-  };
-
-  // Event handlers
-  const onIncomingCall = (callback: (callerId: string) => void): void => {
-    videoCallManagerRef.current?.on('incoming-call', ({ callerId }) => callback(callerId));
-  };
-
-  const onCallAccepted = (callback: (calleeId: string) => void): void => {
-    videoCallManagerRef.current?.on('call-accepted', ({ calleeId }) => callback(calleeId));
-  };
-
-  const onCallRejected = (callback: (callerId: string) => void): void => {
-    videoCallManagerRef.current?.on('call-rejected', ({ callerId }) => callback(callerId));
-  };
-
-  const onCallEnded = (callback: (remoteId: string) => void): void => {
-    videoCallManagerRef.current?.on('call-ended', ({ remoteId }) => callback(remoteId));
-  };
-
-  const onError = (callback: (error: Error) => void): void => {
-    videoCallManagerRef.current?.on('error', callback);
-  };
-
-  // Cleanup on unmount
   useEffect(() => {
+    const handleStateChange = (newState: CallInternalState) => {
+      setState(newState);
+      setLocalStream(webRTCService.getLocalStream());
+    };
+
+    const handleRemoteStream = (stream: MediaStream) => {
+      setRemoteStream(stream);
+    };
+
+    webRTCService.on('state-change', handleStateChange);
+    webRTCService.on('remote-stream', handleRemoteStream);
+
     return () => {
-      if (videoCallManagerRef.current) {
-        videoCallManagerRef.current.destroy();
-      }
+      webRTCService.off('state-change', handleStateChange);
+      webRTCService.off('remote-stream', handleRemoteStream);
     };
   }, []);
 
+  const initialize = useCallback(async () => {
+    await webRTCService.initialize();
+    await webRTCService.acquireLocalMedia();
+    setLocalStream(webRTCService.getLocalStream());
+  }, []);
+
+  const startCall = useCallback((calleeId: string) => {
+    webRTCService.initiateCall(calleeId);
+  }, []);
+
+  const acceptCall = useCallback((callerId: string) => {
+    webRTCService.acceptCall();
+  }, []);
+
+  const rejectCall = useCallback((callerId: string) => {
+    webRTCService.endCall();
+  }, []);
+
+  const endCall = useCallback(() => {
+    webRTCService.endCall();
+  }, []);
+
+  const toggleCamera = useCallback((enabled: boolean) => {
+    webRTCService.toggleCamera(enabled);
+  }, []);
+
+  const toggleMicrophone = useCallback((enabled: boolean) => {
+    webRTCService.toggleMicrophone(enabled);
+  }, []);
+
+  const toggleSpeaker = useCallback((enabled: boolean) => {
+    // Basic implementation toggle internal state only
+    // Real speaker toggle would use audio output device selection
+  }, []);
+
+  const connectSignaling = useCallback((host: string, port: number, userId: string, token: string) => {
+    webRTCService.connectSignaling(host, port, userId, token);
+  }, []);
+
+  // Event attachment helpers
+  const onIncomingCall = useCallback((callback: (callerId: string) => void) => {
+    webRTCService.on('incoming-call', ({ callerId }) => callback(callerId));
+  }, []);
+
+  const onCallAccepted = useCallback((callback: (calleeId: string) => void) => {
+    webRTCService.on('call-accepted', ({ calleeId }) => callback(calleeId));
+  }, []);
+
+  const onCallRejected = useCallback((callback: (callerId: string) => void) => {
+    webRTCService.on('call-rejected', ({ callerId }) => callback(callerId));
+  }, []);
+
+  const onCallEnded = useCallback((callback: (remoteId: string) => void) => {
+    webRTCService.on('call-ended', ({ remoteId }) => callback(remoteId));
+  }, []);
+
+  const onError = useCallback((callback: (error: Error) => void) => {
+    webRTCService.on('error', callback);
+  }, []);
+
   return {
-    state: callState,
+    state,
     localStream,
     remoteStream,
     initialize,
