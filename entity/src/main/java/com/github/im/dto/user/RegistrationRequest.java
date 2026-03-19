@@ -17,8 +17,6 @@ public class RegistrationRequest {
     private String email;
     @NotBlank(message = "Password cannot be blank")
     private String password;
-    @NotBlank(message = "Confirm Password cannot be blank")
-    private String confirmPassword;
 
     private String phoneNumber; // Optional
 }

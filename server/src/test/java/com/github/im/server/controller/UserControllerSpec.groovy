@@ -56,7 +56,6 @@ class UserControllerSpec extends Specification {
                 "testuser",
                 "test@example.com",
                 "password123",
-                "password123",
                 "13800138000"
         )
 
@@ -81,7 +80,6 @@ class UserControllerSpec extends Specification {
         def registrationRequest = new RegistrationRequest(
                 "existinguser",
                 "existing@example.com",
-                "password123",
                 "password123",
                 "13800138000"
         )
@@ -226,7 +224,7 @@ class UserControllerSpec extends Specification {
 
     def "测试用户登录接口成功场景"() {
         given: "准备登录请求数据"
-        def loginRequest = new LoginRequest("testuser", "password123", null)
+        def loginRequest = new LoginRequest("testuser", "password123", null,"public")
         def userInfo = new UserInfo(userId: 1L, username: "testuser")
 
         when: "调用用户登录接口"
@@ -242,7 +240,7 @@ class UserControllerSpec extends Specification {
 
     def "测试用户登录接口失败场景"() {
         given: "准备无效的登录请求数据"
-        def loginRequest = new LoginRequest("invaliduser", "wrongpassword", null)
+        def loginRequest = new LoginRequest("invaliduser", "wrongpassword", null,"public")
 
         when: "调用用户登录接口"
         def response = userController.loginUser(loginRequest)
@@ -288,7 +286,7 @@ class UserControllerSpec extends Specification {
 
     def "测试全局异常处理"() {
         given: "准备会导致异常的请求"
-        def registrationRequest = new RegistrationRequest("", "", "", "", "")
+        def registrationRequest = new RegistrationRequest("", "", "", "")
 
         when: "调用可能抛出异常的接口"
         userController.registerUser(registrationRequest)

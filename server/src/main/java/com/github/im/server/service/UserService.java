@@ -50,8 +50,6 @@ public class UserService {
      * 用户注册逻辑
      */
     public Optional<UserInfo> registerUser(@NotNull RegistrationRequest request) {
-        // 使用 Hibernate 验证
-        validateRegistrationRequest(request);
 
         // 检查用户名或邮箱是否已存在
         userRepository.findByUsernameOrEmail(request.getUsername(), request.getEmail())
@@ -290,9 +288,9 @@ public class UserService {
         }
         
         // 验证密码确认
-        if (!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new IllegalArgumentException("两次输入的密码不一致");
-        }
+//        if (!request.getPassword().equals(request.getConfirmPassword())) {
+//            throw new IllegalArgumentException("两次输入的密码不一致");
+//        }
         // 其他的验证逻辑可以根据需求添加
     }
 
@@ -333,7 +331,6 @@ public class UserService {
             
             // 设置默认密码
             request.setPassword(forcePasswordChangeConfig.getDefaultPassword());
-            request.setConfirmPassword(forcePasswordChangeConfig.getDefaultPassword());
 
             userList.add(request);
         }
