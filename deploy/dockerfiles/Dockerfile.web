@@ -19,7 +19,7 @@ RUN npm run build:web
 # Final stage: Minimal image to hold only the built assets
 FROM alpine:latest
 WORKDIR /app
-COPY --from=build /app/dist-web /dist-web
+COPY --from=build /app/Group-app/Group-Electronjs/dist-web /dist-web
 
 # This container will just provide the files, so we can exit or sleep
 # We'll use this in docker-compose to populate a shared volume
