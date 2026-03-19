@@ -39,7 +39,6 @@ jobs:
 
       - name: Deploy to Production Server
         id: deploy
-        continue-on-error: true
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -52,17 +51,22 @@ jobs:
 #            curl -sL https://raw.githubusercontent.com/pengpengno/Group-IM/master/deploy/scripts/deploy.sh | bash
 
       - name: Determine deployment status
+        if: always()
         id: status
         run: |
-          if [ "${{ steps.deploy.outcome }}" == "failure" ]; then
+          if [ "${{ job.status }}" == "failure" ]; then
             echo "status=❌ 部署失败" >> $GITHUB_OUTPUT
             echo "error_info=请查看构建日志：https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
+          elif [ "${{ job.status }}" == "cancelled" ]; then
+            echo "status=⚠️ 部署被取消" >> $GITHUB_OUTPUT
+            echo "error_info=部署事务已被中止。" >> $GITHUB_OUTPUT
           else
             echo "status=✅ 部署成功" >> $GITHUB_OUTPUT
             echo "error_info=" >> $GITHUB_OUTPUT
           fi
 
       - name: Send DingTalk notification
+        if: always()
         env:
           DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
           GITHUB_COMMIT: ${{ github.sha }}
