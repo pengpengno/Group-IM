@@ -28,7 +28,6 @@ public class AuthenticationService  {
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
     private final UserTokenManager userTokenManager;
-
     private final CompanyService companyService;
 
     public Optional<UserInfo> login(LoginRequest loginRequest){

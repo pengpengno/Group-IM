@@ -45,7 +45,7 @@ public class UserService {
     private final AuthenticationService authenticationService;
     private final ForcePasswordChangeConfig forcePasswordChangeConfig;
     private final UserMapper userMapper;
-
+    private final CompanyService companyService;
     /**
      * 用户注册逻辑
      */
@@ -152,6 +152,19 @@ public class UserService {
                 .phoneNumber(request.getPhoneNumber())
                 .forcePasswordChange(forcePasswordChangeConfig.isForcePasswordChangeEnabled())
                 .build();
+
+        // 如果传入companyCode  不为空 且 companyCode 存在
+        String companyCode = request.getCompanyCode();
+
+        if (companyCode != null ) {
+            if( companyService.findBySchemaName(companyCode).isPresent()){
+                newUser.setPrimaryCompanyId(companyService.findBySchemaName(companyCode).get().getCompanyId());
+            }else {
+                throw new IllegalArgumentException("公司不存在！");
+            }
+        }else {
+            newUser.setPrimaryCompanyId(companyService.findById(1L).get().getCompanyId());
+        }
 
         return userRepository.save(newUser);
     }

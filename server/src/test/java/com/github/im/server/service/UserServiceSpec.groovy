@@ -6,8 +6,10 @@ import com.github.im.dto.user.UserBasicInfo
 import com.github.im.dto.user.UserInfo
 import com.github.im.server.config.ForcePasswordChangeConfig
 import com.github.im.server.mapstruct.UserMapper
+import com.github.im.server.model.Company
 import com.github.im.server.model.User
 import com.github.im.server.repository.UserRepository
+import com.github.im.server.service.CompanyService
 import jakarta.persistence.EntityExistsException
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
@@ -27,12 +29,13 @@ class UserServiceSpec extends Specification {
     // 被测试的服务对象
     UserService userService
     UserMapper userMapper = Mock()
-    // 依赖的Mock对象
+    // 依赖的 Mock 对象
     UserRepository userRepository = Mock()
     PasswordEncoder passwordEncoder = Mock()
     AuthenticationService authenticationService = Mock(constructorArgs: [null, null, null, null, null])
     ForcePasswordChangeConfig forcePasswordChangeConfig = Mock()
-    // 移除UserMapper的Mock，直接使用真实的UserMapper.INSTANCE进行测试
+    CompanyService companyService = Mock()
+    // 移除 UserMapper 的 Mock，直接使用真实的 UserMapper.INSTANCE 进行测试
 
     def setup() {
         // 初始化被测试的服务对象
@@ -41,7 +44,8 @@ class UserServiceSpec extends Specification {
                 passwordEncoder,
                 authenticationService,
                 forcePasswordChangeConfig,
-                userMapper
+                userMapper,
+                companyService
         )
     }
 
@@ -58,8 +62,8 @@ class UserServiceSpec extends Specification {
                 "testuser",
                 "test@example.com",
                 "password123",
-                "password123",
-                "13800138000"
+                "13800138000",
+                "public"
         )
 
         def newUser = User.builder()
@@ -68,12 +72,16 @@ class UserServiceSpec extends Specification {
                 .email("test@example.com")
                 .phoneNumber("13800138000")
                 .passwordHash("encodedPassword")
+                .primaryCompanyId(1L)
                 .build()
 
         def expectedUserInfo = new UserInfo()
         expectedUserInfo.setUserId(1L)
         expectedUserInfo.setUsername("testuser")
         expectedUserInfo.setEmail("test@example.com")
+        expectedUserInfo.setPhoneNumber("13800138000")
+        expectedUserInfo.setCompanyCode("public")
+
 
         when: "执行用户注册"
         def result = userService.registerUser(registrationRequest)
@@ -82,6 +90,7 @@ class UserServiceSpec extends Specification {
         1 * userRepository.findByUsernameOrEmail("testuser", "test@example.com") >> Optional.empty()
         1 * passwordEncoder.encode("password123") >> "encodedPassword"
         1 * forcePasswordChangeConfig.isForcePasswordChangeEnabled() >> false
+        1 * companyService.findBySchemaName("public") >> Optional.of(new Company(companyId: 1L, companyName: "Test Company", schemaName: "public"))
         1 * userRepository.save(_) >> newUser
         1 * userMapper.userToUserInfo(newUser) >> expectedUserInfo
         
@@ -89,16 +98,17 @@ class UserServiceSpec extends Specification {
         result.get().getUserId() == 1L
         result.get().getUsername() == "testuser"
         result.get().getEmail() == "test@example.com"
+        result.get().getCompanyCode() == "public"
     }
 
-    def "测试用户注册成功场景并验证Mapper调用"() {
+    def "测试用户注册成功场景并验证 Mapper 调用"() {
         given: "准备有效的注册请求数据"
         def registrationRequest = new RegistrationRequest(
                 "content_compare_test",
                 "content@test.com",
                 "password123",
-                "password123",
-                "13800138004"
+                "13800138004",
+                "public"
         )
 
         def newUser = User.builder()
@@ -107,6 +117,7 @@ class UserServiceSpec extends Specification {
                 .email("content@test.com")
                 .phoneNumber("13800138004")
                 .passwordHash("encodedPassword")
+                .primaryCompanyId(1L)
                 .build()
 
         def expectedUserInfo = new UserInfo()
@@ -114,6 +125,7 @@ class UserServiceSpec extends Specification {
         expectedUserInfo.setUsername("content_compare_test")
         expectedUserInfo.setEmail("content@test.com")
         expectedUserInfo.setPhoneNumber("13800138004")
+        expectedUserInfo.setCompanyCode("public")
 
         and: "准备用于内容比较的变量"
         User capturedUser = null
@@ -122,21 +134,23 @@ class UserServiceSpec extends Specification {
         when: "执行用户注册"
         def result = userService.registerUser(registrationRequest)
 
-        then: "使用内容比较验证Mapper调用"
+        then: "使用内容比较验证 Mapper 调用"
         1 * userRepository.findByUsernameOrEmail("content_compare_test", "content@test.com") >> Optional.empty()
         1 * passwordEncoder.encode("password123") >> "encodedPassword"
         1 * forcePasswordChangeConfig.isForcePasswordChangeEnabled() >> false
+        1 * companyService.findBySchemaName("public") >> Optional.of(new Company(companyId: 1L, companyName: "Test Company", schemaName: "public"))
         1 * userRepository.save(_) >> newUser
         
         // 修正语法：移除非法的逻辑或操作符
         1 * userMapper.userToUserInfo(_) >> { User user ->
             capturedUser = user
-            // 内容比较：验证传入User对象的属性值
+            // 内容比较：验证传入 User 对象的属性值
             assert user.getUsername() == "content_compare_test"
             assert user.getEmail() == "content@test.com"
             assert user.getPhoneNumber() == "13800138004"
             assert user.getPasswordHash() == "encodedPassword"
             assert user.getUserId() == 1L
+            assert user.getPrimaryCompanyId() == 1L
             return expectedUserInfo
         }
         
@@ -147,21 +161,24 @@ class UserServiceSpec extends Specification {
         result.get().getUsername() == "content_compare_test"
         result.get().getEmail() == "content@test.com"
         result.get().getPhoneNumber() == "13800138004"
+        result.get().getCompanyCode() == "public"
 
         and: "详细的内容比较验证"
         assert capturedUser != null
         println "=== 对象内容比较详情 ==="
-        println "传入Mapper的User对象内容验证:"
-        println "  Username匹配: ${capturedUser.getUsername() == 'content_compare_test'}"
-        println "  Email匹配: ${capturedUser.getEmail() == 'content@test.com'}"
-        println "  Phone匹配: ${capturedUser.getPhoneNumber() == '13800138004'}"
-        println "  UserId匹配: ${capturedUser.getUserId() == 1L}"
+        println "传入 Mapper 的 User 对象内容验证:"
+        println "  Username 匹配：${capturedUser.getUsername() == 'content_compare_test'}"
+        println "  Email 匹配：${capturedUser.getEmail() == 'content@test.com'}"
+        println "  Phone 匹配：${capturedUser.getPhoneNumber() == '13800138004'}"
+        println "  UserId 匹配：${capturedUser.getUserId() == 1L}"
+        println "  PrimaryCompanyId 匹配：${capturedUser.getPrimaryCompanyId() == 1L}"
         println ""
-        println "返回的UserInfo对象内容验证:"
+        println "返回的 UserInfo 对象内容验证:"
         println "  UserId: ${result.get().getUserId() == 1L}"
         println "  Username: ${result.get().getUsername() == 'content_compare_test'}"
         println "  Email: ${result.get().getEmail() == 'content@test.com'}"
         println "  Phone: ${result.get().getPhoneNumber() == '13800138004'}"
+        println "  CompanyCode: ${result.get().getCompanyCode() == 'public'}"
         println "========================"
     }
 
@@ -171,8 +188,8 @@ class UserServiceSpec extends Specification {
                 "existinguser",
                 "newemail@example.com",
                 "password123",
-                "password123",
-                "13800138000"
+                "13800138000",
+                "public"
         )
 
         def existingUser = User.builder()
@@ -196,8 +213,8 @@ class UserServiceSpec extends Specification {
                 "newuser",
                 "existing@example.com",
                 "password123",
-                "password123",
-                "13800138000"
+                "13800138000",
+                "public"
         )
 
         def existingUser = User.builder()
@@ -215,22 +232,6 @@ class UserServiceSpec extends Specification {
         thrown(IllegalArgumentException)
     }
 
-    def "测试用户注册密码不匹配"() {
-        given: "准备密码不匹配的注册请求"
-        def registrationRequest = new RegistrationRequest(
-                "testuser",
-                "test@example.com",
-                "password123",
-                "differentpassword",
-                "13800138000"
-        )
-
-        when: "执行用户注册"
-        userService.registerUser(registrationRequest)
-
-        then: "应该抛出异常"
-        thrown(IllegalArgumentException)
-    }
 
     def "测试用户注册时进行对象内容比较而非内存地址比较"() {
         given: "准备测试数据 - 注意创建具有相同内容的不同对象"
@@ -238,25 +239,27 @@ class UserServiceSpec extends Specification {
                 "content_compare_test",
                 "content@test.com",
                 "password123",
-                "password123",
-                "13800138004"
+                "13800138004",
+                "public"
         )
 
-        // 创建保存到数据库的User对象
+        // 创建保存到数据库的 User 对象
         def savedUser = User.builder()
                 .userId(1L)
                 .username("content_compare_test")
                 .email("content@test.com")
                 .phoneNumber("13800138004")
                 .passwordHash("encodedPassword")
+                .primaryCompanyId(1L)
                 .build()
 
-        // 创建期望的UserInfo对象（内容相同但内存地址不同）
+        // 创建期望的 UserInfo 对象（内容相同但内存地址不同）
         def expectedUserInfo = new UserInfo()
         expectedUserInfo.setUserId(1L)
         expectedUserInfo.setUsername("content_compare_test")
         expectedUserInfo.setEmail("content@test.com")
         expectedUserInfo.setPhoneNumber("13800138004")
+        expectedUserInfo.setCompanyCode("public")
 
         and: "准备用于内容比较的变量"
         User capturedUser = null
@@ -265,31 +268,34 @@ class UserServiceSpec extends Specification {
         when: "执行用户注册"
         def result = userService.registerUser(registrationRequest)
 
-        then: "使用内容比较验证Mapper调用"
+        then: "使用内容比较验证 Mapper 调用"
         1 * userRepository.findByUsernameOrEmail("content_compare_test", "content@test.com") >> Optional.empty()
         1 * passwordEncoder.encode("password123") >> "encodedPassword"
         1 * forcePasswordChangeConfig.isForcePasswordChangeEnabled() >> false
+        1 * companyService.findBySchemaName("public") >> Optional.of(new Company(companyId: 1L, companyName: "Test Company", schemaName: "public"))
         
-        // 关键：验证保存的User对象内容，而非内存地址
+        // 关键：验证保存的 User 对象内容，而非内存地址
         1 * userRepository.save({ User user ->
             // 内容比较：验证各个属性值
             assert user.getUsername() == "content_compare_test"
             assert user.getEmail() == "content@test.com"
             assert user.getPhoneNumber() == "13800138004"
             assert user.getPasswordHash() == "encodedPassword"
-            assert user.getUserId() == null  // 新用户ID应该为null
+            assert user.getUserId() == null  // 新用户 ID 应该为 null
+            assert user.getPrimaryCompanyId() == 1L
             return true
         }) >> savedUser
         
         // 修正语法错误：使用正确的方式捕获参数
         1 * userMapper.userToUserInfo(_) >> { User user ->
             capturedUser = user  // 正确的赋值语法
-            // 内容比较：验证传入User对象的属性值
+            // 内容比较：验证传入 User 对象的属性值
             assert user.getUsername() == "content_compare_test"
             assert user.getEmail() == "content@test.com"
             assert user.getPhoneNumber() == "13800138004"
             assert user.getPasswordHash() == "encodedPassword"
             assert user.getUserId() == 1L
+            assert user.getPrimaryCompanyId() == 1L
             return expectedUserInfo  // 返回预期结果
         }
         
@@ -300,21 +306,24 @@ class UserServiceSpec extends Specification {
         result.get().getUsername() == "content_compare_test"
         result.get().getEmail() == "content@test.com"
         result.get().getPhoneNumber() == "13800138004"
+        result.get().getCompanyCode() == "public"
 
         and: "详细的内容比较验证"
         assert capturedUser != null  // 验证变量已被正确赋值
         println "=== 对象内容比较详情 ==="
-        println "传入Mapper的User对象内容验证:"
-        println "  Username匹配: ${capturedUser.getUsername() == 'content_compare_test'}"
-        println "  Email匹配: ${capturedUser.getEmail() == 'content@test.com'}"
-        println "  Phone匹配: ${capturedUser.getPhoneNumber() == '13800138004'}"
-        println "  UserId匹配: ${capturedUser.getUserId() == 1L}"
+        println "传入 Mapper 的 User 对象内容验证:"
+        println "  Username 匹配：${capturedUser.getUsername() == 'content_compare_test'}"
+        println "  Email 匹配：${capturedUser.getEmail() == 'content@test.com'}"
+        println "  Phone 匹配：${capturedUser.getPhoneNumber() == '13800138004'}"
+        println "  UserId 匹配：${capturedUser.getUserId() == 1L}"
+        println "  PrimaryCompanyId 匹配：${capturedUser.getPrimaryCompanyId() == 1L}"
         println ""
-        println "返回的UserInfo对象内容验证:"
+        println "返回的 UserInfo 对象内容验证:"
         println "  UserId: ${result.get().getUserId() == 1L}"
         println "  Username: ${result.get().getUsername() == 'content_compare_test'}"
         println "  Email: ${result.get().getEmail() == 'content@test.com'}"
         println "  Phone: ${result.get().getPhoneNumber() == '13800138004'}"
+        println "  CompanyCode: ${result.get().getCompanyCode() == 'public'}"
         println "========================"
     }
 
@@ -323,15 +332,15 @@ class UserServiceSpec extends Specification {
     def "测试批量用户注册成功场景"() {
         given: "准备批量注册请求数据"
         def requests = [
-                new RegistrationRequest("user1", "user1@example.com", "password123", "password123", "13800138001"),
-                new RegistrationRequest("user2", "user2@example.com", "password123", "password123", "13800138002")
+                new RegistrationRequest("user1", "user1@example.com", "password123", "password123", "13800138001", "public"),
+                new RegistrationRequest("user2", "user2@example.com", "password123", "password123", "13800138002", "public")
         ]
 
-        def newUser1 = User.builder().userId(1L).username("user1").email("user1@example.com").build()
-        def newUser2 = User.builder().userId(2L).username("user2").email("user2@example.com").build()
+        def newUser1 = User.builder().userId(1L).username("user1").email("user1@example.com").phoneNumber("13800138001").primaryCompanyId(1L).build()
+        def newUser2 = User.builder().userId(2L).username("user2").email("user2@example.com").phoneNumber("13800138002").primaryCompanyId(1L).build()
 
-        def userInfo1 = new UserInfo(userId: 1L, username: "user1", email: "user1@example.com")
-        def userInfo2 = new UserInfo(userId: 2L, username: "user2", email: "user2@example.com")
+        def userInfo1 = new UserInfo(userId: 1L, username: "user1", email: "user1@example.com", phoneNumber: "13800138001", companyCode: "public")
+        def userInfo2 = new UserInfo(userId: 2L, username: "user2", email: "user2@example.com", phoneNumber: "13800138002", companyCode: "public")
 
         when: "执行批量用户注册"
         def result = userService.batchRegisterUsers(requests)
@@ -341,19 +350,22 @@ class UserServiceSpec extends Specification {
         2 * userRepository.findByUsernameOrEmail(*_) >>> [Optional.empty(), Optional.empty()]
         2 * passwordEncoder.encode("password123") >> "encodedPassword"
         2 * forcePasswordChangeConfig.isForcePasswordChangeEnabled() >> false
+        2 * companyService.findBySchemaName("public") >> Optional.of(new Company(companyId: 1L, companyName: "Test Company", schemaName: "public"))
         2 * userRepository.save(_) >>> [newUser1, newUser2]
         2 * userMapper.userToUserInfo(_) >>> [userInfo1, userInfo2]
         
         result.size() == 2
         result[0].getUsername() == "user1"
         result[1].getUsername() == "user2"
+        result[0].getCompanyCode() == "public"
+        result[1].getCompanyCode() == "public"
     }
 
     def "测试批量用户注册存在重复用户名"() {
         given: "准备包含重复用户名的批量注册请求"
         def requests = [
-                new RegistrationRequest("duplicate", "user1@example.com", "password123", "password123", "13800138001"),
-                new RegistrationRequest("duplicate", "user2@example.com", "password123", "password123", "13800138002")
+                new RegistrationRequest("duplicate", "user1@example.com", "password123", "13800138001", "public"),
+                new RegistrationRequest("duplicate", "user2@example.com", "password123", "13800138002", "public")
         ]
 
         when: "执行批量用户注册"
@@ -411,8 +423,9 @@ class UserServiceSpec extends Specification {
         then: "验证登录结果"
         1 * userRepository.findByUsernameOrEmail("testuser") >> Optional.of(user)
         1 * passwordEncoder.matches("password123", "encodedPassword") >> true
-        1 * userMapper.userToUserInfo(user) >> expectedUserInfo
-        
+//        1 * userMapper.userToUserInfo(user) >> expectedUserInfo
+        1 * UserMapper.INSTANCE.userToUserInfo(user)
+
         result.isPresent()
         result.get().getUserId() == 1L
     }

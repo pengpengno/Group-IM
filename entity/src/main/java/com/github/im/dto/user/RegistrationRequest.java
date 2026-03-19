@@ -18,5 +18,11 @@ public class RegistrationRequest {
     @NotBlank(message = "Password cannot be blank")
     private String password;
 
-    private String phoneNumber; // Optional
+    private String phoneNumber;  // Optional
+
+
+    /***
+     *  需要加入注册的公司  ，如果不录入那么默认 放在 public schema 下面
+     */
+    private String companyCode;
 }

@@ -9,17 +9,13 @@ import com.github.im.dto.user.UserInfo
 import com.github.im.server.model.User
 import com.github.im.server.service.CompanyUserService
 import com.github.im.server.service.UserService
-import com.github.im.server.web.ApiResponse
-import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.web.PagedModel
 import org.springframework.http.HttpStatus
-import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextHolder
-import org.springframework.web.multipart.MultipartFile
 import spock.lang.Specification
 
 /**
@@ -56,13 +52,16 @@ class UserControllerSpec extends Specification {
                 "testuser",
                 "test@example.com",
                 "password123",
-                "13800138000"
+                "13800138000",
+                "public"
         )
 
         def userInfo = new UserInfo()
         userInfo.setUserId(1L)
         userInfo.setUsername("testuser")
         userInfo.setEmail("test@example.com")
+        userInfo.setPhoneNumber("13800138000")
+        userInfo.setCompanyCode("public")
 
         when: "调用用户注册接口"
         def response = userController.registerUser(registrationRequest)
@@ -73,6 +72,7 @@ class UserControllerSpec extends Specification {
         response.getStatusCode() == HttpStatus.CREATED
         response.getBody().getUserId() == 1L
         response.getBody().getUsername() == "testuser"
+        response.getBody().getCompanyCode() == "public"
     }
 
     def "测试用户注册接口失败场景"() {
@@ -81,7 +81,8 @@ class UserControllerSpec extends Specification {
                 "existinguser",
                 "existing@example.com",
                 "password123",
-                "13800138000"
+                "13800138000",
+                "public"
         )
 
         when: "调用用户注册接口"
@@ -286,7 +287,7 @@ class UserControllerSpec extends Specification {
 
     def "测试全局异常处理"() {
         given: "准备会导致异常的请求"
-        def registrationRequest = new RegistrationRequest("", "", "", "")
+        def registrationRequest = new RegistrationRequest("", "", "", "", "")
 
         when: "调用可能抛出异常的接口"
         userController.registerUser(registrationRequest)
