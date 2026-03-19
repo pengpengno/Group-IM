@@ -48,7 +48,6 @@ jobs:
           username: deploy
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd deploy/docker
             docker-compose pull
             docker-compose up -d
 
