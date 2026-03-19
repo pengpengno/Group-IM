@@ -1,0 +1,26 @@
+# Build stage
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+# Copy the entire structure to satisfy relative paths in sync-protos scripts
+# (../../../common/src/main/proto)
+COPY common/ /app/common/
+COPY Group-app/Group-Electronjs/ /app/Group-app/Group-Electronjs/
+
+WORKDIR /app/Group-app/Group-Electronjs
+
+# Install dependencies
+RUN npm install
+
+# Build the web assets
+RUN npm run build:web
+
+# Final stage: Minimal image to hold only the built assets
+FROM alpine:latest
+WORKDIR /app
+COPY --from=build /app/dist-web /dist-web
+
+# This container will just provide the files, so we can exit or sleep
+# We'll use this in docker-compose to populate a shared volume
+CMD ["sh", "-c", "echo 'Frontend assets ready at /dist-web'; sleep infinity"]

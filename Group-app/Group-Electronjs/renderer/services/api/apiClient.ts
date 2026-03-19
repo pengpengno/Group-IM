@@ -8,7 +8,11 @@ export type LoginPayload = {
 
 type QueryUsersPayload = string;
 
-const BASE_URL = 'http://localhost:8080';
+// In web environment, use the same origin. In Electron, fallback to hardcoded backend or env.
+const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+const BASE_URL = (typeof window !== 'undefined' && window.location.protocol.startsWith('http')) 
+  ? '' 
+  : 'http://localhost:8080';
 
 const http = axios.create({
   baseURL: BASE_URL,

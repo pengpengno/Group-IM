@@ -31,10 +31,11 @@ class SignalingService {
         if (this.socket || !this.userId) return;
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // Use localhost:8080 as default for dev if not proxied, or infer from location if served
-        // For Electron dev with webpack proxy, it might be different. 
-        // Let's assume the backend is at localhost:8080 for now as per apiClient.ts
-        const host = 'localhost:8080';
+        // Dynamically infer host. If on web, use current host. If in desktop app, fallback to 8080.
+        const host = (window.location.host && window.location.protocol.startsWith('http')) 
+            ? window.location.host 
+            : 'localhost:8080';
+        
         const token = localStorage.getItem('token') || '';
         const url = `${protocol}//${host}/ws?userId=${this.userId}&token=${token}`;
 
