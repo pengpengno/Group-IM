@@ -39,7 +39,8 @@ data/
 
 # 其他模块（如果只需要构建 server）
 gui/
-Group-app/
+# Group-app/ (Removed to allow frontend build)
+# !Group-app/Group-Electronjs/
 common/target/
 entity/target/
 
