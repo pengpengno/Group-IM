@@ -53,6 +53,9 @@ val appmodule = module {
     single { AndroidDatabaseDriverFactory(get<Context>()) }  // 注册工厂
     single { get<AndroidDatabaseDriverFactory>().createDatabase() }  // 注册 AppDatabase 单例
 
+    // 代理配置存储
+    single { ProxyConfigStorage(androidContext()) }
+
     single<FilePicker> { AndroidFilePicker(androidContext()) }
     single<AudioPlayer> { AndroidAudioPlayer(androidContext()) }
     single<WebRTCManager> { AndroidWebRTCManager(androidContext()) }

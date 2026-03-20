@@ -1,6 +1,6 @@
 package com.github.im.group.ui.video
 
-import ProxyConfig
+import com.github.im.group.config.ProxyConfig
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

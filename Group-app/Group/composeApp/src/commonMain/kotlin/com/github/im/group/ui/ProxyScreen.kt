@@ -23,6 +23,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.github.im.group.config.ProxyConfig
 import com.github.im.group.ui.Login
 import org.jetbrains.compose.ui.tooling.preview.Preview
 

@@ -1,19 +1,16 @@
 package com.github.im.group
 
-import com.github.im.group.repository.ConversationRepository
-import com.github.im.group.repository.UserRepository
-import com.github.im.group.service.SessionPreCreationService
-import com.github.im.group.service.SessionPreCreationServiceImpl
-import com.github.im.group.viewmodel.ContactsViewModel
+import com.github.im.group.config.ConfigManager
 import org.koin.dsl.module
 
 val commonModule = module {
-    // 会话预创建服务
-//    single<SessionPreCreationService> {
-//        SessionPreCreationServiceImpl(
-//            conversationRepository = get(),
-//        )
-//    }
+    // 代理存储已在平台模块中提供（Android/Desktop）
+    
+    // 配置管理器
+    single { ConfigManager(get()) }
+    
+    // 提供当前的 AppConfig
+    single { get<ConfigManager>().currentConfig.value }
     
 
 }

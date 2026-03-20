@@ -1,13 +1,10 @@
 import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { clearError } from './features/auth/authSlice';
-import IncomingCallAlert from './features/video-call/IncomingCallAlert';
-import VideoCallModal from './features/video-call/VideoCallModal';
 import LoginScreen from './features/auth/LoginScreen';
 import Dashboard from './features/dashboard/Dashboard';
 import Notification from './components/common/Notification';
-import { signalingService } from './services/signaling';
-import { webRTCManager } from './services/webrtc';
+import { webRTCService } from './services/WebRTCService';
 import { socketService } from './services/socketService';
 import { store } from './store';
 
@@ -19,15 +16,15 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (isAuthenticated && user && user.userId) {
-      signalingService.initialize(store, user.userId);
-      webRTCManager.initialize(store, user.userId);
+      // Initialize unified WebRTC service
+      webRTCService.initialize(store, user.userId);
 
       // Initialize Socket connection
       const token = localStorage.getItem('token') || '';
       socketService.initialize(store, user.userId, 'localhost', 8088, token, user.username);
 
       return () => {
-        signalingService.disconnect();
+        webRTCService.destroy();
         socketService.disconnect();
       };
     }
@@ -50,9 +47,6 @@ const App: React.FC = () => {
 
   return (
     <div className="app">
-      <IncomingCallAlert />
-      <VideoCallModal />
-
       {error && (
         <Notification
           message={error}

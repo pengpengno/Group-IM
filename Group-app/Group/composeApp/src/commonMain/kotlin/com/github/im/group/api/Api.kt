@@ -1,8 +1,7 @@
 package com.github.im.group.api
 
-import ProxyApi
-import ProxyConfig
 import com.github.im.group.GlobalCredentialProvider
+import com.github.im.group.config.ProxyConfig
 import com.github.im.group.db.entities.FileStatus
 import com.github.im.group.db.entities.FriendRequestStatus
 import com.github.im.group.db.entities.MessageStatus
@@ -21,12 +20,14 @@ import io.ktor.http.contentLength
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okio.FileSystem
 import okio.Path
+import okio.SYSTEM
 
 
 object LoginApi {

@@ -1,7 +1,5 @@
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+package com.github.im.group.config
 
 
 data class ProxySettingsState(
@@ -20,34 +18,41 @@ data class ProxySettingsState(
     }
 }
 
-object  ProxyConfig {
-//    var host by mutableStateOf("192.168.4.25")
-//    var host by mutableStateOf("192.168.71.57")
-    var host by mutableStateOf("10.50.198.252")
-//    var host by mutableStateOf("192.168.244.252")
-    var port by mutableStateOf(8080)
-    var tcp_port by mutableStateOf(8088)
-    var enableProxy by mutableStateOf(false)
+object ProxyConfig {
+    // 默认使用开发配置
+    private var _config: AppConfig = DevConfig()
+    
+    val config: AppConfig get() = _config
 
-    fun getBaseUrl(): String {
-        return if (enableProxy) {
-            "http://$host:$port"
-        } else {
-            "http://$host:8080"
-        }
+    var host: String 
+        get() = _config.apiHost
+        set(value) { /* 不建议直接设置，应通过 ConfigManager */ }
+
+    var port: Int
+        get() = _config.apiPort
+        set(value) { /* 不建议直接设置，应通过 ConfigManager */ }
+
+    var tcp_port: Int
+        get() = _config.tcpPort
+        set(value) { /* 不建议直接设置，应通过 ConfigManager */ }
+
+    var enableProxy: Boolean = false
+
+    /**
+     * 更新当前配置（供 ConfigManager 调用）
+     */
+    fun updateConfig(newConfig: AppConfig) {
+        _config = newConfig
+        enableProxy = newConfig.environment == AppEnvironment.CUSTOM
     }
 
+    fun getBaseUrl(): String = _config.getBaseUrl()
 
     fun setProxy(host: String, port: Int) {
-        this.host = host
-        this.port = port
-        TODO(" 代理的配置需要存储在本地")
-
-//        GlobalCredentialProvider.proxySettingsState.setProxyState(
-//
-//        )
+        // 这里的逻辑将来应迁移到 ConfigManager
+        // 暂时为了兼容性保留，但标记为待办
+        TODO("已在 ConfigManager 中实现，建议调用 ConfigManager.updateCustomConfig")
     }
-
 }
 
 //

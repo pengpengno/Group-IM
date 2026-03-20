@@ -1,11 +1,11 @@
 package com.github.im.group.viewmodel
 
-import UnauthorizedException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.api.GroupInfo
+import com.github.im.group.api.UnauthorizedException
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.manager.LoginStateManager
 import com.github.im.group.model.MessageWrapper

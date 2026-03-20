@@ -1,6 +1,7 @@
 package com.github.im.group
 
-import ProxySettingsState
+import com.github.im.group.config.ProxySettingsState
+
 
 //  代理设置的存储
 expect class ProxyConfigStorage {

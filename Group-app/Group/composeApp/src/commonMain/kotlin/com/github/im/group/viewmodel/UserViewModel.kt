@@ -1,17 +1,18 @@
 package com.github.im.group.viewmodel
 
-import UnauthorizedException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.api.FriendShipApi
 import com.github.im.group.api.FriendshipDTO
 import com.github.im.group.api.LoginApi
+import com.github.im.group.api.UnauthorizedException
 import com.github.im.group.api.UserApi
 import com.github.im.group.manager.LoginStateManager
 import com.github.im.group.model.UserInfo
 import com.github.im.group.repository.UserRepository
 import io.github.aakira.napier.Napier
+import io.github.aakira.napier.log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -188,6 +189,7 @@ class UserViewModel(
                       refreshToken:String =""): Boolean {
         userRepository.updateToAuthenticating()
         try {
+            log { "开始 登录   $uname , $pwd ,$refreshToken" }
             val response = LoginApi.login(uname, pwd,refreshToken)
 
             GlobalCredentialProvider.storage.saveUserInfo(response)
@@ -276,7 +278,7 @@ private fun isConnectException(e: Exception): Boolean {
         // 在JVM平台上检查具体的异常类型
         e::class.simpleName == "ConnectException" -> true
         // 检查异常类名字符串
-        e.javaClass.name.contains("ConnectException") -> true
+//        e.javaClass.name.contains("ConnectException") -> true
         else -> false
     }
 }
@@ -287,7 +289,7 @@ private fun isSocketTimeoutException(e: Exception): Boolean {
         // 在JVM平台上检查具体的异常类型
         e::class.simpleName == "SocketTimeoutException" -> true
         // 检查异常类名字符串
-        e.javaClass.name.contains("SocketTimeoutException") -> true
+//        e.javaClass.name.contains("SocketTimeoutException") -> true
         else -> false
     }
 }

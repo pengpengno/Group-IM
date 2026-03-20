@@ -1,6 +1,6 @@
 package com.github.im.group.sdk
 
-import ProxyConfig
+import com.github.im.group.config.ProxyConfig
 import com.github.im.group.config.SocketClient
 import com.github.im.common.connect.model.proto.BaseMessagePkg
 import com.github.im.common.connect.model.proto.ChatMessage
@@ -25,7 +25,7 @@ class SenderSdk(
 
     private val scope = CoroutineScope(Dispatchers.IO)
     private val _connected = MutableStateFlow(false)
-    private val _host =ProxyConfig.host
+    private val _host = ProxyConfig.host
     private val _port = ProxyConfig.tcp_port
     private var reconnectJob: Job? = null
     private val reconnectMutex = Mutex()

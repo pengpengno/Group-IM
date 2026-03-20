@@ -1,8 +1,8 @@
 package com.github.im.group
 
-import ProxySettingsState
 import android.content.Context
 import androidx.core.content.edit
+import com.github.im.group.config.ProxySettingsState
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

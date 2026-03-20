@@ -1,5 +1,15 @@
 import { EventEmitter } from 'events';
-import { VideoCallStatus } from '../features/video-call/videoCallSlice';
+import { Store } from '@reduxjs/toolkit';
+import { 
+  VideoCallStatus, 
+  incomingCall, 
+  callConnected, 
+  callEnded, 
+  callError,
+  setLocalStreamId,
+  setRemoteStreamId 
+} from '../features/video-call/videoCallSlice';
+import { RootState } from '../store';
 
 // WebRTC Message Protocol
 export interface WebrtcMessage {
@@ -42,6 +52,7 @@ export class WebRTCService extends EventEmitter {
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
   private websocket: WebSocket | null = null;
+  private store: Store<RootState> | null = null;
   private userId: string = '';
   private remoteUserId: string = '';
   private iceServers: RTCIceServer[];
@@ -77,9 +88,12 @@ export class WebRTCService extends EventEmitter {
   }
 
   /**
-   * Initialize browser media devices and WebRTC PC
+   * Initialize with Redux store and create PC
    */
-  public async initialize(): Promise<void> {
+  public async initialize(store?: Store<RootState>, userId?: string): Promise<void> {
+    if (store) this.store = store;
+    if (userId) this.userId = userId;
+    
     if (this.peerConnection) return;
 
     try {
@@ -119,6 +133,10 @@ export class WebRTCService extends EventEmitter {
         this.remoteStream = event.streams[0];
         this.emit('remote-stream', this.remoteStream);
         this.updateState({ isRemoteVideoEnabled: true });
+        
+        if (this.store) {
+          this.store.dispatch(setRemoteStreamId(this.remoteStream.id));
+        }
       }
     };
 
@@ -129,6 +147,9 @@ export class WebRTCService extends EventEmitter {
       if (connState === 'connected') {
         this.updateState({ callStatus: VideoCallStatus.ACTIVE, callStartTime: Date.now() });
         this.startDurationTimer();
+        if (this.store) {
+          this.store.dispatch(callConnected());
+        }
       } else if (connState === 'failed' || connState === 'disconnected') {
         this.handleError(new Error(`WebRTC Connection ${connState}`));
       }
@@ -154,6 +175,10 @@ export class WebRTCService extends EventEmitter {
         this.localStream.getTracks().forEach(track => {
           this.peerConnection!.addTrack(track, this.localStream!);
         });
+      }
+
+      if (this.store) {
+        this.store.dispatch(setLocalStreamId(this.localStream.id));
       }
 
       return this.localStream;
@@ -216,6 +241,19 @@ export class WebRTCService extends EventEmitter {
           callStatus: VideoCallStatus.INCOMING,
           remoteUserId: this.remoteUserId
         });
+        
+        if (this.store) {
+          this.store.dispatch(incomingCall({
+            callId: `call-${Date.now()}`,
+            remoteUser: {
+              userId: this.remoteUserId,
+              username: `User ${this.remoteUserId}`,
+              email: '',
+              status: 'online'
+            }
+          }));
+        }
+
         this.emit('incoming-call', { callerId: this.remoteUserId });
         break;
 
@@ -382,6 +420,11 @@ export class WebRTCService extends EventEmitter {
       callStatus: VideoCallStatus.ERROR,
       errorMessage: error.message
     });
+
+    if (this.store) {
+      this.store.dispatch(callError(error.message));
+    }
+
     this.emit('error', error);
   }
 
@@ -414,11 +457,15 @@ export class WebRTCService extends EventEmitter {
     }
     this.remoteStream = null;
     this.updateState({
-      callStatus: VideoCallStatus.ENDED,
+      callStatus: VideoCallStatus.IDLE,
       remoteUserId: undefined,
       duration: 0,
       callStartTime: undefined
     });
+
+    if (this.store) {
+      this.store.dispatch(callEnded());
+    }
   }
 
   public destroy(): void {

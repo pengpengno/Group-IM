@@ -30,8 +30,6 @@ public class Application {
 
     }
 
-
-
     @Component
     public static class ServerListener implements ApplicationListener<WebServerInitializedEvent> {
 

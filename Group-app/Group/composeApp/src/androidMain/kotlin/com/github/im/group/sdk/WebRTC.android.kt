@@ -1,6 +1,5 @@
 package com.github.im.group.sdk
 
-import ProxyConfig
 import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.Composable
@@ -14,6 +13,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.github.im.group.GlobalCredentialProvider
+import com.github.im.group.config.ProxyConfig
 import com.github.im.group.ui.video.VideoCallState
 import com.github.im.group.ui.video.VideoCallStatus
 import com.shepeliev.webrtckmp.AudioTrack
@@ -39,7 +39,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import okhttp3.*
+import okhttp3.Authenticator
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
 import okhttp3.logging.HttpLoggingInterceptor
 import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer

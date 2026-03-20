@@ -122,9 +122,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             const token = localStorage.getItem('token') || '';
             webRTCService.connectSignaling(host, port, user.userId, token);
         }
-        return () => {
-            webRTCService.destroy();
-        };
     }, [user?.userId]);
 
     // Debounce search

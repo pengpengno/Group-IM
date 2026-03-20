@@ -1,12 +1,40 @@
 package com.github.im.group.ui.video
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.CallEnd
+import androidx.compose.material.icons.filled.Cameraswitch
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.Minimize
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.VideocamOff
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -20,7 +48,6 @@ import com.github.im.group.sdk.TryGetVideoCallPermissions
 import com.github.im.group.sdk.VideoScreenView
 import com.github.im.group.ui.UserAvatar
 import org.koin.compose.viewmodel.koinViewModel
-import kotlin.let
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -516,11 +543,19 @@ private fun ActiveVideoCallUI(
  * @return 格式化的时长字符串，如 "05:23"
  */
 private fun formatDuration(seconds: Long): String {
-    val mins = seconds / 60
-    val secs = seconds % 60
-    return String.format("%02d:%02d", mins, secs)
-}
+    val h = seconds / 3600
+    val m = (seconds % 3600) /60
+    val s = seconds % 60
 
+    val mStr = m.toString().padStart(2, '0')
+    val sStr = s.toString().padStart(2, '0')
+
+    return if (h > 0) {
+        "$h:$mStr:$sStr"
+    } else {
+        "$mStr:$sStr"
+    }
+}
 /** 统一的视频通话底部控制面板 */
 @Composable
 private fun CallControlPanel(

@@ -1,3 +1,10 @@
+package com.github.im.group.api
+
+import org.koin.core.component.inject
+import com.github.im.group.config.AppConfig
+import com.github.im.group.config.AppEnvironment
+import com.github.im.group.config.DevConfig
+import com.github.im.group.config.ProxyConfig
 import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.GlobalErrorHandler
 import com.github.im.group.api.FileUploadResponse
@@ -29,6 +36,8 @@ import org.koin.core.component.KoinComponent
 object ProxyApi
   : KoinComponent {
 
+    val appConfig: AppConfig by inject()
+
     val client = HttpClient() {
         install(ContentNegotiation) {
             val token = GlobalCredentialProvider.currentToken
@@ -51,7 +60,7 @@ object ProxyApi
      */
     suspend fun uploadFile(fileId:String ,file: ByteArray, fileName: String , duration: Long=0):FileUploadResponse {
 
-        val baseUrl = ProxyConfig.getBaseUrl()
+        val baseUrl = appConfig.getBaseUrl()
 
 
         val response =  client.submitFormWithBinaryData(
@@ -118,11 +127,7 @@ object ProxyApi
      */
     suspend fun uploadFileWithClientId(file: ByteArray, fileName: String, duration: Long, clientId: String): FileUploadResponse {
 
-        val baseUrl = if (ProxyConfig.enableProxy) {
-            "http://${ProxyConfig.host}:${ProxyConfig.port}"
-        } else {
-            "http://${ProxyConfig.host}:${ProxyConfig.port}"
-        }
+        val baseUrl = appConfig.getBaseUrl()
 
 
         var response =  client.submitFormWithBinaryData(
@@ -189,11 +194,7 @@ object ProxyApi
     ): R {
 //        val config = proxyConfigProviderProvider()
 
-        val baseUrl = if (ProxyConfig.enableProxy) {
-            "http://${ProxyConfig.host}:${ProxyConfig.port}"
-        } else {
-            "http://${ProxyConfig.host}:${ProxyConfig.port}"
-        }
+        val baseUrl = appConfig.getBaseUrl()
 
         val response = client.request("$baseUrl$path") {
             url {
