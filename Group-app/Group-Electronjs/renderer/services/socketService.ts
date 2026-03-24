@@ -13,6 +13,8 @@ class SocketService {
   private intentionToClose = false;
   private isInitializing = false;
   private isConnected = false;
+  private socket: WebSocket | null = null;
+  private receiveBuffer: Uint8Array = new Uint8Array(0);
   private connectionCheckInterval: NodeJS.Timeout | null = null;
 
   initialize(store: Store<RootState>, userId: string, host: string = 'localhost', port: number = 8088, token: string = '', username: string = '') {
@@ -40,12 +42,13 @@ class SocketService {
 
     const electronAPI = getElectronAPI();
     if (!electronAPI) {
-      console.error('Electron API not available');
+      console.warn('Electron API not available, trying native WebSocket fallback...');
+      this.connectNativeWS();
       return;
     }
 
     try {
-      console.log(`Socket connecting to ${this.host}:${this.port}`);
+      console.log(`Socket connecting via Electron IPC to ${this.host}:${this.port}`);
       const result = await electronAPI.socketConnect({
         host: this.host,
         port: this.port,
@@ -55,18 +58,74 @@ class SocketService {
       });
 
       if (result.success) {
-        console.log('Socket connected successfully');
+        console.log('Socket connected successfully via IPC');
         this.isConnected = true;
         this.isInitializing = false;
         this.setupListeners();
       } else {
-        console.error('Socket connection failed:', result.error);
+        console.error('Socket connection failed (IPC):', result.error);
         this.isInitializing = false;
       }
     } catch (error) {
-      console.error('Socket connection error:', error);
+      console.error('Socket connection error (IPC):', error);
       this.isInitializing = false;
     }
+  }
+
+  /**
+   * 浏览器环境下的原声 WebSocket 连接实现
+   */
+  private connectNativeWS() {
+    try {
+      // 注意：如果服务器不支持直接 WS，这里可能需要后端配合或使用代理
+      // 这里的 8088 通常是 TCP 端口，如果是 Web 环境，后端可能开启了 WS 协议适配
+      const wsUrl = `ws://${this.host}:${this.port}`;
+      console.log(`Native WebSocket connecting to ${wsUrl}...`);
+      
+      this.socket = new WebSocket(wsUrl);
+      this.socket.binaryType = 'arraybuffer';
+
+      this.socket.onopen = () => {
+        console.log('Native WebSocket connected');
+        this.isConnected = true;
+        this.isInitializing = false;
+        this.registerToRemoteWS();
+      };
+
+      this.socket.onmessage = (event) => {
+        this.handleWSData(new Uint8Array(event.data));
+      };
+
+      this.socket.onclose = () => {
+        console.log('Native WebSocket closed');
+        this.isConnected = false;
+        this.isInitializing = false;
+        // 自动重连逻辑可以在这里实现
+      };
+
+      this.socket.onerror = (error) => {
+        console.error('Native WebSocket error:', error);
+        this.isInitializing = false;
+      };
+    } catch (err) {
+      console.error('Failed to initiate native WebSocket:', err);
+      this.isInitializing = false;
+    }
+  }
+
+  private async registerToRemoteWS() {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+
+    // 这里需要构造 UserInfo 注册包，由于是 Web 端，目前可能依赖后端能够处理 WS 协议
+    console.log('Sending registration via WebSocket...');
+    // TODO: 实现 Web 端 Protobuf 编码并发送。由于 Renderer 目前主要依赖 IPC 解码，
+    // 这里如果要做完整功能，需要在 Renderer 也引入 protobufjs 逻辑。
+    // 如果后端支持，也可以发送 JSON 或特定的握手。
+  }
+
+  private handleWSData(data: Uint8Array) {
+      // 同理，这里需要处理 Varint32 分包和 Protobuf 解码
+      console.log('Received binary data via WebSocket, length:', data.length);
   }
 
   /**

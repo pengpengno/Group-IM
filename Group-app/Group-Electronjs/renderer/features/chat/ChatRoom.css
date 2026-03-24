@@ -301,6 +301,61 @@
   opacity: 0.7;
 }
 
+/* Video & Audio Preview */
+.msg-video-wrapper {
+  margin: 4px 0;
+  max-width: 320px;
+}
+
+.msg-video-preview {
+  width: 100%;
+  max-height: 240px;
+  border-radius: 8px;
+  background: #000;
+}
+
+.msg-voice-wrapper {
+  padding: 4px 0;
+}
+
+.msg-audio-player {
+  max-width: 240px;
+  height: 32px;
+}
+
+/* Modal for Image Preview */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content.image-preview-modal {
+  background: white;
+  border-radius: 16px;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.large-preview-img {
+  max-width: 100%;
+  max-height: calc(90vh - 120px);
+  object-fit: contain;
+  display: block;
+}
+
 /* Input Bar Area */
 .message-input-bar {
   padding: 16px 32px 24px;

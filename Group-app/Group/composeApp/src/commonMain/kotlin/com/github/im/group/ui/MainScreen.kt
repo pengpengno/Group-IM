@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.github.im.group.manager.LoginStateManager
 import com.github.im.group.ui.chat.ChatUI
+import com.github.im.group.ui.chat.GlobalAudioBar
 import com.github.im.group.ui.contacts.ContactsUI
 import com.github.im.group.ui.profile.ProfileUI
 import com.github.im.group.ui.video.DraggableVideoWindow
@@ -336,10 +337,13 @@ fun ChatMainScreen(
                             .fillMaxSize()
                             .background(MaterialTheme.colorScheme.surface)
                     ) {
-                        when (selectedItem) {
-                            0 -> ChatUI(navHostController = navHostController)
-                            1 -> ContactsUI(navHostController = navHostController)
-                            2 -> ProfileUI(navHostController = navHostController)
+                        Column {
+                            GlobalAudioBar()
+                            when (selectedItem) {
+                                0 -> ChatUI(navHostController = navHostController)
+                                1 -> ContactsUI(navHostController = navHostController)
+                                2 -> ProfileUI(navHostController = navHostController)
+                            }
                         }
                         
                         if (isVideoCallMinimized) {

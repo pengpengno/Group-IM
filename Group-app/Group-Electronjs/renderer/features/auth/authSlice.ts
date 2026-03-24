@@ -41,9 +41,9 @@ const authSlice = createSlice({
       state.loading = true;
       state.error = null;
     },
-    loginSuccess(state, action: PayloadAction<{ 
-      user: User; 
-      token: string; 
+    loginSuccess(state, action: PayloadAction<{
+      user: User;
+      token: string;
       refreshToken: string;
       companies?: CompanyDTO[];
       currentCompany?: CompanyDTO;

@@ -68,9 +68,10 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
                                 // 播放完成
                                 isPlayingState = false
                                 currentFilePath = null
-                                // 播放完成后回到开头
+                                // 播放完成后停止播放并回到开头
                                 try {
-                                    seekTo(0)
+                                    exoPlayer.playWhenReady = false
+                                    exoPlayer.seekTo(0)
                                 } catch (e: Exception) {
                                     Napier.e("重置播放位置失败", e)
                                 }

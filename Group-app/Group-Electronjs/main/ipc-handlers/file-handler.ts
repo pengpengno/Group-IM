@@ -79,6 +79,43 @@ ipcMain.handle('select-file', async (_, options = {}) => {
   }
 });
 
+// Handle file download request
+ipcMain.handle('download-file', async (_, url, fileName, token) => {
+  try {
+    const { filePath, canceled } = await dialog.showSaveDialog({
+      defaultPath: fileName,
+      title: 'Download File'
+    });
+
+    if (canceled || !filePath) {
+      return { canceled: true };
+    }
+
+    const headers: any = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await axios.get(url, {
+      headers,
+      responseType: 'arraybuffer'
+    });
+
+    fs.writeFileSync(filePath, Buffer.from(response.data));
+
+    return {
+      success: true,
+      filePath
+    };
+  } catch (error: any) {
+    console.error('File download error:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message || 'File download failed'
+    };
+  }
+});
+
 // Simple mime type detection based on file extension
 function getMimeType(filePath: string): string {
   const ext = path.extname(filePath).toLowerCase();

@@ -69,6 +69,9 @@ export class WebRTCService extends EventEmitter {
   private reconnectAttempts = 0;
   private readonly MAX_RECONNECT_ATTEMPTS = 5;
   private durationInterval: any = null;
+  private heartbeatInterval: any = null;
+  private reconnectTimer: any = null;
+  private isConnecting: boolean = false;
 
   constructor(iceServers: RTCIceServer[] = DEFAULT_ICE_SERVERS) {
     super();
@@ -192,21 +195,50 @@ export class WebRTCService extends EventEmitter {
    * Connect to the WebSocket signaling server
    */
   public connectSignaling(host: string, port: number, userId: string, token: string): void {
-    this.userId = userId;
+    // 如果已经连接或是正在连接到同一个服务器且同一个用户，就不重复发起
     const protocol = host.startsWith('https') ? 'wss' : 'ws';
     const cleanHost = host.replace(/^https?:\/\//, '');
     const url = `${protocol}://${cleanHost}:${port}/ws?userId=${userId}&token=${token}`;
 
-    console.log('Connecting to signaling server:', url);
-    if (this.websocket) {
-        this.websocket.close();
+    if (this.websocket && (this.websocket.readyState === WebSocket.OPEN || this.websocket.readyState === WebSocket.CONNECTING)) {
+        if (this.websocket.url === url) {
+            console.log('Already connected or connecting to signaling server:', url);
+            return;
+        }
     }
 
+    if (this.isConnecting) {
+        console.log('Signaling connection already in progress...');
+        return;
+    }
+
+    this.userId = userId;
+    console.log('Connecting to signaling server:', url);
+    
+    // 清理之前的定时器
+    if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+    }
+    
+    // 清理旧的 WebSocket 及其监听器，防止调用此方法手动关闭旧连接时触发 onclose 的重连逻辑
+    if (this.websocket) {
+        this.websocket.onopen = null;
+        this.websocket.onmessage = null;
+        this.websocket.onclose = null;
+        this.websocket.onerror = null;
+        this.websocket.close();
+        this.websocket = null;
+    }
+
+    this.isConnecting = true;
     this.websocket = new WebSocket(url);
 
     this.websocket.onopen = () => {
       console.log('Signaling WebSocket connected');
       this.reconnectAttempts = 0;
+      this.isConnecting = false;
+      this.startHeartbeat();
     };
 
     this.websocket.onmessage = (event) => {
@@ -219,16 +251,45 @@ export class WebRTCService extends EventEmitter {
     };
 
     this.websocket.onclose = (event) => {
-      console.log('Signaling WebSocket closed:', event.code);
-      if (!this.state.callStatus.includes('ENDED') && this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
+      console.log('Signaling WebSocket closed:', event.code, 'Reason:', event.reason);
+      this.isConnecting = false;
+      this.stopHeartbeat();
+      
+      // 如果不是因为 ended 而关闭，且重连次数没超过限制，就尝试重连
+      if (!this.state.callStatus.includes('ENDED') && 
+          this.state.callStatus !== VideoCallStatus.IDLE && // 如果手动设置为 IDLE 也不应重连
+          this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
+        
+        console.log(`Scheduling reconnect... attempts: ${this.reconnectAttempts + 1}/${this.MAX_RECONNECT_ATTEMPTS}`);
         this.reconnectAttempts++;
-        setTimeout(() => this.connectSignaling(host, port, userId, token), 3000);
+        this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
+            this.connectSignaling(host, port, userId, token);
+        }, 5000); // 稍微增加重连间隔
       }
     };
 
     this.websocket.onerror = (error) => {
       console.error('Signaling WebSocket error:', error);
+      this.isConnecting = false;
     };
+  }
+
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.heartbeatInterval = setInterval(() => {
+        if (this.websocket?.readyState === WebSocket.OPEN) {
+            // 发送心跳包
+            this.websocket.send(JSON.stringify({ type: 'ping', fromUser: this.userId }));
+        }
+    }, 30000); // 每30秒发送一次心跳
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+        clearInterval(this.heartbeatInterval);
+        this.heartbeatInterval = null;
+    }
   }
 
   private handleSignalingMessage(message: WebrtcMessage): void {
@@ -447,6 +508,11 @@ export class WebRTCService extends EventEmitter {
 
   private cleanup(): void {
     this.stopDurationTimer();
+    this.stopHeartbeat();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.peerConnection) {
       this.peerConnection.close();
       this.peerConnection = null;

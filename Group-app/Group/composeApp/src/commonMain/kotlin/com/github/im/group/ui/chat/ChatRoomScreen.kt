@@ -323,7 +323,12 @@ fun MessageBubble(
                                     msg = msg,
                                     messageViewModel = messageViewModel,
                                     onContentReady = { file, meta ->
-                                        VoiceMessage(content = MessageContent.Voice(file.path, meta.duration),isOwnMessage)
+                                        VoiceMessage(
+                                            content = MessageContent.Voice(file.path, meta.duration),
+                                            senderName = msg.userInfo.username,
+                                            isOwnMessage = isOwnMessage,
+                                            messageId = if (msg.seqId != 0L) "seq_${msg.seqId}" else "client_${msg.clientMsgId}"
+                                        )
                                     },
                                     onLoading = { CircularProgressIndicator(modifier = Modifier.size(16.dp)) }
                                 )

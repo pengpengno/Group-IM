@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // File related
   uploadFile: (filePath: string, clientId?: string, token?: string) => ipcRenderer.invoke('upload-file', filePath, clientId, token),
+  downloadFile: (url: string, fileName: string, token?: string) => ipcRenderer.invoke('download-file', url, fileName, token),
   selectFile: (options?: any) => ipcRenderer.invoke('select-file', options),
 
   // Notification related

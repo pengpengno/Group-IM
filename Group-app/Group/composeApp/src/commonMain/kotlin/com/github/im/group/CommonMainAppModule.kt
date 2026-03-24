@@ -1,6 +1,7 @@
 package com.github.im.group
 
 import com.github.im.group.config.ConfigManager
+import com.github.im.group.manager.AudioPlaybackManager
 import org.koin.dsl.module
 
 val commonModule = module {
@@ -12,5 +13,7 @@ val commonModule = module {
     // 提供当前的 AppConfig
     single { get<ConfigManager>().currentConfig.value }
     
+    // 音频播放管理器
+    single { AudioPlaybackManager(get()) }
 
 }

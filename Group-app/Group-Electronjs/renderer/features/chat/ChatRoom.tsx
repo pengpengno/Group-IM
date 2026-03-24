@@ -1,11 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
-import { fetchMessages, sendMessageViaSocket } from './chatSlice';
-import type { ConversationRes, Message, MessageDTO } from '../../types';
+import { fetchMessages, sendMessage, sendMessageViaSocket } from './chatSlice';
+import { BASE_URL } from '../../services/api/apiClient';
+import { useAppSelector } from '../../hooks';
+import axios from 'axios';
+import type { ConversationRes, MessageDTO } from '../../types';
 import type { AuthState } from '../auth/authSlice';
 import Notification, { NotificationType } from '../../components/common/Notification';
 import './ChatRoom.css';
+
+// 定义 Electron 接口扩展 (防止 TS 报错)
+declare global {
+  interface Window {
+    electronAPI: any;
+  }
+}
 
 interface ChatRoomProps {
   conversation: ConversationRes;
@@ -13,13 +23,129 @@ interface ChatRoomProps {
 }
 
 // 消息项组件
+/**
+ * 带鉴权的图片组件
+ */
+const AuthenticatedImage: React.FC<{
+  url: string;
+  token?: string;
+  className?: string;
+  onClick?: () => void;
+}> = ({ url, token, className, onClick }) => {
+  const [src, setSrc] = React.useState<string>('');
+
+  React.useEffect(() => {
+    let objectUrl = '';
+    const fetchImage = async () => {
+      try {
+        const response = await axios.get(url, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          responseType: 'blob'
+        });
+        objectUrl = URL.createObjectURL(response.data);
+        setSrc(objectUrl);
+      } catch (err) {
+        console.error('Failed to load authenticated image:', err);
+      }
+    };
+
+    if (url) {
+      fetchImage();
+    }
+
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [url, token]);
+
+  if (!src) return <div className={`${className} loading-placeholder`} style={{ background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>;
+
+  return <img src={src} className={className} onClick={onClick} alt="Chat media" />;
+};
+
 const MessageBubble: React.FC<{
-  message: Message;
+  message: MessageDTO;
   isOwnMessage: boolean;
-}> = ({ message, isOwnMessage }) => {
+  onImageClick?: (url: string) => void;
+}> = ({ message, isOwnMessage, onImageClick }) => {
+  const token = useAppSelector((state: RootState) => state.auth.user?.token);
+
   const formatTime = (timestamp: any) => {
-    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const handleDownload = async (fileId: string, fileName: string) => {
+    if (window.electronAPI && window.electronAPI.downloadFile) {
+        const url = `${BASE_URL}/api/files/download/${fileId}`;
+        try {
+            const result = await window.electronAPI.downloadFile(url, fileName, token);
+            if (result.success) {
+                console.log('File downloaded to:', result.filePath);
+            } else if (!result.canceled) {
+                alert('Download failed: ' + result.error);
+            }
+        } catch (err) {
+            console.error('Download error:', err);
+        }
+    } else {
+        // Fallback or web warning
+        window.open(`${BASE_URL}/api/files/download/${fileId}`);
+    }
+  };
+
+  const renderContent = () => {
+    const getFileUrl = (fileId: string) => `${BASE_URL}/api/files/download/${fileId}`;
+    const type = message.type.toUpperCase();
+    switch (type) {
+      case 'IMAGE': {
+        const url = getFileUrl(message.content);
+        return (
+          <div className="msg-image-wrapper">
+            <AuthenticatedImage
+              url={url}
+              token={token}
+              className="msg-image"
+              onClick={() => onImageClick && onImageClick(url)}
+            />
+          </div>
+        );
+      }
+      case 'VIDEO': {
+        const url = getFileUrl(message.content);
+        return (
+          <div className="msg-video-wrapper">
+            <video controls className="msg-video-preview">
+              <source src={url} />
+              Your browser does not support video.
+            </video>
+          </div>
+        );
+      }
+      case 'FILE': {
+        const fileName = message.payload?.filename || message.payload?.fileName || 'Attachment';
+        return (
+          <div className="msg-file-wrapper" onClick={() => handleDownload(message.content, fileName)}>
+            <div className="msg-file-icon">📄</div>
+            <div className="msg-file-info">
+              <span className="msg-file-name">{fileName}</span>
+              <span className="msg-file-link">点击下载</span>
+            </div>
+          </div>
+        );
+      }
+      case 'VOICE': {
+          const url = getFileUrl(message.content);
+          return (
+              <div className="msg-voice-wrapper">
+                  <audio controls src={url} className="msg-audio-player" />
+              </div>
+          );
+      }
+      default:
+        return <div className="msg-text">{message.content}</div>;
+    }
   };
 
   return (
@@ -27,34 +153,19 @@ const MessageBubble: React.FC<{
       {!isOwnMessage && (
         <div
           className="msg-avatar"
-          style={{ backgroundColor: getColorFromString(message.senderId) }}
+          style={{ backgroundColor: getColorFromString(message.fromAccount?.username || message.fromAccountId.toString()) }}
         >
-          {message.senderId.charAt(0).toUpperCase()}
+          {(message.fromAccount?.username || '?').charAt(0).toUpperCase()}
         </div>
       )}
       <div className="msg-content-wrapper">
         <div className="msg-bubble">
-          {message.type === 'image' ? (
-            <div className="msg-image-wrapper">
-              <img src={message.content} alt="Sent image" className="msg-image" />
-            </div>
-          ) : message.type === 'file' ? (
-            <div className="msg-file-wrapper" onClick={() => window.open(message.content)}>
-              <div className="msg-file-icon">📄</div>
-              <div className="msg-file-info">
-                <div className="msg-file-name">文件已发送</div>
-                <div className="msg-file-link">点击打开</div>
-              </div>
-            </div>
-          ) : (
-            <div className="msg-text">{message.content}</div>
-          )}
+          {renderContent()}
           <div className="msg-meta">
             <span className="msg-time">{formatTime(message.timestamp)}</span>
             {isOwnMessage && (
-              <span className={`msg-status ${message.status}`}>
-                {message.status === 'sent' && '✓'}
-                {message.status === 'read' && '✓✓'}
+              <span className={`msg-status sent`}>
+                ✓
               </span>
             )}
           </div>
@@ -76,6 +187,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
   const [showScreenPicker, setShowScreenPicker] = useState(false);
   const [screenSources, setScreenSources] = useState<any[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 获取会话名称
@@ -286,20 +398,12 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
         ) : (
           <div className="messages-list-desktop">
             {messages.map((msg: MessageDTO) => {
-              const uiMsg: Message = {
-                id: msg.msgId.toString(),
-                senderId: msg.fromAccountId.toString(),
-                receiverId: '',
-                content: msg.content,
-                timestamp: new Date(msg.timestamp),
-                type: msg.type.toLowerCase(),
-                status: 'sent'
-              };
               return (
                 <MessageBubble
                   key={msg.clientMsgId || msg.msgId.toString()}
-                  message={uiMsg}
+                  message={msg}
                   isOwnMessage={msg.fromAccountId.toString() === user?.userId}
+                  onImageClick={(url) => setPreviewImageUrl(url)}
                 />
               );
             })}
@@ -357,6 +461,24 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
             </div>
           </div>
         </div>
+      )}
+      {/* 图片预览 Modal */}
+      {previewImageUrl && (
+          <div className="modal-overlay" onClick={() => setPreviewImageUrl(null)}>
+              <div className="modal-content image-preview-modal" onClick={e => e.stopPropagation()}>
+                  <div className="modal-header">
+                      <h3>图片预览</h3>
+                      <button className="close-btn" onClick={() => setPreviewImageUrl(null)}>×</button>
+                  </div>
+                  <div className="modal-body">
+                      <AuthenticatedImage 
+                        url={previewImageUrl} 
+                        token={user?.token} 
+                        className="large-preview-img" 
+                      />
+                  </div>
+              </div>
+          </div>
       )}
 
       {/* 输入区域 */}

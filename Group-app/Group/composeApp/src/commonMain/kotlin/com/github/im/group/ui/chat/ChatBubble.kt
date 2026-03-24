@@ -220,42 +220,60 @@ fun VideoBubble(
 
 /**
  * 语音消息气泡 - 优化版
+ * 使用 AudioPlaybackManager 管理全局播放状态
  */
 @Composable
 fun VoiceMessage(
     content: MessageContent.Voice,
-    isOwnMessage: Boolean // 建议传入此参数以统一风格
+    senderName: String,
+    isOwnMessage: Boolean,
+    messageId: String = ""
 ) {
-    val audioPlayer: AudioPlayer = koinInject<AudioPlayer>()
-    var isPlaying by remember { mutableStateOf(false) }
-    var playbackPosition by remember { mutableStateOf(0f) }
+    val manager: AudioPlaybackManager = koinInject()
+    val playbackState by manager.playbackState.collectAsState()
+    
     val audioPath = content.audioPath
+    val isCurrentlyPlaying = playbackState.messageId == messageId && playbackState.audioPath == audioPath
+    val isPlaying = isCurrentlyPlaying && playbackState.isPlaying
+    
+    // 获取当前播放位置，如果不是当前气泡在播放则显示为0或已结束状态
+    var playbackPosition by remember(isCurrentlyPlaying) { mutableStateOf(0f) }
+    
+    if (isCurrentlyPlaying) {
+        val dur = playbackState.duration
+        if (dur > 0) {
+            playbackPosition = (playbackState.currentPosition.toFloat() / dur).coerceIn(0f, 1f)
+        }
+    } else {
+        // 如果进度已接近完成且不是当前在播放，保持0
+        playbackPosition = 0f
+    }
 
-    // 根据时长动态计算宽度，但限制范围避免过长或过短
+    // 根据时长动态计算宽度
     val bubbleWidth = (140 + (content.duration / 1000) * 5).dp.coerceIn(160.dp, 260.dp)
 
     Row(
         modifier = Modifier
-            .padding(horizontal = 2.dp, vertical = 2.dp) // 减小外边距
+            .padding(horizontal = 2.dp, vertical = 2.dp)
             .width(bubbleWidth),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(
             onClick = {
-                if (audioPlayer.isCurrentlyPlaying(audioPath)) {
-                    audioPlayer.pause()
-                } else {
-                    // AudioPlayer 内部应处理停止上一个播放的逻辑
-                    audioPlayer.play(audioPath)
-                }
+                manager.play(
+                    messageId = messageId,
+                    audioPath = audioPath,
+                    senderName = senderName,
+                    duration = content.duration.toLong()
+                )
             },
             modifier = Modifier.size(36.dp)
         ) {
-            val iconColor =
-                if (isOwnMessage) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
+            val iconColor = if (isOwnMessage) MaterialTheme.colorScheme.onPrimaryContainer 
+                           else MaterialTheme.colorScheme.primary
             Icon(
                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = null,
+                contentDescription = if (isPlaying) "暂停" else "播放",
                 tint = iconColor,
                 modifier = Modifier.size(26.dp)
             )
@@ -272,18 +290,16 @@ fun VoiceMessage(
                 playbackPosition = playbackPosition,
                 isOwnMessage = isOwnMessage,
                 onSeek = { position ->
-                    // 拖动过程中仅更新 UI 进度
                     playbackPosition = position
                 },
                 onSeekFinished = { position ->
-                    // 逻辑：松开后自动定位并播放
-                    if (audioPlayer.duration > 0) {
-                        val seekTarget = (position * audioPlayer.duration).toLong()
-                        audioPlayer.seekTo(seekTarget)
-                        // 如果当前没在播放，松开后自动开始播放
-                        if (!audioPlayer.isCurrentlyPlaying(audioPath)) {
-                            audioPlayer.play(audioPath)
-                        }
+                    if (isCurrentlyPlaying) {
+                        val seekTarget = (position * playbackState.duration).toLong()
+                        manager.seekTo(seekTarget)
+                    } else {
+                        // 如果没在播放，先开始播放再拖动
+                        manager.play(messageId, audioPath, senderName, content.duration.toLong())
+                        // 注意：这里可能需要一小点延迟等待时长初始化，或者 manager 内部处理
                     }
                 }
             )
@@ -296,28 +312,6 @@ fun VoiceMessage(
             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier.padding(end = 8.dp)
         )
-    }
-
-    // 监听播放器状态：处理互斥停止和进度更新
-    LaunchedEffect(audioPath) {
-        while (true) {
-            val currentlyPlayingThis = audioPlayer.isCurrentlyPlaying(audioPath)
-            isPlaying = currentlyPlayingThis
-
-            if (currentlyPlayingThis) {
-                val dur = audioPlayer.duration
-                if (dur > 0) {
-                    playbackPosition =
-                        (audioPlayer.currentPosition.toFloat() / dur).coerceIn(0f, 1f)
-                }
-            } else {
-                // 如果不是在播放当前音频，且进度已接近完成，则重置
-                if (!audioPlayer.isPlaying && playbackPosition > 0.95f) {
-                    playbackPosition = 0f
-                }
-            }
-            delay(100)
-        }
     }
 }
 

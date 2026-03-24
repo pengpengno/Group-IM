@@ -115,9 +115,11 @@ export interface MessageDTO {
   content: string;
   fromAccountId: number;
   type: MessageType;
-  timestamp: string;
+  timestamp: number;  // 毫秒时间戳
+  sequenceId?: number;
   fromAccount?: ApiUser;
   clientMsgId?: string;
+  payload?: any;
 }
 
 export interface Message {

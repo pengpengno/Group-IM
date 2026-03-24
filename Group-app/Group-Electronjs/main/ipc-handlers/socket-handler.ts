@@ -95,12 +95,11 @@ class ElectronSocketClient {
 
   /**
    * 获取当前运行平台
+   * 根据用户反馈，目前的 Electron 客户端应被后端识别为 WEB 终端以保持逻辑一致性
    */
   private getPlatformType(): PlatformType {
-    const platform = process.platform;
-    if (platform === 'win32') return PlatformType.WINDOWS;
-    if (platform === 'darwin') return PlatformType.MAC;
-    return PlatformType.LINUX;
+    // 强制返回 WEB，以适配后端对 "Web 终端" 的鉴权要求
+    return PlatformType.WEB;
   }
 
   /**
@@ -166,6 +165,7 @@ class ElectronSocketClient {
 
         try {
           // 在连接成功后，立即按照 Android/KMP 逻辑注册身份
+          console.log(`TCP Connection established. Sending registration for user: ${this.config?.username} (ID: ${this.config?.userId}) with Platform WEB`);
           await this.registerToRemote();
 
           this.startHeartbeat();
@@ -173,13 +173,15 @@ class ElectronSocketClient {
           this.notifyRenderer('socket:connected', { host, port });
           this.connectionPromise = null;
           resolve();
-        } catch (error) {
+        } catch (error: any) {
+          console.error('Registration failed or connection error during setup:', error);
           // 注册失败通常是逻辑或鉴权问题（如 Token 失效），这种情况下不应重连
           this.connectionPromise = null;
           this.isReconnecting = false; // 明确停止重连状态
           this.reconnectAttempts = this.maxReconnectAttempts; // 设为最大，防止后续自动重连
           this.socket?.destroy();
           this.socket = null;
+          this.notifyRenderer('socket:error', { message: `Auth/Registration failed: ${error.message}` });
           reject(error);
         }
       });
@@ -194,17 +196,15 @@ class ElectronSocketClient {
       });
 
       socket.on('close', (hadError) => {
-        // 如果是正在重连中触发的 Close，不打印重复日志
-        if (!this.isReconnecting) {
-          console.log(`Socket closed (hadError: ${hadError})`);
-        }
+        console.log(`TCP Socket closed. hadError: ${hadError}, intentionToClose: ${!this.config}`);
         this.clearHeartbeat();
         this.notifyRenderer('socket:disconnected', {});
         this.connectionPromise = null;
         this.socket = null;
 
-        // 如果配置存在且不是主动关闭，也不是刚注册失败，则尝试重放
-        if (this.config && !this.isReconnecting && this.reconnectAttempts < this.maxReconnectAttempts) {
+        // 如果配置存在且不是主动关闭，也不是刚注册失败，则尝试重连
+        if (this.config && this.reconnectAttempts < this.maxReconnectAttempts) {
+          console.log(`Initiating auto-reconnect logic... current attempts: ${this.reconnectAttempts}`);
           this.startAutoReconnect();
         }
       });

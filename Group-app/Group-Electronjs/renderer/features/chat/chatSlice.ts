@@ -29,11 +29,26 @@ export const fetchConversations = createAsyncThunk(
 
 export const fetchMessages = createAsyncThunk(
     'chat/fetchMessages',
-    async (conversationId: number) => {
-        const response = await conversationAPI.pullMessages(conversationId);
-        // Ensure response data mapping matches MessageDTO structure
-        const messages = response.data?.data?.content || response.data?.content || [];
-        return { conversationId, messages };
+    async (conversationId: number, { getState }) => {
+        const state = getState() as any;
+        const currentMessages = state.chat.messages[conversationId] || [];
+        
+        // Find max sequence ID if any
+        let maxSequenceId = 0;
+        if (currentMessages.length > 0) {
+            maxSequenceId = Math.max(...currentMessages.map((m: any) => m.sequenceId || 0));
+        }
+
+        const response = await conversationAPI.pullMessages(conversationId, maxSequenceId);
+        let newMessages = response.data?.data?.content || response.data?.content || [];
+        
+        // Normalize timestamps to numbers (ms)
+        newMessages = newMessages.map((msg: any) => ({
+            ...msg,
+            timestamp: msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now()
+        }));
+
+        return { conversationId, messages: newMessages, isIncremental: maxSequenceId > 0 };
     }
 );
 
@@ -86,12 +101,12 @@ export const sendMessageViaSocket = createAsyncThunk(
                 }
 
                 return {
-                    msgId: -Date.now(), // 使用负数ID作为临时标识
+                    // msgId: -Date.now(), // 临时本地的消息吗不需要传入msgId
                     conversationId: conversationId,
                     content: content,
                     fromAccountId: Number(currentUserId),
                     type: (type as any) || 'TEXT',
-                    timestamp: new Date().toISOString(),
+                    timestamp: Date.now(),  // 应该使用时间戳  毫秒级别即可
                     clientMsgId: payload.message.clientMsgId
                 } as MessageDTO;
             } else {
@@ -119,7 +134,7 @@ function buildSocketPayload(
     msgDto?: MessageDTO
 ): any {
     const timestamp = msgDto?.timestamp ? new Date(msgDto.timestamp).getTime() : Date.now();
-    
+
     // Ensure messageType matches enum format (TEXT, IMAGE, FILE, VOICE, VIDEO)
     const messageType = type ? type.toUpperCase() : 'TEXT';
 
@@ -130,7 +145,7 @@ function buildSocketPayload(
         message: {
             conversationId: conversationId,
             content: content,
-            type: messageType, 
+            type: messageType,
             clientTimeStamp: timestamp,
             clientMsgId: clientMsgId,
             fromUser: {
@@ -162,17 +177,25 @@ const chatSlice = createSlice({
                 state.messages[conversationId] = [];
             }
 
+            // Normalize timestamp for incoming socket message
+            const normalizedMsg = {
+                ...action.payload,
+                timestamp: action.payload.timestamp ? new Date(action.payload.timestamp).getTime() : Date.now()
+            };
+
             // 去重逻辑：通过 msgId 或 clientMsgId 判断
             const existingIndex = state.messages[conversationId].findIndex(m =>
-                (m.msgId === action.payload.msgId && m.msgId > 0) ||
-                (m.clientMsgId && action.payload.clientMsgId && m.clientMsgId === action.payload.clientMsgId)
+                (m.msgId === normalizedMsg.msgId && m.msgId > 0) ||
+                (m.clientMsgId && normalizedMsg.clientMsgId && m.clientMsgId === normalizedMsg.clientMsgId)
             );
 
             if (existingIndex !== -1) {
                 // 更新现有消息（例如从临时状态变为服务器确认状态）
-                state.messages[conversationId][existingIndex] = action.payload;
+                state.messages[conversationId][existingIndex] = normalizedMsg;
             } else {
-                state.messages[conversationId].push(action.payload);
+                state.messages[conversationId].push(normalizedMsg);
+                // 每次新增消息后重新排序，确保渲染一致
+                state.messages[conversationId].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
             }
         }
     },
@@ -191,7 +214,25 @@ const chatSlice = createSlice({
                 }));
             })
             .addCase(fetchMessages.fulfilled, (state, action) => {
-                state.messages[action.payload.conversationId] = action.payload.messages;
+                const { conversationId, messages, isIncremental } = action.payload;
+                
+                if (!state.messages[conversationId]) {
+                    state.messages[conversationId] = [];
+                }
+
+                if (isIncremental) {
+                    // 合并新旧消息，并通过 msgId 或 clientMsgId 去重
+                    const existingMessages = state.messages[conversationId];
+                    const newMessages = messages.filter((nMsg: MessageDTO) => 
+                        !existingMessages.some(eMsg => 
+                            (eMsg.msgId > 0 && eMsg.msgId === nMsg.msgId) || 
+                            (eMsg.clientMsgId && eMsg.clientMsgId === nMsg.clientMsgId)
+                        )
+                    );
+                    state.messages[conversationId] = [...existingMessages, ...newMessages].sort((a: MessageDTO, b: MessageDTO) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+                } else {
+                    state.messages[conversationId] = messages.sort((a: MessageDTO, b: MessageDTO) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+                }
             })
             .addCase(sendMessage.fulfilled, (state, action: PayloadAction<MessageDTO>) => {
                 const { conversationId } = action.payload;
