@@ -21,7 +21,7 @@ import static org.springframework.data.web.config.EnableSpringDataWebSupport.Pag
 @SpringBootApplication(scanBasePackages = {"com.github.im.server", "com.github.im.common"})
 @Slf4j
 @EnableAsync
-//@EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO)
+@org.springframework.scheduling.annotation.EnableScheduling
 public class Application {
 
     public static void main(String[] args) {

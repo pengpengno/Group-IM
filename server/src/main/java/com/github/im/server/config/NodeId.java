@@ -11,6 +11,6 @@ public class NodeId {
      * 当前节点的唯一标识符
      * 从环境变量NODE_ID获取，如果不存在则生成UUID
      */
-    public static final String NODE_ID =
-            System.getenv().getOrDefault("NODE_ID", UUID.randomUUID().toString());
+    public static final String NODE_ID = System.getenv().getOrDefault("NODE_ID",
+            UUID.randomUUID().toString());
 }

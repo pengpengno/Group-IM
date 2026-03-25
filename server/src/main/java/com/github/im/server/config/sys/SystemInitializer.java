@@ -43,15 +43,22 @@ public class SystemInitializer implements CommandLineRunner {
     /**
      * 清理Redis缓存
      */
+// [SystemInitializer.java] 修订建议
     private void clearCache() {
         try {
-            log.info("Clearing Redis cache...");
-            redisTemplate.getConnectionFactory().getConnection().flushAll();
-            log.info("Redis cache cleared successfully");
+            log.info("Clearing specific Redis cache prefixes...");
+            // 建议仅清理在线状态等临时信息，而不是 flushAll
+            // 如果非要清理，可以只针对 im:online:*
+            java.util.Set<String> keys = redisTemplate.keys("im:online:*");
+            if (!keys.isEmpty()) {
+                redisTemplate.delete(keys);
+            }
+            log.info("Redis cache cleared selectively");
         } catch (Exception e) {
             log.warn("Failed to clear Redis cache: {}", e.getMessage());
         }
     }
+
     
     @Async
     public void initializeSystem() {

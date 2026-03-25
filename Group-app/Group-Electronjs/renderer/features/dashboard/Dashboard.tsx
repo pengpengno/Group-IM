@@ -13,6 +13,7 @@ import ContactsList from '../contacts/ContactsList';
 import ContactsScreen from '../contacts/ContactsScreen';
 import AdminPanel from '../admin/AdminPanel';
 import { setCurrentCompany, loginSuccess, loginFailure, loginStart } from '../auth/authSlice';
+import { createPrivateChat } from '../chat/chatSlice';
 import './Dashboard.css';
 import { useVideoCall } from '../video-call/useVideoCall';
 
@@ -21,7 +22,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ user }) => {
-    const dispatch = useDispatch();
+    const dispatch = useDispatch<AppDispatch>();
     const [activeTab, setActiveTab] = useState<string>('home');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -85,6 +86,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     const handleCall = (targetUserId: string, targetUserName?: string) => {
         console.log('Initiating call to:', targetUserId);
         webRTCService.initiateCall(targetUserId);
+    };
+
+    const handleStartMessage = async (targetUserId: string) => {
+        if (!user?.userId) return;
+        try {
+            await dispatch(createPrivateChat({
+                userId: user.userId.toString(),
+                friendId: Number(targetUserId)
+            })).unwrap();
+            setActiveTab('chats');
+        } catch (err) {
+            console.error('Failed to start chat from search:', err);
+        }
     };
 
     const handleSwitchCompany = async (company: any) => {
@@ -329,20 +343,35 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                                     <div className="result-name">{result.username}</div>
                                                     <div className="result-detail">{result.email}</div>
                                                 </div>
-                                                <button
-                                                    className="call-action-btn"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        const userId = 'id' in result ? result.id : (result as any).userId.toString();
-                                                        handleCall(userId);
-                                                    }}
-                                                    title="Start Video Call"
-                                                >
-                                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                        <polygon points="23 7 16 12 23 17 23 7"></polygon>
-                                                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-                                                    </svg>
-                                                </button>
+                                                <div className="result-actions">
+                                                    <button
+                                                        className="message-action-btn"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const userId = 'id' in result ? result.id : (result as any).userId.toString();
+                                                            handleStartMessage(userId);
+                                                        }}
+                                                        title="Send Message"
+                                                    >
+                                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        className="call-action-btn"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const userId = 'id' in result ? result.id : (result as any).userId.toString();
+                                                            handleCall(userId);
+                                                        }}
+                                                        title="Start Video Call"
+                                                    >
+                                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                                                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                                                        </svg>
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -376,7 +405,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
                     {activeTab === 'contacts' && (
                         <div className="contacts-view-container">
-                            <ContactsScreen />
+                            <ContactsScreen onStartChat={() => setActiveTab('chats')} />
                         </div>
                     )}
 

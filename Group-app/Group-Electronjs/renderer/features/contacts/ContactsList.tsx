@@ -2,15 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { fetchOrgStructure } from './contactsSlice';
+import { createPrivateChat } from '../chat/chatSlice';
 import { OrgTreeNode, ApiUser } from '../../types';
 import './ContactsList.css';
 
 interface ContactsListProps {
     onSelectUser?: (user: ApiUser) => void;
+    onStartChat?: () => void;
 }
 
-const ContactsList: React.FC<ContactsListProps> = ({ onSelectUser }) => {
+const ContactsList: React.FC<ContactsListProps> = ({ onSelectUser, onStartChat }) => {
     const dispatch = useDispatch<AppDispatch>();
+    const currentUser = useSelector((state: RootState) => state.auth.user);
     const { orgTree = [], loading = false, error = null } = useSelector((state: RootState) => state.contacts || {});
     const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
     const [searchQuery, setSearchQuery] = useState('');
@@ -18,6 +21,22 @@ const ContactsList: React.FC<ContactsListProps> = ({ onSelectUser }) => {
     useEffect(() => {
         dispatch(fetchOrgStructure());
     }, [dispatch]);
+
+    const handleSendMessage = async (e: React.MouseEvent, targetUser: ApiUser) => {
+        e.stopPropagation();
+        if (!currentUser) return;
+        
+        try {
+            await dispatch(createPrivateChat({
+                userId: currentUser.userId.toString(),
+                friendId: targetUser.userId
+            })).unwrap();
+            
+            if (onStartChat) onStartChat();
+        } catch (err) {
+            console.error('Failed to start chat from list:', err);
+        }
+    };
 
     // Automatically expand nodes when searching
     useEffect(() => {
@@ -112,7 +131,11 @@ const ContactsList: React.FC<ContactsListProps> = ({ onSelectUser }) => {
                     </div>
 
                     {node.type === 'USER' && (
-                        <button className="node-action-btn" title="Send Message">
+                        <button 
+                            className="node-action-btn" 
+                            title="Send Message"
+                            onClick={(e) => node.userInfo && handleSendMessage(e, node.userInfo)}
+                        >
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
                                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                             </svg>

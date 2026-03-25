@@ -670,13 +670,16 @@
     font-size: 12px;
 }
 
-.call-action-btn {
+.result-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.call-action-btn, .message-action-btn {
     width: 36px;
     height: 36px;
     border-radius: 10px;
     border: none;
-    background: #eff6ff;
-    color: #2563eb;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -684,8 +687,24 @@
     transition: all 0.2s;
 }
 
+.call-action-btn {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.message-action-btn {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+
 .call-action-btn:hover {
     background: #2563eb;
+    color: white;
+    transform: scale(1.05);
+}
+
+.message-action-btn:hover {
+    background: #16a34a;
     color: white;
     transform: scale(1.05);
 }

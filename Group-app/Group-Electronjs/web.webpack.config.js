@@ -35,7 +35,8 @@ module.exports = {
     new CleanWebpackPlugin(),
     new HtmlWebpackPlugin({
       template: './renderer/index.html',
-      filename: 'index.html'
+      filename: 'index.html',
+      favicon: './renderer/favicon.svg'
     })
   ],
   devServer: {
@@ -48,13 +49,7 @@ module.exports = {
         target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false
-      },
-      '/': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false
       }
-
     }
   },
 };

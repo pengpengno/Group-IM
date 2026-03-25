@@ -119,7 +119,7 @@ const ContactsScreen: React.FC<ContactsScreenProps> = ({ onStartChat }) => {
 
     switch (activeCategory) {
       case 'organization':
-        return <ContactsList onSelectUser={(user) => setSelectedUser(user)} />;
+        return <ContactsList onSelectUser={(user) => setSelectedUser(user)} onStartChat={onStartChat} />;
       default:
         return (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' }}>
