@@ -116,6 +116,28 @@ public class MessageService {
         });
     }
 
+    /**
+     * 批量标记消息为已读
+     */
+    @Transactional
+    public void markConversationAsRead(Long conversationId, Long userId, Long sequenceId) {
+        // 更新该会话中，小于等于 sequenceId 且不是自己发送的消息状态为已读
+        var conversation = entityManager.getReference(Conversation.class, conversationId);
+        // 这里可以使用 JPA 的批量更新以提高性能，简单起见先查找后更新
+        // 为了提高效率，实际生产建议使用 @Modifying query
+        messageRepository.findAll((root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("conversation").get("conversationId"), conversationId));
+            predicates.add(cb.notEqual(root.get("fromAccountId").get("userId"), userId));
+            predicates.add(cb.lessThanOrEqualTo(root.get("sequenceId"), sequenceId));
+            predicates.add(cb.notEqual(root.get("status"), MessageStatus.READ));
+            return cb.and(predicates.toArray(new Predicate[0]));
+        }).forEach(msg -> {
+            msg.setStatus(MessageStatus.READ);
+            messageRepository.save(msg);
+        });
+    }
+
     @Transactional
     public Message saveMessage(Chat.ChatMessage chatMessage) {
         var message = new Message();

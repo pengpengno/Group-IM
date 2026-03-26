@@ -64,24 +64,28 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
                 val exoPlayer = ExoPlayer.Builder(context).build().apply {
                     addListener(object : Player.Listener {
                         override fun onPlaybackStateChanged(playbackState: Int) {
-                            if (playbackState == Player.STATE_ENDED) {
-                                // 播放完成
-                                isPlayingState = false
-                                currentFilePath = null
-                                // 播放完成后停止播放并回到开头
-                                try {
-                                    exoPlayer.playWhenReady = false
-                                    exoPlayer.seekTo(0)
-                                } catch (e: Exception) {
-                                    Napier.e("重置播放位置失败", e)
+                            // 确保只处理当前活跃播放器的事件
+                            synchronized(AndroidAudioPlayer::class.java) {
+                                if (this@apply !== currentPlayer) return
+                                
+                                when (playbackState) {
+                                    Player.STATE_ENDED -> {
+                                        // 播放完成后停止播放并清理资源
+                                        stop()
+                                    }
+                                    Player.STATE_READY -> {
+                                        isPlayingState = this@apply.playWhenReady
+                                    }
                                 }
-                            } else if (playbackState == Player.STATE_READY) {
-                                isPlayingState = playWhenReady
                             }
                         }
                         
                         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-                            isPlayingState = playWhenReady
+                            synchronized(AndroidAudioPlayer::class.java) {
+                                if (this@apply === currentPlayer) {
+                                    isPlayingState = playWhenReady
+                                }
+                            }
                         }
                     })
                 }

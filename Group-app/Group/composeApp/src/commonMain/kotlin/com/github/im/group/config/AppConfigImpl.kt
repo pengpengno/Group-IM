@@ -4,7 +4,7 @@ package com.github.im.group.config
  * 开发环境配置
  */
 class DevConfig(
-    override val apiHost: String = "192.168.0.101", // 内网调试IP
+    override val apiHost: String = "192.168.211.215", // 内网调试IP
     override val apiPort: Int = 8080,
     override val tcpPort: Int = 8088
 ) : AppConfig {

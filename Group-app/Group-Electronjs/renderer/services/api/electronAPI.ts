@@ -44,6 +44,7 @@ export interface ElectronAPI {
   socketDisconnect: () => Promise<any>;
   socketIsActive: () => Promise<any>;
   socketSendMessage: (payload: any) => Promise<any>;
+  socketMarkRead: (data: { conversationId: number; lastMsgId: number; status?: number }) => Promise<any>;
 
   // Socket事件监听
   onSocketMessage?: (handler: (data: any) => void) => void;
@@ -190,6 +191,10 @@ const webAPI: ElectronAPI = {
     throw new Error('Socket not supported in web environment');
   },
 
+  socketMarkRead: async (data: any) => {
+    throw new Error('Socket not supported in web environment');
+  },
+
   getVersion: async () => '1.0.0-web',
   getPath: async (name: string) => `web-${name}`
 };
@@ -204,6 +209,14 @@ export function getElectronAPI(): ElectronAPI {
     // Wrap methods to automatically include token from localStorage
     return {
       ...electron,
+      socketMarkRead: async (data: any) => {
+          if (electron.socketMarkRead) {
+              return electron.socketMarkRead(data);
+          }
+          // Fallback if not injected (compatibility)
+          console.warn('socket:mark-read not supported in bridge');
+          return { success: false, error: 'Not supported' };
+      },
       queryUsers: async (query: string, token?: string) => {
         const authToken = token || localStorage.getItem('token') || '';
         return electron.queryUsers(query, authToken);

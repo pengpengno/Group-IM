@@ -147,56 +147,61 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     }, [searchQuery]);
 
     return (
-        <div className={`dashboard-container ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-            {/* Sidebar */}
+        <div className="dashboard-container">
+            {/* Company/Space Sidebar (Far Left - DingTalk style) */}
+            <div className="company-sidebar">
+                <div className="company-sidebar-top">
+                    <div 
+                        className="user-avatar-square" 
+                        title={`${user?.username} (${user?.email})`}
+                    >
+                        {user?.username?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                </div>
+
+                <div className="company-list-scroller">
+                    {user.companies?.map((c: any) => (
+                        <div 
+                            key={c.companyId} 
+                            className={`company-item ${user.currentCompany?.companyId === c.companyId ? 'active' : ''}`}
+                            onClick={() => handleSwitchCompany(c)}
+                            title={c.name}
+                        >
+                            <div className="company-icon-box">
+                                {c.name.charAt(0)}
+                            </div>
+                            <div className="active-indicator"></div>
+                        </div>
+                    ))}
+                    
+                    <div className="company-item add-company" title="Add Company">
+                        <div className="company-icon-box">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="company-sidebar-bottom">
+                    <div className="sidebar-action-icon" title="Notifications">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            {/* Main Navigation Sidebar */}
             <div
-                className="dashboard-sidebar"
+                className={`dashboard-sidebar ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}
                 onMouseEnter={() => setIsSidebarCollapsed(false)}
                 onMouseLeave={() => setIsSidebarCollapsed(true)}
             >
-
-                <div className="user-profile-section">
-                    <div className="user-avatar" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
-                        {user?.username?.charAt(0).toUpperCase() || 'U'}
-                    </div>
-                    {!isSidebarCollapsed && (
-                        <div className="user-info">
-                            <div className="user-name" title={user?.username}>{user?.username || 'User'}</div>
-                            <div className="company-switcher-container">
-                                <div className="company-active-badge" onClick={(e) => {
-                                    const dropdown = e.currentTarget.nextElementSibling;
-                                    dropdown?.classList.toggle('show');
-                                }}>
-                                    <span>{user.currentCompany?.name || '选择公司'}</span>
-                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3">
-                                        <polyline points="6 9 12 15 18 9"></polyline>
-                                    </svg>
-                                </div>
-                                <div className="company-dropdown-list">
-                                    {user.companies?.map((c: any) => (
-                                        <div 
-                                            key={c.companyId} 
-                                            className={`company-option ${user.currentCompany?.companyId === c.companyId ? 'active' : ''}`}
-                                            onClick={() => handleSwitchCompany(c)}
-                                        >
-                                            <div className="company-icon">{c.name.charAt(0)}</div>
-                                            <div className="company-details">
-                                                <div className="name">{c.name}</div>
-                                                <div className="code">{c.code}</div>
-                                            </div>
-                                            {user.currentCompany?.companyId === c.companyId && (
-                                                <div className="check-icon">
-                                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3">
-                                                        <polyline points="20 6 9 17 4 12"></polyline>
-                                                    </svg>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                <div className="sidebar-app-title">
+                    {!isSidebarCollapsed ? <h2>Group IM</h2> : <div className="app-logo">G</div>}
                 </div>
 
                 <div className="sidebar-nav">
@@ -307,11 +312,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                     <p>Search for colleagues, start a video call, or create a group chat directly from your workspace.</p>
                                 </div>
                                 <div className="banner-icon">
-                                    <svg viewBox="0 0 24 24" width="60" height="60" fill="white">
-                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                        <circle cx="9" cy="7" r="4"></circle>
-                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                    <svg viewBox="0 0 24 24" width="60" height="60" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="12" cy="7" r="4"></circle>
                                     </svg>
                                 </div>
                             </div>

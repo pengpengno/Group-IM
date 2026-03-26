@@ -170,9 +170,18 @@ const chatSlice = createSlice({
     reducers: {
         setActiveConversation(state, action: PayloadAction<number | null>) {
             state.activeConversationId = action.payload;
+            if (action.payload) {
+                // 当进入会话时，清除该会话的未读数
+                const conv = state.conversations.find(c => c.conversation.conversationId === action.payload);
+                if (conv) {
+                    conv.unreadCount = 0;
+                }
+            }
         },
         addMessage(state, action: PayloadAction<MessageDTO>) {
-            const { conversationId } = action.payload;
+            const { conversationId, fromAccountId, msgId, clientMsgId } = action.payload;
+            const currentUserId = (state as any).auth?.user?.userId;
+
             if (!state.messages[conversationId]) {
                 state.messages[conversationId] = [];
             }
@@ -196,6 +205,22 @@ const chatSlice = createSlice({
                 state.messages[conversationId].push(normalizedMsg);
                 // 每次新增消息后重新排序，确保渲染一致
                 state.messages[conversationId].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+                // 未读数逻辑：不是自己发的消息，且不是当前活跃会话
+                if (fromAccountId.toString() !== currentUserId && conversationId !== state.activeConversationId) {
+                    const conv = state.conversations.find(c => c.conversation.conversationId === conversationId);
+                    if (conv) {
+                        conv.unreadCount += 1;
+                        conv.lastMessage = normalizedMsg.content;
+                    }
+                } else if (conversationId === state.activeConversationId) {
+                    // 如果是当前活跃会话的消息，更新最后一条消息预览
+                    const conv = state.conversations.find(c => c.conversation.conversationId === conversationId);
+                    if (conv) {
+                        conv.lastMessage = normalizedMsg.content;
+                    }
+                    // 虽然当前在聊天室，但根据产品定义，这里可以调用 markAsRead (通过 thunk 发送 ACK)
+                }
             }
         }
     },

@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   socketDisconnect: () => ipcRenderer.invoke('socket:disconnect'),
   socketIsActive: () => ipcRenderer.invoke('socket:is-active'),
   socketSendMessage: (payload: any) => ipcRenderer.invoke('socket:send-message', payload),
+  socketMarkRead: (data: any) => ipcRenderer.invoke('socket:mark-read', data),
 
   // Socket events
   onSocketMessage: (handler: (data: any) => void) => {

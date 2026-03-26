@@ -78,6 +78,20 @@ class ProtobufService {
     }
 
     /**
+     * 创建 ACK 消息包 (如已读回执)
+     */
+    createAck(conversationId: number, serverMsgId: number, fromUser: any, status: any): Buffer {
+        return this.encode({
+            ack: {
+                conversationId: Long.fromNumber(conversationId),
+                serverMsgId: Long.fromNumber(serverMsgId),
+                fromUser: fromUser,
+                status: status
+            }
+        });
+    }
+
+    /**
      * 获取原型引用，如果需要做更复杂的操作
      */
     getProto() {

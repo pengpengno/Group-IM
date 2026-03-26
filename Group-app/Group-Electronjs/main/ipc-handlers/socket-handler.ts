@@ -429,6 +429,18 @@ class ElectronSocketClient {
     return timeSinceLastHeartbeat <= this.HEARTBEAT_TIMEOUT;
   }
 
+  getUserId(): string | null {
+    return this.config?.userId || null;
+  }
+
+  getUsername(): string | null {
+    return this.config?.username || null;
+  }
+
+  getConfig(): SocketConfig | null {
+    return this.config;
+  }
+
   /**
    * 通知渲染进程
    */
@@ -528,6 +540,33 @@ export async function initializeSocketHandler(mainWindow: BrowserWindow): Promis
         success: false,
         error: error.message || 'Send failed'
       };
+    }
+  });
+
+  // 标为已读
+  ipcMain.handle('socket:mark-read', async (_, { conversationId, lastMsgId, status }) => {
+    try {
+      if (!socketClient || !socketClient.isActive()) {
+        return { success: false, error: 'Socket not active' };
+      }
+      const config = socketClient.getConfig();
+      const payload = {
+          ack: {
+              conversationId: Long.fromNumber(conversationId),
+              serverMsgId: Long.fromNumber(lastMsgId),
+              status: status || 4, // 4 = READ
+              fromUser: {
+                  userId: Long.fromString(socketClient.getUserId() || '0'),
+                  username: socketClient.getUsername() || ''
+              }
+          }
+      };
+      const data = protobufService.encode(payload as any);
+      await socketClient.send(data);
+      return { success: true };
+    } catch (error: any) {
+      console.error('Socket mark-read error:', error);
+      return { success: false, error: error.message };
     }
   });
 }

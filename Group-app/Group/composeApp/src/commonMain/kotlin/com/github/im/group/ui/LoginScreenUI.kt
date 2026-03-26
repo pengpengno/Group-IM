@@ -52,6 +52,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.draw.blur
+import com.github.im.group.ui.theme.ThemeTokens
 import com.github.im.group.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
@@ -69,20 +74,40 @@ fun LoginScreenUI(
     var passwordVisible by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    // 渐变背景颜色
-    val backgroundBrush = Brush.verticalGradient(
-        colors = listOf(
-            MaterialTheme.colorScheme.primary,
-            MaterialTheme.colorScheme.primaryContainer,
-            Color.White
-        )
-    )
-
+    // 取消原来的渐变背景，使用深色背景+光球
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(backgroundBrush)
+            .background(ThemeTokens.BackgroundDark)
     ) {
+        // 绘制背景发光球休以匹配 Web 的 Celestial Glass 风格
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val blurRadius = 80.dp.toPx()
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(ThemeTokens.Sphere1.copy(alpha = 0.5f), Color.Transparent),
+                    radius = size.width * 0.8f
+                ),
+                center = Offset(size.width * 0.2f, size.height * 0.2f),
+                radius = size.width * 0.8f
+            )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(ThemeTokens.Sphere2.copy(alpha = 0.4f), Color.Transparent),
+                    radius = size.width * 0.7f
+                ),
+                center = Offset(size.width * 0.8f, size.height * 0.8f),
+                radius = size.width * 0.7f
+            )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(ThemeTokens.Sphere3.copy(alpha = 0.4f), Color.Transparent),
+                    radius = size.width * 0.5f
+                ),
+                center = Offset(size.width * 0.7f, size.height * 0.4f),
+                radius = size.width * 0.5f
+            )
+        }
         // 设置按钮在顶部
         IconButton(
             onClick = { navController.navigate(ProxySetting) },
@@ -138,8 +163,9 @@ fun LoginScreenUI(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                color = Color.White,
-                shadowElevation = 12.dp
+                color = ThemeTokens.GlassWhite,
+                border = BorderStroke(1.dp, ThemeTokens.GlassBorder),
+                shadowElevation = 0.dp
             ) {
                 Column(
                     modifier = Modifier.padding(24.dp),
@@ -149,6 +175,7 @@ fun LoginScreenUI(
                         text = "欢迎回来",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
+                        color = ThemeTokens.TextMain,
                         modifier = Modifier.align(Alignment.Start)
                     )
                     
@@ -204,7 +231,7 @@ fun LoginScreenUI(
                         onClick = { /* Handle forgot password */ },
                         modifier = Modifier.align(Alignment.End)
                     ) {
-                        Text("忘记密码？", fontSize = 14.sp)
+                        Text("忘记密码？", fontSize = 12.sp, color = ThemeTokens.PrimaryBlue, fontWeight = FontWeight.Bold)
                     }
 
                     Spacer(Modifier.height(16.dp))
@@ -233,9 +260,14 @@ fun LoginScreenUI(
                         enabled = !isLoggingIn && username.isNotBlank() && password.isNotBlank(),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(54.dp),
+                            .height(54.dp)
+                            .background(ThemeTokens.PrimaryGradient, RoundedCornerShape(12.dp)),
                         shape = RoundedCornerShape(12.dp),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent
+                        ),
+                        elevation = null
                     ) {
                         if (isLoggingIn) {
                             CircularProgressIndicator(
@@ -244,7 +276,7 @@ fun LoginScreenUI(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text("登 录", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Text("登 录", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
 
@@ -270,9 +302,9 @@ fun LoginScreenUI(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("还没有账号？", color = Color.DarkGray)
+                Text("还没有账号？", color = Color.White.copy(alpha = 0.8f))
                 TextButton(onClick = { /* Handle registration */ }) {
-                    Text("立即注册", fontWeight = FontWeight.Bold)
+                    Text("免费注册", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
         }

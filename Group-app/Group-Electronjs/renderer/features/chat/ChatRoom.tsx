@@ -26,47 +26,122 @@ interface ChatRoomProps {
 /**
  * 带鉴权的图片组件
  */
+/**
+ * Authenticated Media Hook to handle blob URLs with token
+ */
+const useAuthenticatedMedia = (url: string, token?: string) => {
+    const [mediaSrc, setMediaSrc] = useState<string>('');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+        let objectUrl = '';
+        const fetchMedia = async () => {
+            if (!url) return;
+            setLoading(true);
+            try {
+                const response = await axios.get(url, {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                    responseType: 'blob'
+                });
+                objectUrl = URL.createObjectURL(response.data);
+                setMediaSrc(objectUrl);
+                setError(false);
+            } catch (err) {
+                console.error('Failed to load authenticated media:', err);
+                setError(true);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchMedia();
+
+        return () => {
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+        };
+    }, [url, token]);
+
+    return { mediaSrc, loading, error };
+};
+
+/**
+ * Beautiful Custom Audio Player
+ */
+const CustomAudioPlayer: React.FC<{ url: string; token?: string }> = ({ url, token }) => {
+    const { mediaSrc, loading } = useAuthenticatedMedia(url, token);
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [progress, setProgress] = useState(0);
+
+    const togglePlay = () => {
+        if (!audioRef.current) return;
+        if (isPlaying) {
+            audioRef.current.pause();
+        } else {
+            audioRef.current.play();
+        }
+        setIsPlaying(!isPlaying);
+    };
+
+    const onTimeUpdate = () => {
+        if (!audioRef.current) return;
+        const p = (audioRef.current.currentTime / audioRef.current.duration) * 100;
+        setProgress(p);
+    };
+
+    if (loading) return <div className="audio-skeleton">Loading audio...</div>;
+
+    return (
+        <div className="custom-audio-player">
+            <audio 
+                ref={audioRef} 
+                src={mediaSrc} 
+                onTimeUpdate={onTimeUpdate} 
+                onEnded={() => setIsPlaying(false)}
+            />
+            <button className="audio-play-btn" onClick={togglePlay}>
+                {isPlaying ? (
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                ) : (
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                )}
+            </button>
+            <div className="audio-progress-bar">
+                <div className="audio-progress-fill" style={{ width: `${progress}%` }}></div>
+            </div>
+            <span className="audio-time-label">Voice</span>
+        </div>
+    );
+};
+
 const AuthenticatedImage: React.FC<{
   url: string;
   token?: string;
   className?: string;
   onClick?: () => void;
 }> = ({ url, token, className, onClick }) => {
-  const [src, setSrc] = React.useState<string>('');
+  const { mediaSrc, loading, error } = useAuthenticatedMedia(url, token);
 
-  React.useEffect(() => {
-    let objectUrl = '';
-    const fetchImage = async () => {
-      try {
-        const response = await axios.get(url, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          responseType: 'blob'
-        });
-        objectUrl = URL.createObjectURL(response.data);
-        setSrc(objectUrl);
-      } catch (err) {
-        console.error('Failed to load authenticated image:', err);
-      }
-    };
+  if (loading) return (
+    <div className={`${className} media-placeholder`}>
+        <div className="spinner-small"></div>
+    </div>
+  );
+  
+  if (error) return (
+      <div className={`${className} media-placeholder error`}>
+          <span>Failed to load</span>
+      </div>
+  );
 
-    if (url) {
-      fetchImage();
-    }
-
-    return () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [url, token]);
-
-  if (!src) return <div className={`${className} loading-placeholder`} style={{ background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>;
-
-  return <img src={src} className={className} onClick={onClick} alt="Chat media" />;
+  return <img src={mediaSrc} className={className} onClick={onClick} alt="Chat media" />;
 };
 
 const MessageBubble: React.FC<{
   message: MessageDTO;
   isOwnMessage: boolean;
-  onImageClick?: (url: string) => void;
+  onImageClick?: (url: string, type: string) => void;
 }> = ({ message, isOwnMessage, onImageClick }) => {
   const token = useAppSelector((state: RootState) => state.auth.user?.token);
 
@@ -90,7 +165,6 @@ const MessageBubble: React.FC<{
             console.error('Download error:', err);
         }
     } else {
-        // Fallback or web warning
         window.open(`${BASE_URL}/api/files/download/${fileId}`);
     }
   };
@@ -98,16 +172,17 @@ const MessageBubble: React.FC<{
   const renderContent = () => {
     const getFileUrl = (fileId: string) => `${BASE_URL}/api/files/download/${fileId}`;
     const type = message.type.toUpperCase();
+    
     switch (type) {
       case 'IMAGE': {
         const url = getFileUrl(message.content);
         return (
-          <div className="msg-image-wrapper">
+          <div className="msg-media-container msg-image-container">
             <AuthenticatedImage
               url={url}
               token={token}
-              className="msg-image"
-              onClick={() => onImageClick && onImageClick(url)}
+              className="msg-img-preview"
+              onClick={() => onImageClick && onImageClick(url, 'IMAGE')}
             />
           </div>
         );
@@ -115,22 +190,30 @@ const MessageBubble: React.FC<{
       case 'VIDEO': {
         const url = getFileUrl(message.content);
         return (
-          <div className="msg-video-wrapper">
-            <video controls className="msg-video-preview">
-              <source src={url} />
-              Your browser does not support video.
-            </video>
+          <div className="msg-media-container msg-video-container" onClick={() => onImageClick && onImageClick(url, 'VIDEO')}>
+            <div className="video-overlay-play">
+                <svg viewBox="0 0 24 24" width="40" height="40" fill="white"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+            <div className="video-placeholder-thumb">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="white" opacity="0.5">
+                    <path d="M21 7L17 11V7C17 6.45 16.55 6 16 6H5C4.45 6 4 6.45 4 7V17C4 17.55 4.45 18 5 18H16C16.55 18 17 17.55 17 17V13L21 17V7Z"/>
+                </svg>
+            </div>
           </div>
         );
       }
       case 'FILE': {
-        const fileName = message.payload?.filename || message.payload?.fileName || 'Attachment';
+        const fileName = message.payload?.filename || message.payload?.fileName || 'Document';
         return (
-          <div className="msg-file-wrapper" onClick={() => handleDownload(message.content, fileName)}>
-            <div className="msg-file-icon">📄</div>
-            <div className="msg-file-info">
-              <span className="msg-file-name">{fileName}</span>
-              <span className="msg-file-link">点击下载</span>
+          <div className="msg-file-card" onClick={() => handleDownload(message.content, fileName)}>
+            <div className="file-icon-box">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                </svg>
+            </div>
+            <div className="file-detail">
+              <span className="file-name" title={fileName}>{fileName}</span>
+              <span className="file-action">Download</span>
             </div>
           </div>
         );
@@ -138,9 +221,7 @@ const MessageBubble: React.FC<{
       case 'VOICE': {
           const url = getFileUrl(message.content);
           return (
-              <div className="msg-voice-wrapper">
-                  <audio controls src={url} className="msg-audio-player" />
-              </div>
+              <CustomAudioPlayer url={url} token={token} />
           );
       }
       default:
@@ -163,11 +244,7 @@ const MessageBubble: React.FC<{
           {renderContent()}
           <div className="msg-meta">
             <span className="msg-time">{formatTime(message.timestamp)}</span>
-            {isOwnMessage && (
-              <span className={`msg-status sent`}>
-                ✓
-              </span>
-            )}
+            {isOwnMessage && <span className="msg-status">✓</span>}
           </div>
         </div>
       </div>
@@ -187,7 +264,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
   const [showScreenPicker, setShowScreenPicker] = useState(false);
   const [screenSources, setScreenSources] = useState<any[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
-  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [previewMedia, setPreviewMedia] = useState<{ url: string; type: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 获取会话名称
@@ -328,15 +405,45 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handlePreviewClose = () => setPreviewMedia(null);
+
+  const handleFileDownload = async (fileId: string, fileName: string) => {
+    if (window.electronAPI && window.electronAPI.downloadFile) {
+        const url = `${BASE_URL}/api/files/download/${fileId}`;
+        try {
+            const result = await window.electronAPI.downloadFile(url, fileName, user?.token);
+            if (result.success) {
+                console.log('File downloaded to:', result.filePath);
+            } else if (!result.canceled) {
+                alert('Download failed: ' + result.error);
+            }
+        } catch (err) {
+            console.error('Download error:', err);
+        }
+    } else {
+        window.open(`${BASE_URL}/api/files/download/${fileId}`);
+    }
+  };
+
   // 初始化加载
   useEffect(() => {
     loadMessages();
   }, [conversation]);
 
-  // 消息更新时自动滚动
+  // 消息更新时自动滚动且标记已读
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+    
+    // 如果有对方的消息，标记为已读
+    if (messages.length > 0 && !chatLoading) {
+      const lastOtherMsg = [...messages].reverse().find(m => m.fromAccountId.toString() !== user?.userId);
+      if (lastOtherMsg && lastOtherMsg.msgId > 0) {
+        import('../../services/socketService').then(({ socketService }) => {
+          socketService.markAsRead(conversation.conversationId, lastOtherMsg.msgId);
+        });
+      }
+    }
+  }, [messages, chatLoading]);
 
   return (
     <div className="chat-room-premium">
@@ -403,7 +510,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
                   key={msg.clientMsgId || msg.msgId.toString()}
                   message={msg}
                   isOwnMessage={msg.fromAccountId.toString() === user?.userId}
-                  onImageClick={(url) => setPreviewImageUrl(url)}
+                  onImageClick={(url, type) => setPreviewMedia({ url, type })}
                 />
               );
             })}
@@ -462,20 +569,36 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
           </div>
         </div>
       )}
-      {/* 图片预览 Modal */}
-      {previewImageUrl && (
-          <div className="modal-overlay" onClick={() => setPreviewImageUrl(null)}>
-              <div className="modal-content image-preview-modal" onClick={e => e.stopPropagation()}>
-                  <div className="modal-header">
-                      <h3>图片预览</h3>
-                      <button className="close-btn" onClick={() => setPreviewImageUrl(null)}>×</button>
+
+      {/* 媒体预览 Modal - Enhanced with Glassmorphism */}
+      {previewMedia && (
+          <div className="media-preview-overlay" onClick={handlePreviewClose}>
+              <div className="media-preview-container" onClick={e => e.stopPropagation()}>
+                  <div className="media-preview-header">
+                      <div className="media-info">
+                        <span className="media-type-badge">{previewMedia.type}</span>
+                      </div>
+                      <button className="media-close-btn" onClick={handlePreviewClose}>
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                      </button>
                   </div>
-                  <div className="modal-body">
-                      <AuthenticatedImage 
-                        url={previewImageUrl} 
-                        token={user?.token} 
-                        className="large-preview-img" 
-                      />
+                  <div className="media-preview-body">
+                      {previewMedia.type === 'IMAGE' ? (
+                          <AuthenticatedImage 
+                            url={previewMedia.url} 
+                            token={user?.token} 
+                            className="active-media-preview" 
+                          />
+                      ) : (
+                          <video 
+                            controls 
+                            autoPlay 
+                            className="active-media-preview"
+                          >
+                            <source src={previewMedia.url} />
+                            Your browser does not support video playback.
+                          </video>
+                      )}
                   </div>
               </div>
           </div>

@@ -1,7 +1,7 @@
 import { Store } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { getElectronAPI } from './api/electronAPI';
-import { addMessage } from '../features/chat/chatSlice';
+import { addMessage, fetchConversations } from '../features/chat/chatSlice';
 
 class SocketService {
   private store: Store<RootState> | null = null;
@@ -146,7 +146,11 @@ class SocketService {
     // 监听连接事件
     if (electronAPI.onSocketConnected) {
       electronAPI.onSocketConnected(() => {
-        console.log('Socket connected');
+        console.log('Socket connected/reconnected, triggering sync...');
+        if (this.store && this.userId) {
+          // 重新获取会话列表以更新未读数和最新的 MaxIndex
+          (this.store.dispatch as any)(fetchConversations(this.userId));
+        }
       });
     }
 
@@ -189,12 +193,23 @@ class SocketService {
             msgId: chatMsg.msgId,
             fromAccountId: chatMsg.fromUser?.userId,
             content: chatMsg.content,
-            timestamp: chatMsg.serverTimeStamp || chatMsg.clientTimeStamp || Date.now(),
+            timestamp: Number(chatMsg.serverTimeStamp || chatMsg.clientTimeStamp || Date.now()),
             conversationId: chatMsg.conversationId,
             type: chatMsg.type === 'TEXT' ? 'TEXT' : chatMsg.type,
-            clientMsgId: chatMsg.clientMsgId
+            clientMsgId: chatMsg.clientMsgId,
+            sequenceId: chatMsg.sequenceId
           };
           this.store.dispatch(addMessage(messageDto));
+        }
+
+        // 处理 ACK 消息 (例如：对方已读回执)
+        if (payload.ack && this.store) {
+          const ackMsg = payload.ack;
+          if (ackMsg.status === 4 || ackMsg.status === 'READ') {
+            console.log('Received READ receipt:', ackMsg);
+            // 这里可以触发 Redux 状态更新，将该会话中小于某 ID 的消息标为已读
+            // 由于目前 MessageDTO.status 还没反映到 UI 逻辑中，暂且打印
+          }
         }
       } else if (message.type === 'raw') {
         console.log('Received raw socket data:', message.data);
@@ -204,21 +219,35 @@ class SocketService {
     }
   }
 
+  private get isElectron(): boolean {
+    return typeof window !== 'undefined' && !!(window as any).electronAPI;
+  }
+
   /**
    * 发送结构化负载
    */
   async sendPayload(payload: any): Promise<boolean> {
-    const electronAPI = getElectronAPI();
-    if (!electronAPI) {
-      console.error('Electron API not available');
+    if (this.isElectron) {
+      const result = await (window as any).electronAPI.socketSendMessage(payload);
+      return result.success;
+    } else {
+      console.error('Socket send not supported in web');
       return false;
     }
+  }
 
-    try {
-      const result = await electronAPI.socketSendMessage(payload);
+  /**
+   * 标为已读
+   */
+  async markAsRead(conversationId: number, lastMsgId: number): Promise<boolean> {
+    if (this.isElectron) {
+      const result = await (window as any).electronAPI.socketMarkRead({
+        conversationId,
+        lastMsgId,
+        status: 4 // READ
+      });
       return result.success;
-    } catch (error) {
-      console.error('Error sending payload:', error);
+    } else {
       return false;
     }
   }
