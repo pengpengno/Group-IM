@@ -21,8 +21,8 @@ COPY Group-app/Group-Electronjs/ /app/Group-app/Group-Electronjs/
 
 WORKDIR /app/Group-app/Group-Electronjs
 
-# Install dependencies (only dev needed for build, but installing all for simplicity)
-RUN npm install
+# Install dependencies required for the build stage, including devDependencies
+RUN npm install --include=dev
 
 # Build the web assets
 # This will use the new semantic command and inject environmental variables via Webpack DefinePlugin

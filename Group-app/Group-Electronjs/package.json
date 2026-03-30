@@ -18,7 +18,7 @@
     "check-deps": "node scripts/install-deps.js",
     "setup": "node scripts/install-deps.js",
     "sync-protos": "node scripts/sync-protos.js && npm run generate-proto",
-    "generate-proto": "pbjs -t static-module -w commonjs -p protos -o main/generated/proto-bundle.js protos/BaseMessage.proto protos/Message.proto protos/Notification.proto protos/UserInfoProto.proto && pbts -o main/generated/proto-bundle.d.ts main/generated/proto-bundle.js"
+    "generate-proto": "node ./node_modules/protobufjs-cli/bin/pbjs -t static-module -w commonjs -p protos -o main/generated/proto-bundle.js protos/BaseMessage.proto protos/Message.proto protos/Notification.proto protos/UserInfoProto.proto && node ./node_modules/protobufjs-cli/bin/pbts -o main/generated/proto-bundle.d.ts main/generated/proto-bundle.js"
   },
   "keywords": [
     "im",
