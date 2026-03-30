@@ -1,26 +1,38 @@
 # Build stage
 FROM node:20-alpine AS build
 
+# Build-time arguments to inject backend addresses
+ARG API_BASE
+ARG TCP_HOST
+ARG TCP_PORT
+
 WORKDIR /app
 
-# Copy the entire structure to satisfy relative paths in sync-protos scripts
-# (../../../common/src/main/proto)
+# Set environment variables for the build process
+ENV NODE_ENV=production
+ENV API_BASE=$API_BASE
+ENV TCP_HOST=$TCP_HOST
+ENV TCP_PORT=$TCP_PORT
+
+# Copy necessary files
+# Assumes docker build is run from the project root
 COPY common/ /app/common/
 COPY Group-app/Group-Electronjs/ /app/Group-app/Group-Electronjs/
 
 WORKDIR /app/Group-app/Group-Electronjs
 
-# Install dependencies
+# Install dependencies (only dev needed for build, but installing all for simplicity)
 RUN npm install
 
 # Build the web assets
-RUN npm run build:web
+# This will use the new semantic command and inject environmental variables via Webpack DefinePlugin
+RUN npm run web:build
 
 # Final stage: Minimal image to hold only the built assets
 FROM alpine:latest
 WORKDIR /app
+# Copy the built files from the previous stage
 COPY --from=build /app/Group-app/Group-Electronjs/dist-web /dist-web
 
-# This container will just provide the files, so we can exit or sleep
-# We'll use this in docker-compose to populate a shared volume
+# This container provides the files, it's typically used as a source for shared volumes or manual extraction
 CMD ["sh", "-c", "echo 'Frontend assets ready at /dist-web'; sleep infinity"]
