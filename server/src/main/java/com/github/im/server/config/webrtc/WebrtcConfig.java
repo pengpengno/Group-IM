@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 @Data
 @Component
-@ConfigurationProperties(prefix = "webrtc")
+@ConfigurationProperties(prefix = "group.webrtc")
 public class WebrtcConfig {
     
     /**

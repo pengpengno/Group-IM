@@ -29,6 +29,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     const [searchResults, setSearchResults] = useState<User[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [isSwitchingCompany, setIsSwitchingCompany] = useState(false);
+    const [showWorkspacePopover, setShowWorkspacePopover] = useState(false);
     
     // Connect to Video Call Service
     const { state: callState } = useVideoCall();
@@ -37,6 +38,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     const activeConversation = conversations.find(c => c.conversation.conversationId === activeConversationId)?.conversation;
 
     const electronAPI = getElectronAPI();
+
+    const getSignalingConfig = () => {
+        const fallbackHost = window.location.hostname || 'localhost';
+        const fallbackPort = window.location.port ? Number(window.location.port) : 80;
+
+        if (!__SIGNAL_BASE__) {
+            return { host: fallbackHost, port: fallbackPort };
+        }
+
+        try {
+            const url = new URL(__SIGNAL_BASE__);
+            const isHttps = url.protocol === 'https:';
+            return {
+                host: url.host,
+                port: url.port ? Number(url.port) : (isHttps ? 443 : 80)
+            };
+        } catch (error) {
+            console.warn('Invalid __SIGNAL_BASE__, falling back to window.location:', __SIGNAL_BASE__, error);
+            return { host: fallbackHost, port: fallbackPort };
+        }
+    };
 
     const handleLogout = () => {
         dispatch(logout());
@@ -107,19 +129,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
         setIsSwitchingCompany(true);
         dispatch(loginStart());
+        setShowWorkspacePopover(false);
 
         try {
-            // In a real scenario, we might want to call an API to get a new token for the company
-            // Or if the backend uses the token to identify the user and then looks up the company
-            // we just need to update the client-side context.
-            
-            // For now, we update the Redux state which persisted to localStorage
             dispatch(setCurrentCompany(company));
-            
-            // Simulate a small delay for the "switching" feel
             await new Promise(resolve => setTimeout(resolve, 800));
-            
-            // Refresh to apply new company context across all services
             window.location.reload(); 
         } catch (error) {
             dispatch(loginFailure('切换公司失败'));
@@ -130,9 +144,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     // Connect to signaling on mount
     useEffect(() => {
         if (user?.userId) {
-            // Use host from window location or env
-            const host = window.location.hostname || 'localhost';
-            const port = 8080; // Signaling port
+            const { host, port } = getSignalingConfig();
             const token = localStorage.getItem('token') || '';
             webRTCService.connectSignaling(host, port, user.userId, token);
         }
@@ -148,60 +160,72 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
     return (
         <div className="dashboard-container">
-            {/* Company/Space Sidebar (Far Left - DingTalk style) */}
-            <div className="company-sidebar">
-                <div className="company-sidebar-top">
-                    <div 
-                        className="user-avatar-square" 
-                        title={`${user?.username} (${user?.email})`}
-                    >
-                        {user?.username?.charAt(0).toUpperCase() || 'U'}
-                    </div>
-                </div>
-
-                <div className="company-list-scroller">
-                    {user.companies?.map((c: any) => (
-                        <div 
-                            key={c.companyId} 
-                            className={`company-item ${user.currentCompany?.companyId === c.companyId ? 'active' : ''}`}
-                            onClick={() => handleSwitchCompany(c)}
-                            title={c.name}
-                        >
-                            <div className="company-icon-box">
-                                {c.name.charAt(0)}
-                            </div>
-                            <div className="active-indicator"></div>
-                        </div>
-                    ))}
-                    
-                    <div className="company-item add-company" title="Add Company">
-                        <div className="company-icon-box">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="company-sidebar-bottom">
-                    <div className="sidebar-action-icon" title="Notifications">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                        </svg>
-                    </div>
-                </div>
+            <div className="dashboard-background">
+                <div className="sphere sphere-1"></div>
+                <div className="sphere sphere-2"></div>
             </div>
 
             {/* Main Navigation Sidebar */}
             <div
                 className={`dashboard-sidebar ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}
                 onMouseEnter={() => setIsSidebarCollapsed(false)}
-                onMouseLeave={() => setIsSidebarCollapsed(true)}
+                onMouseLeave={() => {
+                    setIsSidebarCollapsed(true);
+                    setShowWorkspacePopover(false);
+                }}
             >
                 <div className="sidebar-app-title">
-                    {!isSidebarCollapsed ? <h2>Group IM</h2> : <div className="app-logo">G</div>}
+                    <div className="app-logo">G</div>
+                    {!isSidebarCollapsed && <h2>Group IM</h2>}
+                </div>
+
+                {/* Workspace Switcher Component (Integrated) */}
+                <div className="workspace-switcher-container">
+                    <div className="workspace-current" onClick={() => setShowWorkspacePopover(!showWorkspacePopover)}>
+                        <div className="workspace-icon">
+                            {user.currentCompany?.name?.charAt(0) || user.username?.charAt(0).toUpperCase() || 'W'}
+                        </div>
+                        <div className="workspace-info">
+                            <span className="workspace-name">{user.currentCompany?.name || 'My Workspace'}</span>
+                            <span className="workspace-type">Business Identity</span>
+                        </div>
+                        <svg className="workspace-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: showWorkspacePopover ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+
+                    {showWorkspacePopover && !isSidebarCollapsed && (
+                        <div className="workspace-popover">
+                            <div className="popover-header">
+                                <span>Switch Workspace</span>
+                            </div>
+                            <div className="workspace-list">
+                                {user.companies?.map((c: any) => (
+                                    <div 
+                                        key={c.companyId} 
+                                        className={`company-option ${user.currentCompany?.companyId === c.companyId ? 'active' : ''}`}
+                                        onClick={() => handleSwitchCompany(c)}
+                                    >
+                                        <div className="opt-icon">{c.name.charAt(0)}</div>
+                                        <div className="opt-info">
+                                            <span className="opt-name">{c.name}</span>
+                                        </div>
+                                        {user.currentCompany?.companyId === c.companyId && (
+                                            <svg className="active-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        )}
+                                    </div>
+                                ))}
+                                <div className="company-option add-workspace">
+                                    <div className="opt-icon">+</div>
+                                    <div className="opt-info">
+                                        <span className="opt-name">Add Workspace</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="sidebar-nav">
@@ -214,7 +238,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                             <polyline points="9 22 9 12 15 12 15 22"></polyline>
                         </svg>
-                        {!isSidebarCollapsed && <span>Home</span>}
+                        <span>Home</span>
                     </div>
                     <div
                         className={`nav-item ${activeTab === 'chats' ? 'active' : ''}`}
@@ -224,7 +248,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                         <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                         </svg>
-                        {!isSidebarCollapsed && <span>Chats</span>}
+                        <span>Chats</span>
                     </div>
                     <div
                         className={`nav-item ${activeTab === 'contacts' ? 'active' : ''}`}
@@ -237,7 +261,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                             <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                             <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                         </svg>
-                        {!isSidebarCollapsed && <span>Contacts</span>}
+                        <span>Contacts</span>
                     </div>
                     <div
                         className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
@@ -248,7 +272,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                             <circle cx="12" cy="12" r="3"></circle>
                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                         </svg>
-                        {!isSidebarCollapsed && <span>Settings</span>}
+                        <span>Settings</span>
                     </div>
                     {user?.username === 'admin' && (
                         <div
@@ -260,7 +284,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                                 <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                             </svg>
-                            {!isSidebarCollapsed && <span>Admin</span>}
+                            <span>Admin</span>
                         </div>
                     )}
                 </div>
@@ -272,7 +296,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                             <polyline points="16 17 21 12 16 7"></polyline>
                             <line x1="21" y1="12" x2="9" y2="12"></line>
                         </svg>
-                        {!isSidebarCollapsed && <span>Log Out</span>}
+                        <span>Log Out</span>
                     </button>
                 </div>
             </div>

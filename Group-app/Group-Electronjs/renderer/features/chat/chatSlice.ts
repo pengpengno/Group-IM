@@ -19,6 +19,13 @@ const initialState: ChatState = {
     error: null,
 };
 
+function normalizeConversation(conv: ConversationRes): ConversationRes {
+    return {
+        ...conv,
+        members: Array.isArray(conv.members) ? conv.members : []
+    };
+}
+
 export const fetchConversations = createAsyncThunk(
     'chat/fetchConversations',
     async (userId: string) => {
@@ -246,6 +253,7 @@ const chatSlice = createSlice({
             .addCase(fetchConversations.fulfilled, (state, action) => {
                 state.loading = false;
                 state.conversations = action.payload.map((conv: ConversationRes) => {
+                    conv = normalizeConversation(conv);
                     // Compute last message display text based on type
                     let lastMessageText = '';
                     if (conv.lastMessage) {
@@ -348,7 +356,7 @@ const chatSlice = createSlice({
                 state.error = action.error.message || '发送消息失败';
             })
             .addCase(createPrivateChat.fulfilled, (state, action: PayloadAction<ConversationRes>) => {
-                const newConv = action.payload;
+                const newConv = normalizeConversation(action.payload);
                 state.activeConversationId = newConv.conversationId;
 
                 // Add to conversations list if not already there

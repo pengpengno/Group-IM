@@ -114,3 +114,10 @@ export const orgAPI = {
     });
   }
 };
+
+export const webrtcAPI = {
+  // GET /api/webrtc/ice-servers
+  getIceServers: async () => {
+    return http.get('/api/webrtc/ice-servers');
+  }
+};

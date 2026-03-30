@@ -125,16 +125,16 @@ group:
   sequence:
     mode: redis # memory 或 redis 或 database
 
-# WebRTC 配置
-webrtc:
-  session-timeout: ${WEBRTC_SESSION_TIMEOUT:300000}
-  ice-servers:
-    - url: "stun:stun.l.google.com:19302"
-  turn-enabled: false
-  turn-server:
-    url: "turn:localhost:3478"
-    username: "username"
-    credential: "credential"
+  # WebRTC 配置
+  webrtc:
+    session-timeout: ${WEBRTC_SESSION_TIMEOUT:300000}
+    ice-servers:
+      - url: ${WEBRTC_STUN_SERVER_URL:stun:stun.l.google.com:19302}
+    turn-enabled: ${WEBRTC_TURN_ENABLED:false}
+    turn-server:
+      url: ${WEBRTC_TURN_SERVER_URL:turn:localhost:3478}
+      username: ${WEBRTC_TURN_SERVER_USERNAME:username}
+      credential: ${WEBRTC_TURN_SERVER_CREDENTIAL:credential}
 
 # JWT 配置
 jwt:

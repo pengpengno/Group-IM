@@ -41,7 +41,8 @@ module.exports = {
     new webpack.DefinePlugin({
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
       '__API_BASE__': JSON.stringify(isProduction ? (config.API_BASE || '') : ''), 
-      '__TCP_HOST__': process.env.TCP_HOST ? JSON.stringify(process.env.TCP_HOST) : 'window.location.hostname',
+      '__SIGNAL_BASE__': JSON.stringify(config.API_BASE || ''),
+      '__TCP_HOST__': JSON.stringify(config.TCP_HOST || ''),
       '__TCP_PORT__': JSON.stringify(config.TCP_PORT || '8088'),
       '__DEV_MODE__': !isProduction
     }),

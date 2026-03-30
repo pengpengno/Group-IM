@@ -1,7 +1,12 @@
 package com.github.im.server.controller;
 
 import com.github.im.server.utils.UserTokenManager;
+import com.nimbusds.jose.shaded.gson.JsonObject;
+
+import cn.hutool.json.JSONObject;
 import lombok.RequiredArgsConstructor;
+
+import org.checkerframework.checker.units.qual.s;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,16 +25,16 @@ public class AuthController {
     public ResponseEntity<String> logout(Authentication authentication) {
         if (authentication != null && authentication.getPrincipal() instanceof com.github.im.server.model.User) {
             com.github.im.server.model.User user = (com.github.im.server.model.User) authentication.getPrincipal();
-            
+
             if (user.getCurrentCompany() != null) {
                 // 清除用户会话缓存
                 userTokenManager.removeAccessToken(user.getUserId());
             }
-            
+
             // 清除安全上下文
             SecurityContextHolder.clearContext();
         }
-        
+
         return ResponseEntity.ok("Logged out successfully");
     }
 }

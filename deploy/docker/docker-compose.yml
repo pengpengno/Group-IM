@@ -15,7 +15,7 @@ services:
       - app-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -32,10 +32,37 @@ services:
       - app-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 30s
       timeout: 10s
       retries: 3
+
+  coturn:
+    image: coturn/coturn:latest
+    container_name: coturn-server
+    ports:
+      - "3478:3478"
+      - "3478:3478/udp"
+      - "5349:5349"
+      - "5349:5349/udp"
+    environment:
+      - COTURN_USER=${COTURN_USER:-pengpeng:pengpeng123}
+      - COTURN_REALM=${COTURN_REALM:-groupim.cn}
+    command:
+      - -n
+      - --log-file=stdout
+      - --realm=${COTURN_REALM:-groupim.cn}
+      - --user=${COTURN_USER:-pengpeng:pengpeng123}
+      - --fingerprint
+      - --lt-cred-mech
+      - --stale-nonce
+      - --no-multicast-peers
+      - --no-cli
+      - --no-tlsv1
+      - --no-tlsv1_1
+    networks:
+      - app-network
+    restart: unless-stopped
 
   openldap:
     image: osixia/openldap:1.5.0
@@ -49,8 +76,8 @@ services:
       LDAP_REMOVE_CONFIG_AFTER_SETUP: "true"
       LDAP_SSL_HELPER_PREFIX: "ldap"
     ports:
-      - "389:389"     # LDAP
-      - "636:636"     # LDAPS
+      - "389:389" # LDAP
+      - "636:636" # LDAPS
     volumes:
       - ./ldap_data:/var/lib/ldap
       - ./ldap_config:/etc/ldap/slapd.d
@@ -59,11 +86,11 @@ services:
       - app-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost", "-b", "dc=mycompany,dc=com", "-D", "cn=admin,dc=mycompany,dc=com", "-w", "admin"]
+      test: [ "CMD", "ldapsearch", "-x", "-H", "ldap://localhost", "-b", "dc=mycompany,dc=com", "-D", "cn=admin,dc=mycompany,dc=com", "-w", "admin" ]
       interval: 30s
       timeout: 10s
       retries: 3
-  
+
   phpldapadmin:
     image: dinkel/phpldapadmin
     container_name: phpldapadmin
@@ -79,9 +106,9 @@ services:
     restart: unless-stopped
 
   server:
-    build: 
-      context: ../../  # 构建上下文指向项目根目录
-      dockerfile: deploy/dockerfiles/Dockerfile  # Dockerfile 路径（相对于 context）
+    build:
+      context: ../../ # 构建上下文指向项目根目录
+      dockerfile: deploy/dockerfiles/Dockerfile # Dockerfile 路径（相对于 context）
     container_name: im-server
     ports:
       - "8080:8080"
@@ -110,6 +137,10 @@ services:
       - TCP_PORT=8088
       # WebRTC配置
       - WEBRTC_SESSION_TIMEOUT=300000
+      - WEBRTC_TURN_ENABLED=true
+      - WEBRTC_TURN_SERVER_URL=turn:${COTURN_EXTERNAL_IP:-localhost}:3478
+      - WEBRTC_TURN_SERVER_USERNAME=${COTURN_USER_NAME:-pengpeng}
+      - WEBRTC_TURN_SERVER_CREDENTIAL=${COTURN_PASSWORD:-pengpeng123}
       # JVM配置
       - JAVA_OPTS=-Xmx2g -Xms1g -XX:+UseG1GC
     volumes:
@@ -127,11 +158,11 @@ services:
         condition: service_started
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness" ]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s  # 应用启动宽限期
+      start_period: 60s # 应用启动宽限期
 
   nginx:
     image: nginx:1.29.4
@@ -139,7 +170,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8088:8088"  # TCP长连接端口
+      - "8088:8088" # TCP长连接端口
     volumes:
       - ../../nginx.conf:/etc/nginx/nginx.conf:ro
       - ../../nginx-tcp.conf:/etc/nginx/stream.conf.d/tcp-proxy.conf:ro

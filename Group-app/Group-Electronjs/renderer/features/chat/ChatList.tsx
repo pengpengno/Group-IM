@@ -30,7 +30,7 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
     const isGroup = item.conversation.type === 'GROUP';
     const displayName = isGroup
       ? item.conversation.groupName
-      : item.conversation.members.find((m: ApiUser) => m.userId.toString() !== user?.userId)?.username || '未知用户';
+      : (Array.isArray(item.conversation.members) ? item.conversation.members : []).find((m: ApiUser) => m.userId.toString() !== user?.userId)?.username || '未知用户';
     return displayName?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
@@ -82,7 +82,7 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
             const isGroup = item.conversation.type === 'GROUP';
             const displayName = isGroup
               ? item.conversation.groupName
-              : item.conversation.members.find((m: ApiUser) => m.userId.toString() !== user?.userId)?.username || '未知用户';
+              : (Array.isArray(item.conversation.members) ? item.conversation.members : []).find((m: ApiUser) => m.userId.toString() !== user?.userId)?.username || '未知用户';
 
             return (
               <div
@@ -114,7 +114,7 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!isGroup && onVideoCallStart) {
-                        const target = item.conversation.members.find((m: ApiUser) => m.userId.toString() !== user?.userId);
+                        const target = (Array.isArray(item.conversation.members) ? item.conversation.members : []).find((m: ApiUser) => m.userId.toString() !== user?.userId);
                         if (target) onVideoCallStart(target.userId.toString());
                       }
                     }}

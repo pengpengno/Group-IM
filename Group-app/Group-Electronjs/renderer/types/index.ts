@@ -54,7 +54,7 @@ export interface DepartmentInfo {
   name: string;
   parentId: number;
   description?: string;
-  members: ApiUser[];
+  members: ApiUser[] | null;
   children: DepartmentInfo[];
 }
 
@@ -142,7 +142,7 @@ export interface ConversationRes {
   type: ConversationType;
   groupName?: string;
   description?: string;
-  members: ApiUser[];
+  members: ApiUser[] | null;
   createAt: string;
   lastMessage?: MessageDTO;
 }

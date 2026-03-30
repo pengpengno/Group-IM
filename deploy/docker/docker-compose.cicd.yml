@@ -7,8 +7,8 @@ services:
       - "${NGINX_HTTPS_PORT:-443}:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-#      - ./nginx-tcp.conf:/etc/nginx/stream.conf.d/tcp-proxy.conf:ro
-#      - ./ssl:/etc/nginx/ssl
+      #      - ./nginx-tcp.conf:/etc/nginx/stream.conf.d/tcp-proxy.conf:ro
+      #      - ./ssl:/etc/nginx/ssl
       - web-assets:/usr/share/nginx/html:ro
     networks:
       - app-network
@@ -44,7 +44,7 @@ services:
       - app-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -61,10 +61,93 @@ services:
       - app-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 30s
       timeout: 10s
       retries: 3
+
+  coturn:
+    image: coturn/coturn:latest
+    container_name: coturn-server
+    ports:
+      # STUN/TURN 常用监听端口
+      - "3478:3478"
+      - "3478:3478/udp"
+      # TURNS 监听端口（启用证书后可使用）
+      - "5349:5349"
+      - "5349:5349/udp"
+      # TURN relay 媒体端口范围，公网环境通常必须开放
+      - "${COTURN_MIN_PORT:-49152}-${COTURN_MAX_PORT:-49252}:${COTURN_MIN_PORT:-49152}-${COTURN_MAX_PORT:-49252}/udp"
+    environment:
+      # 静态用户名密码，服务端下发给客户端时也使用同一套变量
+      - COTURN_USER_NAME=${COTURN_USER_NAME:-pengpeng}
+      - COTURN_PASSWORD=${COTURN_PASSWORD:-pengpeng123}
+      - COTURN_REALM=${COTURN_REALM:-group.com}
+      # 公网部署时必须填写对外可访问的公网 IP，不能是 localhost / 容器内网 IP
+      - COTURN_EXTERNAL_IP=${COTURN_EXTERNAL_IP:-127.0.0.1}
+      # relay 端口范围需要与上面的 ports 映射一致
+      - COTURN_MIN_PORT=${COTURN_MIN_PORT:-49152}
+      - COTURN_MAX_PORT=${COTURN_MAX_PORT:-49252}
+    command:
+      - -n
+      - --log-file=stdout
+      - --realm=${COTURN_REALM:-group.com}
+      - --user=${COTURN_USER_NAME:-pengpeng}:${COTURN_PASSWORD:-pengpeng123}
+      # 对外公布的公网 IP，客户端最终会基于这个地址进行 relay
+      - --external-ip=${COTURN_EXTERNAL_IP:-127.0.0.1}
+      # TURN relay 媒体端口范围
+      - --min-port=${COTURN_MIN_PORT:-49152}
+      - --max-port=${COTURN_MAX_PORT:-49252}
+      - --fingerprint
+      - --lt-cred-mech
+      - --stale-nonce
+      - --no-multicast-peers
+      - --no-cli
+      - --no-tlsv1
+      - --no-tlsv1_1
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  #  openldap:
+  #    image: osixia/openldap:1.5.0
+  #    container_name: local-openldap-prod
+  #    environment:
+  #      LDAP_ORGANISATION: "MyCompany"
+  #      LDAP_DOMAIN: "mycompany.com"
+  #      LDAP_ADMIN_PASSWORD: "admin"
+  #      LDAP_CONFIG_PASSWORD: "config"
+  #      LDAP_READONLY_USER: "false"
+  #      LDAP_REMOVE_CONFIG_AFTER_SETUP: "true"
+  #      LDAP_SSL_HELPER_PREFIX: "ldap"
+  #    ports:
+  #      - "389:389"     # LDAP
+  #      - "636:636"     # LDAPS
+  #    volumes:
+  #      - ../../ldap_data:/var/lib/ldap
+  #      - ../../ldap_config:/etc/ldap/slapd.d
+  #    networks:
+  #      - app-network
+  #    restart: unless-stopped
+  #    healthcheck:
+  #      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost", "-b", "dc=mycompany,dc=com", "-D", "cn=admin,dc=mycompany,dc=com", "-w", "admin"]
+  #      interval: 30s
+  #      timeout: 10s
+  #      retries: 3
+  #
+  #  phpldapadmin:
+  #    image: dinkel/phpldapadmin
+  #    container_name: phpldapadmin-prod
+  #    ports:
+  #      - "8085:80"
+  #    environment:
+  #      LDAP_SERVER_HOST: openldap
+  #      LDAP_SERVER_PORT: 389
+  #    networks:
+  #      - app-network
+  #    depends_on:
+  #      - openldap
+  #    restart: unless-stopped
 
   server:
     image: pengpeng163/groupim-server:master
@@ -96,6 +179,11 @@ services:
       - TCP_PORT=8088
       # WebRTC配置
       - WEBRTC_SESSION_TIMEOUT=300000
+      - WEBRTC_TURN_ENABLED=true
+      # 服务端下发给客户端的 TURN 信息必须与 coturn 静态账号一致
+      - WEBRTC_TURN_SERVER_URL=turn:${COTURN_EXTERNAL_IP:-127.0.0.1}:3478
+      - WEBRTC_TURN_SERVER_USERNAME=${COTURN_USER_NAME:-pengpeng}
+      - WEBRTC_TURN_SERVER_CREDENTIAL=${COTURN_PASSWORD:-pengpeng123}
     volumes:
       - ./logs/app:/app/logs
       - ./storage:/app/storage
@@ -106,13 +194,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    #      openldap:
+    #        condition: service_started
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness" ]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 60s # 应用启动宽限期
 
 networks:
   app-network:

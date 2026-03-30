@@ -272,7 +272,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
     if (conversation.type === 'GROUP') {
       return conversation.groupName || '群组';
     } else {
-      const otherUser = conversation.members.find(m => m.userId.toString() !== user?.userId);
+      const otherUser = (Array.isArray(conversation.members) ? conversation.members : []).find(m => m.userId.toString() !== user?.userId);
       return otherUser?.username || '未知用户';
     }
   };
@@ -280,7 +280,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
   // 获取对方用户ID（用于视频通话）
   const getOtherUserId = () => {
     if (conversation.type === 'PRIVATE_CHAT') {
-      const otherUser = conversation.members.find(m => m.userId.toString() !== user?.userId);
+      const otherUser = (Array.isArray(conversation.members) ? conversation.members : []).find(m => m.userId.toString() !== user?.userId);
       return otherUser?.userId.toString();
     }
     return null;

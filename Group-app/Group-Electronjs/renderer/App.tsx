@@ -6,6 +6,7 @@ import Dashboard from './features/dashboard/Dashboard';
 import Notification from './components/common/Notification';
 import { webRTCService } from './services/WebRTCService';
 import { socketService } from './services/socketService';
+import { isElectronEnvironment } from './services/api/electronAPI';
 import { store } from './store';
 
 const App: React.FC = () => {
@@ -19,13 +20,20 @@ const App: React.FC = () => {
       // Initialize unified WebRTC service
       webRTCService.initialize(store, user.userId);
 
-      // Initialize Socket connection
-      const token = localStorage.getItem('token') || '';
-      socketService.initialize(store, user.userId, __TCP_HOST__, Number(__TCP_PORT__), token, user.username);
+      const isElectron = isElectronEnvironment();
+
+      // Desktop uses Electron IPC + TCP for chat realtime sync.
+      // Web should not initialize the desktop socket pipeline.
+      if (isElectron) {
+        const token = localStorage.getItem('token') || '';
+        socketService.initialize(store, user.userId, __TCP_HOST__, Number(__TCP_PORT__), token, user.username);
+      }
 
       return () => {
         webRTCService.destroy();
-        socketService.disconnect();
+        if (isElectron) {
+          socketService.disconnect();
+        }
       };
     }
   }, [isAuthenticated, user]);

@@ -29,6 +29,7 @@ module.exports = {
     new webpack.DefinePlugin({
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
       '__API_BASE__': JSON.stringify(config.API_BASE),
+      '__SIGNAL_BASE__': JSON.stringify(config.API_BASE || ''),
       '__TCP_HOST__': JSON.stringify(config.TCP_HOST),
       '__TCP_PORT__': JSON.stringify(config.TCP_PORT),
       '__DEV_MODE__': process.env.NODE_ENV !== 'production'

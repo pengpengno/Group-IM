@@ -10,6 +10,7 @@ import {
   setRemoteStreamId 
 } from '../features/video-call/videoCallSlice';
 import { RootState } from '../store';
+import { webrtcAPI } from './api/apiClient';
 
 // WebRTC Message Protocol
 export interface WebrtcMessage {
@@ -42,9 +43,7 @@ export interface CallInternalState {
 }
 
 const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' }
+  { urls: 'stun:stun.l.google.com:19302' }
 ];
 
 export class WebRTCService extends EventEmitter {
@@ -100,12 +99,29 @@ export class WebRTCService extends EventEmitter {
     if (this.peerConnection) return;
 
     try {
+      // 动态获取最新的 ICE Servers（STUN/TURN）
+      console.log('Fetching ICE servers from backend...');
+      try {
+        const response = await webrtcAPI.getIceServers();
+        if (response.data && Array.isArray(response.data)) {
+          // 适配后端模型 IceServerConfig
+          this.iceServers = response.data.map((s: any) => ({
+            urls: s.url,
+            username: s.username,
+            credential: s.credential
+          }));
+          console.log('Fetched ICE servers successfully:', this.iceServers);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch ICE servers, using defaults:', err);
+      }
+
       this.peerConnection = new RTCPeerConnection({
         iceServers: this.iceServers
       });
       
       this.setupPeerConnectionEvents();
-      console.log('WebRTCService initialized');
+      console.log('WebRTCService initialized with PC');
     } catch (error) {
       console.error('Failed to initialize WebRTCService:', error);
       throw error;
