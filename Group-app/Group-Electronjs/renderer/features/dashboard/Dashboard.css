@@ -667,6 +667,7 @@
 .chats-view-container {
     display: flex;
     height: 100%;
+    overflow: hidden; /* Added */
 }
 
 .chats-list-sidebar {
@@ -674,6 +675,8 @@
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
+    height: 100%; /* Added */
+    overflow: hidden; /* Added */
 }
 
 .chat-room-area {
@@ -681,6 +684,8 @@
     background: transparent;
     display: flex;
     flex-direction: column;
+    height: 100%; /* Added */
+    overflow: hidden; /* Added */
 }
 
 .empty-view-placeholder {

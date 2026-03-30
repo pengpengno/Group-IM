@@ -84,7 +84,7 @@ services:
       - COTURN_PASSWORD=${COTURN_PASSWORD:-pengpeng123}
       - COTURN_REALM=${COTURN_REALM:-group.com}
       # 公网部署时必须填写对外可访问的公网 IP，不能是 localhost / 容器内网 IP
-      - COTURN_EXTERNAL_IP=${COTURN_EXTERNAL_IP:-127.0.0.1}
+      - COTURN_EXTERNAL_IP=${COTURN_EXTERNAL_IP:-8.145.54.215}
       # relay 端口范围需要与上面的 ports 映射一致
       - COTURN_MIN_PORT=${COTURN_MIN_PORT:-49152}
       - COTURN_MAX_PORT=${COTURN_MAX_PORT:-49252}
@@ -181,7 +181,7 @@ services:
       - WEBRTC_SESSION_TIMEOUT=300000
       - WEBRTC_TURN_ENABLED=true
       # 服务端下发给客户端的 TURN 信息必须与 coturn 静态账号一致
-      - WEBRTC_TURN_SERVER_URL=turn:${COTURN_EXTERNAL_IP:-127.0.0.1}:3478
+      - WEBRTC_TURN_SERVER_URL=turn:${COTURN_EXTERNAL_IP:-8.145.54.215}:3478
       - WEBRTC_TURN_SERVER_USERNAME=${COTURN_USER_NAME:-pengpeng}
       - WEBRTC_TURN_SERVER_CREDENTIAL=${COTURN_PASSWORD:-pengpeng123}
     volumes:

@@ -266,6 +266,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [previewMedia, setPreviewMedia] = useState<{ url: string; type: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   // 获取会话名称
   const getRoomName = () => {
@@ -402,7 +403,9 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
 
   // 滚动到底部
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (viewportRef.current) {
+      viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+    }
   };
 
   const handlePreviewClose = () => setPreviewMedia(null);
@@ -509,7 +512,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
       </div>
 
       {/* 消息列表 */}
-      <div className="messages-viewport" onClick={() => setShowEmojiPicker(false)}>
+      <div className="messages-viewport" ref={viewportRef} onClick={() => setShowEmojiPicker(false)}>
         {chatLoading && messages.length === 0 ? (
           <div className="viewport-loading">
             <div className="spinner-medium"></div>
@@ -526,7 +529,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
                 />
               );
             })}
-            <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} style={{ height: '1px' }} />
           </div>
         )}
       </div>
