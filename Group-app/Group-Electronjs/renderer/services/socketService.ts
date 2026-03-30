@@ -1,7 +1,9 @@
 import { Store } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { getElectronAPI } from './api/electronAPI';
-import { addMessage, fetchConversations } from '../features/chat/chatSlice';
+import { addMessage, fetchConversations, fetchMessages } from '../features/chat/chatSlice';
+import { BaseMessagePkg, UserInfo, Heartbeat, AckMessage } from './protoDefinitions';
+import Long from 'long';
 
 class SocketService {
   private store: Store<RootState> | null = null;
@@ -14,7 +16,8 @@ class SocketService {
   private isInitializing = false;
   private isConnected = false;
   private socket: WebSocket | null = null;
-  private receiveBuffer: Uint8Array = new Uint8Array(0);
+  private heartbeatTimer: NodeJS.Timeout | null = null;
+  private reconnectTimer: NodeJS.Timeout | null = null;
   private connectionCheckInterval: NodeJS.Timeout | null = null;
 
   initialize(store: Store<RootState>, userId: string, host: string = 'localhost', port: number = 8088, token: string = '', username: string = '') {
@@ -41,8 +44,8 @@ class SocketService {
     }
 
     const electronAPI = getElectronAPI();
-    if (!electronAPI) {
-      console.warn('Electron API not available, trying native WebSocket fallback...');
+    if (!electronAPI || !((window as any).electronAPI)) {
+      console.warn('Electron API not available, trying native WebSocket...');
       this.connectNativeWS();
       return;
     }
@@ -65,21 +68,64 @@ class SocketService {
       } else {
         console.error('Socket connection failed (IPC):', result.error);
         this.isInitializing = false;
+        // Even if IPC fails, try polling as a fail-safe
+        this.startPollingFallback();
       }
     } catch (error) {
       console.error('Socket connection error (IPC):', error);
       this.isInitializing = false;
+      this.startPollingFallback();
     }
   }
 
   /**
-   * 浏览器环境下的原声 WebSocket 连接实现
+   * 浏览器环境下的轮询(Polling)降级实现
+   * 由于现代浏览器无法直接开启 TCP 长连接，使用 HTTP 增量拉取作为实时更新的保底逻辑
+   */
+  private pollingTimer: NodeJS.Timeout | null = null;
+  private startPollingFallback() {
+    if (this.pollingTimer) {
+      clearInterval(this.pollingTimer);
+    }
+
+    console.log('SocketService: Starting HTTP Polling Fallback (5s interval)');
+    
+    // 立即执行一次
+    this.executePollingSync();
+
+    this.pollingTimer = setInterval(() => {
+      this.executePollingSync();
+    }, 5000); // 5秒轮询一次，兼顾实时性和服务器压力
+  }
+
+  private async executePollingSync() {
+    if (!this.store || !this.userId) return;
+
+    try {
+      // 1. 同步会话列表 (更新未读数和会话列表排序)
+      await (this.store.dispatch as any)(fetchConversations(this.userId));
+      
+      // 2. 如果存在当前活跃会话，执行增量消息拉取
+      const activeId = this.store.getState().chat.activeConversationId;
+      if (activeId) {
+        await (this.store.dispatch as any)(fetchMessages(activeId));
+      }
+    } catch (err) {
+      console.error('SocketService Polling Error:', err);
+    }
+  }
+
+  /**
+   * 浏览器环境下的原生 WebSocket 连接实现
    */
   private connectNativeWS() {
+    if (this.socket) {
+      this.socket.close();
+    }
+
     try {
-      // 注意：如果服务器不支持直接 WS，这里可能需要后端配合或使用代理
-      // 这里的 8088 通常是 TCP 端口，如果是 Web 环境，后端可能开启了 WS 协议适配
-      const wsUrl = `ws://${this.host}:${this.port}`;
+      // 统一使用 /ws 路径，后端 SignalWebSocketHandler 已支持二进制协议
+      const wsUrl = `ws://${this.host}:${this.port}/ws?userId=${this.userId}`;
       console.log(`Native WebSocket connecting to ${wsUrl}...`);
       
       this.socket = new WebSocket(wsUrl);
@@ -89,7 +135,15 @@ class SocketService {
         console.log('Native WebSocket connected');
         this.isConnected = true;
         this.isInitializing = false;
+        
+        // 停止掉轮询降级
+        if (this.pollingTimer) {
+            clearInterval(this.pollingTimer);
+            this.pollingTimer = null;
+        }
+
         this.registerToRemoteWS();
+        this.startHeartbeat();
       };
 
       this.socket.onmessage = (event) => {
@@ -100,32 +154,90 @@ class SocketService {
         console.log('Native WebSocket closed');
         this.isConnected = false;
         this.isInitializing = false;
-        // 自动重连逻辑可以在这里实现
+        this.stopHeartbeat();
+        
+        if (!this.intentionToClose) {
+          // 3秒后尝试重连
+          if (!this.reconnectTimer) {
+            this.reconnectTimer = setTimeout(() => {
+              this.reconnectTimer = null;
+              this.connectNativeWS();
+            }, 3000);
+          }
+          // 重连期间开启轮询保底
+          this.startPollingFallback();
+        }
       };
 
       this.socket.onerror = (error) => {
         console.error('Native WebSocket error:', error);
         this.isInitializing = false;
+        this.startPollingFallback();
       };
     } catch (err) {
       console.error('Failed to initiate native WebSocket:', err);
       this.isInitializing = false;
+      this.startPollingFallback();
     }
   }
 
   private async registerToRemoteWS() {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
 
-    // 这里需要构造 UserInfo 注册包，由于是 Web 端，目前可能依赖后端能够处理 WS 协议
     console.log('Sending registration via WebSocket...');
-    // TODO: 实现 Web 端 Protobuf 编码并发送。由于 Renderer 目前主要依赖 IPC 解码，
-    // 这里如果要做完整功能，需要在 Renderer 也引入 protobufjs 逻辑。
-    // 如果后端支持，也可以发送 JSON 或特定的握手。
+    
+    try {
+        const userInfoPayload = UserInfo.create({
+            userId: Long.fromString(this.userId || '0'),
+            username: this.username,
+            accessToken: this.token,
+            platformType: 0 // WEB
+        });
+
+        const pkg = BaseMessagePkg.create({
+            userInfo: userInfoPayload
+        });
+
+        const buffer = BaseMessagePkg.encode(pkg).finish();
+        this.socket.send(buffer);
+        console.log('Registration sent successfully');
+    } catch (err) {
+        console.error('Failed to encode/send registration:', err);
+    }
+  }
+
+  private startHeartbeat() {
+      this.stopHeartbeat();
+      this.heartbeatTimer = setInterval(() => {
+          if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+              const pkg = BaseMessagePkg.create({
+                  heartbeat: { ping: true }
+              });
+              const buffer = BaseMessagePkg.encode(pkg).finish();
+              this.socket.send(buffer);
+          }
+      }, 30000); // 30s heartbeat
+  }
+
+  private stopHeartbeat() {
+      if (this.heartbeatTimer) {
+          clearInterval(this.heartbeatTimer);
+          this.heartbeatTimer = null;
+      }
   }
 
   private handleWSData(data: Uint8Array) {
-      // 同理，这里需要处理 Varint32 分包和 Protobuf 解码
-      console.log('Received binary data via WebSocket, length:', data.length);
+      try {
+          const pkg = BaseMessagePkg.decode(data) as any;
+          console.log('Received WebSocket IM Package:', pkg.payload);
+          
+          this.handleMessage({
+              type: 'message',
+              payload: pkg
+          });
+      } catch (err) {
+          console.error('Failed to decode binary WebSocket data:', err);
+      }
   }
 
   /**
@@ -230,8 +342,19 @@ class SocketService {
     if (this.isElectron) {
       const result = await (window as any).electronAPI.socketSendMessage(payload);
       return result.success;
+    } else if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        try {
+            // 将普通对象转换为 Protobuf 格式发送
+            const pkg = BaseMessagePkg.create(payload);
+            const buffer = BaseMessagePkg.encode(pkg).finish();
+            this.socket.send(buffer);
+            return true;
+        } catch (err) {
+            console.error('Failed to send Protobuf over WebSocket:', err);
+            return false;
+        }
     } else {
-      console.error('Socket send not supported in web');
+      console.error('Socket not connected, cannot send payload');
       return false;
     }
   }
@@ -247,6 +370,22 @@ class SocketService {
         status: 4 // READ
       });
       return result.success;
+    } else if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        try {
+            const pkg = BaseMessagePkg.create({
+                ack: {
+                    conversationId: conversationId,
+                    msgId: lastMsgId,
+                    status: 'READ'
+                }
+            });
+            const buffer = BaseMessagePkg.encode(pkg).finish();
+            this.socket.send(buffer);
+            return true;
+        } catch (err) {
+            console.error('Failed to send ACK over WebSocket:', err);
+            return false;
+        }
     } else {
       return false;
     }
@@ -306,8 +445,25 @@ class SocketService {
     this.isConnected = false;
     this.isInitializing = false;
 
+    if (this.pollingTimer) {
+      clearInterval(this.pollingTimer);
+      this.pollingTimer = null;
+    }
+
+    this.stopHeartbeat();
+
+    if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+    }
+
+    if (this.socket) {
+        this.socket.close();
+        this.socket = null;
+    }
+
     const electronAPI = getElectronAPI();
-    if (electronAPI) {
+    if (electronAPI && (window as any).electronAPI) {
       try {
         await electronAPI.socketDisconnect();
       } catch (error) {
