@@ -450,4 +450,19 @@ class ChatMessageRepository (
             sequenceId = entity.sequence_id
         )
     }
+    
+    /**
+     * 获取指定会话中当前用户的未读消息数量
+     * @param conversationId 会话ID
+     * @param currentUserId 当前用户ID（排除自己发的消息）
+     */
+    fun getUnreadCount(conversationId: Long, currentUserId: Long): Int {
+        return try {
+            db.messageQueries.selectUnreadCountByConversation(conversationId, currentUserId)
+                .executeAsOne().toInt()
+        } catch (e: Exception) {
+            Napier.e("获取未读消息数量失败: conversationId=$conversationId", e)
+            0
+        }
+    }
 }

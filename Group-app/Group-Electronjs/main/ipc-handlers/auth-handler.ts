@@ -1,8 +1,8 @@
 import { ipcMain } from 'electron';
 import axios from 'axios';
 
-// Define the base URL for the API
-const BASE_URL = 'http://127.0.0.1:8080'; // This would come from environment/config
+// BASE_URL is injected via Webpack DefinePlugin from configs/*.json
+const BASE_URL = __API_BASE__;
 
 // Handle login request
 ipcMain.handle('login', async (_, credentials) => {

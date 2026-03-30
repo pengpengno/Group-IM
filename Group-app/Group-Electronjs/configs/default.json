@@ -1,0 +1,5 @@
+{
+  "API_BASE": "http://localhost:8080",
+  "TCP_HOST": "localhost",
+  "TCP_PORT": 8088
+}

@@ -49,7 +49,7 @@ data class ConversationDisplayState(
      * 如果超过了 一年那么久展示 年月日  格式 yyyy-mm-dd
      */
     val displayDateTime : String = "", // 展示时间日期
-    
+    val unreadCount: Int = 0 // 未读消息数量
 )
 /**
  * Chat 聊天页面的状态管理
@@ -112,7 +112,7 @@ class ChatViewModel (
 
             val localConversations = conversationRepository.getConversationsByUserId(uId)
             val localConversationsWithLatestMessages = localConversations.map { conversation ->
-                createConversationDisplayState(conversation)
+                createConversationDisplayState(conversation, uId)
             }
             
             // 立即将本地数据更新到UI
@@ -137,7 +137,7 @@ class ChatViewModel (
             
             // 将远程数据转换为显示状态并更新UI
             val remoteConversationsWithLatestMessages = response.map { conversation ->
-                createConversationDisplayState(conversation)
+                createConversationDisplayState(conversation, uId)
             }
             
             // 更新UI为远程获取的最新数据
@@ -152,7 +152,7 @@ class ChatViewModel (
     /**
      * 创建会话显示状态
      */
-    suspend  fun createConversationDisplayState(conversation: ConversationRes): ConversationDisplayState {
+    suspend  fun createConversationDisplayState(conversation: ConversationRes, currentUserId: Long = 0L): ConversationDisplayState {
         // 直接从本地获取就行了 ， 至于远程的消息 会有 其他逻辑调用刷新
         val latestMessage = messageRepository.getLocalLatestMessage(conversation.conversationId)
         val lastMessageText = latestMessage?.let { message ->
@@ -160,10 +160,16 @@ class ChatViewModel (
         } ?: ""
         val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) } ?: ""
         
+        // 计算未读消息数量
+        val unreadCount = if (currentUserId > 0L) {
+            messageRepository.getUnreadCount(conversation.conversationId, currentUserId)
+        } else 0
+        
         return ConversationDisplayState(
             conversation = conversation,
             lastMessage = lastMessageText,
-            displayDateTime = displayDateTime
+            displayDateTime = displayDateTime,
+            unreadCount = unreadCount
         )
     }
     
@@ -206,7 +212,7 @@ class ChatViewModel (
                 val localConversations = conversationRepository.getConversationsByUserId(uId)
                 val localConversationsWithLatestMessages = localConversations.map { conversation ->
                     // 使用本地数据创建会话显示状态，避免网络调用
-                    createLocalConversationDisplayState(conversation)
+                    createLocalConversationDisplayState(conversation, uId)
                 }
                 _conversations.value = localConversationsWithLatestMessages
                 Napier.d("离线模式加载了 ${localConversations.size} 个本地会话")
@@ -225,7 +231,7 @@ class ChatViewModel (
      * 创建本地会话显示状态（不调用网络）
      * 专门用于离线模式下的会话状态创建
      */
-    private suspend fun createLocalConversationDisplayState(conversation: ConversationRes): ConversationDisplayState {
+    private suspend fun createLocalConversationDisplayState(conversation: ConversationRes, currentUserId: Long = 0L): ConversationDisplayState {
         // 只从本地获取最新消息，避免网络调用
         val latestMessage = getLocalLatestMessage(conversation.conversationId)
         val lastMessageText = latestMessage?.let { message ->
@@ -233,10 +239,16 @@ class ChatViewModel (
         } ?: "暂无消息"
         val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) } ?: ""
         
+        // 计算未读消息数量
+        val unreadCount = if (currentUserId > 0L) {
+            messageRepository.getUnreadCount(conversation.conversationId, currentUserId)
+        } else 0
+        
         return ConversationDisplayState(
             conversation = conversation,
             lastMessage = lastMessageText,
-            displayDateTime = displayDateTime
+            displayDateTime = displayDateTime,
+            unreadCount = unreadCount
         )
     }
     

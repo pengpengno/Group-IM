@@ -21,7 +21,7 @@ const App: React.FC = () => {
 
       // Initialize Socket connection
       const token = localStorage.getItem('token') || '';
-      socketService.initialize(store, user.userId, 'localhost', 8088, token, user.username);
+      socketService.initialize(store, user.userId, __TCP_HOST__, Number(__TCP_PORT__), token, user.username);
 
       return () => {
         webRTCService.destroy();

@@ -8,10 +8,8 @@ export type LoginPayload = {
 
 type QueryUsersPayload = string;
 
-// In web environment, use the same origin. In Electron, fallback to hardcoded backend or env.
-export const BASE_URL = (typeof window !== 'undefined' && window.location.protocol.startsWith('http')) 
-  ? '' 
-  : 'http://localhost:8080';
+// Always use injected API_BASE. If empty, browser will use current origin (ideal for Web proxy/Nginx).
+export const BASE_URL = __API_BASE__;
 
 const http = axios.create({
   baseURL: BASE_URL,
@@ -21,7 +19,6 @@ const http = axios.create({
 http.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
-    config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

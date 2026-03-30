@@ -1,0 +1,5 @@
+{
+  "API_BASE": "https://api.yourdomain.com",
+  "TCP_HOST": "socket.yourdomain.com",
+  "TCP_PORT": 8088
+}

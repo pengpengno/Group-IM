@@ -1,5 +1,7 @@
 const path = require('path');
-const { CleanWebpackPlugin } = require('clean-webpack-plugin');
+const webpack = require('webpack');
+const getConfig = require('./scripts/load-config');
+const config = getConfig();
 
 module.exports = {
   mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
@@ -18,9 +20,10 @@ module.exports = {
     ],
   },
   plugins: [
-    // Removed CleanWebpackPlugin here because when running concurrent watch
-    // (main and renderer), it deletes index.html emitted by the renderer.
-    // new CleanWebpackPlugin(),
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+      '__API_BASE__': JSON.stringify(config.API_BASE),
+    }),
   ],
   resolve: {
     extensions: ['.ts', '.js'],

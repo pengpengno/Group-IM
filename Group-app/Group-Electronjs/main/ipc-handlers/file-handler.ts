@@ -3,8 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import axios from 'axios';
 
-// Define the base URL for the API
-const BASE_URL = 'http://localhost:8080'; // This would come from environment/config
+// BASE_URL is injected via Webpack DefinePlugin from configs/*.json
+const BASE_URL = __API_BASE__;
 
 // Handle file upload request
 ipcMain.handle('upload-file', async (_, filePath, clientId, token) => {

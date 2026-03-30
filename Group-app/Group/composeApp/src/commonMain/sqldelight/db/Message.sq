@@ -115,3 +115,10 @@ UPDATE message SET status = ?, server_timestamp = ?, sequence_id = ? WHERE msg_i
 
 updateMessageByClientMsgId:
 UPDATE message SET status = ? , server_timestamp = ? , sequence_id = ? ,msg_id = ? WHERE client_msg_id = ?;
+
+-- 获取指定会话中某个用户的未读消息数量（即不是自己发的且status为SENT的消息）
+selectUnreadCountByConversation:
+SELECT COUNT(*) FROM message
+WHERE conversation_id = ?
+AND from_account_id != ?
+AND status = 'SENT';

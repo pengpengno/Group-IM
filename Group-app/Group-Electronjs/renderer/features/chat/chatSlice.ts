@@ -156,6 +156,20 @@ function buildSocketPayload(
     };
 }
 
+/**
+ * Helper: compute display text for a message based on its type
+ */
+function getMessageDisplayText(content: string, type?: string): string {
+    const msgType = (type || 'TEXT').toUpperCase();
+    switch (msgType) {
+        case 'IMAGE': return '[图片消息]';
+        case 'FILE': return '[文件消息]';
+        case 'VOICE': return '[语音消息]';
+        case 'VIDEO': return '[视频消息]';
+        default: return content || '';
+    }
+}
+
 export const createPrivateChat = createAsyncThunk(
     'chat/createPrivateChat',
     async ({ userId, friendId }: { userId: string, friendId: number }) => {
@@ -211,13 +225,13 @@ const chatSlice = createSlice({
                     const conv = state.conversations.find(c => c.conversation.conversationId === conversationId);
                     if (conv) {
                         conv.unreadCount += 1;
-                        conv.lastMessage = normalizedMsg.content;
+                        conv.lastMessage = getMessageDisplayText(normalizedMsg.content, normalizedMsg.type);
                     }
                 } else if (conversationId === state.activeConversationId) {
                     // 如果是当前活跃会话的消息，更新最后一条消息预览
                     const conv = state.conversations.find(c => c.conversation.conversationId === conversationId);
                     if (conv) {
-                        conv.lastMessage = normalizedMsg.content;
+                        conv.lastMessage = getMessageDisplayText(normalizedMsg.content, normalizedMsg.type);
                     }
                     // 虽然当前在聊天室，但根据产品定义，这里可以调用 markAsRead (通过 thunk 发送 ACK)
                 }
@@ -231,12 +245,46 @@ const chatSlice = createSlice({
             })
             .addCase(fetchConversations.fulfilled, (state, action) => {
                 state.loading = false;
-                state.conversations = action.payload.map((conv: ConversationRes) => ({
-                    conversation: conv,
-                    lastMessage: conv.lastMessage?.content || '',
-                    displayDateTime: new Date(conv.createAt).toLocaleTimeString(),
-                    unreadCount: 0
-                }));
+                state.conversations = action.payload.map((conv: ConversationRes) => {
+                    // Compute last message display text based on type
+                    let lastMessageText = '';
+                    if (conv.lastMessage) {
+                        const msgType = (conv.lastMessage.type || 'TEXT').toUpperCase();
+                        switch (msgType) {
+                            case 'IMAGE': lastMessageText = '[图片消息]'; break;
+                            case 'FILE': lastMessageText = '[文件消息]'; break;
+                            case 'VOICE': lastMessageText = '[语音消息]'; break;
+                            case 'VIDEO': lastMessageText = '[视频消息]'; break;
+                            default: lastMessageText = conv.lastMessage.content || ''; break;
+                        }
+                    }
+
+                    // Compute smart display date time
+                    let displayDateTime = '';
+                    const ts = conv.lastMessage?.timestamp || conv.createAt;
+                    if (ts) {
+                        const date = new Date(ts);
+                        const now = new Date();
+                        const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+                        if (diffDays === 0 && date.getDate() === now.getDate()) {
+                            displayDateTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        } else if (diffDays <= 1 && date.getDate() === now.getDate() - 1) {
+                            displayDateTime = '昨天';
+                        } else if (diffDays < 7) {
+                            const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                            displayDateTime = weekdays[date.getDay()];
+                        } else {
+                            displayDateTime = `${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+                        }
+                    }
+
+                    return {
+                        conversation: conv,
+                        lastMessage: lastMessageText,
+                        displayDateTime,
+                        unreadCount: 0
+                    };
+                });
             })
             .addCase(fetchMessages.fulfilled, (state, action) => {
                 const { conversationId, messages, isIncremental } = action.payload;

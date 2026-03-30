@@ -1,5 +1,9 @@
 const path = require('path');
+const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const getConfig = require('./scripts/load-config');
+
+const config = getConfig();
 
 module.exports = {
   mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
@@ -22,6 +26,13 @@ module.exports = {
     extensions: ['.tsx', '.ts', '.js'],
   },
   plugins: [
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+      '__API_BASE__': JSON.stringify(config.API_BASE),
+      '__TCP_HOST__': JSON.stringify(config.TCP_HOST),
+      '__TCP_PORT__': JSON.stringify(config.TCP_PORT),
+      '__DEV_MODE__': process.env.NODE_ENV !== 'production'
+    }),
     new HtmlWebpackPlugin({
       template: './renderer/index.html',
     }),
