@@ -1,5 +1,5 @@
 {
-  "API_BASE": "http://8.145.54.215",
-  "TCP_HOST": "8.145.54.215",
+  "API_BASE": "https://groupim.cn",
+  "TCP_HOST": "groupim.cn",
   "TCP_PORT": 8088
 }
