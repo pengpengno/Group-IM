@@ -20,6 +20,7 @@ declare global {
 interface ChatRoomProps {
   conversation: ConversationRes;
   onVideoCall?: (userId: string) => void;
+  onStartMeeting?: (participants: Array<{ userId: string; userName?: string }>) => void;
 }
 
 // 消息项组件
@@ -252,7 +253,7 @@ const MessageBubble: React.FC<{
   );
 };
 
-const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
+const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartMeeting }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: { auth: AuthState }) => state.auth);
   const { messages: allMessages, loading: chatLoading } = useSelector((state: RootState) => state.chat);
@@ -285,6 +286,19 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
       return otherUser?.userId.toString();
     }
     return null;
+  };
+
+  const getGroupParticipants = () => {
+    if (conversation.type !== 'GROUP') {
+      return [];
+    }
+
+    return (Array.isArray(conversation.members) ? conversation.members : [])
+      .filter((member) => member.userId.toString() !== user?.userId)
+      .map((member) => ({
+        userId: member.userId.toString(),
+        userName: member.username
+      }));
   };
 
   const showToast = (message: string, type: NotificationType = 'error') => {
@@ -478,6 +492,20 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall }) => {
         </div>
 
         <div className="chatroom-header-actions">
+          {conversation.type === 'GROUP' && onStartMeeting && getGroupParticipants().length > 0 && (
+            <button
+              className="action-icon-btn"
+              onClick={() => onStartMeeting(getGroupParticipants())}
+              title="Start Meeting"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </button>
+          )}
           {getOtherUserId() && onVideoCall && (
             <>
               <button

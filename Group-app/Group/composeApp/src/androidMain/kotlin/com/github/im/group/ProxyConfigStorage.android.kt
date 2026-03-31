@@ -16,8 +16,10 @@ actual class ProxyConfigStorage(private val context: Context)  {
             Napier.d("Saving user info: $proxySettingsState")
             prefs.edit().apply {
                 putString("host", proxySettingsState.host)
+                putString("tcpHost", proxySettingsState.tcpHost)
                 putInt("port", proxySettingsState.port)
                 putInt("tcpPort", proxySettingsState.tcpPort)
+                putBoolean("useTls", proxySettingsState.useTls)
                 putBoolean("enable", proxySettingsState.enableProxy)
                 apply()
             }
@@ -34,8 +36,10 @@ actual class ProxyConfigStorage(private val context: Context)  {
 
         return ProxySettingsState(
             host = prefs.getString("host", "") ?: "",
+            tcpHost = prefs.getString("tcpHost", prefs.getString("host", "")) ?: "",
             port = prefs.getInt("port", 0),
             tcpPort = prefs.getInt("tcpPort", 0),
+            useTls = prefs.getBoolean("useTls", false),
             enableProxy = prefs.getBoolean("enable", false),
         )
     }

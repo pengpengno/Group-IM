@@ -32,7 +32,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     const [showWorkspacePopover, setShowWorkspacePopover] = useState(false);
     
     // Connect to Video Call Service
-    const { state: callState } = useVideoCall();
+    const { state: callState, startMeeting } = useVideoCall();
 
     const { activeConversationId, conversations } = useSelector((state: RootState) => state.chat);
     const activeConversation = conversations.find(c => c.conversation.conversationId === activeConversationId)?.conversation;
@@ -118,6 +118,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         webRTCService.initiateCall(targetUserId, targetUserName);
     };
 
+    const handleStartMeeting = (participants: Array<{ userId: string; userName?: string }>) => {
+        if (!participants.length) return;
+        startMeeting(participants);
+    };
+
     const handleStartMessage = async (targetUserId: string) => {
         if (!user?.userId) return;
         try {
@@ -144,7 +149,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             await new Promise(resolve => setTimeout(resolve, 800));
             window.location.reload(); 
         } catch (error) {
-            dispatch(loginFailure('切换公司失败'));
+            dispatch(loginFailure('鍒囨崲鍏徃澶辫触'));
             setIsSwitchingCompany(false);
         }
     };
@@ -425,6 +430,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                 {activeConversation ? (
                                     <ChatRoom
                                         conversation={activeConversation}
+                                        onStartMeeting={handleStartMeeting}
                                     />
                                 ) : (
                                     <div className="empty-view-placeholder">

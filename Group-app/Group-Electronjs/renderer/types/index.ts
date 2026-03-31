@@ -1,4 +1,4 @@
-// 用户相关类型
+// 鐢ㄦ埛鐩稿叧绫诲瀷
 export interface User {
   id: string;
   username: string;
@@ -9,7 +9,7 @@ export interface User {
   lastSeen?: Date;
 }
 
-// 数字ID用户类型（用于API响应）
+// 鏁板瓧ID鐢ㄦ埛绫诲瀷锛堢敤浜嶢PI鍝嶅簲锛?
 export interface ApiUser {
   userId: number;
   username: string;
@@ -24,7 +24,7 @@ export interface CompanyDTO {
   description?: string;
 }
 
-// 字符串ID用户类型（用于本地状态）
+// 瀛楃涓睮D鐢ㄦ埛绫诲瀷锛堢敤浜庢湰鍦扮姸鎬侊級
 export interface LocalUser {
   userId: string;
   username: string;
@@ -38,7 +38,7 @@ export interface LocalUser {
   companies?: CompanyDTO[];
 }
 
-// 组织架构节点类型
+// 缁勭粐鏋舵瀯鑺傜偣绫诲瀷
 export interface OrgTreeNode {
   id: number;
   name: string;
@@ -58,7 +58,7 @@ export interface DepartmentInfo {
   children: DepartmentInfo[];
 }
 
-// 认证相关类型
+// 璁よ瘉鐩稿叧绫诲瀷
 export interface LoginCredentials {
   loginAccount: string;
   password: string;
@@ -79,7 +79,7 @@ export interface AuthState {
   user: LocalUser | null;
 }
 
-// 文件操作相关类型
+// 鏂囦欢鎿嶄綔鐩稿叧绫诲瀷
 export interface FileFilter {
   name: string;
   extensions: string[];
@@ -98,7 +98,7 @@ export interface SelectFileResult {
   bookmarks?: string[];
 }
 
-// API响应类型
+// API鍝嶅簲绫诲瀷
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -106,7 +106,7 @@ export interface ApiResponse<T = any> {
   error?: string;
 }
 
-// 聊天交互相关类型
+// 鑱婂ぉ浜や簰鐩稿叧绫诲瀷
 export type MessageType = 'TEXT' | 'IMAGE' | 'FILE' | 'VOICE' | 'VIDEO';
 
 export interface MessageDTO {
@@ -115,7 +115,7 @@ export interface MessageDTO {
   content: string;
   fromAccountId: number;
   type: MessageType;
-  timestamp: number;  // 毫秒时间戳
+  timestamp: number;  // 姣鏃堕棿鎴?
   sequenceId?: number;
   fromAccount?: ApiUser;
   clientMsgId?: string;
@@ -147,6 +147,12 @@ export interface ConversationRes {
   lastMessage?: MessageDTO;
 }
 
+export interface GroupConversationPayload {
+  groupName: string;
+  description?: string;
+  members: ApiUser[];
+}
+
 export interface ConversationDisplayState {
   conversation: ConversationRes;
   lastMessage: string;
@@ -154,7 +160,7 @@ export interface ConversationDisplayState {
   unreadCount: number;
 }
 
-// 应用状态布局类型
+// 搴旂敤鐘舵€佸竷灞€绫诲瀷
 export type ActiveTab = 'home' | 'chats' | 'contacts' | 'settings';
 
 export interface RootState {

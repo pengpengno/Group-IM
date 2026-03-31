@@ -66,6 +66,14 @@ export const conversationAPI = {
     });
   },
 
+  createGroup: async (payload: { groupName: string; description?: string; members: Array<{ userId: number; username?: string; email?: string; phoneNumber?: string }> }) => {
+    return http.post('/api/conversations/group', payload);
+  },
+
+  addGroupMembers: async (conversationId: number, userIds: number[]) => {
+    return http.post(`/api/groups/${conversationId}/members/bulk`, userIds);
+  },
+
   // POST /api/messages/pull
   pullMessages: async (conversationId: number, fromSequenceId: number = 0) => {
     return http.post('/api/messages/pull', {

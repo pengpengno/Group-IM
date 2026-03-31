@@ -21,19 +21,15 @@ const App: React.FC = () => {
       webRTCService.initialize(store, user.userId);
 
       const isElectron = isElectronEnvironment();
+      const token = localStorage.getItem('token') || '';
 
       // Desktop uses Electron IPC + TCP for chat realtime sync.
-      // Web should not initialize the desktop socket pipeline.
-      if (isElectron) {
-        const token = localStorage.getItem('token') || '';
-        socketService.initialize(store, user.userId, __TCP_HOST__, Number(__TCP_PORT__), token, user.username);
-      }
+      // Web uses the same socketService, but it degrades to browser WebSocket on /ws.
+      socketService.initialize(store, user.userId, __TCP_HOST__, Number(__TCP_PORT__), token, user.username);
 
       return () => {
         webRTCService.destroy();
-        if (isElectron) {
-          socketService.disconnect();
-        }
+        socketService.disconnect();
       };
     }
   }, [isAuthenticated, user]);

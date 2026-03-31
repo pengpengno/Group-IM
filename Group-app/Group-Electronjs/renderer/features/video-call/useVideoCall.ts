@@ -1,18 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import { webRTCService, CallInternalState } from '../../services/WebRTCService';
-import { VideoCallState, VideoCallStatus } from './videoCallSlice';
+import { webRTCService, CallInternalState, RemoteParticipantStream } from '../../services/WebRTCService';
 
 interface UseVideoCallReturn {
   // State
   state: CallInternalState;
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
+  remoteParticipants: RemoteParticipantStream[];
 
   // Actions
   initialize: () => Promise<void>;
   startCall: (calleeId: string, calleeName?: string) => void;
-  acceptCall: (callerId: string) => void;
-  rejectCall: (callerId: string) => void;
+  startMeeting: (participants: Array<{ userId: string; userName?: string; avatar?: string }>) => void;
+  acceptCall: () => void;
+  rejectCall: () => void;
   endCall: () => void;
   toggleCamera: (enabled: boolean) => void;
   toggleMicrophone: (enabled: boolean) => void;
@@ -31,6 +32,7 @@ export const useVideoCall = (): UseVideoCallReturn => {
   const [state, setState] = useState<CallInternalState>(webRTCService.getState());
   const [localStream, setLocalStream] = useState<MediaStream | null>(webRTCService.getLocalStream());
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(webRTCService.getRemoteStream());
+  const [remoteParticipants, setRemoteParticipants] = useState<RemoteParticipantStream[]>(webRTCService.getRemoteParticipantStreams());
 
   useEffect(() => {
     const handleStateChange = (newState: CallInternalState) => {
@@ -42,12 +44,19 @@ export const useVideoCall = (): UseVideoCallReturn => {
       setRemoteStream(stream);
     };
 
+    const handleRemoteParticipantsChange = (participants: RemoteParticipantStream[]) => {
+      setRemoteParticipants(participants);
+      setRemoteStream(participants[0]?.stream || null);
+    };
+
     webRTCService.on('state-change', handleStateChange);
     webRTCService.on('remote-stream', handleRemoteStream);
+    webRTCService.on('remote-streams-change', handleRemoteParticipantsChange);
 
     return () => {
       webRTCService.off('state-change', handleStateChange);
       webRTCService.off('remote-stream', handleRemoteStream);
+      webRTCService.off('remote-streams-change', handleRemoteParticipantsChange);
     };
   }, []);
 
@@ -61,12 +70,16 @@ export const useVideoCall = (): UseVideoCallReturn => {
     webRTCService.initiateCall(calleeId, calleeName);
   }, []);
 
-  const acceptCall = useCallback((callerId: string) => {
+  const startMeeting = useCallback((participants: Array<{ userId: string; userName?: string; avatar?: string }>) => {
+    webRTCService.initiateMeeting(participants);
+  }, []);
+
+  const acceptCall = useCallback(() => {
     webRTCService.acceptCall();
   }, []);
 
-  const rejectCall = useCallback((callerId: string) => {
-    webRTCService.endCall();
+  const rejectCall = useCallback(() => {
+    webRTCService.rejectCall();
   }, []);
 
   const endCall = useCallback(() => {
@@ -115,8 +128,10 @@ export const useVideoCall = (): UseVideoCallReturn => {
     state,
     localStream,
     remoteStream,
+    remoteParticipants,
     initialize,
     startCall,
+    startMeeting,
     acceptCall,
     rejectCall,
     endCall,

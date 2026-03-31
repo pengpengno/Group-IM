@@ -22,18 +22,20 @@ class ConfigManager(
         val savedState = storage.getProxyState()
         // 这里可以根据某种逻辑判断环境，目前简单处理：
         // 如果 enableProxy 为 true，则使用 CUSTOM 环境，否则默认 DEV
-        if (savedState.enableProxy) {
-            val config = CustomConfig(
-                apiHost = savedState.host,
-                apiPort = savedState.port,
-                tcpPort = savedState.tcpPort
-            )
-            _currentConfig.value = config
-            _currentEnvironment.value = AppEnvironment.CUSTOM
-        } else {
+//        if (savedState.enableProxy) {
+//            val config = CustomConfig(
+//                apiHost = savedState.host,
+//                tcpHost = savedState.tcpHost,
+//                apiPort = savedState.port,
+//                tcpPort = savedState.tcpPort,
+//                useTls = savedState.useTls
+//            )
+//            _currentConfig.value = config
+//            _currentEnvironment.value = AppEnvironment.CUSTOM
+//        } else {
             // 以后可以扩展存储选中的环境枚举，这里暂时默认 DEV
-            setEnvironment(AppEnvironment.DEV)
-        }
+            setEnvironment(AppEnvironment.PROD)
+//        }
     }
 
     suspend fun setEnvironment(env: AppEnvironment) {
@@ -43,7 +45,7 @@ class ConfigManager(
             AppEnvironment.PROD -> ProdConfig()
             AppEnvironment.CUSTOM -> {
                 val state = storage.getProxyState()
-                CustomConfig(state.host, state.port, state.tcpPort)
+                CustomConfig(state.host, state.tcpHost, state.port, state.tcpPort, state.useTls)
             }
         }
         _currentConfig.value = config
@@ -53,8 +55,10 @@ class ConfigManager(
         if (env != AppEnvironment.CUSTOM) {
             storage.setProxyState(ProxySettingsState(
                 host = config.apiHost,
+                tcpHost = config.tcpHost,
                 port = config.apiPort,
                 tcpPort = config.tcpPort,
+                useTls = config.useTls,
                 enableProxy = false
             ))
         } else {
@@ -63,10 +67,10 @@ class ConfigManager(
         }
     }
 
-    suspend fun updateCustomConfig(host: String, port: Int, tcpPort: Int) {
-        val config = CustomConfig(host, port, tcpPort)
+    suspend fun updateCustomConfig(host: String, tcpHost: String, port: Int, tcpPort: Int, useTls: Boolean) {
+        val config = CustomConfig(host, tcpHost, port, tcpPort, useTls)
         _currentConfig.value = config
         _currentEnvironment.value = AppEnvironment.CUSTOM
-        storage.setProxyState(ProxySettingsState(host, port, tcpPort, true))
+        storage.setProxyState(ProxySettingsState(host, tcpHost, port, tcpPort, useTls, true))
     }
 }

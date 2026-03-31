@@ -1,29 +1,16 @@
 import { EventEmitter } from 'events';
 import { Store } from '@reduxjs/toolkit';
-import { 
-  VideoCallStatus, 
-  incomingCall, 
-  callConnected, 
-  callEnded, 
+import {
+  VideoCallStatus,
+  incomingCall,
+  callConnected,
+  callEnded,
   callError,
   setLocalStreamId,
-  setRemoteStreamId 
+  setRemoteStreamId
 } from '../features/video-call/videoCallSlice';
 import { RootState } from '../store';
 import { webrtcAPI } from './api/apiClient';
-
-// WebRTC Message Protocol
-export interface WebrtcMessage {
-  type: string;              // Message type: call/request, call/accept, call/end, offer, answer, candidate
-  fromUser?: string;         // Sender ID
-  fromUserName?: string;     // Sender Name (Metadata)
-  fromAvatar?: string;       // Sender Avatar (Metadata)
-  toUser?: string;           // Receiver ID
-  sdp?: string;              // SDP description
-  sdpType?: string;          // SDP type: offer/answer
-  candidate?: IceCandidateData; // ICE candidate
-  reason?: string;           // Failure reason
-}
 
 export interface IceCandidateData {
   candidate: string;
@@ -31,50 +18,86 @@ export interface IceCandidateData {
   sdpMLineIndex: number;
 }
 
-// Internal Call State for the Service
+export interface MeetingParticipantState {
+  userId: string;
+  userName?: string;
+  avatar?: string;
+  streamId?: string;
+  isLocal?: boolean;
+  connectionState?: RTCPeerConnectionState | 'idle';
+}
+
+export interface WebrtcMessage {
+  type: string;
+  fromUser?: string;
+  fromUserName?: string;
+  fromAvatar?: string;
+  toUser?: string;
+  roomId?: string;
+  sdp?: string;
+  sdpType?: string;
+  candidate?: IceCandidateData;
+  reason?: string;
+  participants?: Array<Record<string, any>>;
+  userId?: string;
+  userName?: string;
+  avatar?: string;
+}
+
+export interface RemoteParticipantStream {
+  userId: string;
+  userName?: string;
+  avatar?: string;
+  stream: MediaStream | null;
+}
+
 export interface CallInternalState {
   callStatus: VideoCallStatus;
+  roomId?: string;
   remoteUserId?: string;
   remoteUserName?: string;
   remoteAvatar?: string;
+  participants: MeetingParticipantState[];
   callStartTime?: number;
   duration: number;
   isLocalVideoEnabled: boolean;
   isRemoteVideoEnabled: boolean;
   isMicrophoneEnabled: boolean;
   isSpeakerEnabled: boolean;
+  isMeeting: boolean;
   errorMessage?: string;
 }
 
-const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
-  { urls: 'stun:stun.l.google.com:19302' }
-];
+const DEFAULT_ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 
 export class WebRTCService extends EventEmitter {
-  private peerConnection: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
-  private remoteStream: MediaStream | null = null;
   private websocket: WebSocket | null = null;
   private store: Store<RootState> | null = null;
-  private userId: string = '';
-  private remoteUserId: string = '';
+  private userId = '';
   private iceServers: RTCIceServer[];
+  private initialized = false;
+  private participantDirectory = new Map<string, MeetingParticipantState>();
+  private peerConnections = new Map<string, RTCPeerConnection>();
+  private remoteStreams = new Map<string, MediaStream>();
+  private pendingIceCandidates = new Map<string, RTCIceCandidateInit[]>();
+  private reconnectAttempts = 0;
+  private readonly MAX_RECONNECT_ATTEMPTS = 5;
+  private durationInterval: ReturnType<typeof setInterval> | null = null;
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private isConnecting = false;
 
   private state: CallInternalState = {
     callStatus: VideoCallStatus.IDLE,
+    participants: [],
     duration: 0,
     isLocalVideoEnabled: true,
-    isRemoteVideoEnabled: true,
+    isRemoteVideoEnabled: false,
     isMicrophoneEnabled: true,
-    isSpeakerEnabled: true
+    isSpeakerEnabled: true,
+    isMeeting: false
   };
-
-  private reconnectAttempts = 0;
-  private readonly MAX_RECONNECT_ATTEMPTS = 5;
-  private durationInterval: any = null;
-  private heartbeatInterval: any = null;
-  private reconnectTimer: any = null;
-  private isConnecting: boolean = false;
 
   constructor(iceServers: RTCIceServer[] = DEFAULT_ICE_SERVERS) {
     super();
@@ -82,7 +105,10 @@ export class WebRTCService extends EventEmitter {
   }
 
   public getState(): CallInternalState {
-    return { ...this.state };
+    return {
+      ...this.state,
+      participants: [...this.state.participants]
+    };
   }
 
   public getLocalStream(): MediaStream | null {
@@ -90,7 +116,18 @@ export class WebRTCService extends EventEmitter {
   }
 
   public getRemoteStream(): MediaStream | null {
-    return this.remoteStream;
+    return this.getRemoteParticipantStreams()[0]?.stream || null;
+  }
+
+  public getRemoteParticipantStreams(): RemoteParticipantStream[] {
+    return [...this.participantDirectory.values()]
+      .filter((participant) => !participant.isLocal)
+      .map((participant) => ({
+        userId: participant.userId,
+        userName: participant.userName,
+        avatar: participant.avatar,
+        stream: this.remoteStreams.get(participant.userId) || null
+      }));
   }
 
   private async requestUserMedia(constraints: MediaStreamConstraints): Promise<MediaStream> {
@@ -145,96 +182,36 @@ export class WebRTCService extends EventEmitter {
     throw new Error(`getUserMedia is not available in this environment.${secureContextHint}`);
   }
 
-  /**
-   * Initialize with Redux store and create PC
-   */
   public async initialize(store?: Store<RootState>, userId?: string): Promise<void> {
     if (store) this.store = store;
     if (userId) this.userId = userId;
-    
-    if (this.peerConnection) return;
 
-    try {
-      // 动态获取最新的 ICE Servers（STUN/TURN）
-      console.log('Fetching ICE servers from backend...');
-      try {
-        const response = await webrtcAPI.getIceServers();
-        if (response.data && Array.isArray(response.data)) {
-          // 适配后端模型 IceServerConfig
-          this.iceServers = response.data.map((s: any) => ({
-            urls: s.url,
-            username: s.username,
-            credential: s.credential
-          }));
-          console.log('Fetched ICE servers successfully:', this.iceServers);
-        }
-      } catch (err) {
-        console.warn('Failed to fetch ICE servers, using defaults:', err);
-      }
-
-      this.peerConnection = new RTCPeerConnection({
-        iceServers: this.iceServers
-      });
-      
-      this.setupPeerConnectionEvents();
-      console.log('WebRTCService initialized with PC');
-    } catch (error) {
-      console.error('Failed to initialize WebRTCService:', error);
-      throw error;
+    if (this.initialized) {
+      return;
     }
-  }
 
-  private setupPeerConnectionEvents(): void {
-    if (!this.peerConnection) return;
-
-    this.peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        this.sendSignalingMessage({
-          type: 'candidate',
-          fromUser: this.userId,
-          toUser: this.remoteUserId,
-          candidate: {
-            candidate: event.candidate.candidate,
-            sdpMid: event.candidate.sdpMid || '',
-            sdpMLineIndex: event.candidate.sdpMLineIndex || 0
-          }
-        });
+    console.log('Fetching ICE servers from backend...');
+    try {
+      const response = await webrtcAPI.getIceServers();
+      if (response.data && Array.isArray(response.data)) {
+        this.iceServers = response.data.map((server: any) => ({
+          urls: server.url,
+          username: server.username,
+          credential: server.credential
+        }));
+        console.log('Fetched ICE servers successfully:', this.iceServers);
       }
-    };
+    } catch (error) {
+      console.warn('Failed to fetch ICE servers, using defaults:', error);
+    }
 
-    this.peerConnection.ontrack = (event) => {
-      console.log('Received remote track:', event.track.kind);
-      if (event.streams && event.streams[0]) {
-        this.remoteStream = event.streams[0];
-        this.emit('remote-stream', this.remoteStream);
-        this.updateState({ isRemoteVideoEnabled: true });
-        
-        if (this.store) {
-          this.store.dispatch(setRemoteStreamId(this.remoteStream.id));
-        }
-      }
-    };
-
-    this.peerConnection.onconnectionstatechange = () => {
-      const connState = this.peerConnection?.connectionState;
-      console.log('WebRTC Connection State:', connState);
-      
-      if (connState === 'connected') {
-        this.updateState({ callStatus: VideoCallStatus.ACTIVE, callStartTime: Date.now() });
-        this.startDurationTimer();
-        if (this.store) {
-          this.store.dispatch(callConnected());
-        }
-      } else if (connState === 'failed' || connState === 'disconnected') {
-        this.handleError(new Error(`WebRTC Connection ${connState}`));
-      }
-    };
+    this.initialized = true;
   }
 
   public async acquireLocalMedia(): Promise<MediaStream> {
     try {
       if (this.localStream) {
-        this.localStream.getTracks().forEach(t => t.stop());
+        this.localStream.getTracks().forEach((track) => track.stop());
       }
 
       this.localStream = await this.requestUserMedia({
@@ -242,19 +219,20 @@ export class WebRTCService extends EventEmitter {
         audio: true
       });
 
-      if (this.peerConnection) {
-        // Clear existing senders if any
-        const senders = this.peerConnection.getSenders();
-        senders.forEach(sender => this.peerConnection?.removeTrack(sender));
-
-        this.localStream.getTracks().forEach(track => {
-          this.peerConnection!.addTrack(track, this.localStream!);
-        });
-      }
+      this.syncLocalStreamToPeers();
 
       if (this.store) {
         this.store.dispatch(setLocalStreamId(this.localStream.id));
       }
+
+      this.upsertParticipant({
+        userId: this.userId,
+        userName: this.store?.getState().auth.user?.username,
+        avatar: this.store?.getState().auth.user?.avatar,
+        isLocal: true,
+        streamId: this.localStream.id,
+        connectionState: 'idle'
+      });
 
       return this.localStream;
     } catch (error) {
@@ -263,44 +241,54 @@ export class WebRTCService extends EventEmitter {
     }
   }
 
-  /**
-   * Connect to the WebSocket signaling server
-   */
+  private syncLocalStreamToPeers(): void {
+    if (!this.localStream) {
+      return;
+    }
+
+    this.peerConnections.forEach((peerConnection) => {
+      const existingTrackIds = new Set(
+        peerConnection.getSenders().map((sender) => sender.track?.id).filter(Boolean)
+      );
+
+      this.localStream!.getTracks().forEach((track) => {
+        if (!existingTrackIds.has(track.id)) {
+          peerConnection.addTrack(track, this.localStream!);
+        }
+      });
+    });
+  }
+
   public connectSignaling(host: string, port: number, userId: string, token: string, pageProtocol: string = 'http:'): void {
-    // 如果已经连接或是正在连接到同一个服务器且同一个用户，就不重复发起
     const protocol = pageProtocol === 'https:' || pageProtocol === 'wss:' ? 'wss' : 'ws';
     const cleanHost = host.replace(/^https?:\/\//, '');
     const url = `${protocol}://${cleanHost}:${port}/ws?userId=${userId}&token=${token}`;
 
-    if (this.websocket && (this.websocket.readyState === WebSocket.OPEN || this.websocket.readyState === WebSocket.CONNECTING)) {
-        if (this.websocket.url === url) {
-            console.log('Already connected or connecting to signaling server:', url);
-            return;
-        }
+    if (this.websocket && (this.websocket.readyState === WebSocket.OPEN || this.websocket.readyState === WebSocket.CONNECTING) && this.websocket.url === url) {
+      console.log('Already connected or connecting to signaling server:', url);
+      return;
     }
 
     if (this.isConnecting) {
-        console.log('Signaling connection already in progress...');
-        return;
+      console.log('Signaling connection already in progress...');
+      return;
     }
 
     this.userId = userId;
     console.log('Connecting to signaling server:', url);
-    
-    // 清理之前的定时器
+
     if (this.reconnectTimer) {
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = null;
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
     }
-    
-    // 清理旧的 WebSocket 及其监听器，防止调用此方法手动关闭旧连接时触发 onclose 的重连逻辑
+
     if (this.websocket) {
-        this.websocket.onopen = null;
-        this.websocket.onmessage = null;
-        this.websocket.onclose = null;
-        this.websocket.onerror = null;
-        this.websocket.close();
-        this.websocket = null;
+      this.websocket.onopen = null;
+      this.websocket.onmessage = null;
+      this.websocket.onclose = null;
+      this.websocket.onerror = null;
+      this.websocket.close();
+      this.websocket = null;
     }
 
     this.isConnecting = true;
@@ -311,14 +299,18 @@ export class WebRTCService extends EventEmitter {
       this.reconnectAttempts = 0;
       this.isConnecting = false;
       this.startHeartbeat();
+
+      if (this.state.roomId && this.state.callStatus !== VideoCallStatus.IDLE) {
+        this.sendMeetingJoin(this.state.roomId);
+      }
     };
 
     this.websocket.onmessage = (event) => {
       try {
         const message: WebrtcMessage = JSON.parse(event.data);
         this.handleSignalingMessage(message);
-      } catch (e) {
-        console.error('Failed to parse signaling message:', e);
+      } catch (error) {
+        console.error('Failed to parse signaling message:', error);
       }
     };
 
@@ -326,18 +318,13 @@ export class WebRTCService extends EventEmitter {
       console.log('Signaling WebSocket closed:', event.code, 'Reason:', event.reason);
       this.isConnecting = false;
       this.stopHeartbeat();
-      
-      // 如果不是因为 ended 而关闭，且重连次数没超过限制，就尝试重连
-      if (!this.state.callStatus.includes('ENDED') && 
-          this.state.callStatus !== VideoCallStatus.IDLE && // 如果手动设置为 IDLE 也不应重连
-          this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
-        
-        console.log(`Scheduling reconnect... attempts: ${this.reconnectAttempts + 1}/${this.MAX_RECONNECT_ATTEMPTS}`);
+
+      if (this.state.callStatus !== VideoCallStatus.IDLE && this.state.callStatus !== VideoCallStatus.ENDED && this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
         this.reconnectAttempts++;
         this.reconnectTimer = setTimeout(() => {
-            this.reconnectTimer = null;
-            this.connectSignaling(host, port, userId, token, pageProtocol);
-        }, 5000); // 稍微增加重连间隔
+          this.reconnectTimer = null;
+          this.connectSignaling(host, port, userId, token, pageProtocol);
+        }, 5000);
       }
     };
 
@@ -350,17 +337,16 @@ export class WebRTCService extends EventEmitter {
   private startHeartbeat(): void {
     this.stopHeartbeat();
     this.heartbeatInterval = setInterval(() => {
-        if (this.websocket?.readyState === WebSocket.OPEN) {
-            // 发送心跳包
-            this.websocket.send(JSON.stringify({ type: 'ping', fromUser: this.userId }));
-        }
-    }, 30000); // 每30秒发送一次心跳
+      if (this.websocket?.readyState === WebSocket.OPEN) {
+        this.websocket.send(JSON.stringify({ type: 'ping', fromUser: this.userId }));
+      }
+    }, 30000);
   }
 
   private stopHeartbeat(): void {
     if (this.heartbeatInterval) {
-        clearInterval(this.heartbeatInterval);
-        this.heartbeatInterval = null;
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
     }
   }
 
@@ -368,180 +354,458 @@ export class WebRTCService extends EventEmitter {
     console.log('Signaling Received:', message.type, 'from:', message.fromUser);
 
     switch (message.type) {
+      case 'meeting/request':
       case 'call/request':
-        this.remoteUserId = message.fromUser || '';
-        this.updateState({
-          callStatus: VideoCallStatus.INCOMING,
-          remoteUserId: this.remoteUserId,
-          remoteUserName: message.fromUserName,
-          remoteAvatar: message.fromAvatar
-        });
-        
-        if (this.store) {
-          this.store.dispatch(incomingCall({
-            callId: `call-${Date.now()}`,
-            remoteUser: {
-              userId: this.remoteUserId,
-              username: message.fromUserName || `User ${this.remoteUserId}`,
-              avatar: message.fromAvatar,
-              email: '',
-              status: 'online'
-            }
-          }));
-        }
-
-        this.emit('incoming-call', { callerId: this.remoteUserId });
+        this.handleMeetingRequest(message);
         break;
-
-      case 'call/accept':
-        this.remoteUserId = message.fromUser || '';
-        this.createOffer();
+      case 'meeting/participants':
+        this.handleMeetingParticipants(message);
         break;
-
+      case 'meeting/participant-joined':
+        this.handleParticipantJoined(message);
+        break;
+      case 'meeting/participant-left':
+        this.handleParticipantLeft(message);
+        break;
+      case 'meeting/reject':
+      case 'call/failed':
+        this.handleMeetingRejected(message);
+        break;
       case 'offer':
-        this.handleOffer(message);
+        void this.handleOffer(message);
         break;
-
       case 'answer':
-        this.handleAnswer(message);
+        void this.handleAnswer(message);
         break;
-
       case 'candidate':
         this.handleIceCandidate(message);
         break;
-
+      case 'meeting/leave':
       case 'call/end':
-        this.handleRemoteHangup();
+        this.handleRemoteHangup(message.fromUser);
         break;
-
-      case 'call/failed':
-        this.handleError(new Error(message.reason || 'Remote call failed'));
+      default:
         break;
     }
   }
 
-  private async createOffer(): Promise<void> {
-    try {
-      if (!this.peerConnection) await this.initialize();
-      if (!this.localStream) await this.acquireLocalMedia();
+  private handleMeetingRequest(message: WebrtcMessage): void {
+    const roomId = message.roomId || this.createRoomId();
+    this.upsertParticipant({
+      userId: message.fromUser || '',
+      userName: message.fromUserName,
+      avatar: message.fromAvatar
+    });
 
-      const offer = await this.peerConnection!.createOffer({
+    this.updateState({
+      callStatus: VideoCallStatus.INCOMING,
+      roomId,
+      remoteUserId: message.fromUser,
+      remoteUserName: message.fromUserName,
+      remoteAvatar: message.fromAvatar,
+      isMeeting: (message.participants?.length || 0) > 1
+    });
+
+    if (this.store && message.fromUser) {
+      this.store.dispatch(incomingCall({
+        callId: roomId,
+        remoteUser: {
+          userId: message.fromUser,
+          username: message.fromUserName || `User ${message.fromUser}`,
+          avatar: message.fromAvatar,
+          email: '',
+          status: 'online'
+        }
+      }));
+    }
+
+    this.emit('incoming-call', { callerId: message.fromUser, roomId });
+  }
+
+  private handleMeetingParticipants(message: WebrtcMessage): void {
+    const participants = message.participants || [];
+    participants.forEach((participant) => {
+      const participantId = String(participant.userId || participant.fromUser || '');
+      if (!participantId || participantId === this.userId) {
+        return;
+      }
+
+      this.upsertParticipant({
+        userId: participantId,
+        userName: participant.userName || participant.fromUserName,
+        avatar: participant.avatar
+      });
+    });
+
+    this.updateState({
+      roomId: message.roomId || this.state.roomId,
+      callStatus: VideoCallStatus.CONNECTING,
+      isMeeting: participants.length > 1
+    });
+  }
+
+  private handleParticipantJoined(message: WebrtcMessage): void {
+    const participantId = String(message.fromUser || message.userId || '');
+    if (!participantId || participantId === this.userId) {
+      return;
+    }
+
+    this.upsertParticipant({
+      userId: participantId,
+      userName: message.userName || message.fromUserName,
+      avatar: message.avatar || message.fromAvatar
+    });
+
+    if (this.state.callStatus !== VideoCallStatus.INCOMING) {
+      void this.createOfferForParticipant(participantId);
+    }
+  }
+
+  private handleParticipantLeft(message: WebrtcMessage): void {
+    const participantId = String(message.fromUser || message.userId || '');
+    if (!participantId) {
+      return;
+    }
+
+    this.removeParticipantConnection(participantId);
+
+    if (this.getRemoteParticipantStreams().length === 0 && this.state.callStatus === VideoCallStatus.ACTIVE) {
+      this.cleanupCallState(false);
+    }
+  }
+
+  private handleMeetingRejected(message: WebrtcMessage): void {
+    const rejectedUserId = message.fromUser;
+    if (rejectedUserId) {
+      this.removeParticipantConnection(rejectedUserId);
+    }
+
+    if (this.getRemoteParticipantStreams().length === 0 && this.state.callStatus === VideoCallStatus.OUTGOING) {
+      this.handleError(new Error(message.reason || 'Call was rejected'));
+    }
+  }
+
+  private async createOfferForParticipant(remoteUserId: string): Promise<void> {
+    try {
+      if (!this.localStream) {
+        await this.acquireLocalMedia();
+      }
+
+      const peerConnection = await this.ensurePeerConnection(remoteUserId);
+      const offer = await peerConnection.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: true
       });
-      await this.peerConnection!.setLocalDescription(offer);
+      await peerConnection.setLocalDescription(offer);
 
       this.sendSignalingMessage({
         type: 'offer',
         fromUser: this.userId,
-        toUser: this.remoteUserId,
-        sdp: offer.sdp,
+        toUser: remoteUserId,
+        roomId: this.state.roomId,
+        sdp: offer.sdp || '',
         sdpType: 'offer'
       });
 
       this.updateState({ callStatus: VideoCallStatus.CONNECTING });
-    } catch (e) {
-      this.handleError(e as Error);
+    } catch (error) {
+      this.handleError(error as Error);
     }
   }
 
   private async handleOffer(message: WebrtcMessage): Promise<void> {
     try {
-      if (!this.peerConnection) await this.initialize();
-      if (!this.localStream) await this.acquireLocalMedia();
+      const remoteUserId = String(message.fromUser || '');
+      if (!remoteUserId) {
+        return;
+      }
 
-      await this.peerConnection!.setRemoteDescription(new RTCSessionDescription({
+      if (!this.localStream) {
+        await this.acquireLocalMedia();
+      }
+
+      const peerConnection = await this.ensurePeerConnection(remoteUserId);
+      await peerConnection.setRemoteDescription(new RTCSessionDescription({
         type: 'offer',
         sdp: message.sdp
       }));
 
-      const answer = await this.peerConnection!.createAnswer();
-      await this.peerConnection!.setLocalDescription(answer);
+      const queuedCandidates = this.pendingIceCandidates.get(remoteUserId) || [];
+      for (const candidate of queuedCandidates) {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+      this.pendingIceCandidates.delete(remoteUserId);
+
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
 
       this.sendSignalingMessage({
         type: 'answer',
         fromUser: this.userId,
-        toUser: this.remoteUserId,
-        sdp: answer.sdp,
+        toUser: remoteUserId,
+        roomId: this.state.roomId || message.roomId,
+        sdp: answer.sdp || '',
         sdpType: 'answer'
       });
 
       this.updateState({ callStatus: VideoCallStatus.CONNECTING });
-    } catch (e) {
-      this.handleError(e as Error);
+    } catch (error) {
+      this.handleError(error as Error);
     }
   }
 
   private async handleAnswer(message: WebrtcMessage): Promise<void> {
     try {
-      if (this.peerConnection && message.sdp) {
-        await this.peerConnection.setRemoteDescription(new RTCSessionDescription({
-          type: 'answer',
-          sdp: message.sdp
-        }));
+      const remoteUserId = String(message.fromUser || '');
+      const peerConnection = this.peerConnections.get(remoteUserId);
+      if (!peerConnection || !message.sdp) {
+        return;
       }
-    } catch (e) {
-      this.handleError(e as Error);
+
+      await peerConnection.setRemoteDescription(new RTCSessionDescription({
+        type: 'answer',
+        sdp: message.sdp
+      }));
+
+      const queuedCandidates = this.pendingIceCandidates.get(remoteUserId) || [];
+      for (const candidate of queuedCandidates) {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+      this.pendingIceCandidates.delete(remoteUserId);
+    } catch (error) {
+      this.handleError(error as Error);
     }
   }
 
   private handleIceCandidate(message: WebrtcMessage): void {
-    if (this.peerConnection && message.candidate) {
-      this.peerConnection.addIceCandidate(new RTCIceCandidate({
-        candidate: message.candidate.candidate,
-        sdpMid: message.candidate.sdpMid,
-        sdpMLineIndex: message.candidate.sdpMLineIndex
-      })).catch(e => console.error('Error adding ICE candidate:', e));
+    const remoteUserId = String(message.fromUser || '');
+    if (!remoteUserId || !message.candidate) {
+      return;
     }
+
+    const candidate: RTCIceCandidateInit = {
+      candidate: message.candidate.candidate,
+      sdpMid: message.candidate.sdpMid,
+      sdpMLineIndex: message.candidate.sdpMLineIndex
+    };
+
+    const peerConnection = this.peerConnections.get(remoteUserId);
+    if (peerConnection && peerConnection.remoteDescription) {
+      peerConnection.addIceCandidate(new RTCIceCandidate(candidate)).catch((error) => {
+        console.error('Error adding ICE candidate:', error);
+      });
+      return;
+    }
+
+    const pending = this.pendingIceCandidates.get(remoteUserId) || [];
+    pending.push(candidate);
+    this.pendingIceCandidates.set(remoteUserId, pending);
+  }
+
+  private async ensurePeerConnection(remoteUserId: string): Promise<RTCPeerConnection> {
+    await this.initialize();
+
+    const existing = this.peerConnections.get(remoteUserId);
+    if (existing) {
+      return existing;
+    }
+
+    const peerConnection = new RTCPeerConnection({ iceServers: this.iceServers });
+    this.peerConnections.set(remoteUserId, peerConnection);
+
+    if (this.localStream) {
+      this.localStream.getTracks().forEach((track) => {
+        peerConnection.addTrack(track, this.localStream!);
+      });
+    }
+
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        this.sendSignalingMessage({
+          type: 'candidate',
+          fromUser: this.userId,
+          toUser: remoteUserId,
+          roomId: this.state.roomId,
+          candidate: {
+            candidate: event.candidate.candidate,
+            sdpMid: event.candidate.sdpMid || '',
+            sdpMLineIndex: event.candidate.sdpMLineIndex || 0
+          }
+        });
+      }
+    };
+
+    peerConnection.ontrack = (event) => {
+      if (event.streams && event.streams[0]) {
+        const stream = event.streams[0];
+        this.remoteStreams.set(remoteUserId, stream);
+        this.upsertParticipant({
+          userId: remoteUserId,
+          streamId: stream.id,
+          connectionState: peerConnection.connectionState
+        });
+        this.emit('remote-streams-change', this.getRemoteParticipantStreams());
+
+        const firstRemoteStream = this.getRemoteStream();
+        if (this.store) {
+          this.store.dispatch(setRemoteStreamId(firstRemoteStream?.id || null));
+        }
+      }
+    };
+
+    peerConnection.onconnectionstatechange = () => {
+      this.upsertParticipant({
+        userId: remoteUserId,
+        connectionState: peerConnection.connectionState
+      });
+
+      if (peerConnection.connectionState === 'connected') {
+        if (!this.state.callStartTime) {
+          this.updateState({
+            callStatus: VideoCallStatus.ACTIVE,
+            callStartTime: Date.now()
+          });
+          this.startDurationTimer();
+          if (this.store) {
+            this.store.dispatch(callConnected());
+          }
+        } else {
+          this.updateState({ callStatus: VideoCallStatus.ACTIVE });
+        }
+      } else if (peerConnection.connectionState === 'failed') {
+        this.handleError(new Error(`WebRTC Connection failed for ${remoteUserId}`));
+      } else if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'closed') {
+        this.removeParticipantConnection(remoteUserId);
+      }
+    };
+
+    return peerConnection;
   }
 
   public initiateCall(remoteUserId: string, remoteUserName?: string): void {
-    this.remoteUserId = remoteUserId;
-    
-    // Attempt to get our own metadata from the store if it exists
-    const currentUser = this.store?.getState().auth.user;
+    this.initiateMeeting([{ userId: remoteUserId, userName: remoteUserName }]);
+  }
 
-    this.updateState({
-      callStatus: VideoCallStatus.OUTGOING,
-      remoteUserId,
-      remoteUserName
-    });
+  public initiateMeeting(targets: Array<{ userId: string; userName?: string; avatar?: string }>): void {
+    void this.startMeetingFlow(targets);
+  }
 
+  private async startMeetingFlow(targets: Array<{ userId: string; userName?: string; avatar?: string }>): Promise<void> {
+    try {
+      if (!targets.length) {
+        throw new Error('No participants provided for meeting');
+      }
+
+      await this.initialize();
+      if (!this.localStream) {
+        await this.acquireLocalMedia();
+      }
+
+      const roomId = this.createRoomId();
+      targets.forEach((target) => {
+        this.upsertParticipant({
+          userId: target.userId,
+          userName: target.userName,
+          avatar: target.avatar
+        });
+      });
+
+      const firstTarget = targets[0];
+      this.updateState({
+        callStatus: VideoCallStatus.OUTGOING,
+        roomId,
+        remoteUserId: firstTarget.userId,
+        remoteUserName: firstTarget.userName,
+        remoteAvatar: firstTarget.avatar,
+        isMeeting: targets.length > 1
+      });
+
+      this.sendMeetingJoin(roomId);
+
+      for (const target of targets) {
+        this.sendSignalingMessage({
+          type: 'meeting/request',
+          fromUser: this.userId,
+          fromUserName: this.store?.getState().auth.user?.username,
+          fromAvatar: this.store?.getState().auth.user?.avatar,
+          toUser: target.userId,
+          roomId,
+          participants: targets.map((participant) => ({
+            userId: participant.userId,
+            userName: participant.userName,
+            avatar: participant.avatar
+          }))
+        });
+      }
+    } catch (error) {
+      this.handleError(error as Error);
+    }
+  }
+
+  private sendMeetingJoin(roomId: string): void {
     this.sendSignalingMessage({
-      type: 'call/request',
+      type: 'meeting/join',
       fromUser: this.userId,
-      fromUserName: currentUser?.username,
-      fromAvatar: currentUser?.avatar,
-      toUser: remoteUserId
+      fromUserName: this.store?.getState().auth.user?.username,
+      fromAvatar: this.store?.getState().auth.user?.avatar,
+      roomId
     });
   }
 
   public acceptCall(): void {
-    if (!this.remoteUserId) return;
+    void this.acceptPendingMeeting();
+  }
 
-    this.sendSignalingMessage({
-      type: 'call/accept',
-      fromUser: this.userId,
-      toUser: this.remoteUserId
-    });
+  private async acceptPendingMeeting(): Promise<void> {
+    try {
+      if (!this.state.roomId) {
+        return;
+      }
 
-    this.updateState({ callStatus: VideoCallStatus.CONNECTING });
+      await this.initialize();
+      if (!this.localStream) {
+        await this.acquireLocalMedia();
+      }
+
+      this.updateState({ callStatus: VideoCallStatus.CONNECTING });
+      this.sendMeetingJoin(this.state.roomId);
+    } catch (error) {
+      this.handleError(error as Error);
+    }
+  }
+
+  public rejectCall(): void {
+    if (this.state.remoteUserId) {
+      this.sendSignalingMessage({
+        type: 'meeting/reject',
+        fromUser: this.userId,
+        toUser: this.state.remoteUserId,
+        roomId: this.state.roomId,
+        reason: 'Call rejected'
+      });
+    }
+    this.cleanupCallState(false);
   }
 
   public endCall(): void {
-    if (this.remoteUserId) {
+    if (this.state.roomId) {
       this.sendSignalingMessage({
-        type: 'call/end',
+        type: 'meeting/leave',
         fromUser: this.userId,
-        toUser: this.remoteUserId
+        roomId: this.state.roomId
       });
     }
-    this.cleanup();
+    this.cleanupCallState(false);
   }
 
-  private handleRemoteHangup(): void {
-    this.cleanup();
-    this.emit('call-ended', { remoteId: this.remoteUserId });
+  private handleRemoteHangup(remoteUserId?: string): void {
+    if (remoteUserId) {
+      this.removeParticipantConnection(remoteUserId);
+    } else {
+      this.cleanupCallState(false);
+    }
+
+    this.emit('call-ended', { remoteId: remoteUserId || this.state.remoteUserId });
   }
 
   private sendSignalingMessage(message: WebrtcMessage): void {
@@ -552,9 +816,66 @@ export class WebRTCService extends EventEmitter {
     }
   }
 
+  private createRoomId(): string {
+    return `meeting-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  private upsertParticipant(participant: Partial<MeetingParticipantState> & { userId: string }): void {
+    const current = this.participantDirectory.get(participant.userId) || {
+      userId: participant.userId,
+      connectionState: 'idle'
+    };
+
+    this.participantDirectory.set(participant.userId, {
+      ...current,
+      ...participant
+    });
+    this.syncStateParticipants();
+  }
+
+  private removeParticipantConnection(userId: string): void {
+    const peerConnection = this.peerConnections.get(userId);
+    if (peerConnection) {
+      peerConnection.onicecandidate = null;
+      peerConnection.ontrack = null;
+      peerConnection.onconnectionstatechange = null;
+      peerConnection.close();
+      this.peerConnections.delete(userId);
+    }
+
+    this.pendingIceCandidates.delete(userId);
+    this.remoteStreams.delete(userId);
+    this.participantDirectory.delete(userId);
+
+    this.emit('remote-streams-change', this.getRemoteParticipantStreams());
+    const firstRemoteStream = this.getRemoteStream();
+    if (this.store) {
+      this.store.dispatch(setRemoteStreamId(firstRemoteStream?.id || null));
+    }
+    this.syncStateParticipants();
+  }
+
+  private syncStateParticipants(): void {
+    const participants = [...this.participantDirectory.values()];
+    const firstRemote = participants.find((participant) => !participant.isLocal);
+
+    this.updateState({
+      participants,
+      remoteUserId: firstRemote?.userId,
+      remoteUserName: firstRemote?.userName,
+      remoteAvatar: firstRemote?.avatar,
+      isRemoteVideoEnabled: this.getRemoteParticipantStreams().length > 0,
+      isMeeting: participants.filter((participant) => !participant.isLocal).length > 1 || this.state.isMeeting
+    });
+  }
+
   private updateState(updates: Partial<CallInternalState>): void {
-    this.state = { ...this.state, ...updates };
-    this.emit('state-change', this.state);
+    this.state = {
+      ...this.state,
+      ...updates,
+      participants: updates.participants ?? this.state.participants
+    };
+    this.emit('state-change', this.getState());
   }
 
   private handleError(error: Error): void {
@@ -588,55 +909,87 @@ export class WebRTCService extends EventEmitter {
     }
   }
 
-  private cleanup(): void {
+  private cleanupCallState(resetError: boolean): void {
     this.stopDurationTimer();
-    this.stopHeartbeat();
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    if (this.peerConnection) {
-      this.peerConnection.close();
-      this.peerConnection = null;
-    }
+
+    this.peerConnections.forEach((peerConnection) => {
+      peerConnection.onicecandidate = null;
+      peerConnection.ontrack = null;
+      peerConnection.onconnectionstatechange = null;
+      peerConnection.close();
+    });
+    this.peerConnections.clear();
+    this.pendingIceCandidates.clear();
+    this.remoteStreams.clear();
+
     if (this.localStream) {
-      this.localStream.getTracks().forEach(t => t.stop());
+      this.localStream.getTracks().forEach((track) => track.stop());
       this.localStream = null;
     }
-    this.remoteStream = null;
+
+    this.participantDirectory.clear();
+    this.emit('remote-streams-change', []);
+
     this.updateState({
       callStatus: VideoCallStatus.IDLE,
+      roomId: undefined,
       remoteUserId: undefined,
+      remoteUserName: undefined,
+      remoteAvatar: undefined,
+      participants: [],
+      callStartTime: undefined,
       duration: 0,
-      callStartTime: undefined
+      isRemoteVideoEnabled: false,
+      isMeeting: false,
+      errorMessage: resetError ? undefined : this.state.errorMessage
     });
 
     if (this.store) {
+      this.store.dispatch(setLocalStreamId(null));
+      this.store.dispatch(setRemoteStreamId(null));
       this.store.dispatch(callEnded());
     }
   }
 
   public destroy(): void {
-    this.cleanup();
+    this.cleanupCallState(true);
+    this.stopHeartbeat();
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
     if (this.websocket) {
       this.websocket.close();
       this.websocket = null;
     }
+
     this.removeAllListeners();
   }
 
   public toggleCamera(enabled: boolean): void {
     if (this.localStream) {
-      this.localStream.getVideoTracks().forEach(t => t.enabled = enabled);
-      this.updateState({ isLocalVideoEnabled: enabled });
+      this.localStream.getVideoTracks().forEach((track) => {
+        track.enabled = enabled;
+      });
     }
+
+    this.updateState({ isLocalVideoEnabled: enabled });
   }
 
   public toggleMicrophone(enabled: boolean): void {
     if (this.localStream) {
-      this.localStream.getAudioTracks().forEach(t => t.enabled = enabled);
-      this.updateState({ isMicrophoneEnabled: enabled });
+      this.localStream.getAudioTracks().forEach((track) => {
+        track.enabled = enabled;
+      });
     }
+
+    this.updateState({ isMicrophoneEnabled: enabled });
+  }
+
+  public toggleSpeaker(enabled: boolean): void {
+    this.updateState({ isSpeakerEnabled: enabled });
   }
 }
 

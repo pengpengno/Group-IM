@@ -5,18 +5,12 @@ package com.github.im.group.config
 data class ProxySettingsState(
 
     val host: String = "10.122.155.252",
+    val tcpHost: String = "10.122.155.252",
     val port: Int = 8080,
     val tcpPort: Int = 8088,
+    val useTls: Boolean = false,
     val enableProxy: Boolean = false
-) {
-    fun getBaseUrl(): String {
-        return if (enableProxy) {
-            "http://$host:$port"
-        } else {
-            "http://$host:8080"
-        }
-    }
-}
+)
 
 object ProxyConfig {
     // 默认使用开发配置
@@ -28,12 +22,20 @@ object ProxyConfig {
         get() = _config.apiHost
         set(value) { /* 不建议直接设置，应通过 ConfigManager */ }
 
+    var tcpHost: String
+        get() = _config.tcpHost
+        set(value) { /* 不建议直接设置，应通过 ConfigManager */ }
+
     var port: Int
         get() = _config.apiPort
         set(value) { /* 不建议直接设置，应通过 ConfigManager */ }
 
     var tcp_port: Int
         get() = _config.tcpPort
+        set(value) { /* 不建议直接设置，应通过 ConfigManager */ }
+
+    var useTls: Boolean
+        get() = _config.useTls
         set(value) { /* 不建议直接设置，应通过 ConfigManager */ }
 
     var enableProxy: Boolean = false
@@ -47,6 +49,8 @@ object ProxyConfig {
     }
 
     fun getBaseUrl(): String = _config.getBaseUrl()
+
+    fun getWsBaseUrl(): String = _config.getWsBaseUrl()
 
     fun setProxy(host: String, port: Int) {
         // 这里的逻辑将来应迁移到 ConfigManager

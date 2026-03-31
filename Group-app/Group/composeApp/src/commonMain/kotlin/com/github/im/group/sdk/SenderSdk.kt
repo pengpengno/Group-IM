@@ -25,7 +25,7 @@ class SenderSdk(
 
     private val scope = CoroutineScope(Dispatchers.IO)
     private val _connected = MutableStateFlow(false)
-    private val _host = ProxyConfig.host
+    private val _host = ProxyConfig.tcpHost
     private val _port = ProxyConfig.tcp_port
     private var reconnectJob: Job? = null
     private val reconnectMutex = Mutex()

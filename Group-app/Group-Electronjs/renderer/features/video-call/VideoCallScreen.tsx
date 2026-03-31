@@ -22,6 +22,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
     state: callState,
     localStream,
     remoteStream,
+    remoteParticipants,
     acceptCall,
     endCall,
     toggleCamera,
@@ -33,6 +34,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const [floatingPos, setFloatingPos] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -59,6 +61,16 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
     }
   }, [remoteStream, isMinimized]);
 
+  useEffect(() => {
+    remoteParticipants.forEach((participant) => {
+      const element = remoteVideoRefs.current[participant.userId];
+      if (element && participant.stream) {
+        element.srcObject = participant.stream;
+        element.play().catch((error) => console.warn('Remote participant video play failed:', error));
+      }
+    });
+  }, [remoteParticipants, isMinimized]);
+
   // Set up event listeners
   useEffect(() => {
     onCallEnded(() => {
@@ -72,9 +84,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   }, [onCallEnded, onError, onCallEnd]);
 
   const handleAccept = () => {
-    if (callState.remoteUserId) {
-        acceptCall(callState.remoteUserId);
-    }
+    acceptCall();
   };
 
   const formatDuration = (seconds: number): string => {
@@ -85,6 +95,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
 
   const displayName = callState.remoteUserName || remoteUserName || callState.remoteUserId || remoteUserId || 'Unknown User';
   const displayAvatar = callState.remoteAvatar || remoteAvatar;
+  const activeRemoteParticipants = remoteParticipants.filter((participant) => participant.stream);
 
   // Floating window drag logic
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -171,15 +182,29 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   return (
     <div className={`video-call-workspace status-${callState.callStatus.toLowerCase()}`}>
       {/* Background Layer: Remote Video or Gradient */}
-      <div className="main-video-area">
-        {remoteStream && callState.callStatus === VideoCallStatus.ACTIVE ? (
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            className="remote-video-full"
-            onLoadedMetadata={(e) => e.currentTarget.play()}
-          />
+        <div className="main-video-area">
+        {activeRemoteParticipants.length > 0 && callState.callStatus === VideoCallStatus.ACTIVE ? (
+          <div className={`meeting-grid participants-${Math.min(activeRemoteParticipants.length, 4)}`}>
+            {activeRemoteParticipants.map((participant, index) => (
+              <div key={participant.userId} className={`meeting-tile ${index === 0 ? 'meeting-tile-primary' : ''}`}>
+                <video
+                  ref={(element) => {
+                    remoteVideoRefs.current[participant.userId] = element;
+                    if (element && participant.stream) {
+                      element.srcObject = participant.stream;
+                    }
+                  }}
+                  autoPlay
+                  playsInline
+                  className="remote-video-full"
+                  onLoadedMetadata={(e) => e.currentTarget.play()}
+                />
+                <div className="meeting-tile-label">
+                  {participant.userName || participant.userId}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="call-gradient-bg">
             <div className="blurry-circle circle-1"></div>
@@ -210,6 +235,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                             {callState.callStatus === VideoCallStatus.OUTGOING && 'Calling...'}
                             {callState.callStatus === VideoCallStatus.CONNECTING && 'Connecting...'}
                             {callState.callStatus === VideoCallStatus.INCOMING && 'Incoming Video Call'}
+                            {callState.isMeeting && ` 路 ${Math.max(callState.participants.length, 1)} participants`}
                         </span>
                     )}
                 </div>

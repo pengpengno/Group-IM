@@ -37,6 +37,13 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
      * @param conversationId 会话Id
      * @return
      */
-    @Query("SELECT c FROM Conversation c LEFT JOIN FETCH c.createdBy WHERE c.conversationId = :conversationId")
+    @Query("""
+            SELECT DISTINCT c
+            FROM Conversation c
+            LEFT JOIN FETCH c.createdBy
+            LEFT JOIN FETCH c.members members
+            LEFT JOIN FETCH members.user
+            WHERE c.conversationId = :conversationId
+            """)
     Optional<Conversation> findByIdWithMembersCreatedBy(@Param("conversationId") Long conversationId);
 }

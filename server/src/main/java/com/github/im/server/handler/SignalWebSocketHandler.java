@@ -18,7 +18,12 @@ import reactor.core.Disposable;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -37,6 +42,9 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private final Map<String, String> inCall = new ConcurrentHashMap<>();
     private final Map<String, Disposable> pushSubscriptions = new ConcurrentHashMap<>();
+    private final Map<String, Set<String>> meetingRooms = new ConcurrentHashMap<>();
+    private final Map<String, Set<String>> userMeetings = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, Object>> userSignalProfiles = new ConcurrentHashMap<>();
 
     public SignalWebSocketHandler(MessageService messageService, UserTokenManager userTokenManager, OnlineService onlineService) {
         this.mapper = new ObjectMapper();
@@ -61,6 +69,7 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
             String from = msg.getFromUser();
             String to = msg.getToUser();
             String type = msg.getType().toLowerCase();
+            cacheSignalProfile(msg);
             log.info("Received Text Signal: type={}, from={}, to={}", type, from, to);
 
             switch (type) {
@@ -81,6 +90,16 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
                 case "answer":
                 case "candidate":
                     forward(to, message);
+                    break;
+                case "meeting/request":
+                case "meeting/reject":
+                    forward(to, message);
+                    break;
+                case "meeting/join":
+                    handleMeetingJoin(msg);
+                    break;
+                case "meeting/leave":
+                    handleMeetingLeave(msg.getRoomId(), from);
                     break;
                 default:
                     log.warn("Unknown text message type: " + type);
@@ -204,6 +223,7 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
             log.info("IM User Offline (WS): {}", uid);
             String userIdString = uid.toString();
             sessions.remove(userIdString);
+            removeUserFromMeetings(userIdString);
             String peer = inCall.remove(userIdString);
             if (peer != null) inCall.remove(peer);
             send(peer, "{\"type\":\"call/end\",\"fromUser\":\"" + userIdString + "\"}");
@@ -211,10 +231,142 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
             String userIdString = extractUserId(session.getUri());
             if (userIdString != null) {
                 sessions.remove(userIdString);
+                removeUserFromMeetings(userIdString);
                 String peer = inCall.remove(userIdString);
                 if (peer != null) inCall.remove(peer);
                 send(peer, "{\"type\":\"call/end\",\"fromUser\":\"" + userIdString + "\"}");
             }
+        }
+    }
+
+    private void cacheSignalProfile(SignalMessage msg) {
+        if (msg.getFromUser() == null) {
+            return;
+        }
+
+        Map<String, Object> profile = userSignalProfiles.computeIfAbsent(msg.getFromUser(), ignored -> new ConcurrentHashMap<>());
+        if (msg.getFromUserName() != null && !msg.getFromUserName().isBlank()) {
+            profile.put("userName", msg.getFromUserName());
+        }
+        if (msg.getFromAvatar() != null && !msg.getFromAvatar().isBlank()) {
+            profile.put("avatar", msg.getFromAvatar());
+        }
+    }
+
+    private void handleMeetingJoin(SignalMessage msg) {
+        String roomId = msg.getRoomId();
+        String from = msg.getFromUser();
+        if (roomId == null || roomId.isBlank() || from == null || from.isBlank()) {
+            log.warn("Invalid meeting/join message: roomId={}, from={}", roomId, from);
+            return;
+        }
+
+        cacheSignalProfile(msg);
+
+        Set<String> roomMembers = meetingRooms.computeIfAbsent(roomId, ignored -> ConcurrentHashMap.newKeySet());
+        List<String> existingMembers = new ArrayList<>(roomMembers);
+        roomMembers.add(from);
+        userMeetings.computeIfAbsent(from, ignored -> ConcurrentHashMap.newKeySet()).add(roomId);
+
+        sendMeetingParticipants(from, roomId, existingMembers);
+        notifyParticipantsJoined(roomId, from, existingMembers);
+    }
+
+    private void handleMeetingLeave(String roomId, String userId) {
+        if (roomId == null || roomId.isBlank() || userId == null || userId.isBlank()) {
+            return;
+        }
+
+        Set<String> roomMembers = meetingRooms.get(roomId);
+        if (roomMembers == null) {
+            return;
+        }
+
+        roomMembers.remove(userId);
+
+        Set<String> ownedRooms = userMeetings.get(userId);
+        if (ownedRooms != null) {
+            ownedRooms.remove(roomId);
+            if (ownedRooms.isEmpty()) {
+                userMeetings.remove(userId);
+            }
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("type", "meeting/participant-left");
+        payload.put("roomId", roomId);
+        payload.put("fromUser", userId);
+
+        String json = toJson(payload);
+        for (String memberId : roomMembers) {
+            send(memberId, json);
+        }
+
+        if (roomMembers.isEmpty()) {
+            meetingRooms.remove(roomId);
+        }
+    }
+
+    private void removeUserFromMeetings(String userId) {
+        Set<String> rooms = userMeetings.remove(userId);
+        if (rooms == null) {
+            return;
+        }
+
+        for (String roomId : new HashSet<>(rooms)) {
+            handleMeetingLeave(roomId, userId);
+        }
+    }
+
+    private void sendMeetingParticipants(String userId, String roomId, List<String> participants) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("type", "meeting/participants");
+        payload.put("roomId", roomId);
+        payload.put("fromUser", userId);
+
+        List<Map<String, Object>> participantInfos = new ArrayList<>();
+        for (String participantId : participants) {
+            participantInfos.add(buildParticipantInfo(participantId));
+        }
+        payload.put("participants", participantInfos);
+
+        send(userId, toJson(payload));
+    }
+
+    private void notifyParticipantsJoined(String roomId, String joinedUserId, List<String> existingMembers) {
+        Map<String, Object> joinedPayload = new HashMap<>();
+        joinedPayload.put("type", "meeting/participant-joined");
+        joinedPayload.put("roomId", roomId);
+        joinedPayload.put("fromUser", joinedUserId);
+        joinedPayload.putAll(buildParticipantInfo(joinedUserId));
+
+        String json = toJson(joinedPayload);
+        for (String memberId : existingMembers) {
+            send(memberId, json);
+        }
+    }
+
+    private Map<String, Object> buildParticipantInfo(String userId) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("userId", userId);
+
+        Map<String, Object> profile = userSignalProfiles.get(userId);
+        if (profile != null) {
+            if (profile.get("userName") != null) {
+                payload.put("userName", profile.get("userName"));
+            }
+            if (profile.get("avatar") != null) {
+                payload.put("avatar", profile.get("avatar"));
+            }
+        }
+        return payload;
+    }
+
+    private String toJson(Map<String, Object> payload) {
+        try {
+            return mapper.writeValueAsString(payload);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to serialize signaling payload", e);
         }
     }
 

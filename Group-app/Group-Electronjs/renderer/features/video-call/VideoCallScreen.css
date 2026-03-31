@@ -37,6 +37,44 @@
   transition: opacity 0.5s ease;
 }
 
+.meeting-grid {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  gap: 8px;
+  padding: 8px;
+  box-sizing: border-box;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+}
+
+.meeting-grid.participants-1 {
+  grid-template-columns: 1fr;
+}
+
+.meeting-tile {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.meeting-tile-primary {
+  min-height: 320px;
+}
+
+.meeting-tile-label {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(12, 15, 24, 0.65);
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .call-gradient-bg {
   width: 100%;
   height: 100%;

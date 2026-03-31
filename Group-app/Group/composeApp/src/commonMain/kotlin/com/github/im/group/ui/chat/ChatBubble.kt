@@ -181,41 +181,41 @@ fun MediaMessage(
     }
 }
 
-@Composable
-fun ImageMessage(
-    content: MessageContent.Image, 
-    mediaList: List<MessageContent.Image>? = null,
-    currentIndex: Int = 0,
-    onDownloadFile: ((String) -> Unit)? = null, 
-    onShowMenu: ((com.github.im.group.sdk.File) -> Unit)? = null
-) {
-    val actualMediaList = mediaList?.map { it.file }
-    MediaMessage(
-        file = content.file,
-        mediaList = actualMediaList,
-        currentIndex = currentIndex,
-        onDownloadFile = onDownloadFile,
-        onShowMenu = onShowMenu
-    )
-}
-
-@Composable
-fun VideoBubble(
-    content: MessageContent.Video, 
-    mediaList: List<MessageContent.Video>? = null,
-    currentIndex: Int = 0,
-    onDownloadFile: ((String) -> Unit)? = null, 
-    onShowMenu: ((com.github.im.group.sdk.File) -> Unit)? = null
-) {
-    val actualMediaList = mediaList?.map { it.file }
-    MediaMessage(
-        file = content.file,
-        mediaList = actualMediaList,
-        currentIndex = currentIndex,
-        onDownloadFile = onDownloadFile,
-        onShowMenu = onShowMenu
-    )
-}
+//@Composable
+//fun ImageMessage(
+//    content: MessageContent.Image,
+//    mediaList: List<MessageContent.Image>? = null,
+//    currentIndex: Int = 0,
+//    onDownloadFile: ((String) -> Unit)? = null,
+//    onShowMenu: ((com.github.im.group.sdk.File) -> Unit)? = null
+//) {
+//    val actualMediaList = mediaList?.map { it.file }
+//    MediaMessage(
+//        file = content.file,
+//        mediaList = actualMediaList,
+//        currentIndex = currentIndex,
+//        onDownloadFile = onDownloadFile,
+//        onShowMenu = onShowMenu
+//    )
+//}
+//
+//@Composable
+//fun VideoBubble(
+//    content: MessageContent.Video,
+//    mediaList: List<MessageContent.Video>? = null,
+//    currentIndex: Int = 0,
+//    onDownloadFile: ((String) -> Unit)? = null,
+//    onShowMenu: ((com.github.im.group.sdk.File) -> Unit)? = null
+//) {
+//    val actualMediaList = mediaList?.map { it.file }
+//    MediaMessage(
+//        file = content.file,
+//        mediaList = actualMediaList,
+//        currentIndex = currentIndex,
+//        onDownloadFile = onDownloadFile,
+//        onShowMenu = onShowMenu
+//    )
+//}
 
 /**
  * 语音消息气泡 - 优化版

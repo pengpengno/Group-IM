@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { conversationAPI } from '../../services/api/apiClient';
 import { socketService } from '../../services/socketService';
-import { ConversationDisplayState, MessageDTO, ConversationRes, ConversationType } from '../../types';
+import { ConversationDisplayState, MessageDTO, ConversationRes, GroupConversationPayload } from '../../types';
 
 interface ChatState {
     conversations: ConversationDisplayState[];
@@ -26,6 +26,69 @@ function normalizeConversation(conv: ConversationRes): ConversationRes {
     };
 }
 
+function getMessageDisplayText(content: string, type?: string): string {
+    const msgType = (type || 'TEXT').toUpperCase();
+    switch (msgType) {
+        case 'IMAGE': return '[图片消息]';
+        case 'FILE': return '[文件消息]';
+        case 'VOICE': return '[语音消息]';
+        case 'VIDEO': return '[视频消息]';
+        default: return content || '';
+    }
+}
+
+function buildConversationDisplayState(conv: ConversationRes): ConversationDisplayState {
+    const normalized = normalizeConversation(conv);
+    const lastMessageText = normalized.lastMessage
+        ? getMessageDisplayText(normalized.lastMessage.content, normalized.lastMessage.type)
+        : '';
+
+    let displayDateTime = '';
+    const ts = normalized.lastMessage?.timestamp || normalized.createAt;
+    if (ts) {
+        const date = new Date(ts);
+        const now = new Date();
+        const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays === 0 && date.getDate() === now.getDate()) {
+            displayDateTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else if (diffDays <= 1 && date.getDate() === now.getDate() - 1) {
+            displayDateTime = '昨天';
+        } else if (diffDays < 7) {
+            const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+            displayDateTime = weekdays[date.getDay()];
+        } else {
+            displayDateTime = `${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+        }
+    }
+
+    return {
+        conversation: normalized,
+        lastMessage: lastMessageText,
+        displayDateTime,
+        unreadCount: 0
+    };
+}
+
+function upsertConversation(state: ChatState, conversation: ConversationRes) {
+    const displayState = buildConversationDisplayState(conversation);
+    const existingIndex = state.conversations.findIndex(
+        (item) => item.conversation.conversationId === displayState.conversation.conversationId
+    );
+
+    if (existingIndex >= 0) {
+        const unreadCount = state.conversations[existingIndex].unreadCount;
+        state.conversations[existingIndex] = {
+            ...displayState,
+            unreadCount
+        };
+        const [updated] = state.conversations.splice(existingIndex, 1);
+        state.conversations.unshift(updated);
+        return;
+    }
+
+    state.conversations.unshift(displayState);
+}
+
 export const fetchConversations = createAsyncThunk(
     'chat/fetchConversations',
     async (userId: string) => {
@@ -39,8 +102,7 @@ export const fetchMessages = createAsyncThunk(
     async (conversationId: number, { getState }) => {
         const state = getState() as any;
         const currentMessages = state.chat.messages[conversationId] || [];
-        
-        // Find max sequence ID if any
+
         let maxSequenceId = 0;
         if (currentMessages.length > 0) {
             maxSequenceId = Math.max(...currentMessages.map((m: any) => m.sequenceId || 0));
@@ -48,8 +110,7 @@ export const fetchMessages = createAsyncThunk(
 
         const response = await conversationAPI.pullMessages(conversationId, maxSequenceId);
         let newMessages = response.data?.data?.content || response.data?.content || [];
-        
-        // Normalize timestamps to numbers (ms)
+
         newMessages = newMessages.map((msg: any) => ({
             ...msg,
             timestamp: msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now()
@@ -63,76 +124,10 @@ export const sendMessage = createAsyncThunk(
     'chat/sendMessage',
     async ({ conversationId, content, type }: { conversationId: number, content: string, type?: string }) => {
         const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
-        return response.data?.data || response.data; // Return the created message DTO
+        return response.data?.data || response.data;
     }
 );
 
-/**
- * 通过Socket发送消息
- * 这是Web端的Socket消息发送实装，参考Android端AndroidSocketClient的实现
- */
-export const sendMessageViaSocket = createAsyncThunk(
-    'chat/sendMessageViaSocket',
-    async ({ conversationId, content, type, msgDto }: {
-        conversationId: number,
-        content: string,
-        type?: string,
-        msgDto?: MessageDTO
-    }, { getState }) => {
-        const state = getState() as any; // Using any to avoid circular import or complex type casting here
-        const currentUser = state.auth.user;
-        const currentUserId = currentUser?.userId;
-
-        try {
-            // 首先检查Socket是否连接
-            const socketActive = await socketService.isActive();
-
-            if (!socketActive) {
-                // 如果长连接 没有开启 那么就尝试 使用http 发送
-                console.warn('Socket not active, falling back to HTTP');
-                const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
-                return response.data?.data || response.data;
-            }
-
-            // 构建消息负载对象
-            const payload = buildSocketPayload(conversationId, content, type || 'TEXT', currentUser, msgDto);
-
-            // 通过Socket发送负载
-            const sendSuccess = await socketService.sendPayload(payload);
-
-            if (sendSuccess) {
-                console.log('Message sent via Socket successfully');
-                // 如果通过Socket发送成功，不再调用HTTP API，直接返回一个带有clientMsgId的乐观DTO
-                if (msgDto) {
-                    return { ...msgDto, clientMsgId: payload.message.clientMsgId };
-                }
-
-                return {
-                    // msgId: -Date.now(), // 临时本地的消息吗不需要传入msgId
-                    conversationId: conversationId,
-                    content: content,
-                    fromAccountId: Number(currentUserId),
-                    type: (type as any) || 'TEXT',
-                    timestamp: Date.now(),  // 应该使用时间戳  毫秒级别即可
-                    clientMsgId: payload.message.clientMsgId
-                } as MessageDTO;
-            } else {
-                console.warn('Socket send failed, trying HTTP fallback');
-                const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
-                return response.data?.data || response.data;
-            }
-        } catch (error) {
-            console.error('Error in sendMessageViaSocket:', error);
-            const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
-            return response.data?.data || response.data;
-        }
-    }
-);
-
-/**
- * 构建Socket消息负载对象
- * 匹配 protobuf 中的 BaseMessagePkg 结构
- */
 function buildSocketPayload(
     conversationId: number,
     content: string,
@@ -141,20 +136,18 @@ function buildSocketPayload(
     msgDto?: MessageDTO
 ): any {
     const timestamp = msgDto?.timestamp ? new Date(msgDto.timestamp).getTime() : Date.now();
-
-    // Ensure messageType matches enum format (TEXT, IMAGE, FILE, VOICE, VIDEO)
     const messageType = type ? type.toUpperCase() : 'TEXT';
-
-    // 默认使用 crypto.randomUUID() 作为 clientMsgId，这是 UUID 标准实现
-    const clientMsgId = msgDto?.clientMsgId || (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36));
+    const clientMsgId = msgDto?.clientMsgId || (window.crypto && window.crypto.randomUUID
+        ? window.crypto.randomUUID()
+        : Math.random().toString(36).substring(2) + Date.now().toString(36));
 
     return {
         message: {
-            conversationId: conversationId,
-            content: content,
+            conversationId,
+            content,
             type: messageType,
             clientTimeStamp: timestamp,
-            clientMsgId: clientMsgId,
+            clientMsgId,
             fromUser: {
                 userId: currentUser?.userId,
                 username: currentUser?.username
@@ -163,25 +156,91 @@ function buildSocketPayload(
     };
 }
 
-/**
- * Helper: compute display text for a message based on its type
- */
-function getMessageDisplayText(content: string, type?: string): string {
-    const msgType = (type || 'TEXT').toUpperCase();
-    switch (msgType) {
-        case 'IMAGE': return '[图片消息]';
-        case 'FILE': return '[文件消息]';
-        case 'VOICE': return '[语音消息]';
-        case 'VIDEO': return '[视频消息]';
-        default: return content || '';
+export const sendMessageViaSocket = createAsyncThunk(
+    'chat/sendMessageViaSocket',
+    async ({ conversationId, content, type, msgDto }: {
+        conversationId: number,
+        content: string,
+        type?: string,
+        msgDto?: MessageDTO
+    }, { getState }) => {
+        const state = getState() as any;
+        const currentUser = state.auth.user;
+        const currentUserId = currentUser?.userId;
+
+        try {
+            const socketActive = await socketService.isActive();
+            if (!socketActive) {
+                console.warn('Socket not active, falling back to HTTP');
+                const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
+                return response.data?.data || response.data;
+            }
+
+            const payload = buildSocketPayload(conversationId, content, type || 'TEXT', currentUser, msgDto);
+            const sendSuccess = await socketService.sendPayload(payload);
+
+            if (sendSuccess) {
+                if (msgDto) {
+                    return { ...msgDto, clientMsgId: payload.message.clientMsgId };
+                }
+
+                return {
+                    conversationId,
+                    content,
+                    fromAccountId: Number(currentUserId),
+                    type: (type as any) || 'TEXT',
+                    timestamp: Date.now(),
+                    clientMsgId: payload.message.clientMsgId
+                } as MessageDTO;
+            }
+
+            console.warn('Socket send failed, trying HTTP fallback');
+            const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
+            return response.data?.data || response.data;
+        } catch (error) {
+            console.error('Error in sendMessageViaSocket:', error);
+            const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
+            return response.data?.data || response.data;
+        }
     }
-}
+);
 
 export const createPrivateChat = createAsyncThunk(
     'chat/createPrivateChat',
     async ({ userId, friendId }: { userId: string, friendId: number }) => {
         const response = await conversationAPI.createPrivateChat(userId, friendId);
         return response.data?.data || response.data;
+    }
+);
+
+export const createGroupConversation = createAsyncThunk(
+    'chat/createGroupConversation',
+    async (payload: GroupConversationPayload) => {
+        const response = await conversationAPI.createGroup(payload);
+        return response.data?.data || response.data;
+    }
+);
+
+export const addConversationMembers = createAsyncThunk(
+    'chat/addConversationMembers',
+    async ({ conversationId, userIds }: { conversationId: number; userIds: number[] }, { getState }) => {
+        await conversationAPI.addGroupMembers(conversationId, userIds);
+        const state = getState() as { auth: { user: { userId: string } | null } };
+        const currentUserId = state.auth.user?.userId;
+
+        if (!currentUserId) {
+            throw new Error('User context is missing');
+        }
+
+        const response = await conversationAPI.getActiveConversations(currentUserId);
+        const conversations = response.data?.data || response.data || [];
+        const updatedConversation = conversations.find((conversation: ConversationRes) => conversation.conversationId === conversationId);
+
+        if (!updatedConversation) {
+            throw new Error('Updated conversation not found');
+        }
+
+        return updatedConversation;
     }
 );
 
@@ -192,7 +251,6 @@ const chatSlice = createSlice({
         setActiveConversation(state, action: PayloadAction<number | null>) {
             state.activeConversationId = action.payload;
             if (action.payload) {
-                // 当进入会话时，清除该会话的未读数
                 const conv = state.conversations.find(c => c.conversation.conversationId === action.payload);
                 if (conv) {
                     conv.unreadCount = 0;
@@ -200,47 +258,35 @@ const chatSlice = createSlice({
             }
         },
         addMessage(state, action: PayloadAction<MessageDTO>) {
-            const { conversationId, fromAccountId, msgId, clientMsgId } = action.payload;
+            const { conversationId, fromAccountId } = action.payload;
             const currentUserId = (state as any).auth?.user?.userId;
 
             if (!state.messages[conversationId]) {
                 state.messages[conversationId] = [];
             }
 
-            // Normalize timestamp for incoming socket message
             const normalizedMsg = {
                 ...action.payload,
                 timestamp: action.payload.timestamp ? new Date(action.payload.timestamp).getTime() : Date.now()
             };
 
-            // 去重逻辑：通过 msgId 或 clientMsgId 判断
             const existingIndex = state.messages[conversationId].findIndex(m =>
                 (m.msgId === normalizedMsg.msgId && m.msgId > 0) ||
                 (m.clientMsgId && normalizedMsg.clientMsgId && m.clientMsgId === normalizedMsg.clientMsgId)
             );
 
             if (existingIndex !== -1) {
-                // 更新现有消息（例如从临时状态变为服务器确认状态）
                 state.messages[conversationId][existingIndex] = normalizedMsg;
             } else {
                 state.messages[conversationId].push(normalizedMsg);
-                // 每次新增消息后重新排序，确保渲染一致
                 state.messages[conversationId].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
-                // 未读数逻辑：不是自己发的消息，且不是当前活跃会话
-                if (fromAccountId.toString() !== currentUserId && conversationId !== state.activeConversationId) {
-                    const conv = state.conversations.find(c => c.conversation.conversationId === conversationId);
-                    if (conv) {
+                const conv = state.conversations.find(c => c.conversation.conversationId === conversationId);
+                if (conv) {
+                    conv.lastMessage = getMessageDisplayText(normalizedMsg.content, normalizedMsg.type);
+                    if (fromAccountId.toString() !== currentUserId && conversationId !== state.activeConversationId) {
                         conv.unreadCount += 1;
-                        conv.lastMessage = getMessageDisplayText(normalizedMsg.content, normalizedMsg.type);
                     }
-                } else if (conversationId === state.activeConversationId) {
-                    // 如果是当前活跃会话的消息，更新最后一条消息预览
-                    const conv = state.conversations.find(c => c.conversation.conversationId === conversationId);
-                    if (conv) {
-                        conv.lastMessage = getMessageDisplayText(normalizedMsg.content, normalizedMsg.type);
-                    }
-                    // 虽然当前在聊天室，但根据产品定义，这里可以调用 markAsRead (通过 thunk 发送 ACK)
                 }
             }
         }
@@ -252,67 +298,28 @@ const chatSlice = createSlice({
             })
             .addCase(fetchConversations.fulfilled, (state, action) => {
                 state.loading = false;
-                state.conversations = action.payload.map((conv: ConversationRes) => {
-                    conv = normalizeConversation(conv);
-                    // Compute last message display text based on type
-                    let lastMessageText = '';
-                    if (conv.lastMessage) {
-                        const msgType = (conv.lastMessage.type || 'TEXT').toUpperCase();
-                        switch (msgType) {
-                            case 'IMAGE': lastMessageText = '[图片消息]'; break;
-                            case 'FILE': lastMessageText = '[文件消息]'; break;
-                            case 'VOICE': lastMessageText = '[语音消息]'; break;
-                            case 'VIDEO': lastMessageText = '[视频消息]'; break;
-                            default: lastMessageText = conv.lastMessage.content || ''; break;
-                        }
-                    }
-
-                    // Compute smart display date time
-                    let displayDateTime = '';
-                    const ts = conv.lastMessage?.timestamp || conv.createAt;
-                    if (ts) {
-                        const date = new Date(ts);
-                        const now = new Date();
-                        const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-                        if (diffDays === 0 && date.getDate() === now.getDate()) {
-                            displayDateTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                        } else if (diffDays <= 1 && date.getDate() === now.getDate() - 1) {
-                            displayDateTime = '昨天';
-                        } else if (diffDays < 7) {
-                            const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-                            displayDateTime = weekdays[date.getDay()];
-                        } else {
-                            displayDateTime = `${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
-                        }
-                    }
-
-                    return {
-                        conversation: conv,
-                        lastMessage: lastMessageText,
-                        displayDateTime,
-                        unreadCount: 0
-                    };
-                });
+                state.conversations = action.payload.map((conv: ConversationRes) => buildConversationDisplayState(conv));
             })
             .addCase(fetchMessages.fulfilled, (state, action) => {
                 const { conversationId, messages, isIncremental } = action.payload;
-                
+
                 if (!state.messages[conversationId]) {
                     state.messages[conversationId] = [];
                 }
 
                 if (isIncremental) {
-                    // 合并新旧消息，并通过 msgId 或 clientMsgId 去重
                     const existingMessages = state.messages[conversationId];
-                    const newMessages = messages.filter((nMsg: MessageDTO) => 
-                        !existingMessages.some(eMsg => 
-                            (eMsg.msgId > 0 && eMsg.msgId === nMsg.msgId) || 
+                    const newMessages = messages.filter((nMsg: MessageDTO) =>
+                        !existingMessages.some(eMsg =>
+                            (eMsg.msgId > 0 && eMsg.msgId === nMsg.msgId) ||
                             (eMsg.clientMsgId && eMsg.clientMsgId === nMsg.clientMsgId)
                         )
                     );
-                    state.messages[conversationId] = [...existingMessages, ...newMessages].sort((a: MessageDTO, b: MessageDTO) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+                    state.messages[conversationId] = [...existingMessages, ...newMessages]
+                        .sort((a: MessageDTO, b: MessageDTO) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
                 } else {
-                    state.messages[conversationId] = messages.sort((a: MessageDTO, b: MessageDTO) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+                    state.messages[conversationId] = messages
+                        .sort((a: MessageDTO, b: MessageDTO) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
                 }
             })
             .addCase(sendMessage.fulfilled, (state, action: PayloadAction<MessageDTO>) => {
@@ -331,9 +338,6 @@ const chatSlice = createSlice({
                 } else {
                     state.messages[conversationId].push(action.payload);
                 }
-            })
-            .addCase(sendMessageViaSocket.pending, (state) => {
-                // Socket发送时不显示loading，保持UI响应性
             })
             .addCase(sendMessageViaSocket.fulfilled, (state, action: PayloadAction<MessageDTO>) => {
                 const { conversationId } = action.payload;
@@ -358,17 +362,16 @@ const chatSlice = createSlice({
             .addCase(createPrivateChat.fulfilled, (state, action: PayloadAction<ConversationRes>) => {
                 const newConv = normalizeConversation(action.payload);
                 state.activeConversationId = newConv.conversationId;
-
-                // Add to conversations list if not already there
-                const existing = state.conversations.find(c => c.conversation.conversationId === newConv.conversationId);
-                if (!existing) {
-                    state.conversations.unshift({
-                        conversation: newConv,
-                        lastMessage: '',
-                        displayDateTime: new Date().toLocaleTimeString(),
-                        unreadCount: 0
-                    });
-                }
+                upsertConversation(state, newConv);
+            })
+            .addCase(createGroupConversation.fulfilled, (state, action: PayloadAction<ConversationRes>) => {
+                const newConv = normalizeConversation(action.payload);
+                state.activeConversationId = newConv.conversationId;
+                upsertConversation(state, newConv);
+            })
+            .addCase(addConversationMembers.fulfilled, (state, action: PayloadAction<ConversationRes>) => {
+                const updatedConversation = normalizeConversation(action.payload);
+                upsertConversation(state, updatedConversation);
             });
     },
 });

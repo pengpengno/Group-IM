@@ -19,11 +19,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Service
@@ -53,6 +53,25 @@ public class ConversationService {
             throw new IllegalArgumentException("Group members cannot be null or empty");
         }
 
+        var normalizedMembers = members.stream()
+                .filter(member -> member != null && member.getUserId() != null)
+                .collect(Collectors.toMap(
+                        UserInfo::getUserId,
+                        member -> member,
+                        (left, right) -> left,
+                        LinkedHashMap::new
+                ));
+
+        if (normalizedMembers.isEmpty()) {
+            throw new IllegalArgumentException("Group members cannot be null or empty");
+        }
+
+        if (!normalizedMembers.containsKey(createUserId)) {
+            UserInfo creatorMember = new UserInfo();
+            creatorMember.setUserId(createUserId);
+            normalizedMembers.put(createUserId, creatorMember);
+        }
+
         User owner = new User();
         owner.setUserId(createUserId);
 
@@ -63,32 +82,19 @@ public class ConversationService {
                 .status(ConversationStatus.ACTIVE)
                 .createdBy(owner)
                 .build();
-        // 保存群组
         final var saveGroup = conversationRepository.saveAndFlush(group);
         Conversation reference = entityManager.getReference(Conversation.class, saveGroup.getConversationId());
 
-//        Predicate<UserInfo> filter = member -> member != null  && member.getUserId()!=null && !Objects.equals(createUserId, member.getUserId());
-        var groupMembers =  members.stream()
-                .map(member -> {
-            User us = userRepository.getReferenceById(member.getUserId());
-            return ConversationMember.builder()
-                    .conversation(reference)
-                    .user(us)
-                    .joinedAt(LocalDateTime.now())
-                    .build();
-        }).toList();
-        // 如果不存在创建人那么还需要将创建人添加进去
-        boolean containsCreateUser = members.stream().map(e -> e.getUserId()).toList().contains(createUserId);
-        if (!containsCreateUser) {
-            groupMembers.add(ConversationMember.builder()
-                    .conversation(reference)
-                    .user(owner)
-                    .joinedAt(LocalDateTime.now())
-                    .build());
-        }
-        List<ConversationMember> conversationMembers = groupMemberRepository.saveAll(groupMembers);
+        List<ConversationMember> groupMembers = new ArrayList<>(normalizedMembers.values().stream()
+                .map(member -> ConversationMember.builder()
+                        .conversation(reference)
+                        .user(userRepository.getReferenceById(member.getUserId()))
+                        .joinedAt(LocalDateTime.now())
+                        .build())
+                .toList());
+        groupMemberRepository.saveAll(groupMembers);
 
-        return conversationsMapper.toDTO(saveGroup);
+        return getConversationById(saveGroup.getConversationId());
     }
 
     public Long  maxIndex(Long conversationId){
