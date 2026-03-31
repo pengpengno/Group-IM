@@ -16,6 +16,8 @@ import { webrtcAPI } from './api/apiClient';
 export interface WebrtcMessage {
   type: string;              // Message type: call/request, call/accept, call/end, offer, answer, candidate
   fromUser?: string;         // Sender ID
+  fromUserName?: string;     // Sender Name (Metadata)
+  fromAvatar?: string;       // Sender Avatar (Metadata)
   toUser?: string;           // Receiver ID
   sdp?: string;              // SDP description
   sdpType?: string;          // SDP type: offer/answer
@@ -33,6 +35,8 @@ export interface IceCandidateData {
 export interface CallInternalState {
   callStatus: VideoCallStatus;
   remoteUserId?: string;
+  remoteUserName?: string;
+  remoteAvatar?: string;
   callStartTime?: number;
   duration: number;
   isLocalVideoEnabled: boolean;
@@ -87,6 +91,58 @@ export class WebRTCService extends EventEmitter {
 
   public getRemoteStream(): MediaStream | null {
     return this.remoteStream;
+  }
+
+  private async requestUserMedia(constraints: MediaStreamConstraints): Promise<MediaStream> {
+    if (typeof navigator === 'undefined') {
+      throw new Error('Media devices are unavailable in the current runtime.');
+    }
+
+    if (navigator.mediaDevices?.getUserMedia) {
+      return navigator.mediaDevices.getUserMedia(constraints);
+    }
+
+    const legacyNavigator = navigator as Navigator & {
+      getUserMedia?: (
+        constraints: MediaStreamConstraints,
+        successCallback: (stream: MediaStream) => void,
+        errorCallback: (error: Error) => void
+      ) => void;
+      webkitGetUserMedia?: (
+        constraints: MediaStreamConstraints,
+        successCallback: (stream: MediaStream) => void,
+        errorCallback: (error: Error) => void
+      ) => void;
+      mozGetUserMedia?: (
+        constraints: MediaStreamConstraints,
+        successCallback: (stream: MediaStream) => void,
+        errorCallback: (error: Error) => void
+      ) => void;
+      msGetUserMedia?: (
+        constraints: MediaStreamConstraints,
+        successCallback: (stream: MediaStream) => void,
+        errorCallback: (error: Error) => void
+      ) => void;
+    };
+
+    const legacyGetUserMedia =
+      legacyNavigator.getUserMedia ||
+      legacyNavigator.webkitGetUserMedia ||
+      legacyNavigator.mozGetUserMedia ||
+      legacyNavigator.msGetUserMedia;
+
+    if (legacyGetUserMedia) {
+      return new Promise((resolve, reject) => {
+        legacyGetUserMedia.call(navigator, constraints, resolve, reject);
+      });
+    }
+
+    const secureContextHint =
+      typeof window !== 'undefined' && !window.isSecureContext
+        ? ' Remote web calls require HTTPS/WSS (or localhost) to access camera and microphone.'
+        : '';
+
+    throw new Error(`getUserMedia is not available in this environment.${secureContextHint}`);
   }
 
   /**
@@ -181,7 +237,7 @@ export class WebRTCService extends EventEmitter {
         this.localStream.getTracks().forEach(t => t.stop());
       }
 
-      this.localStream = await navigator.mediaDevices.getUserMedia({
+      this.localStream = await this.requestUserMedia({
         video: { width: 1280, height: 720, frameRate: 30 },
         audio: true
       });
@@ -210,9 +266,9 @@ export class WebRTCService extends EventEmitter {
   /**
    * Connect to the WebSocket signaling server
    */
-  public connectSignaling(host: string, port: number, userId: string, token: string): void {
+  public connectSignaling(host: string, port: number, userId: string, token: string, pageProtocol: string = 'http:'): void {
     // 如果已经连接或是正在连接到同一个服务器且同一个用户，就不重复发起
-    const protocol = host.startsWith('https') ? 'wss' : 'ws';
+    const protocol = pageProtocol === 'https:' || pageProtocol === 'wss:' ? 'wss' : 'ws';
     const cleanHost = host.replace(/^https?:\/\//, '');
     const url = `${protocol}://${cleanHost}:${port}/ws?userId=${userId}&token=${token}`;
 
@@ -280,7 +336,7 @@ export class WebRTCService extends EventEmitter {
         this.reconnectAttempts++;
         this.reconnectTimer = setTimeout(() => {
             this.reconnectTimer = null;
-            this.connectSignaling(host, port, userId, token);
+            this.connectSignaling(host, port, userId, token, pageProtocol);
         }, 5000); // 稍微增加重连间隔
       }
     };
@@ -316,7 +372,9 @@ export class WebRTCService extends EventEmitter {
         this.remoteUserId = message.fromUser || '';
         this.updateState({
           callStatus: VideoCallStatus.INCOMING,
-          remoteUserId: this.remoteUserId
+          remoteUserId: this.remoteUserId,
+          remoteUserName: message.fromUserName,
+          remoteAvatar: message.fromAvatar
         });
         
         if (this.store) {
@@ -324,7 +382,8 @@ export class WebRTCService extends EventEmitter {
             callId: `call-${Date.now()}`,
             remoteUser: {
               userId: this.remoteUserId,
-              username: `User ${this.remoteUserId}`,
+              username: message.fromUserName || `User ${this.remoteUserId}`,
+              avatar: message.fromAvatar,
               email: '',
               status: 'online'
             }
@@ -436,16 +495,23 @@ export class WebRTCService extends EventEmitter {
     }
   }
 
-  public initiateCall(remoteUserId: string): void {
+  public initiateCall(remoteUserId: string, remoteUserName?: string): void {
     this.remoteUserId = remoteUserId;
+    
+    // Attempt to get our own metadata from the store if it exists
+    const currentUser = this.store?.getState().auth.user;
+
     this.updateState({
       callStatus: VideoCallStatus.OUTGOING,
-      remoteUserId
+      remoteUserId,
+      remoteUserName
     });
 
     this.sendSignalingMessage({
       type: 'call/request',
       fromUser: this.userId,
+      fromUserName: currentUser?.username,
+      fromAvatar: currentUser?.avatar,
       toUser: remoteUserId
     });
   }

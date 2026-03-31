@@ -10,14 +10,14 @@ interface UseVideoCallReturn {
 
   // Actions
   initialize: () => Promise<void>;
-  startCall: (calleeId: string) => void;
+  startCall: (calleeId: string, calleeName?: string) => void;
   acceptCall: (callerId: string) => void;
   rejectCall: (callerId: string) => void;
   endCall: () => void;
   toggleCamera: (enabled: boolean) => void;
   toggleMicrophone: (enabled: boolean) => void;
   toggleSpeaker: (enabled: boolean) => void;
-  connectSignaling: (host: string, port: number, userId: string, token: string) => void;
+  connectSignaling: (host: string, port: number, userId: string, token: string, pageProtocol?: string) => void;
 
   // Events
   onIncomingCall: (callback: (callerId: string) => void) => void;
@@ -57,8 +57,8 @@ export const useVideoCall = (): UseVideoCallReturn => {
     setLocalStream(webRTCService.getLocalStream());
   }, []);
 
-  const startCall = useCallback((calleeId: string) => {
-    webRTCService.initiateCall(calleeId);
+  const startCall = useCallback((calleeId: string, calleeName?: string) => {
+    webRTCService.initiateCall(calleeId, calleeName);
   }, []);
 
   const acceptCall = useCallback((callerId: string) => {
@@ -86,8 +86,8 @@ export const useVideoCall = (): UseVideoCallReturn => {
     // Real speaker toggle would use audio output device selection
   }, []);
 
-  const connectSignaling = useCallback((host: string, port: number, userId: string, token: string) => {
-    webRTCService.connectSignaling(host, port, userId, token);
+  const connectSignaling = useCallback((host: string, port: number, userId: string, token: string, pageProtocol?: string) => {
+    webRTCService.connectSignaling(host, port, userId, token, pageProtocol);
   }, []);
 
   // Event attachment helpers

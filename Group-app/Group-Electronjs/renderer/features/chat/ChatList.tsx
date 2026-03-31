@@ -6,7 +6,7 @@ import { ConversationDisplayState, ApiUser } from '../../types';
 import './ChatList.css';
 
 interface ChatListProps {
-  onVideoCallStart?: (userId: string) => void;
+  onVideoCallStart?: (userId: string, userName?: string) => void;
 }
 
 const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
@@ -115,7 +115,7 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
                       e.stopPropagation();
                       if (!isGroup && onVideoCallStart) {
                         const target = (Array.isArray(item.conversation.members) ? item.conversation.members : []).find((m: ApiUser) => m.userId.toString() !== user?.userId);
-                        if (target) onVideoCallStart(target.userId.toString());
+                        if (target) onVideoCallStart(target.userId.toString(), target.username);
                       }
                     }}
                   >

@@ -1,24 +1,27 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { useVideoCall } from './useVideoCall';
 import { VideoCallStatus } from './videoCallSlice';
+import { RootState } from '../../store';
 import './VideoCallScreen.css';
 
 interface VideoCallScreenProps {
   onCallEnd: () => void;
   remoteUserId?: string;
   remoteUserName?: string;
+  remoteAvatar?: string;
 }
 
 const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   onCallEnd,
   remoteUserId,
-  remoteUserName
+  remoteUserName,
+  remoteAvatar
 }) => {
   const {
     state: callState,
     localStream,
     remoteStream,
-    startCall,
     acceptCall,
     endCall,
     toggleCamera,
@@ -30,19 +33,31 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const [floatingPos, setFloatingPos] = useState({ x: 20, y: 20 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  // Handle minimize/restore from redux
+  const dispatch = useDispatch();
+  const reduxState = useSelector((state: RootState) => state.videoCall);
+  const isMinimized = reduxState?.isMinimized || false;
 
   // Handle video stream attachment
   useEffect(() => {
     if (localVideoRef.current && localStream) {
+      console.log('Attaching local stream');
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(e => console.warn('Local video play failed:', e));
     }
-  }, [localStream]);
+  }, [localStream, isMinimized]);
 
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
+       console.log('Attaching remote stream');
+       remoteVideoRef.current.srcObject = remoteStream;
+       remoteVideoRef.current.play().catch(e => console.warn('Remote video play failed:', e));
     }
-  }, [remoteStream]);
+  }, [remoteStream, isMinimized]);
 
   // Set up event listeners
   useEffect(() => {
@@ -56,10 +71,6 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
     });
   }, [onCallEnded, onError, onCallEnd]);
 
-  // Clear call on mount if remoteUserId changed or something? 
-  // No, the service manages the state globally.
-
-  // Accepted call parameter fix
   const handleAccept = () => {
     if (callState.remoteUserId) {
         acceptCall(callState.remoteUserId);
@@ -72,7 +83,90 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const displayName = remoteUserName || remoteUserId || 'Unknown User';
+  const displayName = callState.remoteUserName || remoteUserName || callState.remoteUserId || remoteUserId || 'Unknown User';
+  const displayAvatar = callState.remoteAvatar || remoteAvatar;
+
+  // Floating window drag logic
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!isMinimized) return;
+    setIsDragging(true);
+    // Calculate offset from the top-right corner where it's positioned by CSS 'right' and 'top'
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setDragOffset({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+    });
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+        if (!isDragging) return;
+        // Convert screen coordinates to relative 'right' and 'top'
+        setFloatingPos({
+            x: window.innerWidth - e.clientX - (150 - dragOffset.x), // 150 is the width approx
+            y: e.clientY - dragOffset.y
+        });
+    };
+    const handleMouseUp = () => setIsDragging(false);
+
+    if (isDragging) {
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragOffset]);
+
+  const handleMinimize = () => {
+    dispatch({ type: 'videoCall/minimizeCall' });
+  };
+
+  const handleRestore = () => {
+    dispatch({ type: 'videoCall/restoreCall' });
+  };
+
+  if (isMinimized) {
+    return (
+        <div 
+            className={`video-call-floating-window ${isDragging ? 'dragging' : ''}`}
+            style={{ 
+                right: `${floatingPos.x}px`, 
+                top: `${floatingPos.y}px` 
+            }}
+            onMouseDown={handleMouseDown}
+            onClick={(e) => {
+                if (isDragging) return;
+                handleRestore();
+            }}
+        >
+            <div className="floating-video-container">
+                {remoteStream && callState.callStatus === VideoCallStatus.ACTIVE ? (
+                    <video
+                        ref={remoteVideoRef}
+                        autoPlay
+                        playsInline
+                        onLoadedMetadata={(e) => e.currentTarget.play()}
+                    />
+                ) : (
+                    <div className="floating-avatar">
+                        {displayAvatar ? <img src={displayAvatar} alt="" /> : displayName.charAt(0).toUpperCase()}
+                    </div>
+                )}
+                <div className="floating-info">
+                    <span className="dot active"></span>
+                    <span className="timer">{formatDuration(callState.duration)}</span>
+                </div>
+            </div>
+            <div className="floating-controls-overlay">
+                <button className="mini-action-btn end" onClick={(e) => { e.stopPropagation(); endCall(); }}>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                </button>
+            </div>
+        </div>
+    );
+  }
 
   return (
     <div className={`video-call-workspace status-${callState.callStatus.toLowerCase()}`}>
@@ -84,11 +178,13 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
             autoPlay
             playsInline
             className="remote-video-full"
+            onLoadedMetadata={(e) => e.currentTarget.play()}
           />
         ) : (
           <div className="call-gradient-bg">
             <div className="blurry-circle circle-1"></div>
             <div className="blurry-circle circle-2"></div>
+            <div className="blurry-circle circle-3"></div>
           </div>
         )}
       </div>
@@ -99,25 +195,34 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
         <div className="call-header">
            <div className="remote-user-badge">
               <div className="avatar-small">
-                {displayName.charAt(0).toUpperCase()}
+                {displayAvatar ? <img src={displayAvatar} alt="" /> : displayName.charAt(0).toUpperCase()}
               </div>
               <div className="user-text">
                 <div className="username">{displayName}</div>
                 <div className="call-status-tag">
-                    {callState.callStatus === VideoCallStatus.ACTIVE && (
-                        <span className="duration-timer">{formatDuration(callState.duration)}</span>
+                    {callState.callStatus === VideoCallStatus.ACTIVE ? (
+                         <span className="duration-timer">
+                            <span className="live-dot"></span>
+                            {formatDuration(callState.duration)}
+                         </span>
+                    ) : (
+                        <span className="status-label">
+                            {callState.callStatus === VideoCallStatus.OUTGOING && 'Calling...'}
+                            {callState.callStatus === VideoCallStatus.CONNECTING && 'Connecting...'}
+                            {callState.callStatus === VideoCallStatus.INCOMING && 'Incoming Video Call'}
+                        </span>
                     )}
-                    {callState.callStatus === VideoCallStatus.OUTGOING && 'Calling...'}
-                    {callState.callStatus === VideoCallStatus.CONNECTING && 'Connecting...'}
                 </div>
               </div>
            </div>
            
-           <button className="minimize-btn" onClick={() => onCallEnd()}>
-             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
-               <path d="M4 14h6m0 0v6m0-6L3 21m17-11h-6m0 0V4m0 6l7-7"></path>
-             </svg>
-           </button>
+           <div className="header-right">
+             <button className="minimize-btn" title="Minimize" onClick={handleMinimize}>
+               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
+                 <path d="M4 14h6m0 0v6m0-6L3 21m17-11h-6m0 0V4m0 6l7-7"></path>
+               </svg>
+             </button>
+           </div>
         </div>
 
         {/* Center: Avatars for non-active states */}
@@ -127,15 +232,18 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                <div className="pulse-ring ring-1"></div>
                <div className="pulse-ring ring-2"></div>
                <div className="avatar-giant">
-                 {displayName.charAt(0).toUpperCase()}
+                 {displayAvatar ? <img src={displayAvatar} alt="" /> : displayName.charAt(0).toUpperCase()}
                </div>
             </div>
             <h2 className="display-name-large">{displayName}</h2>
-            <p className="status-message">
-                {callState.callStatus === VideoCallStatus.OUTGOING && 'Waiting for answer...'}
-                {callState.callStatus === VideoCallStatus.INCOMING && 'Incoming video call...'}
-                {callState.callStatus === VideoCallStatus.CONNECTING && 'Establishing secure connection...'}
-            </p>
+            <div className="premium-status-badge">
+                <div className="status-dot"></div>
+                <p className="status-message">
+                    {callState.callStatus === VideoCallStatus.OUTGOING && 'Waiting for answer...'}
+                    {callState.callStatus === VideoCallStatus.INCOMING && 'Wants to video call with you'}
+                    {callState.callStatus === VideoCallStatus.CONNECTING && 'Establishing secure connection...'}
+                </p>
+            </div>
           </div>
         )}
 
@@ -146,6 +254,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
              autoPlay
              playsInline
              muted
+             onLoadedMetadata={(e) => e.currentTarget.play()}
              className={`local-video-element ${!callState.isLocalVideoEnabled ? 'hidden' : ''}`}
            />
            {!callState.isLocalVideoEnabled && (
@@ -218,22 +327,26 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
            <div className="incoming-card">
               <div className="caller-profile">
                 <div className="avatar-med">
-                  {displayName.charAt(0).toUpperCase()}
+                  {displayAvatar ? <img src={displayAvatar} alt="" /> : displayName.charAt(0).toUpperCase()}
                 </div>
                 <h3>{displayName}</h3>
-                <p>Incoming video call...</p>
+                <p>Incoming Video Call...</p>
               </div>
               <div className="modal-actions">
                  <button className="modal-btn accept" onClick={handleAccept}>
-                   <svg viewBox="0 0 24 24" width="24" height="24" fill="white">
-                     <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .3l-2.2 2.2c-2.8-1.4-5.1-3.8-6.6-6.6l2.2-2.2c.3-.3.4-.7.2-1-.3-1.1-.5-2.3-.5-3.5 0-.5-.4-.9-.9-.9H4c-.5 0-1 .4-1 .9 0 9.4 7.6 17 17 17 .5 0 .9-.4.9-.9v-3.5c0-.5-.4-.9-.9-.9z"></path>
-                   </svg>
+                   <div className="icon-circle">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="white">
+                      <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .3l-2.2 2.2c-2.8-1.4-5.1-3.8-6.6-6.6l2.2-2.2c.3-.3.4-.7.2-1-.3-1.1-.5-2.3-.5-3.5 0-.5-.4-.9-.9-.9H4c-.5 0-1 .4-1 .9 0 9.4 7.6 17 17 17 .5 0 .9-.4.9-.9v-3.5c0-.5-.4-.9-.9-.9z"></path>
+                    </svg>
+                   </div>
                    <span>Accept</span>
                  </button>
                  <button className="modal-btn reject" onClick={() => endCall()}>
-                   <svg viewBox="0 0 24 24" width="24" height="24" fill="white">
-                     <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.58.9-.98.45-1.87 1.05-2.65 1.76-.17.16-.34.22-.52.22-.17 0-.35-.07-.48-.2l-3.37-3.37c-.13-.13-.2-.3-.2-.48s.07-.35.2-.48C3.36 8.35 7.42 6 12 6s8.64 2.35 12.19 5.39c.13.13.2.3.2.48s-.07.35-.2.48l-3.37 3.37c-.13.13-.3.2-.48.2s-.35-.07-.48-.2c-.78-.71-1.67-1.31-2.65-1.76-.35-.16-.58-.51-.58-.9v-3.1c-1.45-.47-3-.72-4.6-.72z"></path>
-                   </svg>
+                   <div className="icon-circle">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="white">
+                      <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.58.9-.98.45-1.87 1.05-2.65 1.76-.17.16-.34.22-.52.22-.17 0-.35-.07-.48-.2l-3.37-3.37c-.13-.13-.2-.3-.2-.48s.07-.35.2-.48C3.36 8.35 7.42 6 12 6s8.64 2.35 12.19 5.39c.13.13.2.3.2.48s-.07.35-.2.48l-3.37 3.37c-.13.13-.3.2-.48.2s-.35-.07-.48-.2c-.78-.71-1.67-1.31-2.65-1.76-.35-.16-.58-.51-.58-.9v-3.1c-1.45-.47-3-.72-4.6-.72z"></path>
+                    </svg>
+                   </div>
                    <span>Reject</span>
                  </button>
               </div>

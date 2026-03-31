@@ -56,11 +56,28 @@ module.exports = {
     historyApiFallback: true,
     open: true,
     hot: true,
+    client: {
+      webSocketURL: {
+        pathname: '/webpack-ws'
+      }
+    },
+    webSocketServer: {
+      type: 'ws',
+      options: {
+        path: '/webpack-ws'
+      }
+    },
     proxy: {
       '/api': {
         target: config.API_BASE || 'http://localhost:8080',
         changeOrigin: true,
         secure: false
+      },
+      '/ws': {
+        target: config.API_BASE || 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+        ws: true
       }
     }
   },

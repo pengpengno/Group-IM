@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../auth/authSlice';
-import { getElectronAPI } from '../../services/api/electronAPI';
+import { getElectronAPI, isElectronEnvironment } from '../../services/api/electronAPI';
 import type { User, ApiUser, ActiveTab } from '../../types';
 import { RootState, AppDispatch } from '../../store';
 import { webRTCService } from '../../services/WebRTCService';
@@ -41,10 +41,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
     const getSignalingConfig = () => {
         const fallbackHost = window.location.hostname || 'localhost';
-        const fallbackPort = window.location.port ? Number(window.location.port) : 80;
+        const fallbackPort = window.location.port
+            ? Number(window.location.port)
+            : (window.location.protocol === 'https:' ? 443 : 80);
+        const fallbackProtocol = window.location.protocol || 'http:';
+
+        if (!isElectronEnvironment()) {
+            return { host: fallbackHost, port: fallbackPort, protocol: fallbackProtocol };
+        }
 
         if (!__SIGNAL_BASE__) {
-            return { host: fallbackHost, port: fallbackPort };
+            return { host: fallbackHost, port: fallbackPort, protocol: fallbackProtocol };
         }
 
         try {
@@ -52,11 +59,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             const isHttps = url.protocol === 'https:';
             return {
                 host: url.host,
-                port: url.port ? Number(url.port) : (isHttps ? 443 : 80)
+                port: url.port ? Number(url.port) : (isHttps ? 443 : 80),
+                protocol: url.protocol
             };
         } catch (error) {
             console.warn('Invalid __SIGNAL_BASE__, falling back to window.location:', __SIGNAL_BASE__, error);
-            return { host: fallbackHost, port: fallbackPort };
+            return { host: fallbackHost, port: fallbackPort, protocol: fallbackProtocol };
         }
     };
 
@@ -107,7 +115,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
     const handleCall = (targetUserId: string, targetUserName?: string) => {
         console.log('Initiating call to:', targetUserId);
-        webRTCService.initiateCall(targetUserId);
+        webRTCService.initiateCall(targetUserId, targetUserName);
     };
 
     const handleStartMessage = async (targetUserId: string) => {
@@ -144,9 +152,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     // Connect to signaling on mount
     useEffect(() => {
         if (user?.userId) {
-            const { host, port } = getSignalingConfig();
+            const { host, port, protocol } = getSignalingConfig();
             const token = localStorage.getItem('token') || '';
-            webRTCService.connectSignaling(host, port, user.userId, token);
+            webRTCService.connectSignaling(host, port, user.userId, token, protocol);
         }
     }, [user?.userId]);
 
@@ -389,7 +397,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             const userId = 'id' in result ? result.id : (result as any).userId.toString();
-                                                            handleCall(userId);
+                                                            const userName = result.username || '';
+                                                            handleCall(userId, userName);
                                                         }}
                                                         title="Start Video Call"
                                                     >
@@ -471,7 +480,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             {/* Global Video Call Overlay */}
             {callState.callStatus !== VideoCallStatus.IDLE && (
                 <VideoCallScreen 
-                    remoteUserId={callState.remoteUserId} 
+                    remoteUserId={callState.remoteUserId} remoteUserName={callState.remoteUserName} remoteAvatar={callState.remoteAvatar} 
                     onCallEnd={() => {
                         // The service handles cleanup, we just need the UI to hide
                     }} 
