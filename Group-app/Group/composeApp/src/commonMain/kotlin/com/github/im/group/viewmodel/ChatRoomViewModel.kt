@@ -3,14 +3,15 @@ package com.github.im.group.viewmodel
 import ChatMessageBuilder
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.im.group.api.ChatApi
 import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.api.ConversationType
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.FileMeta
 import com.github.im.group.api.UserApi
+import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
-import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.manager.FileStorageManager
 import com.github.im.group.manager.FileUploadService
 import com.github.im.group.manager.MessageHandler
@@ -862,11 +863,58 @@ class ChatRoomViewModel(
     /**
      * 重置滚动到顶部标志
      * 
-     * 逻辑1: 将scrollToTop标志重置为false
+     * 逻辑 1: 将 scrollToTop 标志重置为 false
      */
     fun resetScrollToTopFlag() {
+        _uiState.update { it.copy(scrollToTop = false) }
+    }
+    
+    /**
+     * 撤回消息
+     */
+    fun withdrawMessage(message: MessageItem) {
+        viewModelScope.launch {
+            try {
+                // 调用 API 撤回消息
+                message.id.let { ChatApi.withdrawMessage(it) }
+                
+                // 本地预更新：将其状态设为 REVOKE
+                updateMessageStatus(message.seqId, MessageStatus.REVOKE)
+                Napier.d("已请求撤回消息: ${message.id}")
+            } catch (e: Exception) {
+                Napier.e("撤回消息失败", e)
+            }
+        }
+    }
+
+    /**
+     * 标记会话为已读
+     */
+    fun markConversationAsRead(conversationId: Long) {
+        viewModelScope.launch {
+            try {
+                val lastSeq = _uiState.value.messages.firstOrNull()?.seqId ?: 0L
+                if (lastSeq > 0) {
+                    // 对于单条消息简单的做法是标记最后一条，服务端会批量处理
+                    val lastMsgId = _uiState.value.messages.firstOrNull()?.id
+                    lastMsgId?.let { ChatApi.markAsRead(it) }
+                    
+                    Napier.d("已标记会话 $conversationId 为已读, lastSeq: $lastSeq")
+                }
+            } catch (e: Exception) {
+                Napier.e("标记已读失败", e)
+            }
+        }
+    }
+
+    private fun updateMessageStatus(seqId: Long, status: MessageStatus) {
         _uiState.update { currentState ->
-            currentState.copy(scrollToTop = false)
+            val updatedMessages = currentState.messages.map { msg ->
+                if (msg is MessageWrapper && msg.seqId == seqId) {
+                    msg.withStatus(status)
+                } else msg
+            }
+            currentState.copy(messages = updatedMessages)
         }
     }
 }

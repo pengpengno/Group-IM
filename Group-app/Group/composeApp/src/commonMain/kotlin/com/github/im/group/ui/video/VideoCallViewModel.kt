@@ -43,12 +43,12 @@ class VideoCallViewModel(
     private val _localMediaStream = MutableStateFlow<MediaStream?>(null)
     val localMediaStream: StateFlow<MediaStream?> = _localMediaStream
 
-    // 远程媒体流
-    private val _remoteVideo = MutableStateFlow<VideoTrack?>(null)
-    val remoteVideo: StateFlow<VideoTrack?> = _remoteVideo
+    // 远程媒体流 (多人支持)
+    private val _remoteVideoTracks = MutableStateFlow<Map<Long, VideoTrack>>(emptyMap())
+    val remoteVideoTracks: StateFlow<Map<Long, VideoTrack>> = _remoteVideoTracks
 
-    private val _remoteAudio = MutableStateFlow<AudioTrack?>(null)
-    val remoteAudio: StateFlow<AudioTrack?> = _remoteAudio
+    private val _remoteAudioTracks = MutableStateFlow<Map<Long, AudioTrack>>(emptyMap())
+    val remoteAudioTracks: StateFlow<Map<Long, AudioTrack>> = _remoteAudioTracks
 
     // WebRTC管理器
     private var webRTCManager: com.github.im.group.sdk.WebRTCManager? = null
@@ -59,23 +59,25 @@ class VideoCallViewModel(
     private var isEndingCall = false
 
     init {
-        // 监听远程视频轨道变化，更新状态
+        // 监听远程视频轨道映射变化，更新状态
         viewModelScope.launch {
-            _remoteVideo.collect { videoTrack ->
-                if (_videoCallState.value.isRemoteVideoEnabled != (videoTrack != null)) {
+            _remoteVideoTracks.collect { tracks ->
+                val hasRemoteVideo = tracks.isNotEmpty()
+                if (_videoCallState.value.isRemoteVideoEnabled != hasRemoteVideo) {
                     _videoCallState.value = _videoCallState.value.copy(
-                        isRemoteVideoEnabled = videoTrack != null
+                        isRemoteVideoEnabled = hasRemoteVideo
                     )
                 }
             }
         }
         
-        // 监听远程音频轨道变化，更新状态
+        // 监听远程音频轨道映射变化，更新状态
         viewModelScope.launch {
-            _remoteAudio.collect { audioTrack ->
-                if (_videoCallState.value.isMicrophoneEnabled != (audioTrack != null)) {
+            _remoteAudioTracks.collect { tracks ->
+                val hasRemoteAudio = tracks.isNotEmpty()
+                if (_videoCallState.value.isMicrophoneEnabled != hasRemoteAudio) {
                     _videoCallState.value = _videoCallState.value.copy(
-                        isMicrophoneEnabled = audioTrack != null
+                        isMicrophoneEnabled = hasRemoteAudio
                     )
                 }
             }
@@ -326,10 +328,15 @@ class VideoCallViewModel(
      */
     private fun releaseRemoteMediaTracks() {
         try {
-            _remoteVideo.value?.setEnabled(false)
-            _remoteAudio.value?.setEnabled(false)
-            _remoteVideo.value = null
-            _remoteAudio.value = null
+            remoteVideoTracks.value.forEach { _remoteVideo ->
+                _remoteVideo.value?.setEnabled(false)
+            }
+            remoteAudioTracks.value.forEach { _remoteAudio ->
+                _remoteAudio.value?.setEnabled(false)
+
+            }
+            _remoteVideoTracks.value = emptyMap<Long, VideoTrack>()
+            _remoteAudioTracks.value = emptyMap<Long, AudioTrack>()
         } catch (e: Exception) {
             Napier.e("释放远程媒体轨道失败", e)
         }

@@ -374,32 +374,51 @@ private fun ActiveVideoCallUI(
         onEndCall: () -> Unit
 ) {
     val videoCallState by videoCallViewModel.videoCallState.collectAsState()
-    val remoteVideoTrack by videoCallViewModel.remoteVideo.collectAsState()
-    val remoteAudioTrack by videoCallViewModel.remoteAudio.collectAsState()
+    val remoteVideoTracks by videoCallViewModel.remoteVideoTracks.collectAsState()
+    val remoteAudioTracks by videoCallViewModel.remoteAudioTracks.collectAsState()
     val localStream by videoCallViewModel.localMediaStream.collectAsState()
+
+    // 如果处于最小化状态，不显示全屏对话框
+    if (videoCallState.isMinimized) {
+        return
+    }
 
     Dialog(
             onDismissRequest = { /* 不允许通过点击外部关闭 */},
             properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-            // 远程视频显示区域
+            // 远程视频显示区域 - 多人网格布局
             Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-                // 显示远程视频流
-                if (remoteVideoTrack != null && videoCallState.isRemoteVideoEnabled) {
-                    VideoScreenView(
-                            modifier = Modifier.fillMaxSize(),
-                            videoTrack = remoteVideoTrack,
-                            audioTrack = remoteAudioTrack
-                    )
-                } else {
-                    // 显示占位符或用户信息
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        UserAvatar(username = remoteUser.username ?: "未知", size = 160)
+                if (remoteVideoTracks.size <= 1) {
+                    // 一对一视频或尚未有人加入
+                    val remoteTrackEntry = remoteVideoTracks.entries.firstOrNull()
+                    val remoteTrack = remoteTrackEntry?.value
+                    val remoteUserId = remoteTrackEntry?.key
+                    val remoteAudio = remoteAudioTracks[remoteUserId ?: 0L]
+
+                    if (remoteTrack != null && videoCallState.isRemoteVideoEnabled) {
+                        VideoScreenView(
+                                modifier = Modifier.fillMaxSize(),
+                                videoTrack = remoteTrack,
+                                audioTrack = remoteAudio
+                        )
+                    } else {
+                        // 显示占位符或用户信息
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            UserAvatar(username = remoteUser.username ?: "未知", size = 160)
+                        }
                     }
+                } else {
+                    // 多人视频网格布局
+//                    MultiPartyVideoGrid(
+//                        videoTracks = remoteVideoTracks,
+//                        audioTracks = remoteAudioTracks,
+//                        participants = videoCallState.participants
+//                    )
                 }
 
-                // 顶部和底部渐变遮盖层，确保文字清晰可见
+                // 顶部和底部渐变遮盖层
                 Box(
                         modifier =
                                 Modifier.fillMaxWidth()
@@ -416,7 +435,17 @@ private fun ActiveVideoCallUI(
                                                                 )
                                                 )
                                         )
-                )
+                ) {
+                    // 顶部控制栏 (如最小化按钮)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        IconButton(onClick = { videoCallViewModel.minimizeCall() }) {
+                            Icon(Icons.Default.Minimize, contentDescription = "最小化", tint = Color.White)
+                        }
+                    }
+                }
                 Box(
                         modifier =
                                 Modifier.fillMaxWidth()

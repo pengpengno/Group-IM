@@ -18,6 +18,7 @@ class ConfigManager(
     private val _currentEnvironment = MutableStateFlow(AppEnvironment.DEV)
     val currentEnvironment: StateFlow<AppEnvironment> = _currentEnvironment.asStateFlow()
 
+    @Suppress("SuspiciousIndentation")
     suspend fun initialize() {
         val savedState = storage.getProxyState()
         // 这里可以根据某种逻辑判断环境，目前简单处理：

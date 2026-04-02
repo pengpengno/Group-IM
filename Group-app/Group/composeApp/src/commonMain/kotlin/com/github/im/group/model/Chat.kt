@@ -15,12 +15,12 @@ class Chat {
 
 interface MessageItem {
     /**
-     * 消息ID 服务端生产的id
+     * 消息 ID 服务端生产的 id
      */
     val id: Long
 
     /**
-     * 会话ID
+     * 会话 ID
      */
     val conversationId:Long
 
@@ -60,10 +60,11 @@ interface MessageItem {
 
     /**
      * 如果是文件类型的消息，返回文件元数据
-     * 可能存在是文件类型但是没有文件元数据 ，如TCP 发送消息的时候 只会 携带其fileId ，需要通过API 再次查找
+     * 可能存在是文件类型但是没有文件元数据，如 TCP 发送消息的时候 只会 携带其 fileId ，需要通过 API 再次查找
      * 不是 则返回 null
      */
     val fileMeta : FileMeta?
+
 
 }
 
@@ -73,6 +74,16 @@ data class MessageWrapper(
     val message: ChatMessage? = null,
     val messageDto: MessageDTO? = null
 ) : MessageItem {
+
+    /**
+     * 创建一个带有新状态的消息副本
+     */
+    fun withStatus(newStatus: MessageStatus): MessageWrapper {
+        return copy(
+            messageDto = messageDto?.copy(status = newStatus),
+            message = message?.copy(messagesStatus = com.github.im.common.connect.model.proto.MessagesStatus.valueOf(newStatus.name))
+        )
+    }
 
 
     override val clientTime: LocalDateTime?
@@ -99,6 +110,9 @@ data class MessageWrapper(
             }
             else -> null
         }
+
+
+
     override val conversationId: Long = message?.conversationId ?: messageDto?.conversationId ?: 0L
 
     override val id: Long = message?.msgId ?: messageDto?.msgId ?: 0L
