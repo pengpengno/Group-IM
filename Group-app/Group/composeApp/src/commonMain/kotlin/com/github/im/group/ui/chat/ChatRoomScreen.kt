@@ -1,6 +1,8 @@
 package com.github.im.group.ui.chat
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +23,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Reply
 import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -29,7 +34,10 @@ import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,9 +56,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.github.im.group.db.entities.MessageStatus
@@ -69,7 +82,7 @@ import org.koin.compose.viewmodel.koinViewModel
 /**
  * 聊天室屏幕组件
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatRoomScreen(
     chatRoom: ChatRoom,
@@ -201,7 +214,7 @@ fun ChatRoomScreen(
                     modifier = Modifier.fillMaxSize(),
                     reverseLayout = true,
                     contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp, start = 8.dp, end = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.Top // 顶部对齐（在反转布局中，顶部逻辑上是屏幕底部）
                 ) {
                     if (chatUiState.loading) {
                         item {
@@ -269,6 +282,7 @@ fun ChatRoomScreen(
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageBubble(
     isOwnMessage: Boolean,
@@ -276,6 +290,9 @@ fun MessageBubble(
     showAvatar: Boolean = true,
 ) {
     val messageViewModel: ChatRoomViewModel = koinViewModel()
+
+    var showMenu by remember { mutableStateOf(false) }
+    val clipboardManager = LocalClipboardManager.current
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
@@ -305,38 +322,81 @@ fun MessageBubble(
                     SendingSpinner(modifier = Modifier.padding(end = 4.dp).size(12.dp))
                 }
 
-                Surface(
-                    color = if (isOwnMessage) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(
-                        topStart = if (isOwnMessage) 12.dp else 4.dp,
-                        topEnd = if (isOwnMessage) 4.dp else 12.dp,
-                        bottomStart = 12.dp,
-                        bottomEnd = 12.dp
-                    ),
-                    tonalElevation = if (isOwnMessage) 1.dp else 0.5.dp
-                ) {
-                    Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                        when (msg.type) {
-                            MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content), isOwnMessage)
-                            MessageType.VOICE -> {
-                                FileMessageLoader(
-                                    msg = msg,
-                                    messageViewModel = messageViewModel,
-                                    onContentReady = { file, meta ->
-                                        VoiceMessage(
-                                            content = MessageContent.Voice(file.path, meta.duration),
-                                            senderName = msg.userInfo.username,
-                                            isOwnMessage = isOwnMessage,
-                                            messageId = if (msg.seqId != 0L) "seq_${msg.seqId}" else "client_${msg.clientMsgId}"
-                                        )
-                                    },
-                                    onLoading = { CircularProgressIndicator(modifier = Modifier.size(16.dp)) }
-                                )
+                Box {
+                    Surface(
+                        color = if (isOwnMessage) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(
+                            topStart = if (isOwnMessage) 12.dp else 4.dp,
+                            topEnd = if (isOwnMessage) 4.dp else 12.dp,
+                            bottomStart = 12.dp,
+                            bottomEnd = 12.dp
+                        ),
+                        tonalElevation = if (isOwnMessage) 1.dp else 0.5.dp,
+                        modifier = Modifier.combinedClickable(
+                            onLongClick = { showMenu = true },
+                            onClick = { /* Default click behavior */ }
+                        )
+                    ) {
+                        Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                            when (msg.type) {
+                                MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content), isOwnMessage)
+                                MessageType.VOICE -> {
+                                    FileMessageLoader(
+                                        msg = msg,
+                                        messageViewModel = messageViewModel,
+                                        onContentReady = { file, meta ->
+                                            VoiceMessage(
+                                                content = MessageContent.Voice(file.path, meta.duration),
+                                                senderName = msg.userInfo.username,
+                                                isOwnMessage = isOwnMessage,
+                                                messageId = if (msg.seqId != 0L) "seq_${msg.seqId}" else "client_${msg.clientMsgId}"
+                                            )
+                                        },
+                                        onLoading = { CircularProgressIndicator(modifier = Modifier.size(16.dp)) }
+                                    )
+                                }
+                                MessageType.IMAGE, MessageType.VIDEO, MessageType.FILE -> {
+                                    UnifiedFileMessage(message = msg, messageViewModel = messageViewModel)
+                                }
+                                else -> TextMessage(MessageContent.Text(msg.content), isOwnMessage)
                             }
-                            MessageType.IMAGE, MessageType.VIDEO, MessageType.FILE -> {
-                                UnifiedFileMessage(message = msg, messageViewModel = messageViewModel)
+                        }
+                    }
+
+                    // 消息长按菜单
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        offset = DpOffset(if (isOwnMessage) (-16).dp else 16.dp, 0.dp)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("复制", fontSize = 14.sp) },
+                            leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                            onClick = {
+                                if (msg.type == MessageType.TEXT) {
+                                    clipboardManager.setText(AnnotatedString(msg.content))
+                                }
+                                showMenu = false
                             }
-                            else -> TextMessage(MessageContent.Text(msg.content), isOwnMessage)
+                        )
+                        DropdownMenuItem(
+                            text = { Text("转发", fontSize = 14.sp) },
+                            leadingIcon = { Icon(Icons.Default.Reply, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                            onClick = {
+                                // TODO: 发起转发流程
+                                showMenu = false
+                            }
+                        )
+                        if (isOwnMessage) {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                            DropdownMenuItem(
+                                text = { Text("撤回", fontSize = 14.sp, color = Color.Red) },
+                                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.Red) },
+                                onClick = {
+                                    // TODO: 调用 ViewModel 撤回消息
+                                    showMenu = false
+                                }
+                            )
                         }
                     }
                 }

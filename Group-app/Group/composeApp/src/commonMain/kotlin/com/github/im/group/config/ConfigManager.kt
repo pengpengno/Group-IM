@@ -12,12 +12,13 @@ import kotlinx.coroutines.flow.asStateFlow
 class ConfigManager(
     private val storage: ProxyConfigStorage
 ) {
-    private val _currentConfig = MutableStateFlow<AppConfig>(DevConfig())
+    private val _currentConfig = MutableStateFlow<AppConfig>(ProdConfig())
     val currentConfig: StateFlow<AppConfig> = _currentConfig.asStateFlow()
 
-    private val _currentEnvironment = MutableStateFlow(AppEnvironment.DEV)
+    private val _currentEnvironment = MutableStateFlow(AppEnvironment.PROD)
     val currentEnvironment: StateFlow<AppEnvironment> = _currentEnvironment.asStateFlow()
 
+    @Suppress("SuspiciousIndentation")
     suspend fun initialize() {
         val savedState = storage.getProxyState()
         // 这里可以根据某种逻辑判断环境，目前简单处理：
@@ -34,7 +35,17 @@ class ConfigManager(
 //            _currentEnvironment.value = AppEnvironment.CUSTOM
 //        } else {
             // 以后可以扩展存储选中的环境枚举，这里暂时默认 DEV
+        if (savedState.enableProxy) {
+            updateCustomConfig(
+                host = savedState.host,
+                tcpHost = savedState.tcpHost,
+                port = savedState.port,
+                tcpPort = savedState.tcpPort,
+                useTls = savedState.useTls
+            )
+        } else {
             setEnvironment(AppEnvironment.PROD)
+        }
 //        }
     }
 
@@ -49,6 +60,7 @@ class ConfigManager(
             }
         }
         _currentConfig.value = config
+        ProxyConfig.updateConfig(config)
         _currentEnvironment.value = env
         
         // 更新存储的状态（如果是切换环境）
@@ -70,6 +82,7 @@ class ConfigManager(
     suspend fun updateCustomConfig(host: String, tcpHost: String, port: Int, tcpPort: Int, useTls: Boolean) {
         val config = CustomConfig(host, tcpHost, port, tcpPort, useTls)
         _currentConfig.value = config
+        ProxyConfig.updateConfig(config)
         _currentEnvironment.value = AppEnvironment.CUSTOM
         storage.setProxyState(ProxySettingsState(host, tcpHost, port, tcpPort, useTls, true))
     }

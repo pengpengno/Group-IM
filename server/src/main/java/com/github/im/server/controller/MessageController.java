@@ -59,6 +59,13 @@ public class MessageController {
         return ResponseEntity.ok().build();
     }
 
+    // 撤回消息
+    @PostMapping("/withdraw")
+    public ResponseEntity<Void> withdrawMessage(@RequestParam Long msgId, @AuthenticationPrincipal User user) {
+        messageService.withdrawMessage(msgId, user.getUserId());
+        return ResponseEntity.ok().build();
+    }
+
     // 搜索消息
     @PostMapping("/search")
     public ResponseEntity<Page<MessageDTO<MessagePayLoad>>> searchMessages(@RequestBody MessageSearchRequest request,

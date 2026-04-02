@@ -13,27 +13,64 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.github.im.group.config.AppEnvironment
+import com.github.im.group.config.ConfigManager
+import com.github.im.group.config.CustomConfig
 import com.github.im.group.config.ProxyConfig
 import com.github.im.group.ui.Login
-import org.jetbrains.compose.ui.tooling.preview.Preview
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 
 @Composable
-@Preview
 fun ProxyScreen(
     navHostController: NavHostController,
     ) {
+    val configManager: ConfigManager = koinInject()
+    val currentConfig by configManager.currentConfig.collectAsState()
+    val currentEnvironment by configManager.currentEnvironment.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+
     var expanded by remember { mutableStateOf(true) }
-    val focusRequester = FocusRequester()
+
+    var useCustom by remember { mutableStateOf(currentEnvironment == AppEnvironment.CUSTOM) }
+    var apiHost by remember { mutableStateOf(currentConfig.apiHost) }
+    var apiPort by remember { mutableStateOf(currentConfig.apiPort.toString()) }
+    var tcpHost by remember { mutableStateOf(currentConfig.tcpHost) }
+    var tcpPort by remember { mutableStateOf(currentConfig.tcpPort.toString()) }
+    var useTls by remember { mutableStateOf(currentConfig.useTls) }
+
+    LaunchedEffect(currentConfig, currentEnvironment) {
+        useCustom = currentEnvironment == AppEnvironment.CUSTOM
+        apiHost = currentConfig.apiHost
+        apiPort = currentConfig.apiPort.toString()
+        tcpHost = currentConfig.tcpHost
+        tcpPort = currentConfig.tcpPort.toString()
+        useTls = currentConfig.useTls
+    }
+
+    val previewConfig = if (useCustom) {
+        CustomConfig(
+            apiHost = apiHost,
+            tcpHost = tcpHost,
+            apiPort = apiPort.toIntOrNull() ?: currentConfig.apiPort,
+            tcpPort = tcpPort.toIntOrNull() ?: currentConfig.tcpPort,
+            useTls = useTls
+        )
+    } else {
+        currentConfig
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -55,8 +92,8 @@ fun ProxyScreen(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(
-                        checked = ProxyConfig.enableProxy,
-                        onCheckedChange = { ProxyConfig.enableProxy = it }
+                        checked = useCustom,
+                        onCheckedChange = { useCustom = it }
                     )
                     Text("启用代理")
                 }
@@ -64,8 +101,8 @@ fun ProxyScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedTextField(
-                    value = ProxyConfig.host,
-                    onValueChange = { ProxyConfig.host = it },
+                    value = apiHost,
+                    onValueChange = { apiHost = it },
                     label = { Text("代理Host") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -74,17 +111,8 @@ fun ProxyScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
-                    value = ProxyConfig.port.toString(),
-                    onValueChange = {
-                        if (it.isEmpty()) {
-                            ProxyConfig.port = 0
-                        } else {
-                            val port = it.toIntOrNull()
-                            if (port != null && port in 1..65535) {
-                                ProxyConfig.port = port
-                            }
-                        }
-                    },
+                    value = apiPort,
+                    onValueChange = { apiPort = it.filter(Char::isDigit) },
                     label = { Text("代理端口") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -93,6 +121,37 @@ fun ProxyScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                OutlinedTextField(
+                    value = tcpHost,
+                    onValueChange = { tcpHost = it },
+                    label = { Text("TCP Host") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = tcpPort,
+                    onValueChange = { tcpPort = it.filter(Char::isDigit) },
+                    label = { Text("TCP Port") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = useTls,
+                        onCheckedChange = { useTls = it }
+                    )
+                    Text("Use TLS")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Text(
                     text = "当前代理地址: ${ProxyConfig.getBaseUrl()}",
                     style = MaterialTheme.typography.bodyMedium,
@@ -100,10 +159,20 @@ fun ProxyScreen(
                 )
                 Button(
                     onClick = {
-                        ProxyConfig.enableProxy = true
-//                        ProxyConfig.host = "localhost"
-//                        ProxyConfig.port = 8080
-                        navHostController.navigate(Login)
+                        coroutineScope.launch {
+                            if (useCustom) {
+                                configManager.updateCustomConfig(
+                                    host = apiHost,
+                                    tcpHost = tcpHost,
+                                    port = apiPort.toIntOrNull() ?: currentConfig.apiPort,
+                                    tcpPort = tcpPort.toIntOrNull() ?: currentConfig.tcpPort,
+                                    useTls = useTls
+                                )
+                            } else {
+                                configManager.setEnvironment(AppEnvironment.PROD)
+                            }
+                            navHostController.navigate(Login)
+                        }
 //                        navigator.push(LoginScreen())
                     },
                 ){

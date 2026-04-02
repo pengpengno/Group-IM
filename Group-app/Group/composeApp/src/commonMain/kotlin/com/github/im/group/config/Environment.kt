@@ -1,5 +1,7 @@
 package com.github.im.group.config
 
+import io.github.aakira.napier.Napier
+
 /**
  * 应用环境枚举
  */
@@ -20,16 +22,17 @@ interface AppConfig {
     val apiPort: Int
     val tcpPort: Int
     val useTls: Boolean
-    
+
     fun getBaseUrl(): String {
         val protocol = if (useTls) "https" else "http"
         val portSuffix = if ((useTls && apiPort == 443) || (!useTls && apiPort == 80)) "" else ":$apiPort"
+        Napier.d("getBaseUrl: $protocol://$apiHost$portSuffix")
         return "$protocol://$apiHost$portSuffix"
     }
 
     fun getWsBaseUrl(): String {
         val protocol = if (useTls) "wss" else "ws"
         val portSuffix = if ((useTls && apiPort == 443) || (!useTls && apiPort == 80)) "" else ":$apiPort"
-        return "$protocol://$apiHost$portSuffix"
+        return "$protocol://$apiHost$portSuffix/ws"
     }
 }

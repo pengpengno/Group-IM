@@ -5,7 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.github.im.group.config.ConfigManager
-import com.github.im.group.config.ProxyConfig
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
@@ -37,9 +36,6 @@ class MainActivity : ComponentActivity() {
         MainScope().launch {
             configManager.initialize()
             // 监听配置变化并更新 ProxyConfig (向下兼容)
-            configManager.currentConfig.collect { newConfig ->
-                ProxyConfig.updateConfig(newConfig)
-            }
         }
         
         setContent {

@@ -1,19 +1,19 @@
 package com.github.im.group.sdk
 
-import com.github.im.group.config.ProxyConfig
-import com.github.im.group.config.SocketClient
 import com.github.im.common.connect.model.proto.BaseMessagePkg
 import com.github.im.common.connect.model.proto.ChatMessage
+import com.github.im.group.config.ProxyConfig
+import com.github.im.group.config.SocketClient
 import com.github.im.group.model.toUserInfo
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.viewmodel.LoginState
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -25,10 +25,14 @@ class SenderSdk(
 
     private val scope = CoroutineScope(Dispatchers.IO)
     private val _connected = MutableStateFlow(false)
-    private val _host = ProxyConfig.tcpHost
-    private val _port = ProxyConfig.tcp_port
     private var reconnectJob: Job? = null
     private val reconnectMutex = Mutex()
+
+//    private val _host: String get() = ProxyConfig.tcpHost
+//    private val _port: Int get() = ProxyConfig.tcp_port
+
+    private fun currentTcpHost(): String = ProxyConfig.tcpHost
+    private fun currentTcpPort(): Int = ProxyConfig.tcp_port
 
     /***
      * 用于 向远程长连接服务器建立连接
@@ -63,22 +67,20 @@ class SenderSdk(
                 // 启动新的重连任务
                 reconnectJob = launch {
                     var retryCount = 0L
-                    while (isActive) {
+                    while (!tcpClient.isActive()) {
 //                        Napier.d("正在检查连接状态...")
                         try {
-                            val isConnected = tcpClient.isActive()
-                            Napier.d("连接状态: $isConnected")
-                            if (!isConnected) {
-                                Napier.d("检测到断线，尝试重连...")
-                                tcpClient.connect(_host, _port)
-                                Napier.d("重连成功，重新启动接收协程")
-                                // 重新注册到远程服务器（重新发送登录信息）
-                                registerToRemote()
-                                retryCount = 0 // 重置重试计数
-                            }
+                            Napier.d("检测到断线，尝试重连...")
+                            val host = currentTcpHost()
+                            val port = currentTcpPort()
+                            tcpClient.connect(host, port)
+                            Napier.d("重连成功，重新启动接收协程")
+                            // 重新注册到远程服务器（重新发送登录信息）
+                            registerToRemote()
+                            retryCount = 0 // 重置重试计数
                             _connected.value = true
                         } catch (e: Exception) {
-                            Napier.d("自动重连异常: ${e.message}")
+                            Napier.d("自动重连异常: ${e.message},host ${currentTcpHost()},port:${currentTcpPort()}")
                             _connected.value = false
                             retryCount++
                             // 指数退避策略，最大延迟60秒
@@ -137,7 +139,9 @@ class SenderSdk(
 
                 // 首先 建立TCP 连接通道
                 if (!tcpClient.isActive()){
-                    tcpClient.connect(_host,_port)
+                    val host = currentTcpHost()
+                    val port = currentTcpPort()
+                    tcpClient.connect(host, port)
                 }
 
                 val pkg = BaseMessagePkg(userInfo = it.toUserInfo())

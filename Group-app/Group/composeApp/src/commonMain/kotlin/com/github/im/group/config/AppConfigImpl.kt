@@ -30,7 +30,7 @@ class TestConfig(
  * 生产环境配置
  */
 class ProdConfig(
-    override val apiHost: String = "groupim.cn", // 示例域名
+    override val apiHost: String = "groupim.cn",
     override val tcpHost: String = "im.groupim.cn",
     override val apiPort: Int = 443,
     override val tcpPort: Int = 8088,

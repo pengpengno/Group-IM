@@ -1,13 +1,8 @@
 package com.github.im.group.api
 
-import org.koin.core.component.inject
-import com.github.im.group.config.AppConfig
-import com.github.im.group.config.AppEnvironment
-import com.github.im.group.config.DevConfig
-import com.github.im.group.config.ProxyConfig
 import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.GlobalErrorHandler
-import com.github.im.group.api.FileUploadResponse
+import com.github.im.group.config.ProxyConfig
 import io.github.aakira.napier.Napier
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -36,7 +31,7 @@ import org.koin.core.component.KoinComponent
 object ProxyApi
   : KoinComponent {
 
-    val appConfig: AppConfig by inject()
+//    private val configManager: ConfigManager by inject()
 
     val client = HttpClient() {
         install(ContentNegotiation) {
@@ -60,7 +55,8 @@ object ProxyApi
      */
     suspend fun uploadFile(fileId:String ,file: ByteArray, fileName: String , duration: Long=0):FileUploadResponse {
 
-        val baseUrl = appConfig.getBaseUrl()
+//        val baseUrl = configManager.currentConfig.value.getBaseUrl()
+        val baseUrl = ProxyConfig.getBaseUrl()
 
 
         val response =  client.submitFormWithBinaryData(
@@ -127,7 +123,8 @@ object ProxyApi
      */
     suspend fun uploadFileWithClientId(file: ByteArray, fileName: String, duration: Long, clientId: String): FileUploadResponse {
 
-        val baseUrl = appConfig.getBaseUrl()
+//        val baseUrl = configManager.currentConfig.value.getBaseUrl()
+        val baseUrl =  ProxyConfig.getBaseUrl()
 
 
         var response =  client.submitFormWithBinaryData(
@@ -194,7 +191,8 @@ object ProxyApi
     ): R {
 //        val config = proxyConfigProviderProvider()
 
-        val baseUrl = appConfig.getBaseUrl()
+        val baseUrl =  ProxyConfig.getBaseUrl()
+//        val baseUrl = configManager.currentConfig.value.getBaseUrl()
 
         val response = client.request("$baseUrl$path") {
             url {

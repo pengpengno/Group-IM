@@ -1,9 +1,9 @@
 package com.github.im.group.connect
 
 import com.github.im.common.connect.model.proto.BaseMessagePkg
+import com.github.im.common.connect.model.proto.Heartbeat
 import com.github.im.group.config.SocketClient
 import com.github.im.group.manager.MessageRouter
-import com.github.im.common.connect.model.proto.Heartbeat
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

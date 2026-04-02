@@ -65,10 +65,13 @@ fun ChatUI(
     val userInfo by userViewModel.currentLocalUserInfo.collectAsState()
     val loading by chatViewModel.loading.collectAsState()
 
-    LaunchedEffect(userInfo) {
+    LaunchedEffect(userInfo?.userId) {
         Napier.d { "当前的用户为 ： $userInfo" }
-        userInfo?.userId?.let {
-            chatViewModel.getConversations(it)
+        userInfo?.userId?.let { userId ->
+            // 只有当当前列表为空或者需要强制刷新时才触发加载
+            if (conversations.isEmpty()) {
+                chatViewModel.getConversations(userId)
+            }
         }
     }
 

@@ -14,7 +14,7 @@ data class ProxySettingsState(
 
 object ProxyConfig {
     // 默认使用开发配置
-    private var _config: AppConfig = DevConfig()
+    private var _config: AppConfig = ProdConfig()
     
     val config: AppConfig get() = _config
 
@@ -58,22 +58,3 @@ object ProxyConfig {
         TODO("已在 ConfigManager 中实现，建议调用 ConfigManager.updateCustomConfig")
     }
 }
-
-//
-///**
-// * 代理设置
-// */
-//public data class ProxySettingsState(
-//    val host: String = "192.168.1.6",
-//    val port: Int = 8080,
-//    val tcpPort: Int = 8088,
-//    val enableProxy: Boolean = false
-//) {
-//    fun getBaseUrl(): String {
-//        return if (enableProxy) {
-//            "http://$host:$port"
-//        } else {
-//            "http://$host:8080"
-//        }
-//    }
-//}

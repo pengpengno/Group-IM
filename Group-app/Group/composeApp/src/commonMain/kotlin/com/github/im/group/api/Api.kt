@@ -375,6 +375,28 @@ object ChatApi {
             body = requestBody
         )
     }
+
+    /**
+     * 撤回消息
+     */
+    suspend fun withdrawMessage(msgId: Long): Unit {
+        return ProxyApi.request<Unit, Unit>(
+            hmethod = HttpMethod.Post,
+            path = "/api/messages/withdraw",
+            requestParams = mapOf("msgId" to msgId.toString())
+        )
+    }
+
+    /**
+     * 标记消息为已读
+     */
+    suspend fun markAsRead(msgId: Long): Unit {
+        return ProxyApi.request<Unit, Unit>(
+            hmethod = HttpMethod.Post,
+            path = "/api/messages/mark-as-read",
+            requestParams = mapOf("msgId" to msgId.toString())
+        )
+    }
 }
 
 /**

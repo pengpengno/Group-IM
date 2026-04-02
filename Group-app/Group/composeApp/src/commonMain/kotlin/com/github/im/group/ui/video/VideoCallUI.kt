@@ -6,11 +6,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Cameraswitch
@@ -37,6 +42,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -374,32 +380,51 @@ private fun ActiveVideoCallUI(
         onEndCall: () -> Unit
 ) {
     val videoCallState by videoCallViewModel.videoCallState.collectAsState()
-    val remoteVideoTrack by videoCallViewModel.remoteVideo.collectAsState()
-    val remoteAudioTrack by videoCallViewModel.remoteAudio.collectAsState()
+    val remoteVideoTracks by videoCallViewModel.remoteVideoTracks.collectAsState()
+    val remoteAudioTracks by videoCallViewModel.remoteAudioTracks.collectAsState()
     val localStream by videoCallViewModel.localMediaStream.collectAsState()
+
+    // 如果处于最小化状态，不显示全屏对话框
+    if (videoCallState.isMinimized) {
+        return
+    }
 
     Dialog(
             onDismissRequest = { /* 不允许通过点击外部关闭 */},
             properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-            // 远程视频显示区域
+            // 远程视频显示区域 - 多人网格布局
             Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-                // 显示远程视频流
-                if (remoteVideoTrack != null && videoCallState.isRemoteVideoEnabled) {
-                    VideoScreenView(
-                            modifier = Modifier.fillMaxSize(),
-                            videoTrack = remoteVideoTrack,
-                            audioTrack = remoteAudioTrack
-                    )
-                } else {
-                    // 显示占位符或用户信息
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        UserAvatar(username = remoteUser.username ?: "未知", size = 160)
+                if (remoteVideoTracks.size <= 1) {
+                    // 一对一视频或尚未有人加入
+                    val remoteTrackEntry = remoteVideoTracks.entries.firstOrNull()
+                    val remoteTrack = remoteTrackEntry?.value
+                    val remoteUserId = remoteTrackEntry?.key
+                    val remoteAudio = remoteAudioTracks[remoteUserId ?: 0L]
+
+                    if (remoteTrack != null && videoCallState.isRemoteVideoEnabled) {
+                        VideoScreenView(
+                                modifier = Modifier.fillMaxSize(),
+                                videoTrack = remoteTrack,
+                                audioTrack = remoteAudio
+                        )
+                    } else {
+                        // 显示占位符或用户信息
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            UserAvatar(username = remoteUser.username ?: "未知", size = 160)
+                        }
                     }
+                } else {
+                    // 多人视频网格布局
+                    MultiPartyVideoGrid(
+                        videoTracks = remoteVideoTracks,
+                        audioTracks = remoteAudioTracks,
+                        participants = videoCallState.participants
+                    )
                 }
 
-                // 顶部和底部渐变遮盖层，确保文字清晰可见
+                // 顶部和底部渐变遮盖层
                 Box(
                         modifier =
                                 Modifier.fillMaxWidth()
@@ -416,7 +441,17 @@ private fun ActiveVideoCallUI(
                                                                 )
                                                 )
                                         )
-                )
+                ) {
+                    // 顶部控制栏 (如最小化按钮)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        IconButton(onClick = { videoCallViewModel.minimizeCall() }) {
+                            Icon(Icons.Default.Minimize, contentDescription = "最小化", tint = Color.White)
+                        }
+                    }
+                }
                 Box(
                         modifier =
                                 Modifier.fillMaxWidth()
@@ -655,6 +690,104 @@ private fun CallControlPanel(
                     contentDescription = "扬声器",
                     tint = Color.White
             )
+        }
+    }
+}
+
+/**
+ * 多人视频网格布局组件
+ * 根据参与者数量动态调整布局，支持圆角、静音状态指示和美观的缺省占位图。
+ */
+@Composable
+fun MultiPartyVideoGrid(
+    videoTracks: Map<Long, com.github.im.group.sdk.VideoTrack>,
+    audioTracks: Map<Long, com.github.im.group.sdk.AudioTrack>,
+    participants: List<UserInfo>,
+    modifier: Modifier = Modifier
+) {
+    if (participants.isEmpty()) return
+
+    // 如果少于等于 2 人，采用单列；否则采用双列网格
+    val columns = if (participants.size <= 2) 1 else 2
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(columns),
+        modifier = modifier.fillMaxSize().padding(top = 48.dp, bottom = 120.dp, start = 16.dp, end = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(participants, key = { it }) { participant ->
+            val participantId = participant.userId
+            val videoTrack = videoTracks[participant.userId]
+            val audioTrack = audioTracks[participant.userId]
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(if (columns == 1) 4f / 3f else 1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF282828))
+            ) {
+                // 渲染视频流
+                if (videoTrack != null && videoTrack.isEnabled) {
+                    VideoScreenView(
+                        modifier = Modifier.fillMaxSize(),
+                        videoTrack = videoTrack,
+                        audioTrack = audioTrack
+                    )
+                } else {
+                    // 无视频时的占位 UI
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Participant $participantId",
+                                modifier = Modifier.size(64.dp),
+                                tint = Color.Gray.copy(alpha = 0.5f)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "用户 $participantId",
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+
+                // 用户唯一标识或名字底条
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(8.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "用户 $participantId",
+                        color = Color.White,
+                        fontSize = 12.sp
+                    )
+                }
+
+                // 麦克风静音状态指示灯
+                if (audioTrack == null || !audioTrack.isEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+                            .padding(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MicOff,
+                            contentDescription = "Muted",
+                            tint = Color(0xFFFF3B30),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 }

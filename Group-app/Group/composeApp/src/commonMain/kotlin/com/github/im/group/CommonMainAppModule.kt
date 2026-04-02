@@ -11,7 +11,6 @@ val commonModule = module {
     single { ConfigManager(get()) }
     
     // 提供当前的 AppConfig
-    single { get<ConfigManager>().currentConfig.value }
     
     // 音频播放管理器
     single { AudioPlaybackManager(get()) }

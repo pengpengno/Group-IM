@@ -122,6 +122,41 @@ public class MessageService {
     /**
      * 批量标记消息为已读
      */
+    /**
+     * 撤回消息
+     */
+    @Transactional
+    public void withdrawMessage(Long msgId, Long userId) {
+        messageRepository.findById(msgId).ifPresent(message -> {
+            // 权限校验：只能撤回自己发送的消息
+            if (!message.getFromAccountId().getUserId().equals(userId)) {
+                throw new IllegalStateException("只能撤回自己发送的消息");
+            }
+            
+            // 更新状态为撤回
+            message.setStatus(MessageStatus.REVOKE);
+            messageRepository.save(message);
+            
+            // 构造推送到客户端的撤回通知
+            Chat.ChatMessage revokeMessage = Chat.ChatMessage.newBuilder()
+                    .setMsgId(msgId)
+                    .setConversationId(message.getConversation( ).getConversationId())
+                    .setClientMsgId(message.getClientMsgId())
+                    .setMessagesStatus(Chat.MessagesStatus.REVOKE)
+                    .setFromUser(com.github.im.common.connect.model.proto.User.UserInfo.newBuilder()
+                            .setUserId(userId)
+                            .build())
+                    .build();
+            
+            final var revokeBasePkg = BaseMessage.BaseMessagePkg.newBuilder()
+                    .setMessage(revokeMessage)
+                    .build();
+            
+            // 推送给所有人
+            pushToMembers(message.getConversation().getConversationId(), userId, revokeBasePkg);
+        });
+    }
+
     @Transactional
     public void markConversationAsRead(Long conversationId, Long userId, Long sequenceId) {
         // 更新该会话中，小于等于 sequenceId 且不是自己发送的消息状态为已读
