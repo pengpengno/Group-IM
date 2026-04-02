@@ -61,7 +61,7 @@ public class BindAttr<T> {
     public static BindAttr<String> getBindAttr(User.UserInfo accountInfo) {
         var platformType = accountInfo.getPlatformType();
         var platformTypeEnums = PlatformType.getPlatformType(platformType);
-        var account = accountInfo.getUsername();
+        var account = String.valueOf(accountInfo.getUserId());
         return getBindAttr(account,platformTypeEnums);
     }
 

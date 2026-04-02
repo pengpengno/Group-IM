@@ -183,7 +183,7 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     // 新增：建立WebSocket连接的方法
     private fun establishWebSocketConnection() {
         val request = Request.Builder()
-            .url("${ProxyConfig.getWsBaseUrl()}?userId=$userId")
+            .url("${ProxyConfig.getWsBaseUrl()}?userId=$userId&token=${GlobalCredentialProvider.currentToken}")
             .header("Authorization", GlobalCredentialProvider.currentToken)
             .build()
         Napier.d("WebRTC 创建WebSocket连接: $request")

@@ -8,7 +8,9 @@ import com.github.im.server.model.Friendship;
 import com.github.im.server.model.User;
 import com.github.im.server.service.SendMessageToClientEndPoint;
 import com.github.im.server.service.dto.ToClientData;
+import com.github.im.server.service.RedisMessageRouter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -26,6 +28,9 @@ import java.util.Optional;
 @Slf4j
 @Service
 public class SendMessageToClientEndPointImpl implements SendMessageToClientEndPoint {
+
+    @Autowired
+    private RedisMessageRouter redisMessageRouter;
 
 
     @Override
@@ -50,11 +55,11 @@ public class SendMessageToClientEndPointImpl implements SendMessageToClientEndPo
 
         
         pkgOpt.ifPresent(pkg-> {
-
-            final BindAttr<String> bindAttr = friendRequest.getBindAttr();
-
-            // 在线的化就发送消息 不在线 就屏蔽
-            ReactiveConnectionManager.addBaseMessage(bindAttr, pkg);
+            try {
+                redisMessageRouter.send(friendship.getUser().getUserId(), friendship.getFriend().getUserId(), pkg);
+            } catch (Exception e) {
+                log.error("Failed to route friend request message", e);
+            }
         });
 
 

@@ -74,16 +74,10 @@ public class RedisMessageRouter implements MessageRouter {
      */
     private void deliverLocal(Long toUserId, Object payload) {
         try {
-            BindAttr bindAttr = BindAttr.getBindAttr(toUserId.toString());
-            var sink = ReactiveConnectionManager.registerSinkFlow(bindAttr);
-            
-            if (sink == null) {
-                log.warn("User {} registered as local but session sink is missing", toUserId);
-                return;
-            }
+            BindAttr bindAttr = BindAttr.getBindAttrForPush(toUserId.toString());
 
             if (payload instanceof BaseMessage.BaseMessagePkg) {
-                sink.tryEmitNext((BaseMessage.BaseMessagePkg) payload);
+                ReactiveConnectionManager.addBaseMessage(bindAttr, (BaseMessage.BaseMessagePkg) payload);
             } else {
                 log.warn("Message dropped: unsupported type {}", payload.getClass().getName());
             }

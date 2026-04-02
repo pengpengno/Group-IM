@@ -187,13 +187,8 @@ public class RouteConsumer {
 
     private void deliverLocal(Long userId, BaseMessage.BaseMessagePkg messagePkg) {
         try {
-            var bindAttr = BindAttr.getBindAttr(userId.toString());
-            var sink = ReactiveConnectionManager.registerSinkFlow(bindAttr);
-            if (sink != null) {
-                sink.tryEmitNext(messagePkg);
-            } else {
-                log.debug("Local user session not found: {}", userId);
-            }
+            var bindAttr = BindAttr.getBindAttrForPush(userId.toString());
+            ReactiveConnectionManager.addBaseMessage(bindAttr, messagePkg);
         } catch (Exception e) {
             log.warn("Deliver error for user {}: {}", userId, e.getMessage());
             throw new RuntimeException("Deliver failed", e); // 抛出异常触发不执行 ACK
