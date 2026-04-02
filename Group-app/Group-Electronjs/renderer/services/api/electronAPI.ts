@@ -27,9 +27,9 @@ export interface ElectronAPI {
   logout: () => Promise<void>;
 
   // 文件操作相关
-  selectFile: (options: SelectFileOptions) => Promise<SelectFileResult>;
-  selectFiles: (options: SelectFileOptions) => Promise<SelectFileResult[]>;
-  uploadFile: (filePath: string, clientId?: string, token?: string) => Promise<any>;
+  selectFile: (options: SelectFileOptions) => Promise<SelectFileResult & { file?: File }>;
+  selectFiles: (options: SelectFileOptions) => Promise<Array<SelectFileResult & { file?: File }>>;
+  uploadFile: (fileOrPath: string | File, clientId?: string, token?: string) => Promise<any>;
 
   // 用户搜索相关
   searchUsers: (query: string, token?: string) => Promise<ApiSearchResults>;
@@ -87,7 +87,7 @@ const webAPI: ElectronAPI = {
   },
 
   // 文件操作相关
-  selectFile: async (options: SelectFileOptions): Promise<SelectFileResult> => {
+  selectFile: async (options: SelectFileOptions): Promise<SelectFileResult & { file?: File }> => {
     return new Promise((resolve) => {
       const input = document.createElement('input');
       input.type = 'file';
@@ -97,7 +97,8 @@ const webAPI: ElectronAPI = {
       input.onchange = (e) => {
         const files = (e.target as HTMLInputElement).files;
         if (files && files.length > 0) {
-          resolve({ canceled: false, filePaths: [files[0].name] });
+          const file = files[0];
+          resolve({ canceled: false, filePaths: [file.name], file });
         } else {
           resolve({ canceled: true, filePaths: [] });
         }
@@ -106,7 +107,7 @@ const webAPI: ElectronAPI = {
     });
   },
 
-  selectFiles: async (options: SelectFileOptions): Promise<SelectFileResult[]> => {
+  selectFiles: async (options: SelectFileOptions): Promise<Array<SelectFileResult & { file?: File }>> => {
     return new Promise((resolve) => {
       const input = document.createElement('input');
       input.type = 'file';
@@ -117,7 +118,12 @@ const webAPI: ElectronAPI = {
       input.onchange = (e) => {
         const files = (e.target as HTMLInputElement).files;
         if (files && files.length > 0) {
-          resolve([{ canceled: false, filePaths: Array.from(files).map(f => f.name) }]);
+          const results = Array.from(files).map(file => ({
+            canceled: false,
+            filePaths: [file.name],
+            file
+          }));
+          resolve(results);
         } else {
           resolve([{ canceled: true, filePaths: [] }]);
         }
@@ -126,9 +132,43 @@ const webAPI: ElectronAPI = {
     });
   },
 
-  uploadFile: async (filePath: string, clientId?: string, token?: string) => {
-    // In web, we can't really upload a file by path. This is just for signature consistency.
-    throw new Error('Not implemented in web');
+  uploadFile: async (fileOrPath: string | File, clientId?: string, token?: string) => {
+    if (typeof fileOrPath === 'string') {
+        throw new Error('Web environment only supports uploading File objects, not paths.');
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileOrPath);
+    formData.append('clientId', clientId || Math.random().toString(36).substring(2, 15));
+
+    const config: any = {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    };
+
+    if (token) {
+        config.headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+        const response = await authAPI.login({} as any); // Dummy call to get instance, or use authAPI directly if it has a way to POST
+        // Since authAPI in apiClient uses axios 'http' instance which already has base_url and interceptors
+        // We'll use axios directly with the base_url
+        const axios = require('axios').default;
+        const res = await axios.post(`${(authAPI as any).BASE_URL || (__API_BASE__)}/api/files/upload`, formData, config);
+        
+        return {
+            success: true,
+            data: res.data
+        };
+    } catch (error: any) {
+        console.error('Web file upload error:', error);
+        return {
+            success: false,
+            error: error.response?.data?.message || error.message || 'File upload failed'
+        };
+    }
   },
 
   // 用户搜索相关

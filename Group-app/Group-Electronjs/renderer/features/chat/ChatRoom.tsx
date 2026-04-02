@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
-import { fetchMessages, sendMessage, sendMessageViaSocket } from './chatSlice';
+import { fetchMessages, sendMessageViaSocket } from './chatSlice';
 import { BASE_URL } from '../../services/api/apiClient';
 import { useAppSelector } from '../../hooks';
+import { getElectronAPI, isElectronEnvironment } from '../../services/api/electronAPI';
 import axios from 'axios';
 import type { ConversationRes, MessageDTO } from '../../types';
 import type { AuthState } from '../auth/authSlice';
@@ -24,9 +25,6 @@ interface ChatRoomProps {
 }
 
 // 消息项组件
-/**
- * 带鉴权的图片组件
- */
 /**
  * Authenticated Media Hook to handle blob URLs with token
  */
@@ -153,10 +151,11 @@ const MessageBubble: React.FC<{
   };
 
   const handleDownload = async (fileId: string, fileName: string) => {
-    if (window.electronAPI && window.electronAPI.downloadFile) {
+    const api = getElectronAPI();
+    if (isElectronEnvironment() && (api as any).downloadFile) {
         const url = `${BASE_URL}/api/files/download/${fileId}`;
         try {
-            const result = await window.electronAPI.downloadFile(url, fileName, token);
+            const result = await (api as any).downloadFile(url, fileName, token);
             if (result.success) {
                 console.log('File downloaded to:', result.filePath);
             } else if (!result.canceled) {
@@ -332,9 +331,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       scrollToBottom();
     } catch (err: any) {
       console.error('Failed to send message:', err);
-      // 处理错误，但不破坏UI结构
       showToast(err.message || '消息发送失败，请检查网络');
-      // 可以在此处将消息标为失败，或者放回输入框
       setInputText(content);
     }
   };
@@ -342,23 +339,24 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   // 处理文件选取和上传
   const handleFileSelect = async (isImage: boolean = false) => {
     try {
+      const api = getElectronAPI();
       const options = isImage ? {
         filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }]
       } : {};
 
-      const result = await (window as any).electronAPI.selectFile(options);
+      const result = await api.selectFile(options);
 
       if (result.canceled) return;
 
       showToast('正在上传文件...', 'info' as any);
 
-      // 上传文件
-      const uploadRes = await (window as any).electronAPI.uploadFile(result.filePath);
+      // 上传文件 - 优先使用 result.file (Web), 否则使用 result.filePath (Electron)
+      const fileToUpload = result.file || (result as any).filePath;
+      const uploadRes = await api.uploadFile(fileToUpload);
 
       if (uploadRes.success) {
         // 发送文件消息
-        // 假设服务器返回的url在 uploadRes.data.url
-        const fileUrl = uploadRes.data.url || uploadRes.data.path || result.fileName;
+        const fileUrl = uploadRes.data?.url || uploadRes.data?.path || result.filePaths[0];
 
         await dispatch(sendMessageViaSocket({
           conversationId: conversation.conversationId,
@@ -386,12 +384,26 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   // 开启桌面分享选择器
   const startScreenShare = async () => {
     try {
-      const sources = await (window as any).electronAPI.getDesktopSources();
-      setScreenSources(sources);
-      setShowScreenPicker(true);
+      const api = getElectronAPI();
+      
+      if (isElectronEnvironment()) {
+          const sources = await (api as any).getDesktopSources();
+          setScreenSources(sources);
+          setShowScreenPicker(true);
+      } else {
+          // Web fallback using getDisplayMedia
+          if (navigator.mediaDevices && (navigator.mediaDevices as any).getDisplayMedia) {
+              const stream = await (navigator.mediaDevices as any).getDisplayMedia({ video: true });
+              showToast('桌面分享已开启 (仅预览)', 'success' as any);
+              // Stop immediately as it is just a demo for now without real RTC signaling
+              stream.getTracks().forEach((track: any) => track.stop());
+          } else {
+              showToast('当前浏览器不支持桌面分享');
+          }
+      }
     } catch (err: any) {
       console.error('Failed to get screen sources:', err);
-      showToast('获取屏幕资源失败');
+      showToast('操作被取消或失败');
     }
   };
 
@@ -413,7 +425,12 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     setSelectedSourceId(null);
   };
 
-  const EMOJIS = ['😊', '😂', '🤣', '❤️', '👍', '🔥', '✨', '🙌', '🙏', '🎉', '💡', '✅', '❌', '👀', '👋', '💬'];
+  const EMOJIS = [
+    '😊', '😂', '🤣', '❤️', '👍', '🔥', '✨', '🙌', '🙏', '🎉', '💡', '✅', '❌', '👀', '👋', '💬',
+    '😍', '🥰', '😘', '😋', '😜', '😎', '🤔', '🧐', '🙄', '😤', '😭', '🤯', '😱', '🥳', '😴', '😷',
+    '🌟', '🌙', '☀️', '☁️', '❄️', '☔', '⚡', '🌈', '🎈', '🎁', '🎂', '🎨', '🎬', '🎧', '🎮', '🚗',
+    '🍎', '🍕', '🍔', '🍦', '☕', '🍺', '🌍', '🐱', '🐶', '🦊', '🐨', '🦁', '🦄', '🐝', '🍀', '🌸'
+  ];
 
   // 滚动到底部
   const scrollToBottom = () => {
@@ -425,10 +442,11 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   const handlePreviewClose = () => setPreviewMedia(null);
 
   const handleFileDownload = async (fileId: string, fileName: string) => {
-    if (window.electronAPI && window.electronAPI.downloadFile) {
+    const api = getElectronAPI();
+    if (isElectronEnvironment() && (api as any).downloadFile) {
         const url = `${BASE_URL}/api/files/download/${fileId}`;
         try {
-            const result = await window.electronAPI.downloadFile(url, fileName, user?.token);
+            const result = await (api as any).downloadFile(url, fileName, user?.token);
             if (result.success) {
                 console.log('File downloaded to:', result.filePath);
             } else if (!result.canceled) {
@@ -461,6 +479,12 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       }
     }
   }, [messages, chatLoading]);
+
+  // 工具栏点击辅助：点击其他工具时关闭表情
+  const handleToolAction = (action: () => void) => {
+    setShowEmojiPicker(false);
+    action();
+  };
 
   return (
     <div className="chat-room-premium">
@@ -565,15 +589,17 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       {/* 表情包选择器 */}
       {showEmojiPicker && (
         <div className="emoji-picker-popover">
-          {EMOJIS.map(emoji => (
-            <div
-              key={emoji}
-              className="emoji-item"
-              onClick={() => handleEmojiSelect(emoji)}
-            >
-              {emoji}
-            </div>
-          ))}
+          <div className="emoji-grid">
+            {EMOJIS.map(emoji => (
+              <div
+                key={emoji}
+                className="emoji-item"
+                onClick={() => handleEmojiSelect(emoji)}
+              >
+                {emoji}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -649,42 +675,68 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
       {/* 输入区域 */}
       <div className="message-input-bar">
-        <div className="toolbar">
+        <div className="toolbar-premium">
           <button
-            className="tool-btn"
+            className="tool-action-btn"
             title="表情"
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
           >
-            😊
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+              <line x1="9" y1="9" x2="9.01" y2="9"></line>
+              <line x1="15" y1="9" x2="15.01" y2="9"></line>
+            </svg>
           </button>
           <button
-            className="tool-btn"
+            className="tool-action-btn"
             title="上传图片"
-            onClick={() => handleFileSelect(true)}
+            onClick={() => handleToolAction(() => handleFileSelect(true))}
           >
-            🖼️
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
           </button>
           <button
-            className="tool-btn"
+            className="tool-action-btn"
             title="发送文件"
-            onClick={() => handleFileSelect(false)}
+            onClick={() => handleToolAction(() => handleFileSelect(false))}
           >
-            📁
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+              <polyline points="13 2 13 9 20 9"></polyline>
+            </svg>
           </button>
           <button
-            className="tool-btn"
+            className="tool-action-btn"
             title="屏幕分享"
-            onClick={startScreenShare}
+            onClick={() => handleToolAction(startScreenShare)}
           >
-            💻
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </button>
+          <div className="toolbar-divider"></div>
+          <button className="tool-action-btn" title="语音消息" onClick={() => setShowEmojiPicker(false)}>
+             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+               <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+               <line x1="12" y1="19" x2="12" y2="23"></line>
+               <line x1="8" y1="23" x2="16" y2="23"></line>
+             </svg>
           </button>
         </div>
-        <div className="input-row">
+        <div className="input-row-modern">
           <textarea
-            className="desktop-textarea"
-            placeholder="输入消息，Enter 发送..."
+            className="textarea-modern"
+            placeholder="键入消息..."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
+            onFocus={() => setShowEmojiPicker(false)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
