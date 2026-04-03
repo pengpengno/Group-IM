@@ -48,6 +48,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
@@ -70,6 +73,7 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.math.roundToInt
+import com.github.im.group.sdk.SenderSdk
 
 data class BottomNavItem(
     val title: String, 
@@ -96,6 +100,27 @@ fun ChatMainScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     var dragOffset by remember { mutableStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
+    
+    val senderSdk: SenderSdk = koinInject()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
+                    senderSdk.pauseAutoReconnect()
+                }
+                Lifecycle.Event.ON_RESUME -> {
+                    senderSdk.resumeAutoReconnect()
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
     
     val bottomNavItems = listOf(
         BottomNavItem("消息", Icons.AutoMirrored.Outlined.Chat, Icons.AutoMirrored.Filled.Chat),
@@ -203,8 +228,14 @@ fun ChatMainScreen(
                         selectedItem = 1
                         scope.launch { drawerState.close() }
                     },
-                    onMeetingsClick = { navHostController.navigate(Meetings) },
-                    onSettingsClick = { navHostController.navigate(Settings) },
+                    onMeetingsClick = {
+                        scope.launch { drawerState.close() }
+                        navHostController.navigate(Meetings)
+                    },
+                    onSettingsClick = {
+                        scope.launch { drawerState.close() }
+                        navHostController.navigate(Settings)
+                    },
                     appVersion = "v1.0.5"
                 )
             }
@@ -279,13 +310,13 @@ fun ChatMainScreen(
                         NavigationBar(
                             containerColor = MaterialTheme.colorScheme.surface,
                             tonalElevation = 0.dp,
-                            modifier = Modifier.height(80.dp)
+                            modifier = Modifier.height(64.dp)
                         ) {
                             bottomNavItems.forEachIndexed { index, item ->
                                 val isSelected = selectedItem == index
                                 
                                 val animatedScale by animateFloatAsState(
-                                    targetValue = if (isSelected) 1.2f else 1.0f,
+                                    targetValue = if (isSelected) 1.15f else 1.0f,
                                     animationSpec = tween(durationMillis = 300)
                                 )
                                 

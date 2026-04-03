@@ -15,6 +15,7 @@ import db.FileResource
 import db.Friendship
 import db.Message
 import db.OfflineMessage
+import db.OrganizationCache
 import db.User
 
 class AndroidDatabaseDriverFactory(private val context: Context) : DatabaseDriverFactory {
@@ -55,6 +56,9 @@ class AndroidDatabaseDriverFactory(private val context: Context) : DatabaseDrive
                 statusAdapter = EnumColumnAdapter<MessageStatus>(),
                 created_atAdapter = localDateTimeAdapter,
                 message_typeAdapter = EnumColumnAdapter<MessageType>()
+            ),
+            OrganizationCacheAdapter = OrganizationCache.Adapter(
+                updated_atAdapter = localDateTimeAdapter
             ),
         )
     }

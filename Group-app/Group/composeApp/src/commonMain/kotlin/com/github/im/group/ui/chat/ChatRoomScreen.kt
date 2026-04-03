@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Reply
 import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
@@ -37,7 +38,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,12 +52,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -77,6 +79,7 @@ import com.github.im.group.viewmodel.ChatRoomViewModel
 import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -216,13 +219,7 @@ fun ChatRoomScreen(
                     contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp, start = 8.dp, end = 8.dp),
                     verticalArrangement = Arrangement.Top // 顶部对齐（在反转布局中，顶部逻辑上是屏幕底部）
                 ) {
-                    if (chatUiState.loading) {
-                        item {
-                            Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                            }
-                        }
-                    }
+                    // Removed duplicate CircularProgressIndicator, keeping PullRefreshIndicator only
 
                     items(chatUiState.messages, key = { message ->
                         if (message.seqId != 0L) "seq_${message.seqId}" else "client_${message.clientMsgId}"
@@ -255,14 +252,62 @@ fun ChatRoomScreen(
                     VoiceControlOverlayWithRipple(amplitude = am)
                 }
 
+                val focusManager = LocalFocusManager.current
                 Box(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
                     ChatInputArea(
-                        onSendText = { text -> if (text.isNotBlank()) chatRoomViewModel.sendText(text) },
+                        onSendText = { text -> 
+                            if (text.isNotBlank()) chatRoomViewModel.sendText(text)
+                            focusManager.clearFocus() 
+                        },
                         onRelease = {
                             voiceViewModel.getVoiceData()?.let { chatRoomViewModel.sendVoice(it) }
                         },
-                        onFileSelected = { files -> files.forEach { chatRoomViewModel.sendFile(it) } }
+                        onFileSelected = { files -> 
+                            files.forEach { chatRoomViewModel.sendFile(it) } 
+                            focusManager.clearFocus()
+                        }
                     )
+                }
+                
+                // 悬浮按钮 - 滚动到底部 (提示未查看的“新消息”数量：当前视口下方的条数)
+                val isAtBottom by remember {
+                    androidx.compose.runtime.derivedStateOf {
+                        listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+                    }
+                }
+                val belowCount by remember {
+                    androidx.compose.runtime.derivedStateOf { listState.firstVisibleItemIndex.coerceAtLeast(0) }
+                }
+                val scope = rememberCoroutineScope()
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = !isAtBottom,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 80.dp, end = 16.dp),
+                    enter = androidx.compose.animation.fadeIn(),
+                    exit = androidx.compose.animation.fadeOut()
+                ) {
+                    androidx.compose.material3.FloatingActionButton(
+                        onClick = { 
+                            scope.launch { listState.animateScrollToItem(0) }
+                        },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        androidx.compose.material3.BadgedBox(
+                            badge = {
+                                if (belowCount > 0) {
+                                    androidx.compose.material3.Badge {
+                                        Text(text = belowCount.coerceAtMost(99).toString())
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                               imageVector =  Icons.Default.ExpandMore,
+                                contentDescription = "滚动至最新消息",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
                 }
 
                 if (chatUiState.error != null) {
@@ -363,40 +408,43 @@ fun MessageBubble(
                         }
                     }
 
-                    // 消息长按菜单
+                    // 消息长按菜单水平排列以防遮挡
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
-                        offset = DpOffset(if (isOwnMessage) (-16).dp else 16.dp, 0.dp)
+                        offset = DpOffset(if (isOwnMessage) (-16).dp else 16.dp, 0.dp),
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("复制", fontSize = 14.sp) },
-                            leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                            onClick = {
-                                if (msg.type == MessageType.TEXT) {
-                                    clipboardManager.setText(AnnotatedString(msg.content))
-                                }
-                                showMenu = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("转发", fontSize = 14.sp) },
-                            leadingIcon = { Icon(Icons.Default.Reply, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                            onClick = {
-                                // TODO: 发起转发流程
-                                showMenu = false
-                            }
-                        )
-                        if (isOwnMessage) {
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                        Row(modifier = Modifier.padding(horizontal = 4.dp)) {
                             DropdownMenuItem(
-                                text = { Text("撤回", fontSize = 14.sp, color = Color.Red) },
-                                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.Red) },
+                                text = { Text("复制", fontSize = 14.sp) },
+                                leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp)) },
                                 onClick = {
-                                    // TODO: 调用 ViewModel 撤回消息
+                                    if (msg.type == MessageType.TEXT) {
+                                        clipboardManager.setText(AnnotatedString(msg.content))
+                                    }
                                     showMenu = false
-                                }
+                                },
+                                modifier = Modifier.weight(1f) // 使其能够在一行显示
                             )
+                            DropdownMenuItem(
+                                text = { Text("转发", fontSize = 14.sp) },
+                                leadingIcon = { Icon(Icons.Default.Reply, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                onClick = {
+                                    showMenu = false
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (isOwnMessage) {
+                                DropdownMenuItem(
+                                    text = { Text("撤回", fontSize = 14.sp, color = Color.Red) },
+                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.Red) },
+                                    onClick = {
+                                        showMenu = false
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                 }

@@ -32,6 +32,7 @@ import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.SenderSdk
 import com.github.im.group.sdk.VoiceRecorder
 import com.github.im.group.sdk.WebRTCManager
+import com.github.im.group.repository.OrganizationRepository
 import com.github.im.group.service.SessionPreCreationService
 import com.github.im.group.service.SessionPreCreationServiceImpl
 import com.github.im.group.ui.video.VideoCallViewModel
@@ -182,9 +183,12 @@ val appmodule = module {
         vm
     }
 
+    // 组织架构本地缓存仓库
+    single { OrganizationRepository(get()) }
+
     // 注册ContactsViewModel
     viewModel {
-        ContactsViewModel(get(), get())
+        ContactsViewModel(get(), get(), get())
     }
 
 }

@@ -26,6 +26,8 @@ import com.github.im.group.repository.UserRepository
 import com.github.im.group.ui.chat.ChatRoomScreen
 import com.github.im.group.ui.contacts.AddFriendScreen
 import com.github.im.group.ui.contacts.ContactsUI
+import com.github.im.group.ui.meetings.MeetingsUI
+import com.github.im.group.ui.settings.SettingsUI
 import com.github.im.group.viewmodel.UserViewModel
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.flow.collectLatest
@@ -125,29 +127,24 @@ fun AppStartScreen() {
                     )
                 }
 
+                composable<Meetings> {
+                    MeetingsUI(navHostController = navController)
+                }
+
+                composable<Settings> {
+                    SettingsUI(navHostController = navController)
+                }
 
                 composable<ChatRoom>{ backStackEntry ->
                     val chatRoom : ChatRoom = backStackEntry.toRoute()
                     ChatRoomScreen(
                         chatRoom = chatRoom,
-//                        conversationId = chatRoom.conversationId,
                         onBack = {
                             navController.popBackStack()
                         },
                         navHostController = navController
                     )
                 }
-//                composable<ChatRoom.CreatePrivate>{ backStackEntry ->
-//                    val chatRoom : ChatRoom.CreatePrivate = backStackEntry.toRoute()
-//                    ChatRoomScreen(
-//                        chatRoom = chatRoom,
-////                        conversationId = chatRoom.conversationId,
-//                        onBack = {
-//                            navController.popBackStack()
-//                        },
-//                        navHostController = navController
-//                    )
-//                }
             }
         }
         AppStartState.Unauthenticated -> {
@@ -185,23 +182,19 @@ fun AppStartScreen() {
                         navHostController = navController
                     )
                 }
-//
-//                composable<ChatRoom.Conversation>{ backStackEntry ->
-//                    val chatRoom : ChatRoom.Conversation = backStackEntry.toRoute()
-//                    ChatRoomScreen(
-//                        chatRoom = chatRoom,
-////                        conversationId = chatRoom.conversationId,
-//                        onBack = {
-//                            navController.popBackStack()
-//                        },
-//                        navHostController = navController
-//                    )
-//                }
+
+                composable<Meetings> {
+                    MeetingsUI(navHostController = navController)
+                }
+
+                composable<Settings> {
+                    SettingsUI(navHostController = navController)
+                }
+
                 composable<ChatRoom>{ backStackEntry ->
                     val chatRoom : ChatRoom = backStackEntry.toRoute()
                     ChatRoomScreen(
                         chatRoom = chatRoom,
-//                        conversationId = chatRoom.conversationId,
                         onBack = {
                             navController.popBackStack()
                         },

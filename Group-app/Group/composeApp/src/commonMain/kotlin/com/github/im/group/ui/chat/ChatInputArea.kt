@@ -1,5 +1,6 @@
 package com.github.im.group.ui.chat
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -7,23 +8,34 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -36,8 +48,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -47,12 +57,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -61,12 +78,20 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.github.im.group.sdk.File
 import com.github.im.group.sdk.TryGetPermission
+import com.github.im.group.ui.PlatformFilePickerPanel
 import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.VoiceViewModel
 import io.github.aakira.napier.Napier
 import io.github.aakira.napier.log
 import org.koin.compose.viewmodel.koinViewModel
 
+// Panel state enum to track which bottom panel is open
+private enum class InputPanel { NONE, EMOJI, MORE }
+
+/**
+ * Telegram-style Chat Input Area
+ * Single compact row: [Mic toggle] [Rounded text field] [Emoji] [Add/Send]
+ */
 @Composable
 fun ChatInputArea(
     onSendText: (String) -> Unit,
@@ -75,96 +100,208 @@ fun ChatInputArea(
 ) {
     var messageText by remember { mutableStateOf("") }
     var isVoiceMode by remember { mutableStateOf(false) }
-    var showMorePanel by remember { mutableStateOf(false) }
-    var showEmojiPanel by remember { mutableStateOf(false) }
+    var activePanel by remember { mutableStateOf(InputPanel.NONE) }
+    val focusManager = LocalFocusManager.current
+    val focusRequester = remember { FocusRequester() }
 
-    val voiceViewModel : VoiceViewModel = koinViewModel()
-
+    val voiceViewModel: VoiceViewModel = koinViewModel()
     val voiceRecordingState by voiceViewModel.uiState.collectAsState()
 
-    Column(modifier = Modifier.background(Color.White)) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(8.dp)
-                .fillMaxWidth()
-        ) {
+    val inputBarBg = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+    val surfaceBg = MaterialTheme.colorScheme.surface
 
-            if (voiceRecordingState !is RecorderUiState.Recording){
-                // 语音模式切换按钮
-                IconButton(onClick = { isVoiceMode = !isVoiceMode }) {
+    Column(
+        modifier = Modifier
+            .background(surfaceBg)
+            .imePadding()
+    ) {
+        // Top divider
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(0.5.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant)
+        )
+
+        // ── Main input row ──
+        Row(
+            verticalAlignment = Alignment.Bottom,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp)
+        ) {
+            // Left: mic / keyboard toggle
+            if (voiceRecordingState !is RecorderUiState.Recording) {
+                IconButton(
+                    onClick = {
+                        isVoiceMode = !isVoiceMode
+                        if (isVoiceMode) {
+                            focusManager.clearFocus()
+                            activePanel = InputPanel.NONE
+                        }
+                    },
+                    modifier = Modifier.size(40.dp)
+                ) {
                     Icon(
-                        if (isVoiceMode) Icons.Default.Keyboard else Icons.Default.Mic,
-                        contentDescription = "Toggle input mode"
+                        imageVector = if (isVoiceMode) Icons.Default.Keyboard else Icons.Default.Mic,
+                        contentDescription = "Toggle voice/text",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }
 
-
+            // Center: text field OR voice button
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 4.dp)
+            ) {
                 if (isVoiceMode) {
-                    // 语音模式但未录音，显示录音按钮
                     VoiceRecordButton(
-                        onPress = {
-                            voiceViewModel.startRecording()
-                        },
+                        onPress = { voiceViewModel.startRecording() },
                         onRelease = onRelease
                     )
-
                 } else {
-                    // 文本输入模式
-                    OutlinedTextField(
-                        value = messageText,
-                        onValueChange = { messageText = it },
-                        placeholder = { Text("输入消息...") },
-                        modifier = Modifier.weight(1f),
-                        maxLines = 4,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send)
-                    )
-                    // 表情
-                    IconButton(onClick = { showEmojiPanel = !showEmojiPanel }) {
-                        Icon(Icons.Default.InsertEmoticon, contentDescription = "Emoji")
-                    }
-                    //   messageText不为空那么隐藏 + 附件按钮
-                    if (messageText.isNotBlank()) {
-                        IconButton(onClick = {
-                            if (messageText.isNotBlank()) {
-                                onSendText(messageText)
-                                messageText = ""
+                    // Rounded pill text input
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 40.dp, max = 120.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(inputBarBg)
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        BasicTextField(
+                            value = messageText,
+                            onValueChange = { messageText = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester)
+                                .onFocusChanged { if (it.isFocused) activePanel = InputPanel.NONE },
+                            textStyle = TextStyle(
+                                fontSize = 15.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                            keyboardActions = KeyboardActions(onSend = {
+                                if (messageText.isNotBlank()) {
+                                    onSendText(messageText)
+                                    messageText = ""
+                                    focusManager.clearFocus()
+                                }
+                            }),
+                            decorationBox = { inner ->
+                                if (messageText.isEmpty()) {
+                                    Text(
+                                        text = "发消息…",
+                                        style = TextStyle(
+                                            fontSize = 15.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    )
+                                }
+                                inner()
                             }
-                        }) {
-                            //发送按钮 ， 消息栏不为空 战士发送按钮
-                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
-                        }
-                    } else {
-                        // 更多信息
-                        IconButton(onClick = { showMorePanel = !showMorePanel }) {
-                            Icon(Icons.Default.Add, contentDescription = "More")
-                        }
+                        )
                     }
                 }
             }
 
-
-            // 只有在非录音状态下才显示表情面板和更多面板
-            if (voiceRecordingState !is RecorderUiState.Recording) {
-                if (showEmojiPanel) {
-                    // 表情
-                    EmojiPanel(onEmojiSelected = {
-                        messageText += it
-                        showEmojiPanel = false
-                    })
+            // Right: emoji | send-or-add
+            if (voiceRecordingState !is RecorderUiState.Recording && !isVoiceMode) {
+                // Emoji button
+                IconButton(
+                    onClick = {
+                        focusManager.clearFocus()
+                        activePanel = if (activePanel == InputPanel.EMOJI) InputPanel.NONE else InputPanel.EMOJI
+                    },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.InsertEmoticon,
+                        contentDescription = "Emoji",
+                        tint = if (activePanel == InputPanel.EMOJI)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
 
-                if (showMorePanel) {
-
-//                    PlatformFilePickerPanel(
-//                        onDismiss = { showMorePanel = false },
-//                        onFileSelected = onFileSelected
-//                    )
+                // Animated: Send (when text) or Add (when empty)
+                AnimatedContent(
+                    targetState = messageText.isNotBlank(),
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "send_add"
+                ) { hasText ->
+                    if (hasText) {
+                        // Send button — filled circle  
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
+                                .clickable {
+                                    onSendText(messageText)
+                                    messageText = ""
+                                    focusManager.clearFocus()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Send",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    } else {
+                        // Add / attachment button
+                        IconButton(
+                            onClick = {
+                                focusManager.clearFocus()
+                                activePanel = if (activePanel == InputPanel.MORE) InputPanel.NONE else InputPanel.MORE
+                            },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Attach",
+                                tint = if (activePanel == InputPanel.MORE)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
 
+        // ── Bottom panels (emoji / file picker) ──
+        if (voiceRecordingState !is RecorderUiState.Recording) {
+            when (activePanel) {
+                InputPanel.EMOJI -> {
+                    EmojiPanel(onEmojiSelected = {
+                        messageText += it
+                    })
+                }
+                InputPanel.MORE -> {
+                    PlatformFilePickerPanel(
+                        onDismiss = { activePanel = InputPanel.NONE },
+                        onFileSelected = { files ->
+                            onFileSelected(files)
+                            activePanel = InputPanel.NONE
+                        }
+                    )
+                }
+                InputPanel.NONE -> { /* nothing */ }
+            }
+        }
+    }
 }
 
 
@@ -175,8 +312,8 @@ fun ChatInputArea(
 fun VoiceReplay(
     onSend: () -> Unit,
 ) {
-    val voiceViewModel : VoiceViewModel = koinViewModel()
-    Dialog(onDismissRequest = { voiceViewModel.cancel()}) {
+    val voiceViewModel: VoiceViewModel = koinViewModel()
+    Dialog(onDismissRequest = { voiceViewModel.cancel() }) {
         Box(
             modifier = Modifier
                 .background(Color.White, shape = RoundedCornerShape(12.dp))
@@ -193,25 +330,21 @@ fun VoiceReplay(
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                     VoicePlayer(
-                        duration = it.durationMillis / 1000, // 转换为秒
-                        audioBytes = it.bytes, // 传递音频数据用于生成波形
+                        duration = it.durationMillis / 1000,
+                        audioBytes = it.bytes,
                         onPlay = {
-                            // 开始播放音频
-                            voiceViewModel.getVoicePath()?.let { voicePath->
+                            voiceViewModel.getVoicePath()?.let { voicePath ->
                                 voiceViewModel.audioPlayer.play(voicePath)
                             }
                         },
                         onPause = {
-                            // 暂停播放音频
                             voiceViewModel.audioPlayer.pause()
                         },
                         onSeek = { position ->
-                            // 跳转到指定位置
-                            voiceViewModel.audioPlayer.seekTo((position * 1000).toLong()) // 转换为毫秒
+                            voiceViewModel.audioPlayer.seekTo((position * 1000).toLong())
                         }
                     )
 
-                    // 操作按钮
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -219,9 +352,7 @@ fun VoiceReplay(
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         Button(
-                            onClick = {
-                                voiceViewModel.cancel()
-                            },
+                            onClick = { voiceViewModel.cancel() },
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
                             modifier = Modifier.weight(1f)
                         ) {
@@ -231,9 +362,7 @@ fun VoiceReplay(
                         Spacer(modifier = Modifier.width(16.dp))
 
                         Button(
-                            onClick = {
-                                onSend()
-                            },
+                            onClick = { onSend() },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0088CC)),
                             modifier = Modifier.weight(1f)
                         ) {
@@ -256,7 +385,6 @@ fun VoiceControlOverlayWithRipple(
     val haptic = LocalHapticFeedback.current
     var currentDirection by remember { mutableStateOf(SlideDirection.Start) }
 
-    // 波纹动画
     val infiniteTransition = rememberInfiniteTransition(label = "")
     val rippleRadius by infiniteTransition.animateFloat(
         initialValue = 60f,
@@ -267,19 +395,14 @@ fun VoiceControlOverlayWithRipple(
         ), label = ""
     )
 
-    // 限制声音波动灵敏度
     val adjustedAmplitude = (amplitude / 4000f).coerceIn(0f, 1f)
     val totalRipple = rippleRadius + adjustedAmplitude * 60
-
-
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.6f))
-//            .then(dragModifier)
     ) {
-        // 🎤 中心录音波纹显示
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -289,8 +412,6 @@ fun VoiceControlOverlayWithRipple(
                 .padding(horizontal = 28.dp, vertical = 22.dp)
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.size(120.dp)) {
-
-                // 扩散波纹
                 Box(
                     modifier = Modifier
                         .size(totalRipple.dp)
@@ -303,8 +424,6 @@ fun VoiceControlOverlayWithRipple(
                             shape = CircleShape
                         )
                 )
-
-                // 麦克风图标
                 Icon(
                     imageVector = Icons.Default.Mic,
                     contentDescription = null,
@@ -317,7 +436,6 @@ fun VoiceControlOverlayWithRipple(
                 )
             }
         }
-
     }
 }
 
@@ -331,175 +449,146 @@ fun VoiceRecordButton(
     onRelease: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
-
-    val voiceViewModel : VoiceViewModel = koinViewModel()
+    val voiceViewModel: VoiceViewModel = koinViewModel()
     val voiceRecordingState by voiceViewModel.uiState.collectAsState()
 
     val permission by remember { mutableStateOf("android.permission.RECORD_AUDIO") }
     var permissionRequested by remember { mutableStateOf(false) }
     var hasPermission by remember { mutableStateOf(false) }
-    
-    // 只有当用户尝试使用功能时才请求权限
+
+    // Only request permission on explicit user action
     if (permissionRequested) {
         TryGetPermission(
             permission = permission,
             onGranted = {
                 hasPermission = true
-                onPress() // 获取权限后立即开始录音
+                onPress()
             },
-            onRequest = {
-                Napier.d("onRequest")
-            }
+            onRequest = { Napier.d("onRequest") }
         ) {
             hasPermission = false
         }
     }
-    // 是否正在录音
+
     var isRecording by remember { mutableStateOf(false) }
-    // 是否取消录音
     var isCancelRecording by remember { mutableStateOf(false) }
-    
-    Surface(
-        tonalElevation = 1.dp,
+
+    val pillColor = when {
+        isCancelRecording -> Color(0xFFFFEBEE)
+        isRecording -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val textColor = when {
+        isCancelRecording -> Color(0xFFE53935)
+        isRecording -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Box(
         modifier = Modifier
-            .background(Color.White)
+            .fillMaxWidth()
+            .height(40.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(pillColor)
             .pointerInput(Unit) {
                 detectTapGestures(
-                    onPress = { offset ->
-                        // 开始按压，开始录音
-                        if (!permissionRequested) {
-                            permissionRequested = true
-                        }
-                        
+                    onPress = { _ ->
+                        if (!permissionRequested) permissionRequested = true
                         if (hasPermission) {
                             onPress()
                             isRecording = true
                         }
-                        
-                        // 等待手指抬起
                         awaitPointerEventScope {
-                            var currentOffset = offset
                             while (true) {
                                 val event = awaitPointerEvent()
-                                
-                                // 检查手指是否还在录音区域内
-                                if (event.changes.any { change ->
-                                        change.position.x < 0 || change.position.x > size.width ||
-                                        change.position.y < 0 || change.position.y > size.height
-                                    }) {
-                                    // 手指移出区域，设置取消状态
-                                    isCancelRecording = true
-                                } else {
-                                    // 手指在区域内，重置取消状态
-                                    isCancelRecording = false
+                                isCancelRecording = event.changes.any { change ->
+                                    change.position.x < 0 || change.position.x > size.width ||
+                                    change.position.y < 0 || change.position.y > size.height
                                 }
-                                
-                                // 检查是否有手指抬起
-                                if (event.changes.any { it.changedToUp() }) {
-                                    break
-                                }
-                                
-                                currentOffset = event.changes.firstOrNull()?.position ?: currentOffset
+                                if (event.changes.any { it.changedToUp() }) break
                             }
                         }
-                        
-                        // 手指抬起后，根据状态决定发送还是取消
                         if (isRecording && !isCancelRecording) {
-                            // 松开发送
                             voiceViewModel.stopRecording()
-                            log { "停止录音 执行后续 " }
+                            log { "停止录音 执行后续" }
                             onRelease()
-
                         } else if (isRecording) {
-                            // 取消录音
                             voiceViewModel.cancel()
                         }
-
-                        log { "isRecording: $isRecording, isCancelRecording: $isCancelRecording $voiceRecordingState" }
-                        // 重置状态
                         isRecording = false
                         isCancelRecording = false
                     },
-                    onLongPress = { offset ->
-                        // 长按逻辑，用于请求权限等
-                        if (!permissionRequested) {
-                            permissionRequested = true
-                        }
-                        
+                    onLongPress = {
+                        if (!permissionRequested) permissionRequested = true
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        
                         if (hasPermission) {
                             onPress()
                             isRecording = true
                         }
                     }
                 )
-            }
+            },
+        contentAlignment = Alignment.Center
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(40.dp)
-//                .clip(RoundedCornerShape(30.dp))
-                .background(Color.White),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = when {
-                    isCancelRecording -> "松开手指，取消录音"
-                    isRecording -> "松开发送，上滑取消"
-                    else -> "按住说话"
-                },
-                textAlign = TextAlign.Center,
-                color = when {
-                    isCancelRecording -> Color.Red
-                    else -> Color.Black
-                },
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            )
-//
-//            if (voiceRecordingState is RecorderUiState.Recording) {
-//                // 分割线
-//                Divider(
-//                    color = Color.LightGray,
-//                    modifier = Modifier
-//                        .width(1.dp)
-//                        .fillMaxHeight()
-//                )
-//                // 右侧回放区域 (1/4)
-//                Text(
-//                    text = "回放",
-//                    color = Color.Green,
-//                    fontSize = 16.sp,
-//                    fontWeight = FontWeight.Medium,
-//                    modifier = Modifier
-//                        .weight(1f)
-//                        .padding(horizontal = 16.dp, vertical = 12.dp)
-//                )
-//            }
-        }
+        Text(
+            text = when {
+                isCancelRecording -> "↑ 松开取消"
+                isRecording -> "松开发送 · 上滑取消"
+                else -> "按住说话"
+            },
+            textAlign = TextAlign.Center,
+            color = textColor,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+        )
     }
 }
 
 
+/**
+ * Expanded Emoji panel — grid layout, stays open until user dismisses
+ */
 @Composable
 fun EmojiPanel(onEmojiSelected: (String) -> Unit) {
-    val emojis = listOf("😀", "😂", "😍", "😎", "😢", "👍", "🙏", "💯")
-    Row(modifier = Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-        emojis.forEach {
-            Text(
-                text = it,
-                fontSize = MaterialTheme.typography.headlineSmall.fontSize,
-                modifier = Modifier
-                    .padding(4.dp)
-                    .clickable { onEmojiSelected(it) }
-            )
+    val emojiRows = listOf(
+        listOf("😀", "😂", "🥲", "😍", "🥰", "😘", "😎", "🤩"),
+        listOf("🥺", "😢", "😭", "😡", "🤬", "😤", "🙄", "🤔"),
+        listOf("👍", "👎", "👏", "🙏", "🤝", "💪", "🫶", "❤️"),
+        listOf("🔥", "💯", "✅", "❌", "🎉", "🎊", "🚀", "💡"),
+    )
+    val emojis = emojiRows.flatten()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(0.5.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(8),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(160.dp),
+            contentPadding = PaddingValues(4.dp)
+        ) {
+            items(emojis) { emoji ->
+                Text(
+                    text = emoji,
+                    fontSize = 24.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .padding(4.dp)
+                        .clickable { onEmojiSelected(emoji) }
+                )
+            }
         }
+        Spacer(modifier = Modifier.height(4.dp))
     }
 }
-

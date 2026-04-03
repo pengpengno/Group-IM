@@ -320,7 +320,6 @@ class ChatRoomViewModel(
 
             // 2. 持久化到离线库
 
-
             offlineMessageRepository.saveOfflineMessage(
                 clientMsgId = messageItem.clientMsgId,
                 conversationId = conversationId,
@@ -332,7 +331,6 @@ class ChatRoomViewModel(
                 fileSize = pickedFile?.size,
                 fileDuration = duration.toInt()
             )
-
 
             //
             // 3. 尝试发送
@@ -377,13 +375,12 @@ class ChatRoomViewModel(
                             updateOrInsertMessage(msg, true) // 文件上传成功后滚动到最新
                         }
 
-
-                        
                         // 文件上传成功后，清理离线消息记录
                         offlineMessageRepository.deleteOfflineMessage(clientMsgId)
                     }
 
                 }
+                Napier.d { "发送消息 ID: $clientMsgId" }
 //
 //
 //                // 分类型执行真实发送

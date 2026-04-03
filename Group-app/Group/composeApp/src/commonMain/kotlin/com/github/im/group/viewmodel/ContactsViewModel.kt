@@ -7,6 +7,7 @@ import com.github.im.group.api.UserApi
 import com.github.im.group.model.DepartmentInfo
 import com.github.im.group.model.OrgTreeNode
 import com.github.im.group.model.SessionCreationResult
+import com.github.im.group.repository.OrganizationRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.service.SessionPreCreationService
 import io.github.aakira.napier.Napier
@@ -18,6 +19,7 @@ import kotlinx.coroutines.launch
 class ContactsViewModel(
     val userRepository: UserRepository,
     private val sessionPreCreationService: SessionPreCreationService,
+    private val organizationRepository: OrganizationRepository,
 ) : ViewModel() {
 
     private val _organizationStructureState = MutableStateFlow<DepartmentInfo?>(null)
@@ -25,12 +27,15 @@ class ContactsViewModel(
     private val _loading = MutableStateFlow(false)
     private val _expandedDepartments = MutableStateFlow<Set<Long>>(emptySet())
     private val _sessionCreationState = MutableStateFlow<SessionCreationState>(SessionCreationState.Idle)
+    // 是否展示的是离线缓存数据
+    private val _isOfflineData = MutableStateFlow(false)
 
     val organizationStructure: StateFlow<DepartmentInfo?> = _organizationStructureState.asStateFlow()
     val organizationTree: StateFlow<List<OrgTreeNode>> = _organizationTreeState.asStateFlow()
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
     val expandedDepartments: StateFlow<Set<Long>> = _expandedDepartments.asStateFlow()
     val sessionCreationState: StateFlow<SessionCreationState> = _sessionCreationState.asStateFlow()
+    val isOfflineData: StateFlow<Boolean> = _isOfflineData.asStateFlow()
 
     /**
      * 会话创建状态
@@ -53,25 +58,66 @@ class ContactsViewModel(
     }
 
     /**
-     * 获取组织架构
+     * 获取组织架构 - 网络优先，失败则使用本地缓存（弱网/离线友好）
      */
     suspend fun loadOrganizationStructure() {
         _loading.value = true
         try {
+            // 1. 先尝试展示本地缓存（立即响应，无感知）
+            val cached = organizationRepository.loadCachedOrgStructure()
+            if (cached != null && _organizationTreeState.value.isEmpty()) {
+                Napier.d("展示本地缓存数据...")
+                _organizationStructureState.value = cached.firstOrNull()
+                val cachedTree = buildOrgTree(cached)
+                _organizationTreeState.value = cachedTree
+                _isOfflineData.value = true
+                expandAllDepartments(cachedTree)
+            }
+
+            // 2. 并行请求网络，成功后覆盖缓存数据
             val structure = OrganizationApi.getCurrentUserOrganizationStructure()
-            _organizationStructureState.value = structure.data
-            // 同时构建树形结构用于UI展示
-            _organizationTreeState.value = if (structure.data != null) {
-                buildOrgTree(listOf(structure.data))
-            } else {
-                emptyList()
+            if (structure.data != null) {
+                _organizationStructureState.value = structure.data
+                val tree = buildOrgTree(listOf(structure.data))
+                _organizationTreeState.value = tree
+                _isOfflineData.value = false
+                expandAllDepartments(tree)
+                // 3. 将最新数据写回本地缓存
+                organizationRepository.saveOrgStructure(listOf(structure.data))
             }
         } catch (e: Exception) {
-            e.printStackTrace()
-            // 可以添加错误处理
+            Napier.e("获取组织架构失败，使用本地缓存: ${e.message}")
+            // 4. 网络失败时，确保本地缓存已展示
+            if (_organizationTreeState.value.isEmpty()) {
+                val cached = organizationRepository.loadCachedOrgStructure()
+                if (cached != null) {
+                    _organizationStructureState.value = cached.firstOrNull()
+                    val cachedTree = buildOrgTree(cached)
+                    _organizationTreeState.value = cachedTree
+                    _isOfflineData.value = true
+                    expandAllDepartments(cachedTree)
+                }
+            }
         } finally {
             _loading.value = false
         }
+    }
+
+    /**
+     * 展开树中所有部门
+     */
+    private fun expandAllDepartments(tree: List<OrgTreeNode>) {
+        val allDeptIds = mutableSetOf<Long>()
+        fun collect(nodes: List<OrgTreeNode>) {
+            for (n in nodes) {
+                if (n.type == OrgTreeNode.NodeType.DEPARTMENT) {
+                    allDeptIds.add(n.id)
+                    collect(n.children)
+                }
+            }
+        }
+        collect(tree)
+        _expandedDepartments.value = allDeptIds
     }
 
     /**
@@ -163,7 +209,7 @@ class ContactsViewModel(
             )
         }
 
-        return (childrenNodes + userNodes).sortedBy { it.name }
+        return (childrenNodes.sortedBy { it.name } + userNodes.sortedBy { it.name })
     }
 
     /**

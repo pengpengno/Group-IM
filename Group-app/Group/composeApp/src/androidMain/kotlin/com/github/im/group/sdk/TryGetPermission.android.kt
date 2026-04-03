@@ -7,7 +7,7 @@ import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -201,63 +201,69 @@ fun PermissionRequestScreen(
         else -> Icons.Default.Info
     }
 
-    Dialog(onDismissRequest = { onPermissionResult(false) }
-        , properties = DialogProperties( usePlatformDefaultWidth = false )
+    Dialog(
+        onDismissRequest = { onPermissionResult(false) },
+        properties = DialogProperties(usePlatformDefaultWidth = true)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        androidx.compose.material3.Card(
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            modifier = androidx.compose.ui.Modifier.padding(16.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(64.dp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = needPermissionText,
-                style = MaterialTheme.typography.headlineSmall
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = infoMessage,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = {
-                    // 引导用户到应用设置页面
-                    val intent = Intent(
-                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.fromParts("package", context.packageName, null)
-                    )
-                    context.startActivity(intent)
-                    onPermissionResult(false)
-                }
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Icon(imageVector = Icons.Default.Settings, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("去设置")
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(52.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = needPermissionText,
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = infoMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = {
+                        val intent = Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.fromParts("package", context.packageName, null)
+                        )
+                        context.startActivity(intent)
+                        onPermissionResult(false)
+                    },
+                    modifier = Modifier.fillMaxWidth(0.85f)
+                ) {
+                    Icon(imageVector = Icons.Default.Settings, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("去设置中开启")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                androidx.compose.material3.TextButton(
+                    onClick = { onPermissionResult(false) },
+                    modifier = Modifier.fillMaxWidth(0.85f)
+                ) {
+                    Text("稍后再说", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "提示：您需要在设置中手动授予权限才能继续使用此功能。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -298,63 +304,69 @@ fun MultiplePermissionRequestScreen(
         }
     }
 
-    Dialog(onDismissRequest = { onPermissionResult(false) }
-        , properties = DialogProperties( usePlatformDefaultWidth = false )
+    Dialog(
+        onDismissRequest = { onPermissionResult(false) },
+        properties = DialogProperties(usePlatformDefaultWidth = true)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        androidx.compose.material3.Card(
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            modifier = androidx.compose.ui.Modifier.padding(16.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Image,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(64.dp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = permissionsText,
-                style = MaterialTheme.typography.headlineSmall
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = infoMessage,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = {
-                    // 引导用户到应用设置页面
-                    val intent = Intent(
-                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.fromParts("package", context.packageName, null)
-                    )
-                    context.startActivity(intent)
-                    onPermissionResult(false)
-                }
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Icon(imageVector = Icons.Default.Settings, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("去设置")
+                Icon(
+                    imageVector = Icons.Default.Image,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(52.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = permissionsText,
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = infoMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = {
+                        val intent = Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.fromParts("package", context.packageName, null)
+                        )
+                        context.startActivity(intent)
+                        onPermissionResult(false)
+                    },
+                    modifier = Modifier.fillMaxWidth(0.85f)
+                ) {
+                    Icon(imageVector = Icons.Default.Settings, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("去设置中开启")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                androidx.compose.material3.TextButton(
+                    onClick = { onPermissionResult(false) },
+                    modifier = Modifier.fillMaxWidth(0.85f)
+                ) {
+                    Text("稍后再说", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "提示：您需要在设置中手动授予权限才能继续使用此功能。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

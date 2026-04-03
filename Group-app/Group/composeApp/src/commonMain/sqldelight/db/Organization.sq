@@ -1,0 +1,14 @@
+import kotlinx.datetime.LocalDateTime;
+
+-- 本地缓存的组织架构数据（为了简化通常存完整的序列化JSON或单独表，本表采用粗粒度缓存法）
+CREATE TABLE OrganizationCache (
+    id INTEGER NOT NULL PRIMARY KEY DEFAULT 1,
+    departmentsJson TEXT NOT NULL,
+    updated_at INTEGER AS LocalDateTime NOT NULL
+);
+
+getCache:
+SELECT * FROM OrganizationCache WHERE id = 1;
+
+insertOrUpdateCache:
+INSERT OR REPLACE INTO OrganizationCache (id, departmentsJson, updated_at) VALUES (1, ?, ?);

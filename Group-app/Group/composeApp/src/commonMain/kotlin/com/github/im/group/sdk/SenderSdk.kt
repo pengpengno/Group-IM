@@ -27,6 +27,7 @@ class SenderSdk(
     private val _connected = MutableStateFlow(false)
     private var reconnectJob: Job? = null
     private val reconnectMutex = Mutex()
+    private var isPaused = false
 
 //    private val _host: String get() = ProxyConfig.tcpHost
 //    private val _port: Int get() = ProxyConfig.tcp_port
@@ -59,6 +60,7 @@ class SenderSdk(
      */
     private fun startAutoReconnect() {
         scope.launch {
+            if (isPaused) return@launch
             Napier.d("自动重连任务启动")
             reconnectMutex.withLock {
                 // 如果已有重连任务在运行，则取消它
@@ -105,6 +107,27 @@ class SenderSdk(
                 reconnectJob?.cancel()
                 reconnectJob = null
             }
+        }
+    }
+
+    /**
+     * 暂停自动重连（用于锁屏/后台状态）
+     */
+    fun pauseAutoReconnect() {
+        isPaused = true
+        stopAutoReconnect()
+        Napier.d("已暂停网络自动重连")
+        // 如果需要，可以在这里主动断开连接 tcpClient.disconnect()
+    }
+
+    /**
+     * 恢复自动重连（用于回到前台）
+     */
+    fun resumeAutoReconnect() {
+        if (isPaused) {
+            isPaused = false
+            Napier.d("已恢复网络自动重连")
+            startAutoReconnect()
         }
     }
 

@@ -10,17 +10,17 @@ import com.github.im.group.db.entities.FriendRequestStatus
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.db.entities.UserStatus
-import db.AppDatabase
 import db.Conversation
 import db.FileResource
 import db.Friendship
 import db.Message
+import db.OfflineMessage
+import db.OrganizationCache
 import db.User
 
 class IOSDatabaseDriverFactory : DatabaseDriverFactory {
     override fun createDriver(): SqlDriver {
-        // 设置数据库版本号，如果添加了新表需要增加版本号
-        return NativeSqliteDriver(AppDatabase.Schema, "launch.db", version = 2)
+        return NativeSqliteDriver(AppDatabase.Schema, "launch.db")
     }
 
     override fun createDatabase(): AppDatabase {
@@ -39,7 +39,7 @@ class IOSDatabaseDriverFactory : DatabaseDriverFactory {
                 createdAtAdapter = localDateTimeAdapter,
                 statusAdapter = EnumColumnAdapter<ConversationStatus>()
             ),
-            FileResourceAdapter =  FileResource.Adapter(
+            FileResourceAdapter = FileResource.Adapter(
                 statusAdapter = EnumColumnAdapter<FileStatus>(),
                 uploadTimeAdapter = localDateTimeAdapter
             ),
@@ -47,7 +47,15 @@ class IOSDatabaseDriverFactory : DatabaseDriverFactory {
                 statusAdapter = EnumColumnAdapter<FriendRequestStatus>(),
                 created_atAdapter = localDateTimeAdapter,
                 updated_atAdapter = localDateTimeAdapter
-            )
+            ),
+            OfflineMessageAdapter = OfflineMessage.Adapter(
+                statusAdapter = EnumColumnAdapter<MessageStatus>(),
+                created_atAdapter = localDateTimeAdapter,
+                message_typeAdapter = EnumColumnAdapter<MessageType>()
+            ),
+            OrganizationCacheAdapter = OrganizationCache.Adapter(
+                updated_atAdapter = localDateTimeAdapter
+            ),
         )
     }
 }

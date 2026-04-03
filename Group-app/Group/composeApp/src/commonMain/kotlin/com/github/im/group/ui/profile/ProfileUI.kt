@@ -71,13 +71,13 @@ fun ProfileUI(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(220.dp)
+                .height(180.dp)
         ) {
             // 背景渐变
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp)
+                    .height(130.dp)
                     .background(
                         brush = Brush.verticalGradient(
                             colors = listOf(
