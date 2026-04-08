@@ -32,7 +32,7 @@ import okio.SYSTEM
 
 object LoginApi {
     /**
-     * 鐧诲綍
+     * 登录
      */
     suspend fun login(username: String, password: String,  refreshToken: String): UserInfo {
         val requestBody = LoginRequest(username, password,refreshToken)
@@ -71,9 +71,9 @@ object UserApi{
 
 
     /**
-     * 鑾峰彇鐢ㄦ埛鐨勫熀纭€淇℃伅
-     * @param userId 鐢ㄦ埛id
-     * @return 杩斿洖鐢ㄦ埛鐨勫熀纭€淇℃伅锛坕d锛?username ,email 杩欎簺锛?
+     * 获取用户的基础信息
+     * @param userId 用户id
+     * @return 返回用户的基础信息（id， username ,email 这些）
      */
     suspend fun getUserBasicInfo(userId: Long): UserInfo {
         return ProxyApi.request<Unit, UserInfo>(
@@ -86,13 +86,13 @@ object UserApi{
 }
 
 /**
- * 浼氳瘽 API
+ * 会话 API
  */
 object ConversationApi{
 
 
     /**
-     * 鑾峰彇鐢ㄦ埛宸叉縺娲荤殑浼氳瘽
+     * 获取用户已激活的会话
      */
     suspend fun getActiveConversationsByUserId(userId:Long ): List<ConversationRes> {
         return ProxyApi.request<Unit, List<ConversationRes>>(
@@ -101,7 +101,7 @@ object ConversationApi{
         )
     }
     /**
-     * 鑾峰彇鐢ㄦ埛宸叉縺娲荤殑浼氳瘽
+     * 获取用户已激活的会话
      */
     suspend fun getConversation(conversationId:Long ): ConversationRes {
         return ProxyApi.request<Unit, ConversationRes>(
@@ -111,7 +111,7 @@ object ConversationApi{
     }
 
     /**
-     * 鑾峰彇鎴栬€呭垱寤虹鑱婁細璇?
+     * 获取或者创建私聊会话
      */
     suspend fun createOrGetConversation(friendId:Long): ConversationRes {
         return ProxyApi.request<Unit , ConversationRes>(
@@ -122,7 +122,7 @@ object ConversationApi{
     }
 
     /**
-     * 鍒涘缓浼氳瘽
+     * 创建会话
      */
     suspend fun createGroupConversation(groupInfo:GroupInfo ): ConversationRes {
         return ProxyApi.request< GroupInfo,ConversationRes>(
@@ -135,11 +135,11 @@ object ConversationApi{
 }
 
 /**
- * 鏂囦欢澶勭悊 API
+ * 文件处理 API
  */
 object FileApi {
     /**
-     * 棰勫垱寤烘枃浠惰褰曟帴鍙ｏ紝鑾峰彇鏂囦欢ID
+     * 预创建文件记录接口，获取文件ID
      */
     suspend fun createFilePlaceholder(request: UploadFileRequest): FileUploadResponse {
         return ProxyApi.request<UploadFileRequest, FileUploadResponse>(
@@ -148,23 +148,23 @@ object FileApi {
             body = request
         )
     }
-    
-    /**
-     * 涓婁紶鏂囦欢锛堟柊鐨勪笂浼犳祦绋嬶級
-     * @param file 鏂囦欢
-     * @param fileName 鏂囦欢鍚?
-     * @param duration 鏂囦欢鏃堕暱 閫傜敤浜庨煶瑙嗛鏂囦欢锛岄潪闊宠棰戞枃浠朵紶 0 鍗冲彲
-     */
-    suspend fun uploadFile(fileId : String ,file: ByteArray, fileName: String, duration: Long = 0): FileUploadResponse {
-        
-        return ProxyApi.uploadFile(fileId,file, fileName, duration, )
-    }
-    
 
     /**
-     * 涓嬭浇鏂囦欢鍒版寚瀹氳矾寰勶紙娴佸紡涓嬭浇锛岄伩鍏峅OM锛?
-     * @param fileId 鏂囦欢ID
-     * @param outputPath 杈撳嚭鏂囦欢璺緞
+     * 上传文件（新的上传流程）
+     * @param file 文件
+     * @param fileName 文件名
+     * @param duration 文件时长 适用于音视频文件，非音视频文件传 0 即可
+     */
+    suspend fun uploadFile(fileId : String ,file: ByteArray, fileName: String, duration: Long = 0): FileUploadResponse {
+
+        return ProxyApi.uploadFile(fileId,file, fileName, duration, )
+    }
+
+
+    /**
+     * 下载文件到指定路径（流式下载，避免OOM）
+     * @param fileId 文件ID
+     * @param outputPath 输出文件路径
      */
     suspend fun downloadFileToPath(fileId: String, outputPath: Path) {
         val baseUrl = ProxyConfig.getBaseUrl()
@@ -183,7 +183,7 @@ object FileApi {
         val statusValue: Int = response.status.value
         if (statusValue !in 200..299) {
             val errorText: String = response.bodyAsText()
-            throw RuntimeException("涓嬭浇鏂囦欢澶辫触锛?{response.status}锛屽唴瀹? $errorText")
+            throw RuntimeException("下载文件失败：${response.status}，内容: $errorText")
         }
 
         val contentLength: Long? = response.contentLength()
@@ -201,7 +201,7 @@ object FileApi {
         withContext(Dispatchers.IO) {
             try {
                 if (useStream) {
-                    // 娴佸紡鍐欏叆
+                    // 流式写入
                     val channel: ByteReadChannel = response.bodyAsChannel()
                     val buffer = ByteArray(8 * 1024)
                     var totalBytesRead = 0L
@@ -212,16 +212,16 @@ object FileApi {
                             if (bytesRead <= 0) break
                             write(buffer, 0, bytesRead)
                             totalBytesRead += bytesRead
-                            
-                            // 璁＄畻骞舵洿鏂拌繘搴?
+
+                            // 计算并更新进度
                             if (contentLength != null && contentLength > 0) {
                                 val progress = totalBytesRead.toFloat() / contentLength.toFloat()
-                                // 杩欓噷鍙互閫氳繃鍥炶皟鍑芥暟鎴栫姸鎬佹洿鏂版潵閫氱煡杩涘害
+                                // 这里可以通过回调函数或状态更新来通知进度
                             }
                         }
                     }
                 } else {
-                    // 灏忔枃浠剁洿鎺ュ啓鍏?
+                    // 小文件直接写入
                     val bytes: ByteArray = response.bodyAsBytes()
                     FileSystem.SYSTEM.write(outputPath) {
                         write(bytes)
@@ -237,10 +237,10 @@ object FileApi {
     }
 
     /**
-     * 涓嬭浇鏂囦欢鍒版寚瀹氳矾寰勶紙娴佸紡涓嬭浇锛岄伩鍏峅OM锛? 鏀寔杩涘害鍥炶皟
-     * @param fileId 鏂囦欢ID
-     * @param outputPath 杈撳嚭鏂囦欢璺緞
-     * @param onProgress 杩涘害鍥炶皟鍑芥暟锛屽弬鏁颁负宸蹭笅杞藉瓧鑺傛暟鍜屾€诲瓧鑺傛暟
+     * 下载文件到指定路径（流式下载，避免OOM）- 支持进度回调
+     * @param fileId 文件ID
+     * @param outputPath 输出文件路径
+     * @param onProgress 进度回调函数，参数为已下载字节数和总字节数
      */
     suspend fun downloadFileToPathWithProgress(fileId: String, outputPath: Path, onProgress: (Long, Long) -> Unit) {
         val baseUrl = ProxyConfig.getBaseUrl()
@@ -259,7 +259,7 @@ object FileApi {
         val statusValue: Int = response.status.value
         if (statusValue !in 200..299) {
             val errorText: String = response.bodyAsText()
-            throw RuntimeException("涓嬭浇鏂囦欢澶辫触锛?${response.status}锛屽唴瀹? $errorText")
+            throw RuntimeException("下载文件失败：'${response.status}，内容: $errorText")
         }
 
         val contentLength: Long? = response.contentLength()
@@ -277,7 +277,7 @@ object FileApi {
         withContext(Dispatchers.IO) {
             try {
                 if (useStream) {
-                    // 娴佸紡鍐欏叆
+                    // 流式写入
                     val channel: ByteReadChannel = response.bodyAsChannel()
                     val buffer = ByteArray(8 * 1024)
                     var totalBytesRead = 0L
@@ -288,21 +288,21 @@ object FileApi {
                             if (bytesRead <= 0) break
                             write(buffer, 0, bytesRead)
                             totalBytesRead += bytesRead
-                            
-                            // 閫氱煡杩涘害
+
+                            // 通知进度
                             if (contentLength != null && contentLength > 0) {
                                 onProgress(totalBytesRead, contentLength)
                             }
                         }
                     }
                 } else {
-                    // 灏忔枃浠剁洿鎺ュ啓鍏?
+                    // 小文件直接写入
                     val bytes: ByteArray = response.bodyAsBytes()
                     FileSystem.SYSTEM.write(outputPath) {
                         write(bytes)
                     }
-                    
-                    // 灏忔枃浠剁洿鎺ュ畬鎴?
+
+                    // 小文件直接完成
                     if (contentLength != null) {
                         onProgress(contentLength, contentLength)
                     }
@@ -318,7 +318,7 @@ object FileApi {
 
 
     /**
-     * 鏍规嵁鏂囦欢Id鑾峰彇鏂囦欢鍏冩暟鎹?
+     * 根据文件Id获取文件元数据
      */
     suspend fun getFileMeta(fileId:String) : FileMeta{
         return ProxyApi.request< String,FileMeta>(
@@ -327,11 +327,11 @@ object FileApi {
             requestParams = mapOf("fileId" to fileId)
         )
     }
-    
+
     /**
-     * 閫氳繃瀹㈡埛绔疘D鏌ヨ涓婁紶鐘舵€?
-     * 鐢ㄤ簬鏂偣缁紶鍔熻兘
-     * @param clientId 瀹㈡埛绔敓鎴愮殑UUID
+     * 通过客户端ID查询上传状态
+     * 用于断点续传功能
+     * @param clientId 客户端生成的UUID
      */
     suspend fun getUploadStatusByClientId(clientId: String): FileUploadResponse? {
         return try {
@@ -341,7 +341,7 @@ object FileApi {
                 requestParams = mapOf("clientId" to clientId)
             )
         } catch (e: Exception) {
-            // 濡傛灉鏈嶅姟绔病鏈夋壘鍒板搴旂殑涓婁紶鐘舵€侊紝杩斿洖null
+            // 如果服务端没有找到对应的上传状态，返回null
             null
         }
     }
@@ -353,7 +353,7 @@ object FileApi {
 object ChatApi {
 
     /**
-     * 鑾峰彇浼氳瘽娑堟伅
+     * 获取会话消息
      */
     suspend fun getMessages(conversationId: Long, fromSequenceId: Long = 0, toSequenceId: Long = 0): PageResult<MessageDTO> {
 
@@ -377,7 +377,7 @@ object ChatApi {
     }
 
     /**
-     * 鎾ゅ洖娑堟伅
+     * 撤回消息
      */
     suspend fun withdrawMessage(msgId: Long): Unit {
         return ProxyApi.request<Unit, Unit>(
@@ -388,7 +388,8 @@ object ChatApi {
     }
 
     /**
-     * 鏍囪娑堟伅涓哄凡璇?     */
+     * 标记消息为已读
+     */
     suspend fun markAsRead(msgId: Long): Unit {
         return ProxyApi.request<Unit, Unit>(
             hmethod = HttpMethod.Post,
@@ -398,7 +399,7 @@ object ChatApi {
     }
 
     /**
-     * 鏍囪浼氳瘽鍒版寚瀹氬簭鍒椾负宸茶锛堟帹鑽愶紱鏀寔缇よ亰鎸夌敤鎴风淮搴﹀凡璇绘帹杩涳級
+     * 标记会话到指定序列为已读（推荐；支持群聊按用户维度已读推进）
      */
     suspend fun markConversationAsRead(conversationId: Long, sequenceId: Long): Unit {
         return ProxyApi.request<Unit, Unit>(
@@ -457,13 +458,13 @@ object MeetingApi {
 }
 
 /**
- * 濂藉弸 API
+ * 好友 API
  */
 
 object FriendShipApi {
 
     /**
-     * 鏌ヨ鐢ㄦ埛鑱旂郴浜?
+     * 查询用户联系人
      */
     suspend fun getFriends(userId:Long) : List<FriendshipDTO>{
 
@@ -475,7 +476,7 @@ object FriendShipApi {
     }
 
     /**
-     * 娣诲姞鑱旂郴浜?
+     * 添加联系人
      */
     suspend fun addFriend(userId:Long,friendId:Long ,applyRemark :String) : FriendshipDTO{
         return ProxyApi.request< FriendRequest,FriendshipDTO>(
@@ -485,11 +486,11 @@ object FriendShipApi {
 //            requestParams = mapOf("userId" to userId.toString(),"friendId" to friendId.toString())
         )
     }
-    
+
     /**
-     * 鏌ヨ鐢ㄦ埛鐨勫ソ鍙嬭姹?
-     * @param userId 鐢ㄦ埛ID
-     * @return 濂藉弸璇锋眰鍒楄〃
+     * 查询用户的好友请求
+     * @param userId 用户ID
+     * @return 好友请求列表
      */
     suspend fun getSentFriendRequests(userId: Long): List<FriendshipDTO> {
         return ProxyApi.request<Unit, List<FriendshipDTO>>(
@@ -498,12 +499,12 @@ object FriendShipApi {
             requestParams = mapOf("userId" to userId.toString())
         )
     }
-    
+
     /**
-     * 鍚屾濂藉弸璇锋眰
-     * @param userId 鐢ㄦ埛ID
-     * @param maxId 瀹㈡埛绔洰鍓嶆渶澶х殑鍏崇郴ID锛屽彧鑾峰彇姣旇繖涓狪D澶х殑鏁版嵁
-     * @return 鏂扮殑濂藉弸璇锋眰鍒楄〃
+     * 同步好友请求
+     * @param userId 用户ID
+     * @param maxId 客户端目前最大的关系ID，只获取比这个ID大的数据
+     * @return 新的好友请求列表
      */
     suspend fun syncFriendRequests(userId: Long, maxId: Long): List<FriendshipDTO> {
         return ProxyApi.request<Unit, List<FriendshipDTO>>(
@@ -528,8 +529,8 @@ data class MessagePullRequest(
     val page: Int = 0,
     val size: Int = 50,
     val sort: String? = null,
-    val fromSequenceId: Long? = null,  // 娣诲姞浠庢寚瀹歴equenceId寮€濮嬫媺鍙栫殑鍙傛暟
-    val toSequenceId: Long = 0L,  // 娣诲姞浠庢寚瀹歴equenceId寮€濮嬫媺鍙栫殑鍙傛暟
+    val fromSequenceId: Long? = null,  // 添加从指定sequenceId开始拉取的参数
+    val toSequenceId: Long = 0L,  // 添加从指定sequenceId开始拉取的参数
 )
 
 @Serializable
@@ -583,7 +584,7 @@ data class MeetingRes(
 
 @Serializable
 /**
- * 鍒嗛〉
+ * 分页
  */
 data class PageResult<T>(
     val content: List<T>,
@@ -626,38 +627,38 @@ data class MeetingMessagePayLoad(
 @Serializable
 data class UploadFileRequest(
     /**
-     * 鏂囦欢澶у皬
+     * 文件大小
      */
     val size: Long?,
 
     /**
-     * 鏂囦欢鍚?
+     * 文件名
      */
     val fileName: String?,
 
     /**
-     * 鏂囦欢鏃堕暱锛堝獟浣撴枃浠讹級
+     * 文件时长（媒体文件）
      */
     val duration: Long?,
 )
 
 @Serializable
 data class FileUploadResponse(
-    // 蹇呴』杩斿洖
+    // 必须返回
     val id: String,
-    // 鏂囦欢涓婁紶鍚?蹇呴』杩斿洖  涓嶅彲涓虹┖
-    // 鍦ㄤ笂浼犲墠鑾峰彇鏂囦欢 id 鐨勬椂鍊?涓嶄細杩斿洖淇℃伅
+    // 文件上传后 必须返回  不可为空
+    // 在上传前获取文件 id 的时候 不会返回信息
     val fileMeta: FileMeta?,
 
     /**
-     * 鏂囦欢鐨勭姸鎬?
+     * 文件的状态
      *
      */
     val fileStatus: String?,
 )
 @Serializable
 @SerialName("FILE")
-//Kotlinx Serialization 榛樿浼氫娇鐢?"type" 瀛楁 杩涜澶氭€?
+//Kotlinx Serialization 默认会使用 "type" 字段 进行多态
 data class FileMeta(
 
     @SerialName("fileId")
@@ -676,20 +677,20 @@ data class FileMeta(
     @SerialName("type")
     val type: String = "FILE",
 
-    val duration  : Int =0,  // 濯掍綋璧勬簮鎵嶄細鍙堟椂闀?鍗曚綅 鏄?姣锛岄渶瑕佸睍绀虹殑鏃跺€?鎹㈢畻鎴愮 榛樿0 鍗冲彲
+    val duration  : Int =0,  // 媒体资源才会又时长 单位 是 毫秒，需要展示的时候 换算成秒 默认0 即可
 
-    val thumbnail :String? = null , // 缂╃暐鍥剧殑  fileId
+    val thumbnail :String? = null , // 缩略图的  fileId
 
-    val fileStatus: FileStatus   // 鏂囦欢鐘舵€?
+    val fileStatus: FileStatus   // 文件状态
 
 
 ) : MessagePayLoad{
     /**
-     * 鑾峰彇鏂囦欢URL
-     * @return 鏂囦欢URL fileId
+     * 获取文件URL
+     * @return 文件URL fileId
      */
     fun getFileUrl(): String? {
-        // 鍙湁褰撴枃浠剁姸鎬佷负NORMAL鏃舵墠鍏佽鑾峰彇URL
+        // 只有当文件状态为NORMAL时才允许获取URL
         return if (fileStatus == FileStatus.NORMAL) {
             val baseUrl = if (ProxyConfig.enableProxy) {
                 ProxyConfig.getBaseUrl()
@@ -700,28 +701,28 @@ data class FileMeta(
             }
             "$baseUrl/api/files/download/$fileId"
         } else {
-            null // 鏂囦欢鐘舵€佷笉姝ｅ父鏃惰繑鍥瀗ull
+            null // 文件状态不正常时返回null
         }
     }
 }
 
 @Serializable
 data class FriendshipDTO(
-    val id: Long? = null,  // 鍏崇郴ID
-    val userInfo: UserInfo? = null, // 褰撳墠鐢ㄦ埛鐨勭敤鎴蜂俊鎭紝浠呰繑鍥炵敤鎴稩D鍜岀敤鎴峰悕
-    val friendUserInfo: UserInfo? = null, // 濂藉弸鐨勭敤鎴蜂俊鎭?
+    val id: Long? = null,  // 关系ID
+    val userInfo: UserInfo? = null, // 当前用户的用户信息，仅返回用户ID和用户名
+    val friendUserInfo: UserInfo? = null, // 好友的用户信息
     val status: FriendRequestStatus? = null,
-    val conversationId: Long? = null  //涓庡ソ鍙嬪綋鍓嶅瓨鍦ㄧ殑浼氳瘽
+    val conversationId: Long? = null  //与好友当前存在的会话
 )
 
 /**
- * 濂藉弸璇锋眰
+ * 好友请求
  */
 @Serializable
 data class FriendRequest  (
-     val userId: Long ,
-     val friendId: Long,
-     val applyRemark: String,
+    val userId: Long ,
+    val friendId: Long,
+    val applyRemark: String,
 )
 
 
@@ -738,7 +739,7 @@ data class MessageDTO(
     val fromAccount: UserInfo? = null,
     val type: MessageType,
     val status: MessageStatus,
-    val timestamp: String,  // 鏈嶅姟绔殑鏃堕棿鎴?
+    val timestamp: String,  // 服务端的时间戳
 
     val payload: MessagePayLoad? = null
 
@@ -753,11 +754,11 @@ public inline fun <reified T : MessagePayLoad> MessageDTO.extraAs(): T? {
 
 @Serializable
 data class GroupInfo(
-    // 缇よ亰鍚嶇О
+    // 群聊名称
     val groupName: String? = null,
-    // 缇よ亰鎻忚堪
+    // 群聊描述
     val description: String? = null,
-    // 缇よ亰鐢ㄦ埛
+    // 群聊用户
     val members: List<UserInfo>? = listOf(),
 ){
     fun isGroup():Boolean{
@@ -781,9 +782,9 @@ data class ConversationRes(
         return when (type) {
             ConversationType.GROUP -> groupName
             ConversationType.PRIVATE_CHAT -> {
-                if (members.isEmpty()) return "鏃犳垚鍛?
+                if (members.isEmpty()) return "无成员"
 
-                // 杩斿洖闈炲綋鍓嶇敤鎴风殑鍚嶇О
+                // 返回非当前用户的名称
                 val otherUser = members.firstOrNull() { it.userId != (currentUser?.userId ?: "") }
                 otherUser?.username ?: ""
 
@@ -792,7 +793,7 @@ data class ConversationRes(
     }
 
     /**
-     * 鐢ㄦ埛淇℃伅
+     * 用户信息
      */
     fun getOtherUser(currentUser: UserInfo?): UserInfo? {
         return when (type) {
@@ -817,7 +818,6 @@ enum class ConversationType {
     GROUP,
     PRIVATE_CHAT
 }
-
 @Serializable
 data class LoginRequest(
     val loginAccount: String,
@@ -829,7 +829,7 @@ data class LoginRequest(
  * 组织架构 API
  */
 object OrganizationApi {
-    
+
     /**
      * 获取当前的登录用户公司的组织架构
      */
@@ -839,7 +839,7 @@ object OrganizationApi {
             path = "/api/company/structure"
         )
     }
-    
+
     /**
      * 获取当前用户的组织架构
      */
@@ -848,6 +848,7 @@ object OrganizationApi {
         return getOrganizationStructure()
     }
 }
+
 
 /**
  * 公司/工作区 API
@@ -877,7 +878,7 @@ object CompanyApi {
 
 @Serializable
 data class LoginResponse(
-    val token: String, 
+    val token: String,
     val userId: Long,
     val username: String? = null,
     val email: String? = null,
