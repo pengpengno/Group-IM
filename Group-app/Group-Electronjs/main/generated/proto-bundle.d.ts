@@ -922,7 +922,8 @@ export namespace com {
                                 FILE = 1,
                                 VIDEO = 3,
                                 IMAGE = 6,
-                                VOICE = 4
+                                VOICE = 4,
+                                MEETING = 7
                             }
                         }
                     }

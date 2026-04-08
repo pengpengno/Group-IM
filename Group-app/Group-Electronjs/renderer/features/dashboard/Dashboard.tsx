@@ -16,6 +16,7 @@ import { createPrivateChat } from '../chat/chatSlice';
 import { authAPI } from '../../services/api/apiClient';
 import './Dashboard.css';
 import { useVideoCall } from '../video-call/useVideoCall';
+import { meetingAPI } from '../../services/api/apiClient';
 
 interface DashboardProps {
     user: any;
@@ -32,7 +33,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     const [showWorkspacePopover, setShowWorkspacePopover] = useState(false);
     
     // Connect to Video Call Service
-    const { state: callState, startMeeting } = useVideoCall();
+    const { state: callState, startMeeting, joinMeeting } = useVideoCall();
 
     const { activeConversationId, conversations } = useSelector((state: RootState) => state.chat);
     const activeConversation = conversations.find(c => c.conversation.conversationId === activeConversationId)?.conversation;
@@ -117,10 +118,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         webRTCService.initiateCall(targetUserId, targetUserName);
     };
 
-    const handleStartMeeting = (participants: Array<{ userId: string; userName?: string }>) => {
+    const handleStartMeeting = (participants: Array<{ userId: string; userName?: string }>, roomId?: string) => {
         if (!participants.length) return;
-        const roomId = activeConversation ? `meeting_${activeConversation.conversationId}` : undefined;
-        startMeeting(participants, roomId);
+        const finalRoomId = roomId || (activeConversation ? `meeting_${activeConversation.conversationId}` : undefined);
+        startMeeting(participants, finalRoomId);
+    };
+
+    const handleJoinMeeting = async (roomId: string) => {
+        try {
+            await meetingAPI.join(roomId);
+        } catch (error) {
+            console.error('Failed to join meeting:', error);
+        }
+        joinMeeting(roomId);
     };
 
     const handleStartMessage = async (targetUserId: string) => {
@@ -475,11 +485,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                             </div>
                             <div className="chat-room-area">
                                 {activeConversation ? (
-                                    <ChatRoom
-                                        conversation={activeConversation}
-                                        onStartMeeting={handleStartMeeting}
-                                        onVideoCall={handleCall}
-                                    />
+                                        <ChatRoom
+                                            conversation={activeConversation}
+                                            onStartMeeting={handleStartMeeting}
+                                            onJoinMeeting={handleJoinMeeting}
+                                            onVideoCall={handleCall}
+                                        />
                                 ) : (
                                     <div className="empty-view-placeholder">
                                         <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

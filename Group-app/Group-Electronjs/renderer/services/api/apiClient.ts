@@ -145,6 +145,24 @@ export const webrtcAPI = {
   }
 };
 
+export const meetingAPI = {
+  create: async (payload: { conversationId: number; roomId?: string; title?: string; participantIds?: number[]; recordMessage?: boolean }) => {
+    return http.post('/api/meetings/create', payload);
+  },
+  join: async (roomId: string) => {
+    return http.post('/api/meetings/join', { roomId });
+  },
+  leave: async (roomId: string) => {
+    return http.post('/api/meetings/leave', { roomId });
+  },
+  end: async (roomId: string, recordMessage: boolean = true) => {
+    return http.post('/api/meetings/end', { roomId, recordMessage });
+  },
+  getByRoom: async (roomId: string) => {
+    return http.get(`/api/meetings/room/${roomId}`);
+  }
+};
+
 export const fileAPI = {
   // POST /api/files/upload (form-data)
   upload: async (file: File | Blob, fileName?: string, clientId?: string) => {

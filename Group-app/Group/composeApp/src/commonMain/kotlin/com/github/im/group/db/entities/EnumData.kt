@@ -54,6 +54,7 @@ enum class MessageType {
     VOICE,
     VIDEO,
     IMAGE,
+    MEETING,
     ;
 
     /**

@@ -700,6 +700,29 @@ export class WebRTCService extends EventEmitter {
     void this.startMeetingFlow(targets, roomId);
   }
 
+  public joinMeeting(roomId: string): void {
+    void this.joinMeetingFlow(roomId);
+  }
+
+  private async joinMeetingFlow(roomId: string): Promise<void> {
+    try {
+      await this.initialize();
+      if (!this.localStream) {
+        await this.acquireLocalMedia();
+      }
+
+      this.updateState({
+        callStatus: VideoCallStatus.CONNECTING,
+        roomId,
+        isMeeting: true
+      });
+
+      this.sendMeetingJoin(roomId);
+    } catch (error) {
+      this.handleError(error as Error);
+    }
+  }
+
   private async startMeetingFlow(targets: Array<{ userId: string; userName?: string; avatar?: string }>, roomId?: string): Promise<void> {
     try {
       if (!targets.length) {

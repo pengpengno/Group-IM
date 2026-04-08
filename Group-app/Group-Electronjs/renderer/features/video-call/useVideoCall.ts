@@ -12,6 +12,7 @@ interface UseVideoCallReturn {
   initialize: () => Promise<void>;
   startCall: (calleeId: string, calleeName?: string) => void;
   startMeeting: (participants: Array<{ userId: string; userName?: string; avatar?: string }>, roomId?: string) => void;
+  joinMeeting: (roomId: string) => void;
   acceptCall: () => void;
   rejectCall: () => void;
   endCall: () => void;
@@ -74,6 +75,10 @@ export const useVideoCall = (): UseVideoCallReturn => {
     webRTCService.initiateMeeting(participants, roomId);
   }, []);
 
+  const joinMeeting = useCallback((roomId: string) => {
+    webRTCService.joinMeeting(roomId);
+  }, []);
+
   const acceptCall = useCallback(() => {
     webRTCService.acceptCall();
   }, []);
@@ -132,6 +137,7 @@ export const useVideoCall = (): UseVideoCallReturn => {
     initialize,
     startCall,
     startMeeting,
+    joinMeeting,
     acceptCall,
     rejectCall,
     endCall,

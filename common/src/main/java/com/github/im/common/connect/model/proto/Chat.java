@@ -290,6 +290,10 @@ public final class Chat {
      * <code>VOICE = 4;</code>
      */
     VOICE(4),
+    /**
+     * <code>MEETING = 7;</code>
+     */
+    MEETING(7),
     UNRECOGNIZED(-1),
     ;
 
@@ -322,6 +326,10 @@ public final class Chat {
      * <code>VOICE = 4;</code>
      */
     public static final int VOICE_VALUE = 4;
+    /**
+     * <code>MEETING = 7;</code>
+     */
+    public static final int MEETING_VALUE = 7;
 
 
     public final int getNumber() {
@@ -353,6 +361,7 @@ public final class Chat {
         case 3: return VIDEO;
         case 6: return IMAGE;
         case 4: return VOICE;
+        case 7: return MEETING;
         default: return null;
       }
     }
@@ -3760,11 +3769,11 @@ public final class Chat {
       "m.common.connect.model.proto.MessagesSta" +
       "tus*p\n\016MessagesStatus\022\013\n\007SENDING\020\000\022\010\n\004SE" +
       "NT\020\001\022\n\n\006FAILED\020\002\022\014\n\010RECEIVED\020\003\022\010\n\004READ\020\004" +
-      "\022\n\n\006UNREAD\020\005\022\013\n\007DELETED\020\006\022\n\n\006REVOKE\020\007*B\n" +
+      "\022\n\n\006UNREAD\020\005\022\013\n\007DELETED\020\006\022\n\n\006REVOKE\020\007*O\n" +
       "\013MessageType\022\010\n\004TEXT\020\000\022\010\n\004FILE\020\001\022\t\n\005VIDE" +
-      "O\020\003\022\t\n\005IMAGE\020\006\022\t\n\005VOICE\020\004B0\n(com.github." +
-      "im.common.connect.model.protoB\004Chatb\006pro" +
-      "to3"
+      "O\020\003\022\t\n\005IMAGE\020\006\022\t\n\005VOICE\020\004\022\013\n\007MEETING\020\007B0" +
+      "\n(com.github.im.common.connect.model.pro" +
+      "toB\004Chatb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,

@@ -1930,6 +1930,7 @@ $root.com = (function() {
                                         case 3:
                                         case 6:
                                         case 4:
+                                        case 7:
                                             break;
                                         }
                                     if (message.messagesStatus != null && message.hasOwnProperty("messagesStatus"))
@@ -2042,6 +2043,10 @@ $root.com = (function() {
                                     case "VOICE":
                                     case 4:
                                         message.type = 4;
+                                        break;
+                                    case "MEETING":
+                                    case 7:
+                                        message.type = 7;
                                         break;
                                     }
                                     switch (object.messagesStatus) {
@@ -2666,6 +2671,7 @@ $root.com = (function() {
                              * @property {number} VIDEO=3 VIDEO value
                              * @property {number} IMAGE=6 IMAGE value
                              * @property {number} VOICE=4 VOICE value
+                             * @property {number} MEETING=7 MEETING value
                              */
                             proto.MessageType = (function() {
                                 var valuesById = {}, values = Object.create(valuesById);
@@ -2674,6 +2680,7 @@ $root.com = (function() {
                                 values[valuesById[3] = "VIDEO"] = 3;
                                 values[valuesById[6] = "IMAGE"] = 6;
                                 values[valuesById[4] = "VOICE"] = 4;
+                                values[valuesById[7] = "MEETING"] = 7;
                                 return values;
                             })();
 

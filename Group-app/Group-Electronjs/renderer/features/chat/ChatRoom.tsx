@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { fetchMessages, sendMessageViaSocket } from './chatSlice';
-import { BASE_URL } from '../../services/api/apiClient';
+import { BASE_URL, meetingAPI } from '../../services/api/apiClient';
 import { useAppSelector } from '../../hooks';
 import { getElectronAPI, isElectronEnvironment } from '../../services/api/electronAPI';
 import axios from 'axios';
-import type { ConversationRes, MessageDTO } from '../../types';
+import type { ConversationRes, MessageDTO, MeetingMessagePayload } from '../../types';
 import type { AuthState } from '../auth/authSlice';
 import Notification, { NotificationType } from '../../components/common/Notification';
 import './ChatRoom.css';
@@ -21,7 +21,8 @@ declare global {
 interface ChatRoomProps {
   conversation: ConversationRes;
   onVideoCall?: (userId: string) => void;
-  onStartMeeting?: (participants: Array<{ userId: string; userName?: string }>) => void;
+  onStartMeeting?: (participants: Array<{ userId: string; userName?: string }>, roomId?: string) => void;
+  onJoinMeeting?: (roomId: string) => void;
 }
 
 // 消息项组件
@@ -137,12 +138,30 @@ const AuthenticatedImage: React.FC<{
   return <img src={mediaSrc} className={className} onClick={onClick} alt="Chat media" />;
 };
 
+const parseMeetingPayload = (message: MessageDTO): MeetingMessagePayload | null => {
+  const payload = message.payload as MeetingMessagePayload | undefined;
+  if (payload && (payload.roomId || payload.meetingId)) {
+    return payload;
+  }
+
+  if (typeof message.content === 'string' && message.content.trim().startsWith('{')) {
+    try {
+      return JSON.parse(message.content) as MeetingMessagePayload;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+};
+
 const MessageBubble: React.FC<{
   message: MessageDTO;
   isOwnMessage: boolean;
   onImageClick?: (url: string, type: string) => void;
   onResend?: (message: MessageDTO) => void;
-}> = ({ message, isOwnMessage, onImageClick, onResend }) => {
+  onJoinMeeting?: (roomId: string) => void;
+}> = ({ message, isOwnMessage, onImageClick, onResend, onJoinMeeting }) => {
   const token = useAppSelector((state: RootState) => state.auth.user?.token);
 
   const formatTime = (timestamp: any) => {
@@ -225,6 +244,26 @@ const MessageBubble: React.FC<{
               <CustomAudioPlayer url={url} token={token} />
           );
       }
+      case 'MEETING': {
+        const payload = parseMeetingPayload(message);
+        const title = payload?.title || '会议';
+        const count = payload?.participantCount ?? payload?.participantIds?.length ?? 0;
+        const roomId = payload?.roomId;
+
+        return (
+          <div className="msg-meeting-card">
+            <div className="meeting-title">{title}</div>
+            <div className="meeting-meta">参会人数: {count}</div>
+            <button
+              className="meeting-join-btn"
+              onClick={() => roomId && onJoinMeeting && onJoinMeeting(roomId)}
+              disabled={!roomId || !onJoinMeeting}
+            >
+              加入会议
+            </button>
+          </div>
+        );
+      }
       default:
         return <div className="msg-text">{message.content}</div>;
     }
@@ -265,7 +304,7 @@ const MessageBubble: React.FC<{
   );
 };
 
-const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartMeeting }) => {
+const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartMeeting, onJoinMeeting }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: { auth: AuthState }) => state.auth);
   const { messages: allMessages, loading: chatLoading } = useSelector((state: RootState) => state.chat);
@@ -324,6 +363,25 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
   const showToast = (message: string, type: NotificationType = 'error') => {
     setToast({ message, type });
+  };
+
+  const startMeetingFromChat = async () => {
+    if (!onStartMeeting) return;
+    const participants = getGroupParticipants();
+    if (!participants.length) return;
+
+    try {
+      const response = await meetingAPI.create({
+        conversationId: conversation.conversationId,
+        title: conversation.groupName,
+        participantIds: participants.map((p) => Number(p.userId))
+      });
+      const meeting = response.data?.data || response.data;
+      onStartMeeting(participants, meeting?.roomId);
+    } catch (err: any) {
+      console.error('Failed to create meeting:', err);
+      showToast(err?.message || '创建会议失败');
+    }
   };
 
   // 加载消息
@@ -647,7 +705,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
           {conversation.type === 'GROUP' && onStartMeeting && getGroupParticipants().length > 0 && (
             <button
               className="action-icon-btn"
-              onClick={() => onStartMeeting(getGroupParticipants())}
+              onClick={startMeetingFromChat}
               title="Start Meeting"
             >
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
@@ -707,6 +765,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
                   isOwnMessage={msg.fromAccountId.toString() === user?.userId}
                   onImageClick={(url, type) => setPreviewMedia({ url, type })}
                   onResend={handleResendMessage}
+                  onJoinMeeting={onJoinMeeting}
                 />
               );
             })}

@@ -1,5 +1,6 @@
 package com.github.im.server.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.dto.message.*;
 import com.github.im.enums.MessageStatus;
@@ -57,6 +58,7 @@ public class MessageService {
     private final ConversationService conversationService;
     
     private final RedisMessageRouter redisMessageRouter;
+    private final ObjectMapper objectMapper;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -316,6 +318,9 @@ public class MessageService {
                 case TEXT:
                     dto.setPayload(new DefaultMessagePayLoad(message.getContent()));
                     return dto;
+                case MEETING:
+                    dto.setPayload(parseMeetingPayload(message.getContent()));
+                    return dto;
                 case VOICE:
                 case IMAGE:
                 case VIDEO:
@@ -334,6 +339,19 @@ public class MessageService {
         dto.setPayload(new DefaultMessagePayLoad(message.getContent()));
         return dto;
 
+    }
+
+    private MeetingMessagePayLoad parseMeetingPayload(String content) {
+        if (content == null || content.isBlank()) {
+            return new MeetingMessagePayLoad();
+        }
+        try {
+            return objectMapper.readValue(content, MeetingMessagePayLoad.class);
+        } catch (Exception e) {
+            MeetingMessagePayLoad fallback = new MeetingMessagePayLoad();
+            fallback.setTitle(content);
+            return fallback;
+        }
     }
 
 }

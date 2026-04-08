@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.github.im.group.api.FileMeta
+import com.github.im.group.api.MeetingMessagePayLoad
 import com.github.im.group.manager.AudioPlaybackManager
 import com.github.im.group.manager.FileStorageManager
 import com.github.im.group.manager.getFile
@@ -415,6 +416,42 @@ fun TextMessage(content: MessageContent.Text, isOwnMessage: Boolean) {
                 },
                 leadingIcon = { Icon(Icons.Default.Forward, contentDescription = null, modifier = Modifier.size(18.dp)) }
             )
+        }
+    }
+}
+
+@Composable
+fun MeetingMessageBubble(
+    payload: MeetingMessagePayLoad?,
+    isOwnMessage: Boolean,
+    onJoin: () -> Unit
+) {
+    val title = payload?.title?.takeIf { it.isNotBlank() } ?: "会议"
+    val count = payload?.participantCount ?: payload?.participantIds?.size ?: 0
+    val actionLabel = payload?.action ?: "START"
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (isOwnMessage) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = title,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                color = if (isOwnMessage) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "状态: $actionLabel · 参会人数: $count",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(onClick = onJoin, modifier = Modifier.fillMaxWidth().height(32.dp)) {
+                Text("加入会议", fontSize = 12.sp)
+            }
         }
     }
 }

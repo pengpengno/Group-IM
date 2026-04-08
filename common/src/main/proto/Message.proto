@@ -84,6 +84,8 @@ enum MessageType{
 
   VOICE = 4 ;
 
+  MEETING = 7 ;
+
 
 
 }

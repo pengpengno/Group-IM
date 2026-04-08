@@ -29,13 +29,15 @@ function normalizeConversation(conv: ConversationRes): ConversationRes {
 function getMessageDisplayText(content: string, type?: string): string {
     const msgType = (type || 'TEXT').toUpperCase();
     switch (msgType) {
-        case 'IMAGE': return '[图片消息]';
-        case 'FILE': return '[文件消息]';
-        case 'VOICE': return '[语音消息]';
-        case 'VIDEO': return '[视频消息]';
+        case 'IMAGE': return '[Image]';
+        case 'FILE': return '[File]';
+        case 'VOICE': return '[Voice]';
+        case 'VIDEO': return '[Video]';
+        case 'MEETING': return '[Meeting]';
         default: return content || '';
     }
 }
+
 
 function buildConversationDisplayState(conv: ConversationRes): ConversationDisplayState {
     const normalized = normalizeConversation(conv);
@@ -170,7 +172,7 @@ export const sendMessageViaSocket = createAsyncThunk(
         const currentUserId = currentUser?.userId;
 
         // Use provided clientMsgId or from msgDto or generate new
-        const finalClientMsgId = clientMsgId || msgDto?.clientMsgId || 
+        const finalClientMsgId = clientMsgId || msgDto?.clientMsgId ||
             (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36));
 
         try {
@@ -346,13 +348,13 @@ const chatSlice = createSlice({
             .addCase(sendMessageViaSocket.pending, (state, action) => {
                 const { conversationId, content, type } = action.meta.arg;
                 const currentUserId = (state as any).auth?.user?.userId;
-                
+
                 // Construct a temporary clientMsgId for the pending state if not provided
                 // This must match what we use in the thunk if not provided in arg
                 const clientMsgId = action.meta.arg.clientMsgId || action.meta.requestId;
 
                 const tempMsg: MessageDTO = {
-                    msgId: -1, 
+                    msgId: -1,
                     conversationId,
                     content,
                     type: (type as any) || 'TEXT',
@@ -398,9 +400,9 @@ const chatSlice = createSlice({
                 }
             })
             .addCase(sendMessageViaSocket.rejected, (state, action) => {
-                state.error = action.error.message || '发送消息失败';
+                state.error = action.error.message || '发送消息失败?'
                 const { conversationId, clientMsgId } = action.meta.arg;
-                
+
                 if (conversationId && state.messages[conversationId]) {
                     const finalClientMsgId = clientMsgId || action.meta.requestId;
                     const existingIndex = state.messages[conversationId].findIndex(m => m.clientMsgId === finalClientMsgId);
@@ -428,3 +430,8 @@ const chatSlice = createSlice({
 
 export const { setActiveConversation, addMessage } = chatSlice.actions;
 export default chatSlice.reducer;
+
+
+
+
+

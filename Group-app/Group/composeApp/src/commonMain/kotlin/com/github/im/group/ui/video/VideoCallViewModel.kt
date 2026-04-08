@@ -121,7 +121,11 @@ class VideoCallViewModel(
                 createLocalMediaStream()
 
                 // 通过WebRTC发起会议
-                webRTCManager?.initiateMeeting(roomId, participantIds)
+                if (participantIds.isEmpty()) {
+                    webRTCManager?.joinMeeting(roomId)
+                } else {
+                    webRTCManager?.initiateMeeting(roomId, participantIds)
+                }
             } catch (e: Exception) {
                 handleError("发起会议失败", e)
             }

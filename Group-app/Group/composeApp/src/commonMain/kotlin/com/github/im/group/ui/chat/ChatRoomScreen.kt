@@ -70,9 +70,13 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.github.im.group.api.ConversationType
+import com.github.im.group.api.MeetingApi
+import com.github.im.group.api.MeetingCreateRequest
+import com.github.im.group.api.MeetingMessagePayLoad
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
+import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.UserInfo
 import com.github.im.group.ui.ChatRoom
 import com.github.im.group.ui.UserAvatar
@@ -83,10 +87,12 @@ import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
 import kotlinx.coroutines.launch
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * 聊天室屏幕组件
+ * 聊天室屏幕组?
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -105,6 +111,9 @@ fun ChatRoomScreen(
 
     var showVideoCall by remember { mutableStateOf(false) }
     var showMeeting by remember { mutableStateOf(false) }
+    var meetingRoomId by remember { mutableStateOf<String?>(null) }
+    var meetingParticipantIds by remember { mutableStateOf<List<String>>(emptyList()) }
+    var meetingIsHost by remember { mutableStateOf(false) }
     var conversationId by remember {  mutableStateOf<Long?>(null)}
 
     var remoteUser by remember { mutableStateOf<UserInfo?>(chatUiState.friend) } 
@@ -119,6 +128,17 @@ fun ChatRoomScreen(
     )
 
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val meetingJson = remember { Json { ignoreUnknownKeys = true } }
+
+    fun extractMeetingPayload(message: MessageItem): MeetingMessagePayLoad? {
+        val wrapper = message as? MessageWrapper
+        val payload = wrapper?.messageDto?.payload
+        if (payload is MeetingMessagePayLoad) return payload
+        val raw = message.content
+        if (raw.isBlank() || !raw.trim().startsWith("{")) return null
+        return runCatching { meetingJson.decodeFromString<MeetingMessagePayLoad>(raw) }.getOrNull()
+    }
     var lastMarkedReadSeq by remember { mutableStateOf(0L) }
 
     LaunchedEffect(chatRoom) {
@@ -140,7 +160,7 @@ fun ChatRoomScreen(
     /**
      * 滚动到顶部时加载更多历史消息
      *
-     * 逻辑1: 监听列表滚动状态
+     * 逻辑1: 监听列表滚动状?
      * 逻辑2: 检测是否滚动到顶部
      * 逻辑3: 获取最早的消息序列ID
      * 逻辑4: 加载更多历史消息
@@ -149,7 +169,7 @@ fun ChatRoomScreen(
         snapshotFlow { listState.firstVisibleItemIndex }
             .collect { firstVisibleIndex ->
                 if (firstVisibleIndex == 0 && chatUiState.messages.isNotEmpty()) {
-                    // 用户滚动到了顶部，加载更多历史消息
+                    // 用户滚动到了顶部，加载更多历史消?
                     val oldestMessage = chatUiState.messages.lastOrNull()
                     oldestMessage?.seqId?.let { sequenceId ->
                         conversationId?.let { id ->
@@ -169,12 +189,28 @@ fun ChatRoomScreen(
     }
 
     // 会议界面
-    if (showMeeting && chatUiState.conversation != null) {
-        val participantIds = chatUiState.conversation?.members?.map { it.userId.toString() } ?: emptyList()
+    if (showMeeting && meetingRoomId != null) {
+        val roomId = meetingRoomId!!
         MeetingLauncher(
-            roomId = "meeting_${chatUiState.conversation?.conversationId}",
-            participantIds = participantIds,
-            onCallEnded = { showMeeting = false }
+            roomId = roomId,
+            participantIds = meetingParticipantIds,
+            onCallEnded = {
+                showMeeting = false
+                val finalRoomId = meetingRoomId
+                val shouldEnd = meetingIsHost
+                meetingRoomId = null
+                meetingParticipantIds = emptyList()
+                meetingIsHost = false
+                if (finalRoomId != null) {
+                    scope.launch {
+                        if (shouldEnd) {
+                            MeetingApi.endMeeting(finalRoomId)
+                        } else {
+                            MeetingApi.leaveMeeting(finalRoomId)
+                        }
+                    }
+                }
+            }
         )
     }
 
@@ -209,7 +245,27 @@ fun ChatRoomScreen(
                     val isGroup = chatUiState.conversation?.type == ConversationType.GROUP
                     if (remoteUser != null || isGroup) {
                         IconButton(onClick = { 
-                            if (isGroup) showMeeting = true else showVideoCall = true 
+                        if (isGroup) {
+                            val conversation = chatUiState.conversation
+                            if (conversation == null) return@IconButton
+                            val currentId = userInfo?.userId?.toString()
+                            val participantIds = conversation.members
+                                .map { it.userId.toString() }
+                                .filter { it != currentId }
+                            scope.launch {
+                                val meeting = MeetingApi.createMeeting(
+                                    MeetingCreateRequest(
+                                        conversationId = conversation.conversationId,
+                                        title = conversation.groupName,
+                                        participantIds = participantIds.mapNotNull { it.toLongOrNull() }
+                                    )
+                                )
+                                meetingRoomId = meeting.roomId
+                                meetingParticipantIds = participantIds
+                                meetingIsHost = true
+                                showMeeting = true
+                            }
+                        } else showVideoCall = true
                         }) {
                             Icon(Icons.Default.VideoCall, contentDescription = "视频通话/会议")
                         }
@@ -241,7 +297,7 @@ fun ChatRoomScreen(
                     modifier = Modifier.fillMaxSize(),
                     reverseLayout = true,
                     contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp, start = 8.dp, end = 8.dp),
-                    verticalArrangement = Arrangement.Top // 顶部对齐（在反转布局中，顶部逻辑上是屏幕底部）
+                    verticalArrangement = Arrangement.Top // 顶部对齐（在反转布局中，顶部逻辑上是屏幕底部?
                 ) {
                     // Removed duplicate CircularProgressIndicator, keeping PullRefreshIndicator only
 
@@ -285,7 +341,7 @@ fun ChatRoomScreen(
                     }
                 }
 
-                // 下拉刷新指示器
+                // 下拉刷新指示?
                 PullRefreshIndicator(
                     refreshing = chatUiState.loading,
                     state = pullRefreshState,
@@ -314,7 +370,7 @@ fun ChatRoomScreen(
                     )
                 }
                 
-                // 悬浮按钮 - 滚动到底部 (提示未查看的“新消息”数量：当前视口下方的条数)
+                // 悬浮按钮 - 滚动到底?(提示未查看的“新消息”数量：当前视口下方的条?
 //                val isAtBottom by remember {
 //                    androidx.compose.runtime.derivedStateOf {
 //                        listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
@@ -348,7 +404,7 @@ fun ChatRoomScreen(
                         ) {
                             Icon(
                                imageVector =  Icons.Default.ExpandMore,
-                                contentDescription = "滚动至最新消息",
+                                contentDescription = "滚动至最新消?,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -445,6 +501,21 @@ fun MessageBubble(
                                         onLoading = { CircularProgressIndicator(modifier = Modifier.size(16.dp)) }
                                     )
                                 }
+                                MessageType.MEETING -> {
+                                    val payload = extractMeetingPayload(msg)
+                                    MeetingMessageBubble(
+                                        payload = payload,
+                                        isOwnMessage = isOwnMessage,
+                                        onJoin = {
+                                            val roomId = payload?.roomId ?: return@MeetingMessageBubble
+                                            scope.launch { MeetingApi.joinMeeting(roomId) }
+                                            meetingRoomId = roomId
+                                            meetingParticipantIds = emptyList()
+                                            meetingIsHost = payload.hostId == userInfo?.userId
+                                            showMeeting = true
+                                        }
+                                    )
+                                }
                                 MessageType.IMAGE, MessageType.VIDEO, MessageType.FILE -> {
                                     UnifiedFileMessage(message = msg, messageViewModel = messageViewModel)
                                 }
@@ -470,7 +541,7 @@ fun MessageBubble(
                                     }
                                     showMenu = false
                                 },
-                                modifier = Modifier.weight(1f) // 使其能够在一行显示
+                                modifier = Modifier.weight(1f) // 使其能够在一行显?
                             )
                             DropdownMenuItem(
                                 text = { Text("转发", fontSize = 14.sp) },
@@ -523,3 +594,8 @@ fun MessageBubble(
         }
     }
 }
+
+
+
+
+

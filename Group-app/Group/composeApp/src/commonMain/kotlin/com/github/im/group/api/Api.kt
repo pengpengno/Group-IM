@@ -414,6 +414,50 @@ object ChatApi {
 }
 
 /**
+ * Meeting API
+ */
+object MeetingApi {
+    suspend fun createMeeting(request: MeetingCreateRequest): MeetingRes {
+        return ProxyApi.request<MeetingCreateRequest, MeetingRes>(
+            hmethod = HttpMethod.Post,
+            path = "/api/meetings/create",
+            body = request
+        )
+    }
+
+    suspend fun joinMeeting(roomId: String): MeetingRes {
+        return ProxyApi.request<MeetingJoinRequest, MeetingRes>(
+            hmethod = HttpMethod.Post,
+            path = "/api/meetings/join",
+            body = MeetingJoinRequest(roomId)
+        )
+    }
+
+    suspend fun leaveMeeting(roomId: String) {
+        ProxyApi.request<MeetingLeaveRequest, Unit>(
+            hmethod = HttpMethod.Post,
+            path = "/api/meetings/leave",
+            body = MeetingLeaveRequest(roomId)
+        )
+    }
+
+    suspend fun endMeeting(roomId: String, recordMessage: Boolean = true) {
+        ProxyApi.request<MeetingEndRequest, Unit>(
+            hmethod = HttpMethod.Post,
+            path = "/api/meetings/end",
+            body = MeetingEndRequest(roomId, recordMessage)
+        )
+    }
+
+    suspend fun getMeeting(roomId: String): MeetingRes {
+        return ProxyApi.request<Unit, MeetingRes>(
+            hmethod = HttpMethod.Get,
+            path = "/api/meetings/room/$roomId"
+        )
+    }
+}
+
+/**
  * 好友 API
  */
 
@@ -489,6 +533,54 @@ data class MessagePullRequest(
     val toSequenceId: Long = 0L,  // 添加从指定sequenceId开始拉取的参数
 )
 
+@Serializable
+data class MeetingCreateRequest(
+    val conversationId: Long,
+    val roomId: String? = null,
+    val title: String? = null,
+    val participantIds: List<Long> = emptyList(),
+    val recordMessage: Boolean = true
+)
+
+@Serializable
+data class MeetingJoinRequest(
+    val roomId: String
+)
+
+@Serializable
+data class MeetingLeaveRequest(
+    val roomId: String
+)
+
+@Serializable
+data class MeetingEndRequest(
+    val roomId: String,
+    val recordMessage: Boolean = true
+)
+
+@Serializable
+data class MeetingParticipantRes(
+    val userId: Long,
+    val username: String? = null,
+    val role: String? = null,
+    val status: String? = null,
+    val joinedAt: LocalDateTime? = null,
+    val leftAt: LocalDateTime? = null
+)
+
+@Serializable
+data class MeetingRes(
+    val meetingId: Long,
+    val conversationId: Long,
+    val roomId: String,
+    val title: String? = null,
+    val hostId: Long? = null,
+    val status: String? = null,
+    val startedAt: LocalDateTime? = null,
+    val endedAt: LocalDateTime? = null,
+    val participants: List<MeetingParticipantRes> = emptyList()
+)
+
 
 @Serializable
 /**
@@ -518,6 +610,18 @@ data class FileMetaPayload(
 @SerialName("TEXT")
 data class DefaultMessagePayLoad(
     val content: String
+) : MessagePayLoad
+
+@Serializable
+@SerialName("MEETING")
+data class MeetingMessagePayLoad(
+    val meetingId: Long? = null,
+    val roomId: String? = null,
+    val title: String? = null,
+    val action: String? = null,
+    val hostId: Long? = null,
+    val participantIds: List<Long> = emptyList(),
+    val participantCount: Int? = null
 ) : MessagePayLoad
 
 @Serializable

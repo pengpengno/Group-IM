@@ -107,7 +107,7 @@ export interface ApiResponse<T = any> {
 }
 
 // 聊天交互相关类型
-export type MessageType = 'TEXT' | 'IMAGE' | 'FILE' | 'VOICE' | 'VIDEO';
+export type MessageType = 'TEXT' | 'IMAGE' | 'FILE' | 'VOICE' | 'VIDEO' | 'MEETING';
 
 export interface MessageDTO {
   msgId: number;
@@ -121,6 +121,38 @@ export interface MessageDTO {
   clientMsgId?: string;
   payload?: any;
   sendingStatus?: 'sending' | 'success' | 'failed';
+}
+
+
+export interface MeetingParticipantDTO {
+  userId: number;
+  username?: string;
+  role?: string;
+  status?: string;
+  joinedAt?: string;
+  leftAt?: string;
+}
+
+export interface MeetingDTO {
+  meetingId: number;
+  conversationId: number;
+  roomId: string;
+  title?: string;
+  hostId?: number;
+  status?: string;
+  startedAt?: string;
+  endedAt?: string;
+  participants?: MeetingParticipantDTO[];
+}
+
+export interface MeetingMessagePayload {
+  meetingId?: number;
+  roomId?: string;
+  title?: string;
+  action?: string;
+  hostId?: number;
+  participantIds?: number[];
+  participantCount?: number;
 }
 
 export interface Message {

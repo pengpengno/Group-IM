@@ -27,7 +27,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 )
 @JsonSubTypes({
         @JsonSubTypes.Type(value = DefaultMessagePayLoad.class, name = "TEXT"),
-        @JsonSubTypes.Type(value = FileMeta.class, name = "FILE")
+        @JsonSubTypes.Type(value = FileMeta.class, name = "FILE"),
+        @JsonSubTypes.Type(value = MeetingMessagePayLoad.class, name = "MEETING")
 })
 public interface MessagePayLoad {
 
