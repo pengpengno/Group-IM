@@ -147,7 +147,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     };
 
     const handleSwitchCompany = async (company: any) => {
-        if (!electronAPI || isSwitchingCompany) return;
+        if (isSwitchingCompany) return;
         if (user.currentCompany?.companyId === company.companyId) {
             setShowWorkspacePopover(false);
             return;
@@ -164,12 +164,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 
                 dispatch(loginSuccess({
                     user: refreshedUser,
-                    token: refreshedUser.token || '',
-                    refreshToken: refreshedUser.refreshToken || '',
+                    token: refreshedUser.token || user.token || '',
+                    refreshToken: refreshedUser.refreshToken || user.refreshToken || '',
                     companies: user.companies,
                     currentCompany: company
                 }));
 
+                // Force reload to refresh all data for new company context
                 setTimeout(() => {
                     window.location.reload();
                 }, 500);
@@ -192,14 +193,38 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         }
     }, [user?.userId]);
 
-    // Fetch companies if missing
+    // Fetch companies if missing and handle current company initialization
     useEffect(() => {
         const fetchCompanies = async () => {
             if (user?.userId && (!user.companies || user.companies.length === 0)) {
                 try {
                     const response = await authAPI.getMyCompanies();
                     if (response.data && response.data.success) {
-                        dispatch(setCompanies(response.data.data));
+                        const companies = response.data.data;
+                        dispatch(setCompanies(companies));
+                        
+                        // If current company not set, try to find it from the list using ID
+                        if (!user.currentCompany && user.currentLoginCompanyId) {
+                            const current = companies.find((c: any) => c.companyId === user.currentLoginCompanyId);
+                            if (current) {
+                                dispatch(loginSuccess({
+                                    user,
+                                    token: user.token || '',
+                                    refreshToken: user.refreshToken || '',
+                                    companies,
+                                    currentCompany: current
+                                }));
+                            }
+                        } else if (!user.currentCompany && companies.length > 0) {
+                            // Default to first if none
+                            dispatch(loginSuccess({
+                                user,
+                                token: user.token || '',
+                                refreshToken: user.refreshToken || '',
+                                companies,
+                                currentCompany: companies[0]
+                            }));
+                        }
                     }
                 } catch (err) {
                     console.error('Failed to fetch companies:', err);
@@ -207,7 +232,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             }
         };
         fetchCompanies();
-    }, [user?.userId]);
+    }, [user?.userId, user?.companies?.length, user?.currentLoginCompanyId]);
 
     // Debounce search
     useEffect(() => {

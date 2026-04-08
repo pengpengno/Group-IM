@@ -179,12 +179,18 @@ fun ChatMainScreen(
     }
 
 
+    val currentInfo = userInfo
+    val currentCompany = currentInfo?.let { info -> 
+        info.companies.find { it.companyId == info.currentLoginCompanyId } 
+    }
+    val displayTitle = currentCompany?.name ?: "Group"
+
     val topBarTitle = when (selectedItem) {
         0 -> when(loginState) {
             is LoginState.Authenticating -> "连接中..."
             is LoginState.Checking -> "正在更新..."
-            is LoginState.AuthenticationFailed -> if ((loginState as LoginState.AuthenticationFailed).isNetworkError) "网络异常" else "消息"
-            else -> "消息"
+            is LoginState.AuthenticationFailed -> if ((loginState as LoginState.AuthenticationFailed).isNetworkError) "网络异常" else displayTitle
+            else -> displayTitle
         }
         1 -> "联系人"
         else -> "个人中心"
@@ -235,6 +241,12 @@ fun ChatMainScreen(
                     onSettingsClick = {
                         scope.launch { drawerState.close() }
                         navHostController.navigate(Settings)
+                    },
+                    onSwitchWorkspace = { companyId ->
+                        scope.launch { 
+                            drawerState.close()
+                            userViewModel.switchWorkspace(companyId)
+                        }
                     },
                     appVersion = "v1.0.5"
                 )

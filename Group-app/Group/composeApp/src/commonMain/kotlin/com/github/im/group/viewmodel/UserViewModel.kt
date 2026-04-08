@@ -196,16 +196,26 @@ class UserViewModel(
         try {
             log { "开始 登录   $uname , $pwd ,$refreshToken" }
             val response = LoginApi.login(uname, pwd,refreshToken)
+            
+            val userInfo = UserInfo(
+                userId = response.userId,
+                username = response.username ?: "",
+                email = response.email ?: "",
+                token = response.token,
+                refreshToken = response.token, // Use token as refresh token for now if not provided
+                currentLoginCompanyId = response.currentLoginCompanyId,
+                companies = response.companies
+            )
 
-            GlobalCredentialProvider.storage.saveUserInfo(response)
-            GlobalCredentialProvider.currentToken = response.token
-            GlobalCredentialProvider.currentUserId = response.userId
-            GlobalCredentialProvider.companyId = response.currentLoginCompanyId
+            GlobalCredentialProvider.storage.saveUserInfo(userInfo)
+            GlobalCredentialProvider.currentToken = userInfo.token
+            GlobalCredentialProvider.currentUserId = userInfo.userId
+            GlobalCredentialProvider.companyId = userInfo.currentLoginCompanyId
 
             // 通知登录状态管理器用户已登录
-            loginStateManager.setLoggedIn(response)
+            loginStateManager.setLoggedIn(userInfo)
             // 更新用户仓库中的状态
-            userRepository.updateToAuthenticated(response)
+            userRepository.updateToAuthenticated(userInfo)
             // 登录成功返回true
             return true
         } catch (e: UnauthorizedException) {
@@ -272,6 +282,40 @@ class UserViewModel(
             } else {
                 // 如果没有本地凭据，则需要用户重新登录
                 userRepository.updateToLoggedOut()
+            }
+        }
+    }
+
+    /**
+     * 切换工作区/公司
+     */
+    fun switchWorkspace(companyId: Long) {
+        viewModelScope.launch {
+            try {
+                userRepository.updateToAuthenticating()
+                val userInfo = com.github.im.group.api.CompanyApi.switchCompany(companyId)
+                
+                // switchCompany returns updated UserInfo with new token
+                GlobalCredentialProvider.storage.saveUserInfo(userInfo)
+                GlobalCredentialProvider.currentToken = userInfo.token
+                GlobalCredentialProvider.currentUserId = userInfo.userId
+                GlobalCredentialProvider.companyId = userInfo.currentLoginCompanyId
+
+                loginStateManager.setLoggedIn(userInfo)
+                userRepository.updateToAuthenticated(userInfo)
+                
+                // Refresh local user info flow
+                _currentLocalUserInfo.value = userInfo
+                
+                Napier.d("Successfully switched to company: $companyId")
+            } catch (e: Exception) {
+                Napier.e("Failed to switch company: $companyId", e)
+                val currentInfo = GlobalCredentialProvider.storage.getUserInfo()
+                if (currentInfo != null) {
+                    userRepository.updateToAuthenticated(currentInfo)
+                } else {
+                    userRepository.updateToLoggedOut()
+                }
             }
         }
     }

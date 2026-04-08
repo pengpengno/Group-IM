@@ -12,8 +12,8 @@ data class UserInfo(
     val refreshToken: String = "",
     val companyId: Long? = null,
     val phoneNumber: String? = null,
-    val currentLoginCompanyId: Long? = null
-
+    val currentLoginCompanyId: Long? = null,
+    val companies: List<CompanyDTO> = emptyList()
 )
 
 /**

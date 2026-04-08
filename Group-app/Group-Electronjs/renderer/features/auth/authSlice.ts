@@ -70,7 +70,8 @@ const authSlice = createSlice({
         token: token,
         refreshToken: refreshToken,
         companies: companies,
-        currentCompany: currentCompany
+        currentCompany: currentCompany || companies?.find(c => c.companyId === (user as any).currentLoginCompanyId),
+        currentLoginCompanyId: (user as any).currentLoginCompanyId
       };
       state.error = null;
     },

@@ -113,7 +113,6 @@ fun ChatInputArea(
     Column(
         modifier = Modifier
             .background(surfaceBg)
-            .imePadding()
     ) {
         // Top divider
         Box(

@@ -36,6 +36,7 @@ export interface LocalUser {
   refreshToken?: string;
   currentCompany?: CompanyDTO;
   companies?: CompanyDTO[];
+  currentLoginCompanyId?: number;
 }
 
 // 组织架构节点类型

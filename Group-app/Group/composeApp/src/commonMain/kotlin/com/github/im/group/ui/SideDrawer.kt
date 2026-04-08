@@ -35,44 +35,131 @@ fun SideDrawer(
     onGroupsClick: () -> Unit = {},
     onMeetingsClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
+    onSwitchWorkspace: (Long) -> Unit = {},
     appVersion: String = "v1.0.0"
 ) {
+    val currentCompany = userInfo?.companies?.find { it.companyId == userInfo.currentLoginCompanyId }
+    val otherCompanies = userInfo?.companies?.filter { it.companyId != userInfo.currentLoginCompanyId } ?: emptyList()
+
     Column(
         modifier = Modifier
             .fillMaxHeight()
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
     ) {
-        // --- 顶部用户信息区域 ---
+        // --- Workspace Switcher Section ---
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
-                .padding(top = 48.dp, bottom = 24.dp, start = 20.dp, end = 20.dp)
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f))
+                .padding(top = 48.dp, bottom = 16.dp, start = 16.dp, end = 16.dp)
         ) {
             Column {
-                UserAvatar(
-                    username = userInfo?.username ?: "游客", 
-                    size = 64
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = userInfo?.username ?: "未登录",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = userInfo?.email ?: "登录体验更多功能",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Current Workspace Icon
+                    Box(
+                        modifier = Modifier
+                            .size(50.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = currentCompany?.name?.take(1) ?: "G",
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(12.dp))
+                    
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = currentCompany?.name ?: "默认工作区",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = currentCompany?.code ?: "GROUP",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                if (otherCompanies.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "切换工作区",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    
+                    androidx.compose.foundation.lazy.LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(otherCompanies.size) { index ->
+                            val company = otherCompanies[index]
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .clickable { onSwitchWorkspace(company.companyId) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = company.name.take(1),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // --- User Info Area ---
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                .clickable { onProfileClick() }
+                .padding(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                UserAvatar(
+                    username = userInfo?.username ?: "游客", 
+                    size = 48
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = userInfo?.username ?: "未登录",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = userInfo?.email ?: "点击查看个人资料",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
 
-        // --- 菜单项列表 ---
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // --- Menu Items ---
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -108,7 +195,7 @@ fun SideDrawer(
             )
         }
 
-        // --- 底部工具栏 ---
+        // --- Footer ---
         HorizontalDivider(
             modifier = Modifier.padding(horizontal = 20.dp),
             thickness = 0.5.dp,
