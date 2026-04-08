@@ -26,7 +26,7 @@ class AndroidDatabaseDriverFactory(private val context: Context) : DatabaseDrive
 
     override fun createDatabase(): AppDatabase {
         return AppDatabase(createDriver(),
-            messageAdapter = Message.Adapter(
+            MessageAdapter = Message.Adapter(
                 statusAdapter = EnumColumnAdapter<MessageStatus>(),
                 client_timestampAdapter = localDateTimeAdapter,
                 server_timestampAdapter = localDateTimeAdapter,

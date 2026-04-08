@@ -49,6 +49,12 @@ class IosWebRTCManager : WebRTCManager {
     private val _videoCallState = MutableStateFlow(VideoCallState())
     override val videoCallState: StateFlow<VideoCallState> = _videoCallState
 
+    private val _remoteVideoTracks = MutableStateFlow<Map<String, VideoTrack>>(emptyMap())
+    override val remoteVideoTracks: StateFlow<Map<String, VideoTrack>> = _remoteVideoTracks
+
+    private val _remoteAudioTracks = MutableStateFlow<Map<String, AudioTrack>>(emptyMap())
+    override val remoteAudioTracks: StateFlow<Map<String, AudioTrack>> = _remoteAudioTracks
+
     override suspend fun initialize() {
         Napier.d("iOS: Initializing WebRTC")
         // 实际初始化逻辑将在后续开发中完成
@@ -97,11 +103,23 @@ class IosWebRTCManager : WebRTCManager {
 
     override fun toggleMicrophone(enabled: Boolean) {
         Napier.d("iOS: Toggling microphone to: $enabled")
-        // 实际实现将在后续开发中完成
+        // 实实现将在后续开发中完成
     }
 
-    override fun sendIceCandidate(candidate: IceCandidate) {
-        Napier.d("iOS: Sending ICE candidate")
+    override fun initiateMeeting(roomId: String, participantIds: List<String>) {
+        Napier.d("iOS: Initiating meeting: $roomId with $participantIds")
+    }
+
+    override fun joinMeeting(roomId: String) {
+        Napier.d("iOS: Joining meeting: $roomId")
+    }
+
+    override fun leaveMeeting() {
+        Napier.d("iOS: Leaving meeting")
+    }
+
+    override fun sendIceCandidate(candidate: IceCandidate, toUser: String?) {
+        Napier.d("iOS: Sending ICE candidate to $toUser")
         // 实际实现将在后续开发中完成
     }
 

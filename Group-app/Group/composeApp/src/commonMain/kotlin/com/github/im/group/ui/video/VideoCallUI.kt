@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Cameraswitch
 import androidx.compose.material.icons.filled.Mic
@@ -25,8 +27,6 @@ import androidx.compose.material.icons.filled.Minimize
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VideocamOff
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -99,61 +99,86 @@ fun VideoCallLauncher(remoteUser: UserInfo, onCallEnded: () -> Unit = {}) {
 
     // 根据通话状态显示不同界面
     when (videoCallState.callStatus) {
-        VideoCallStatus.IDLE -> {
-            // 等待权限处理后启动视频通话
-            // 实际启动在权限检查中进行
-        }
+        VideoCallStatus.IDLE -> {}
         VideoCallStatus.INCOMING -> {
-            // 显示来电通知
             VideoCallIncomingNotification(
-                    caller = remoteUser,
-                    onAccept = { videoCallViewModel.acceptCall() },
-                    onReject = {
-                        videoCallViewModel.endCall()
-                        onCallEnded()
-                    }
+                caller = videoCallState.caller ?: remoteUser,
+                onAccept = { videoCallViewModel.acceptCall() },
+                onReject = {
+                    videoCallViewModel.endCall()
+                    onCallEnded()
+                }
             )
         }
-        VideoCallStatus.OUTGOING -> {
-            // 显示拨出通知的同时，也显示基础控制界面
+        VideoCallStatus.OUTGOING, VideoCallStatus.CONNECTING -> {
             OutgoingVideoCallUI(
-                    remoteUser = remoteUser,
-                    videoCallViewModel = videoCallViewModel,
-                    onEndCall = {
-                        videoCallViewModel.endCall()
-                        onCallEnded()
-                    }
-            )
-        }
-        VideoCallStatus.CONNECTING -> {
-            // 显示连接中界面的同时，也显示基础控制界面
-            ConnectingVideoCallUI(
-                    remoteUser = remoteUser,
-                    videoCallViewModel = videoCallViewModel,
-                    onEndCall = {
-                        videoCallViewModel.endCall()
-                        onCallEnded()
-                    }
+                remoteUser = videoCallState.caller ?: remoteUser,
+                videoCallViewModel = videoCallViewModel,
+                onEndCall = {
+                    videoCallViewModel.endCall()
+                    onCallEnded()
+                }
             )
         }
         VideoCallStatus.ACTIVE -> {
-            // 显示活跃通话界面
             ActiveVideoCallUI(
-                    remoteUser = remoteUser,
-                    videoCallViewModel = videoCallViewModel,
-                    onEndCall = {
-                        videoCallViewModel.endCall()
-                        onCallEnded()
-                    }
+                remoteUser = videoCallState.caller ?: remoteUser,
+                videoCallViewModel = videoCallViewModel,
+                onEndCall = {
+                    videoCallViewModel.endCall()
+                    onCallEnded()
+                }
             )
         }
-        VideoCallStatus.ENDED, VideoCallStatus.ERROR -> {
-            // 通话结束或错误，显示结束状态，稍后会自动重置
-            // 通过LaunchedEffect处理状态重置
+        else -> {}
+    }
+}
+
+/**
+ * 多人会议启动器组件
+ */
+@Composable
+fun MeetingLauncher(roomId: String, participantIds: List<String>, onCallEnded: () -> Unit = {}) {
+    val videoCallViewModel: VideoCallViewModel = koinViewModel()
+    val videoCallState by videoCallViewModel.videoCallState.collectAsState()
+
+    TryGetVideoCallPermissions(
+        onAllGranted = {
+            videoCallViewModel.startMeeting(roomId, participantIds)
+        },
+        onAnyDenied = { onCallEnded() }
+    )
+
+    LaunchedEffect(videoCallState.callStatus) {
+        if (videoCallState.callStatus == VideoCallStatus.ENDED) {
+            kotlinx.coroutines.delay(600)
+            onCallEnded()
         }
-        else -> {
-            // 其他状态，什么都不做
+    }
+
+    when (videoCallState.callStatus) {
+        VideoCallStatus.IDLE -> {}
+        VideoCallStatus.INCOMING -> {
+            VideoCallIncomingNotification(
+                caller = videoCallState.caller ?: UserInfo(0, "Meeting", ""),
+                onAccept = { videoCallViewModel.acceptCall() },
+                onReject = {
+                    videoCallViewModel.endCall()
+                    onCallEnded()
+                }
+            )
         }
+        VideoCallStatus.OUTGOING, VideoCallStatus.CONNECTING, VideoCallStatus.ACTIVE -> {
+            ActiveVideoCallUI(
+                remoteUser = videoCallState.caller ?: UserInfo(0, "Group", ""),
+                videoCallViewModel = videoCallViewModel,
+                onEndCall = {
+                    videoCallViewModel.endCall()
+                    onCallEnded()
+                }
+            )
+        }
+        else -> {}
     }
 }
 
@@ -401,7 +426,7 @@ private fun ActiveVideoCallUI(
                     val remoteTrackEntry = remoteVideoTracks.entries.firstOrNull()
                     val remoteTrack = remoteTrackEntry?.value
                     val remoteUserId = remoteTrackEntry?.key
-                    val remoteAudio = remoteAudioTracks[remoteUserId ?: 0L]
+                    val remoteAudio = remoteAudioTracks[remoteUserId ?: ""]
 
                     if (remoteTrack != null && videoCallState.isRemoteVideoEnabled) {
                         VideoScreenView(
@@ -685,8 +710,8 @@ private fun CallControlPanel(
         ) {
             Icon(
                     imageVector =
-                            if (videoCallState.isSpeakerEnabled) Icons.Default.VolumeUp
-                            else Icons.Default.VolumeOff,
+                            if (videoCallState.isSpeakerEnabled) Icons.AutoMirrored.Filled.VolumeUp
+                            else Icons.AutoMirrored.Filled.VolumeOff,
                     contentDescription = "扬声器",
                     tint = Color.White
             )
@@ -700,8 +725,8 @@ private fun CallControlPanel(
  */
 @Composable
 fun MultiPartyVideoGrid(
-    videoTracks: Map<Long, com.github.im.group.sdk.VideoTrack>,
-    audioTracks: Map<Long, com.github.im.group.sdk.AudioTrack>,
+    videoTracks: Map<String, com.github.im.group.sdk.VideoTrack>,
+    audioTracks: Map<String, com.github.im.group.sdk.AudioTrack>,
     participants: List<UserInfo>,
     modifier: Modifier = Modifier
 ) {
@@ -717,9 +742,9 @@ fun MultiPartyVideoGrid(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(participants, key = { it }) { participant ->
-            val participantId = participant.userId
-            val videoTrack = videoTracks[participant.userId]
-            val audioTrack = audioTracks[participant.userId]
+            val participantId = participant.userId.toString()
+            val videoTrack = videoTracks[participantId]
+            val audioTrack = audioTracks[participantId]
 
             Box(
                 modifier = Modifier

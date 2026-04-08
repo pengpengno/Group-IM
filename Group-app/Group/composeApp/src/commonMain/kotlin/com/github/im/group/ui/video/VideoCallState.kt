@@ -27,8 +27,8 @@ data class VideoCallState(
     val caller: UserInfo? = null,           // 主叫用户（一对一通话）
     val callee: UserInfo? = null,           // 被叫用户（一对一通话）
     val participants: List<UserInfo> = emptyList(), // 参与者列表（支持群聊）
-    val remoteVideoTracks: Map<Long, VideoTrack> = emptyMap(), // 多人视频轨道 (新增)
-    val remoteAudioTracks: Map<Long, AudioTrack> = emptyMap(), // 多人音频轨道 (新增)
+    val remoteVideoTracks: Map<String, VideoTrack> = emptyMap(), // 多人视频轨道 (按用户ID索引)
+    val remoteAudioTracks: Map<String, AudioTrack> = emptyMap(), // 多人音频轨道 (按用户ID索引)
     val callStartTime: Long? = null,        // 通话开始时间
     val duration: Long = 0,                 // 通话时长（秒）
     val isLocalVideoEnabled: Boolean = true, // 本地视频是否启用

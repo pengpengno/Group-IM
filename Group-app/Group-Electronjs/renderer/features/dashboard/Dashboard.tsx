@@ -120,7 +120,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
     const handleStartMeeting = (participants: Array<{ userId: string; userName?: string }>) => {
         if (!participants.length) return;
-        startMeeting(participants);
+        const roomId = activeConversation ? `meeting_${activeConversation.conversationId}` : undefined;
+        startMeeting(participants, roomId);
     };
 
     const handleStartMessage = async (targetUserId: string) => {

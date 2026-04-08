@@ -44,11 +44,11 @@ class VideoCallViewModel(
     val localMediaStream: StateFlow<MediaStream?> = _localMediaStream
 
     // 远程媒体流 (多人支持)
-    private val _remoteVideoTracks = MutableStateFlow<Map<Long, VideoTrack>>(emptyMap())
-    val remoteVideoTracks: StateFlow<Map<Long, VideoTrack>> = _remoteVideoTracks
+    private val _remoteVideoTracks = MutableStateFlow<Map<String, VideoTrack>>(emptyMap())
+    val remoteVideoTracks: StateFlow<Map<String, VideoTrack>> = _remoteVideoTracks
 
-    private val _remoteAudioTracks = MutableStateFlow<Map<Long, AudioTrack>>(emptyMap())
-    val remoteAudioTracks: StateFlow<Map<Long, AudioTrack>> = _remoteAudioTracks
+    private val _remoteAudioTracks = MutableStateFlow<Map<String, AudioTrack>>(emptyMap())
+    val remoteAudioTracks: StateFlow<Map<String, AudioTrack>> = _remoteAudioTracks
 
     // WebRTC管理器
     private var webRTCManager: com.github.im.group.sdk.WebRTCManager? = null
@@ -59,27 +59,35 @@ class VideoCallViewModel(
     private var isEndingCall = false
 
     init {
+        // 监听 WebRTC 管理器的状态变化
+        viewModelScope.launch {
+            webRTCManager?.videoCallState?.collect { state ->
+                // 如果是会议/通话请求，会自动更新本地状态
+                if (state.callStatus == VideoCallStatus.INCOMING && !isIncomingCallProcessing) {
+                    receiveMeetingRequest(state)
+                }
+            }
+        }
+
         // 监听远程视频轨道映射变化，更新状态
         viewModelScope.launch {
-            _remoteVideoTracks.collect { tracks ->
-                val hasRemoteVideo = tracks.isNotEmpty()
-                if (_videoCallState.value.isRemoteVideoEnabled != hasRemoteVideo) {
-                    _videoCallState.value = _videoCallState.value.copy(
-                        isRemoteVideoEnabled = hasRemoteVideo
-                    )
-                }
+            webRTCManager?.remoteVideoTracks?.collect { tracks ->
+                _remoteVideoTracks.value = tracks
+                _videoCallState.value = _videoCallState.value.copy(
+                    remoteVideoTracks = tracks,
+                    isRemoteVideoEnabled = tracks.isNotEmpty()
+                )
             }
         }
         
         // 监听远程音频轨道映射变化，更新状态
         viewModelScope.launch {
-            _remoteAudioTracks.collect { tracks ->
-                val hasRemoteAudio = tracks.isNotEmpty()
-                if (_videoCallState.value.isMicrophoneEnabled != hasRemoteAudio) {
-                    _videoCallState.value = _videoCallState.value.copy(
-                        isMicrophoneEnabled = hasRemoteAudio
-                    )
-                }
+            webRTCManager?.remoteAudioTracks?.collect { tracks ->
+                _remoteAudioTracks.value = tracks
+                _videoCallState.value = _videoCallState.value.copy(
+                    remoteAudioTracks = tracks,
+                    isMicrophoneEnabled = tracks.isNotEmpty()
+                )
             }
         }
     }
@@ -88,30 +96,48 @@ class VideoCallViewModel(
      * 发起视频通话
      */
     fun startCall(callee: UserInfo) {
+        startMeeting("call_${Clock.System.now().toEpochMilliseconds()}", listOf(callee.userId.toString()))
+    }
+
+    /**
+     * 发起或加入会议
+     */
+    fun startMeeting(roomId: String, participantIds: List<String>) {
         if (_videoCallState.value.callStatus != VideoCallStatus.IDLE) {
-            Napier.w("无法发起新通话：当前状态为 ${_videoCallState.value.callStatus}")
+            Napier.w("无法发起新会议：当前状态为 ${_videoCallState.value.callStatus}")
             return
         }
         
         viewModelScope.launch {
             try {
-                // 更新状态为拨出
+                // 更新状态
                 _videoCallState.value = _videoCallState.value.copy(
                     callStatus = VideoCallStatus.OUTGOING,
-                    callee = callee,
-                    participants = listOf(callee),
+                    callId = roomId,
                     callStartTime = Clock.System.now().toEpochMilliseconds()
                 )
 
                 // 创建本地媒体流
                 createLocalMediaStream()
 
-                // 通过WebRTC发起通话
-                webRTCManager?.initiateCall(callee.userId.toString())
+                // 通过WebRTC发起会议
+                webRTCManager?.initiateMeeting(roomId, participantIds)
             } catch (e: Exception) {
-                handleError("发起通话失败", e)
+                handleError("发起会议失败", e)
             }
         }
+    }
+
+    private fun receiveMeetingRequest(state: VideoCallState) {
+        isIncomingCallProcessing = true
+        currentCallId = state.callId
+        
+        _videoCallState.value = state.copy(
+            callStartTime = Clock.System.now().toEpochMilliseconds()
+        )
+        
+        startIncomingCallTimeout()
+        Napier.d("收到新会议邀请: $currentCallId")
     }
 
     /**
@@ -335,8 +361,8 @@ class VideoCallViewModel(
                 _remoteAudio.value.setEnabled(false)
 
             }
-            _remoteVideoTracks.value = emptyMap<Long, VideoTrack>()
-            _remoteAudioTracks.value = emptyMap<Long, AudioTrack>()
+            _remoteVideoTracks.value = emptyMap()
+            _remoteAudioTracks.value = emptyMap()
         } catch (e: Exception) {
             Napier.e("释放远程媒体轨道失败", e)
         }

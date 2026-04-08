@@ -696,11 +696,11 @@ export class WebRTCService extends EventEmitter {
     this.initiateMeeting([{ userId: remoteUserId, userName: remoteUserName }]);
   }
 
-  public initiateMeeting(targets: Array<{ userId: string; userName?: string; avatar?: string }>): void {
-    void this.startMeetingFlow(targets);
+  public initiateMeeting(targets: Array<{ userId: string; userName?: string; avatar?: string }>, roomId?: string): void {
+    void this.startMeetingFlow(targets, roomId);
   }
 
-  private async startMeetingFlow(targets: Array<{ userId: string; userName?: string; avatar?: string }>): Promise<void> {
+  private async startMeetingFlow(targets: Array<{ userId: string; userName?: string; avatar?: string }>, roomId?: string): Promise<void> {
     try {
       if (!targets.length) {
         throw new Error('No participants provided for meeting');
@@ -711,7 +711,7 @@ export class WebRTCService extends EventEmitter {
         await this.acquireLocalMedia();
       }
 
-      const roomId = this.createRoomId();
+      const finalRoomId = roomId || this.createRoomId();
       targets.forEach((target) => {
         this.upsertParticipant({
           userId: target.userId,
@@ -723,14 +723,14 @@ export class WebRTCService extends EventEmitter {
       const firstTarget = targets[0];
       this.updateState({
         callStatus: VideoCallStatus.OUTGOING,
-        roomId,
+        roomId: finalRoomId,
         remoteUserId: firstTarget.userId,
         remoteUserName: firstTarget.userName,
         remoteAvatar: firstTarget.avatar,
         isMeeting: targets.length > 1
       });
 
-      this.sendMeetingJoin(roomId);
+      this.sendMeetingJoin(finalRoomId);
 
       for (const target of targets) {
         this.sendSignalingMessage({
@@ -739,7 +739,7 @@ export class WebRTCService extends EventEmitter {
           fromUserName: this.store?.getState().auth.user?.username,
           fromAvatar: this.store?.getState().auth.user?.avatar,
           toUser: target.userId,
-          roomId,
+          roomId: finalRoomId,
           participants: targets.map((participant) => ({
             userId: participant.userId,
             userName: participant.userName,

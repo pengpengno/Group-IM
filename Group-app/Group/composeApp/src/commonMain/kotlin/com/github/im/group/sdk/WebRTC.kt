@@ -100,6 +100,31 @@ interface WebRTCManager {
     fun endCall()
     
     /**
+     * 发起多人会议
+     */
+    fun initiateMeeting(roomId: String, participantIds: List<String>)
+
+    /**
+     * 加入会议
+     */
+    fun joinMeeting(roomId: String)
+
+    /**
+     * 离开会议
+     */
+    fun leaveMeeting()
+
+    /**
+     * 全部远程视频轨道
+     */
+    val remoteVideoTracks: StateFlow<Map<String, VideoTrack>>
+
+    /**
+     * 全部远程音频轨道
+     */
+    val remoteAudioTracks: StateFlow<Map<String, AudioTrack>>
+
+    /**
      * 切换摄像头
      */
     suspend fun switchCamera()
@@ -117,7 +142,7 @@ interface WebRTCManager {
     /**
      * 发送ICE候选
      */
-    fun sendIceCandidate(candidate: IceCandidate)
+    fun sendIceCandidate(candidate: IceCandidate, toUser: String? = null)
     
     /**
      * 释放资源
@@ -130,13 +155,17 @@ interface WebRTCManager {
  */
 @Serializable
 data class WebrtcMessage(
-    val type: String,              // 消息类型: call/request, call/accept, call/end, offer, answer, candidate
+    val type: String,              // 消息类型: call/request, call/accept, call/end, offer, answer, candidate, meeting/join, meeting/request, etc.
     val fromUser: String? = null,  // 发送方用户ID
+    val fromUserName: String? = null, // 发送方用户名
+    val fromAvatar: String? = null,   // 发送方头像
     val toUser: String? = null,    // 接收方用户ID
+    val roomId: String? = null,    // 房间ID (多人会议使用)
     val sdp: String? = null,       // SDP描述信息
     val sdpType: String? = null,   // SDP类型: offer/answer
     val candidate: IceCandidateData? = null,  // ICE候选信息
-    val reason: String? = null     // 失败原因
+    val reason: String? = null,    // 失败原因
+    val participants: List<String>? = null // 参与者列表 (会议邀请使用)
 )
 
 /**

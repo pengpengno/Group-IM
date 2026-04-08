@@ -3,7 +3,7 @@ import com.github.im.group.db.entities.MessageType;
 import com.github.im.group.db.entities.UserStatus;
 import kotlinx.datetime.LocalDateTime;
 
-CREATE TABLE message (
+CREATE TABLE Message (
     id INTEGER PRIMARY KEY AUTOINCREMENT,  -- 客户端存储的消息 自增即可
     msg_id  INTEGER ,  -- 服务端的主键 消息Id
     conversation_id INTEGER NOT NULL,  -- 外键保存 conversationId
@@ -20,47 +20,47 @@ CREATE TABLE message (
 
 -- 查询全部消息
 selectAll:
-SELECT * FROM message;
+SELECT * FROM Message;
 
 -- 插入消息 用于本地的消息发送插入 没有服务端的信息
 insertMessage:
-INSERT INTO message ( conversation_id, from_account_id, content, client_msg_id,
+INSERT INTO Message ( conversation_id, from_account_id, content, client_msg_id,
  type, status, client_timestamp, sequence_id)
 VALUES ( ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- 插入消息  带有服务端返回的数据
 insertMessageWithMsgId:
-INSERT INTO message ( conversation_id, msg_id,from_account_id, content, client_msg_id,
+INSERT INTO Message ( conversation_id, msg_id,from_account_id, content, client_msg_id,
  type, status, server_timestamp, sequence_id)
 VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- 根据 msgId 删除
 deleteMessage:
-DELETE FROM message WHERE msg_id = ?;
+DELETE FROM Message WHERE msg_id = ?;
 
 -- 根据 msgId 查询
 selectMessageByMsgId:
-SELECT * FROM message WHERE msg_id = ?;
+SELECT * FROM Message WHERE msg_id = ?;
 
 -- 根据 clientMsgId 查询
 selectMessageByClientMsgId:
-SELECT * FROM message WHERE client_msg_id = ?;
+SELECT * FROM Message WHERE client_msg_id = ?;
 
 -- 根据 conversationId 删除
 deleteMessageByConversationId:
-DELETE FROM message WHERE conversation_id = ?;
+DELETE FROM Message WHERE conversation_id = ?;
 -- 根据 conversationId 查询 分页查询
 selectMessageByConversationId:
-SELECT * FROM message WHERE conversation_id = ? ORDER BY server_timestamp DESC LIMIT ? OFFSET ?;
+SELECT * FROM Message WHERE conversation_id = ? ORDER BY server_timestamp DESC LIMIT ? OFFSET ?;
 
 -- 根据 conversationId 查询所有消息
 selectMessagesByConversation:
-SELECT * FROM message WHERE conversation_id = ? ORDER BY server_timestamp DESC  LIMIT ? ;
+SELECT * FROM Message WHERE conversation_id = ? ORDER BY server_timestamp DESC  LIMIT ? ;
 
 -- 根据 conversationId 查询所有消息并关联用户信息
 selectMessagesWithUserInfoByConversation:
 SELECT m.*, u.username, u.email 
-FROM message m 
+FROM Message m 
 LEFT JOIN User u ON m.from_account_id = u.userId 
 WHERE m.conversation_id = ? 
 ORDER BY m.server_timestamp DESC  
@@ -69,7 +69,7 @@ LIMIT ? ;
 -- 根据 conversationId 和 sequence_id 查询指定序列号之前的消息并关联用户信息
 selectMessagesWithUserInfoBeforeSequence:
 SELECT m.*, u.username, u.email 
-FROM message m 
+FROM Message m 
 LEFT JOIN User u ON m.from_account_id = u.userId 
 WHERE m.conversation_id = ? AND m.sequence_id < ? 
 ORDER BY m.server_timestamp DESC  
@@ -78,7 +78,7 @@ LIMIT ? ;
 -- 根据 conversationId 和 sequence_id 查询指定序列号之后的消息并关联用户信息
 selectMessagesWithUserInfoAfterSequence:
 SELECT m.*, u.username, u.email 
-FROM message m 
+FROM Message m 
 LEFT JOIN User u ON m.from_account_id = u.userId 
 WHERE m.conversation_id = ? AND m.sequence_id > ? 
 ORDER BY m.server_timestamp ASC  
@@ -86,16 +86,16 @@ LIMIT ? ;
 
 -- 根据conversationId 获取对应最大序列号
 selectMaxSequenceIdByConversation:
-SELECT MAX(sequence_id) FROM message WHERE conversation_id = ?;
+SELECT MAX(sequence_id) FROM Message WHERE conversation_id = ?;
 
 -- 根据conversationId 获取最新的一条消息
 selectLatestMessageByConversation:
-SELECT * FROM message WHERE conversation_id = ? ORDER BY server_timestamp DESC LIMIT 1;
+SELECT * FROM Message WHERE conversation_id = ? ORDER BY server_timestamp DESC LIMIT 1;
 
 -- 根据conversationId 获取最新的一条消息并关联用户信息
 selectLatestMessageWithUserInfoByConversation:
 SELECT m.*, u.username, u.email 
-FROM message m 
+FROM Message m 
 LEFT JOIN User u ON m.from_account_id = u.userId 
 WHERE m.conversation_id = ? 
 ORDER BY m.server_timestamp DESC 
@@ -103,29 +103,29 @@ LIMIT 1;
 
 -- 根据conversationId 和 sequence_id 查询指定序列号之前的消息
 selectMessagesBeforeSequence:
-SELECT * FROM message WHERE conversation_id = ? AND sequence_id < ? ORDER BY server_timestamp DESC  LIMIT ? ;
+SELECT * FROM Message WHERE conversation_id = ? AND sequence_id < ? ORDER BY server_timestamp DESC  LIMIT ? ;
 
 -- 根据conversationId 和 sequence_id 查询指定序列号之后的消息
 selectMessagesAfterSequence:
-SELECT * FROM message WHERE conversation_id = ? AND sequence_id > ? ORDER BY server_timestamp ASC  LIMIT ? ;
+SELECT * FROM Message WHERE conversation_id = ? AND sequence_id > ? ORDER BY server_timestamp ASC  LIMIT ? ;
 
 -- 根据 msgId 更新消息
 updateMessageByMsgId:
-UPDATE message SET status = ?, server_timestamp = ?, sequence_id = ? WHERE msg_id = ?;
+UPDATE Message SET status = ?, server_timestamp = ?, sequence_id = ? WHERE msg_id = ?;
 
 updateMessageByClientMsgId:
-UPDATE message SET status = ? , server_timestamp = ? , sequence_id = ? ,msg_id = ? WHERE client_msg_id = ?;
+UPDATE Message SET status = ? , server_timestamp = ? , sequence_id = ? ,msg_id = ? WHERE client_msg_id = ?;
 
 -- 获取指定会话中某个用户的未读消息数量（即不是自己发的且status为SENT的消息）
 selectUnreadCountByConversation:
-SELECT COUNT(*) FROM message
+SELECT COUNT(*) FROM Message
 WHERE conversation_id = ?
 AND from_account_id != ?
 AND status = 'SENT';
 
 -- 将会话中非本人发送的 SENT 消息全部标记为 READ（用于进入会话后清红点）
 markConversationMessagesAsRead:
-UPDATE message
+UPDATE Message
 SET status = 'READ'
 WHERE conversation_id = ?
 AND from_account_id != ?

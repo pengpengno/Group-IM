@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,13 +22,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Reply
 import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -68,12 +69,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.github.im.group.api.ConversationType
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.UserInfo
 import com.github.im.group.ui.ChatRoom
 import com.github.im.group.ui.UserAvatar
+import com.github.im.group.ui.video.MeetingLauncher
 import com.github.im.group.ui.video.VideoCallLauncher
 import com.github.im.group.viewmodel.ChatRoomViewModel
 import com.github.im.group.viewmodel.RecorderUiState
@@ -101,6 +104,7 @@ fun ChatRoomScreen(
     val userInfo by userViewModel.currentLocalUserInfo.collectAsState()
 
     var showVideoCall by remember { mutableStateOf(false) }
+    var showMeeting by remember { mutableStateOf(false) }
     var conversationId by remember {  mutableStateOf<Long?>(null)}
 
     var remoteUser by remember { mutableStateOf<UserInfo?>(chatUiState.friend) } 
@@ -164,6 +168,16 @@ fun ChatRoomScreen(
         )
     }
 
+    // 会议界面
+    if (showMeeting && chatUiState.conversation != null) {
+        val participantIds = chatUiState.conversation?.members?.map { it.userId.toString() } ?: emptyList()
+        MeetingLauncher(
+            roomId = "meeting_${chatUiState.conversation?.conversationId}",
+            participantIds = participantIds,
+            onCallEnded = { showMeeting = false }
+        )
+    }
+
 
     // 顶部聊天 tab 状态栏
     Scaffold(
@@ -192,9 +206,12 @@ fun ChatRoomScreen(
                     }
                 },
                 actions = {
-                    if (remoteUser != null) {
-                        IconButton(onClick = { showVideoCall = true }) {
-                            Icon(Icons.Default.VideoCall, contentDescription = "视频通话")
+                    val isGroup = chatUiState.conversation?.type == ConversationType.GROUP
+                    if (remoteUser != null || isGroup) {
+                        IconButton(onClick = { 
+                            if (isGroup) showMeeting = true else showVideoCall = true 
+                        }) {
+                            Icon(Icons.Default.VideoCall, contentDescription = "视频通话/会议")
                         }
                     }
                 },
@@ -209,6 +226,7 @@ fun ChatRoomScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
+                    .imePadding()
                     .pullRefresh(pullRefreshState)
             ) {
                 Box(
@@ -456,7 +474,7 @@ fun MessageBubble(
                             )
                             DropdownMenuItem(
                                 text = { Text("转发", fontSize = 14.sp) },
-                                leadingIcon = { Icon(Icons.Default.Reply, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = null, modifier = Modifier.size(18.dp)) },
                                 onClick = {
                                     showMenu = false
                                 },
