@@ -8,8 +8,10 @@ import com.github.im.server.mapstruct.MessageMapper;
 import com.github.im.server.model.Conversation;
 import com.github.im.server.model.Message;
 import com.github.im.server.model.User;
+import com.github.im.server.repository.GroupMemberRepository;
 import com.github.im.server.repository.MessageRepository;
 import com.github.im.server.utils.EnumsTransUtil;
+import com.github.im.enums.ConversationType;
 import com.github.im.common.connect.connection.ReactiveConnectionManager;
 import com.github.im.common.connect.connection.server.BindAttr;
 import com.github.im.common.connect.model.proto.BaseMessage;
@@ -43,6 +45,8 @@ import java.util.UUID;
 public class MessageService {
 
     private final MessageRepository messageRepository;
+
+    private final GroupMemberRepository groupMemberRepository;
 
     private final MessageMapper messageMapper;
 
@@ -114,8 +118,9 @@ public class MessageService {
     @Transactional
     public void markAsRead(Long msgId, User user) {
         messageRepository.findById(msgId).ifPresent(message -> {
-            message.setStatus(MessageStatus.READ);
-            messageRepository.save(message);
+            Long conversationId = message.getConversation().getConversationId();
+            Long sequenceId = message.getSequenceId();
+            markConversationAsRead(conversationId, user.getUserId(), sequenceId);
         });
     }
 
@@ -159,21 +164,32 @@ public class MessageService {
 
     @Transactional
     public void markConversationAsRead(Long conversationId, Long userId, Long sequenceId) {
-        // 更新该会话中，小于等于 sequenceId 且不是自己发送的消息状态为已读
-        var conversation = entityManager.getReference(Conversation.class, conversationId);
-        // 这里可以使用 JPA 的批量更新以提高性能，简单起见先查找后更新
-        // 为了提高效率，实际生产建议使用 @Modifying query
-        messageRepository.findAll((root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("conversation").get("conversationId"), conversationId));
-            predicates.add(cb.notEqual(root.get("fromAccountId").get("userId"), userId));
-            predicates.add(cb.lessThanOrEqualTo(root.get("sequenceId"), sequenceId));
-            predicates.add(cb.notEqual(root.get("status"), MessageStatus.READ));
-            return cb.and(predicates.toArray(new Predicate[0]));
-        }).forEach(msg -> {
-            msg.setStatus(MessageStatus.READ);
-            messageRepository.save(msg);
+        if (conversationId == null || userId == null || sequenceId == null) return;
+
+        // 1) 成员维度推进已读进度（群聊必须这样做）
+        groupMemberRepository.findByConversationIdAndUserId(conversationId, userId).ifPresent(member -> {
+            Long current = member.getLastReadSequenceId() == null ? 0L : member.getLastReadSequenceId();
+            if (sequenceId > current) {
+                member.setLastReadSequenceId(sequenceId);
+                groupMemberRepository.save(member);
+            }
         });
+
+        // 2) 私聊：额外更新 Message.status 以支持“对方已读”的单对单展示
+        var conversation = entityManager.getReference(Conversation.class, conversationId);
+        if (conversation.getConversationType() == ConversationType.PRIVATE_CHAT) {
+            messageRepository.findAll((root, query, cb) -> {
+                List<Predicate> predicates = new ArrayList<>();
+                predicates.add(cb.equal(root.get("conversation").get("conversationId"), conversationId));
+                predicates.add(cb.notEqual(root.get("fromAccountId").get("userId"), userId));
+                predicates.add(cb.lessThanOrEqualTo(root.get("sequenceId"), sequenceId));
+                predicates.add(cb.notEqual(root.get("status"), MessageStatus.READ));
+                return cb.and(predicates.toArray(new Predicate[0]));
+            }).forEach(msg -> {
+                msg.setStatus(MessageStatus.READ);
+                messageRepository.save(msg);
+            });
+        }
     }
 
     @Transactional

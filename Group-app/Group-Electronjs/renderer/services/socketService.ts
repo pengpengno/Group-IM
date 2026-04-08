@@ -4,8 +4,9 @@ import { getElectronAPI } from './api/electronAPI';
 import { addMessage, fetchConversations, fetchMessages } from '../features/chat/chatSlice';
 import { BaseMessagePkg, UserInfo, Heartbeat, AckMessage } from './protoDefinitions';
 import Long from 'long';
+import { EventEmitter } from 'events';
 
-class SocketService {
+class SocketService extends EventEmitter {
   private static readonly WEB_LEADER_LEASE_MS = 10000;
   private static readonly WEB_LEADER_HEARTBEAT_MS = 4000;
   private store: Store<RootState> | null = null;
@@ -18,6 +19,7 @@ class SocketService {
   private isInitializing = false;
   private isConnected = false;
   private socket: WebSocket | null = null;
+  private signalingWS: WebSocket | null = null;
   private heartbeatTimer: NodeJS.Timeout | null = null;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private connectionCheckInterval: NodeJS.Timeout | null = null;
@@ -44,6 +46,14 @@ class SocketService {
   private readonly onBeforeUnload = () => {
     this.releaseBrowserLeadership();
   };
+
+  public getWebSocket(): WebSocket | null {
+    return this.signalingWS;
+  }
+
+  private handleWebRTCMessage(message: any) {
+    this.emit('webrtc-message', message);
+  }
 
   initialize(store: Store<RootState>, userId: string, host: string = 'localhost', port: number = 8088, token: string = '', username: string = '') {
     if (this.isConnected || this.isInitializing) {
@@ -90,6 +100,7 @@ class SocketService {
         this.isConnected = true;
         this.isInitializing = false;
         this.setupListeners();
+        this.connectSignalingWS();
       } else {
         console.error('Socket connection failed (IPC):', result.error);
         this.isInitializing = false;
@@ -166,6 +177,34 @@ class SocketService {
     window.addEventListener('storage', this.onStorage);
     window.addEventListener('beforeunload', this.onBeforeUnload);
     this.browserCoordinationReady = true;
+  }
+
+  private connectSignalingWS() {
+    const protocol = this.host.startsWith('https') ? 'wss' : 'ws';
+    const cleanHost = this.host.replace(/^https?:\/\//, '');
+    const url = `${protocol}://${cleanHost}:${this.port}/ws?userId=${this.userId}&token=${this.token}`;
+    console.log('Connecting signaling WS:', url);
+
+    this.signalingWS = new WebSocket(url);
+    this.signalingWS.onopen = () => {
+      console.log('Signaling WS connected');
+    };
+    this.signalingWS.onmessage = (event) => {
+      if (typeof event.data === 'string') {
+        try {
+          const message = JSON.parse(event.data);
+          this.handleWebRTCMessage(message);
+        } catch (e) {
+          console.error('Failed to parse signaling message:', e);
+        }
+      }
+    };
+    this.signalingWS.onclose = (event) => {
+      console.log('Signaling WS closed');
+    };
+    this.signalingWS.onerror = (error) => {
+      console.error('Signaling WS error:', error);
+    };
   }
 
   private tryAcquireBrowserLeadership() {
@@ -328,11 +367,12 @@ class SocketService {
       const wsProtocol = isSecurePage ? 'wss' : 'ws';
       const currentHost = typeof window !== 'undefined' ? window.location.host : `${this.host}:${this.port}`;
       // Web 端统一走当前页面同源 /ws，由 devServer/nginx 负责转发
-      const wsUrl = `${wsProtocol}://${currentHost}/ws?userId=${this.userId}`;
+      const wsUrl = `${wsProtocol}://${currentHost}/ws?userId=${this.userId}&token=${this.token}`;
       console.log(`Native WebSocket connecting to ${wsUrl}...`);
 
       this.socket = new WebSocket(wsUrl);
       this.socket.binaryType = 'arraybuffer';
+      this.signalingWS = this.socket;
 
       this.socket.onopen = () => {
         console.log('Native WebSocket connected');
@@ -351,7 +391,20 @@ class SocketService {
       };
 
       this.socket.onmessage = (event) => {
-        this.handleWSData(new Uint8Array(event.data));
+        if (typeof event.data === 'string') {
+          try {
+            const message = JSON.parse(event.data);
+            if (message.type && ['offer', 'answer', 'candidate', 'meeting/request', 'meeting/participants', 'participant/joined', 'participant/left', 'meeting/rejected', 'meeting/join', 'heartbeat'].includes(message.type)) {
+              this.handleWebRTCMessage(message);
+            } else {
+              console.log('Unknown JSON message:', message);
+            }
+          } catch (e) {
+            console.error('Failed to parse JSON message:', e);
+          }
+        } else {
+          this.handleWSData(new Uint8Array(event.data));
+        }
       };
 
       this.socket.onclose = () => {
@@ -673,6 +726,11 @@ class SocketService {
     if (this.socket) {
       this.socket.close();
       this.socket = null;
+    }
+
+    if (this.signalingWS && this.signalingWS !== this.socket) {
+      this.signalingWS.close();
+      this.signalingWS = null;
     }
 
     if (this.isBrowserEnvironment()) {

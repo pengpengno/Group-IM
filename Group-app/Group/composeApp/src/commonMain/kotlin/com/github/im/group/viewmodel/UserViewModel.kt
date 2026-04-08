@@ -120,6 +120,11 @@ class UserViewModel(
         }
     }
 
+    fun loadFriendsIfNeeded() {
+        if (_friends.value.isNotEmpty()) return
+        loadFriends()
+    }
+
     /**
      * 查询用户
      */

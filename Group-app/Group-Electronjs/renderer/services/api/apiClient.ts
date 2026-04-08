@@ -50,6 +50,11 @@ export const authAPI = {
   // POST /api/organization/company/register
   registerCompany: async (name: string, code: string) => {
     return http.post('/api/organization/company/register', { name, code });
+  },
+
+  // GET /api/users/online/{userId}
+  isUserOnline: async (userId: string | number) => {
+    return http.get(`/api/users/online/${userId}`);
   }
 };
 
@@ -128,4 +133,21 @@ export const webrtcAPI = {
   getIceServers: async () => {
     return http.get('/api/webrtc/ice-servers');
   }
+};
+
+export const fileAPI = {
+  // POST /api/files/upload (form-data)
+  upload: async (file: File | Blob, fileName?: string, clientId?: string) => {
+    const formData = new FormData();
+    formData.append('file', file, fileName);
+    if (clientId) {
+      formData.append('clientId', clientId);
+    }
+    return http.post('/api/files/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  // GET /api/files/download/{fileId}
+  getDownloadUrl: (fileId: string) => `${BASE_URL}/api/files/download/${fileId}`
 };

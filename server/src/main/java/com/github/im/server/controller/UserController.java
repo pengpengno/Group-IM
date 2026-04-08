@@ -48,6 +48,9 @@ public class UserController {
     @Autowired
     private CompanyUserService companyUserService;
 
+    @Autowired
+    private OnlineService onlineService;
+
     @PostMapping("/register")
     public ResponseEntity<UserInfo> registerUser(@RequestBody @Valid RegistrationRequest registrationRequest) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -98,6 +101,17 @@ public class UserController {
                                                @AuthenticationPrincipal User user) {
         //TODO 权限
         return userService.findUserByUserId(userId);
+    }
+
+    /**
+     * 查询用户是否在线
+     * @param userId 用户Id
+     * @return 是否在线
+     */
+    @GetMapping("/online/{userId}")
+    public ResponseEntity<ApiResponse<Boolean>> isUserOnline(@PathVariable Long userId) {
+        String nodeId = onlineService.getUserNodeId(userId);
+        return ResponseUtil.success("查询成功", nodeId != null);
     }
 
 

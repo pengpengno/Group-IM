@@ -32,7 +32,7 @@ class TestConfig(
 class ProdConfig(
     override val apiHost: String = "groupim.cn",
     override val tcpHost: String = "im.groupim.cn",
-    override val apiPort: Int = 80,
+    override val apiPort: Int = 443,
     override val tcpPort: Int = 8088,
     override val useTls: Boolean = true
 ) : AppConfig {

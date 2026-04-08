@@ -80,6 +80,55 @@
   background-color: #10b981;
 }
 
+.status-indicator.offline {
+  background-color: #9ca3af;
+}
+
+/* Message Status for Optimistic Updates */
+.msg-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+}
+
+.spinner-loading-tiny {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border-top: 1.5px solid white;
+  border-radius: 50%;
+  animation: rotate 0.8s linear infinite;
+}
+
+.other-message .spinner-loading-tiny {
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  border-top: 1.5px solid #3b82f6;
+}
+
+.resend-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s;
+}
+
+.resend-btn:hover {
+  transform: scale(1.2);
+  color: #f87171;
+}
+
+.msg-status-indicator.failed {
+  color: #ef4444;
+}
+
+.sent-check {
+  font-size: 10px;
+}
+
 .chatroom-header-actions {
   display: flex;
   gap: 8px;

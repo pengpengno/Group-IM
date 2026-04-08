@@ -431,6 +431,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                     <ChatRoom
                                         conversation={activeConversation}
                                         onStartMeeting={handleStartMeeting}
+                                        onVideoCall={handleCall}
                                     />
                                 ) : (
                                     <div className="empty-view-placeholder">

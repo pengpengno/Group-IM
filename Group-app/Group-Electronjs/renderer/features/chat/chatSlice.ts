@@ -158,49 +158,53 @@ function buildSocketPayload(
 
 export const sendMessageViaSocket = createAsyncThunk(
     'chat/sendMessageViaSocket',
-    async ({ conversationId, content, type, msgDto }: {
+    async ({ conversationId, content, type, msgDto, clientMsgId }: {
         conversationId: number,
         content: string,
         type?: string,
-        msgDto?: MessageDTO
+        msgDto?: MessageDTO,
+        clientMsgId?: string
     }, { getState }) => {
         const state = getState() as any;
         const currentUser = state.auth.user;
         const currentUserId = currentUser?.userId;
+
+        // Use provided clientMsgId or from msgDto or generate new
+        const finalClientMsgId = clientMsgId || msgDto?.clientMsgId || 
+            (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36));
 
         try {
             const socketActive = await socketService.isActive();
             if (!socketActive) {
                 console.warn('Socket not active, falling back to HTTP');
                 const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
-                return response.data?.data || response.data;
+                const result = response.data?.data || response.data;
+                return { ...result, clientMsgId: finalClientMsgId, sendingStatus: 'success' } as MessageDTO;
             }
 
-            const payload = buildSocketPayload(conversationId, content, type || 'TEXT', currentUser, msgDto);
+            const payload = buildSocketPayload(conversationId, content, type || 'TEXT', currentUser, { ...msgDto, clientMsgId: finalClientMsgId } as any);
             const sendSuccess = await socketService.sendPayload(payload);
 
             if (sendSuccess) {
-                if (msgDto) {
-                    return { ...msgDto, clientMsgId: payload.message.clientMsgId };
-                }
-
                 return {
                     conversationId,
                     content,
                     fromAccountId: Number(currentUserId),
                     type: (type as any) || 'TEXT',
                     timestamp: Date.now(),
-                    clientMsgId: payload.message.clientMsgId
+                    clientMsgId: finalClientMsgId,
+                    sendingStatus: 'success'
                 } as MessageDTO;
             }
 
             console.warn('Socket send failed, trying HTTP fallback');
             const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
-            return response.data?.data || response.data;
+            const result = response.data?.data || response.data;
+            return { ...result, clientMsgId: finalClientMsgId, sendingStatus: 'success' } as MessageDTO;
         } catch (error) {
             console.error('Error in sendMessageViaSocket:', error);
-            const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
-            return response.data?.data || response.data;
+            // Re-throw if it's a real failure so we can catch it in rejected
+            throw error;
         }
     }
 );
@@ -339,6 +343,37 @@ const chatSlice = createSlice({
                     state.messages[conversationId].push(action.payload);
                 }
             })
+            .addCase(sendMessageViaSocket.pending, (state, action) => {
+                const { conversationId, content, type } = action.meta.arg;
+                const currentUserId = (state as any).auth?.user?.userId;
+                
+                // Construct a temporary clientMsgId for the pending state if not provided
+                // This must match what we use in the thunk if not provided in arg
+                const clientMsgId = action.meta.arg.clientMsgId || action.meta.requestId;
+
+                const tempMsg: MessageDTO = {
+                    msgId: -1, 
+                    conversationId,
+                    content,
+                    type: (type as any) || 'TEXT',
+                    fromAccountId: Number(currentUserId),
+                    timestamp: Date.now(),
+                    clientMsgId: clientMsgId,
+                    sendingStatus: 'sending'
+                };
+
+                if (!state.messages[conversationId]) {
+                    state.messages[conversationId] = [];
+                }
+
+                // Only add if it doesn't exist already (e.g. from a previous attempt)
+                const existingIndex = state.messages[conversationId].findIndex(m => m.clientMsgId === clientMsgId);
+                if (existingIndex === -1) {
+                    state.messages[conversationId].push(tempMsg);
+                } else {
+                    state.messages[conversationId][existingIndex].sendingStatus = 'sending';
+                }
+            })
             .addCase(sendMessageViaSocket.fulfilled, (state, action: PayloadAction<MessageDTO>) => {
                 const { conversationId } = action.payload;
                 if (!state.messages[conversationId]) {
@@ -351,13 +386,28 @@ const chatSlice = createSlice({
                 );
 
                 if (existingIndex !== -1) {
-                    state.messages[conversationId][existingIndex] = action.payload;
+                    state.messages[conversationId][existingIndex] = {
+                        ...action.payload,
+                        sendingStatus: 'success'
+                    };
                 } else {
-                    state.messages[conversationId].push(action.payload);
+                    state.messages[conversationId].push({
+                        ...action.payload,
+                        sendingStatus: 'success'
+                    });
                 }
             })
             .addCase(sendMessageViaSocket.rejected, (state, action) => {
                 state.error = action.error.message || '发送消息失败';
+                const { conversationId, clientMsgId } = action.meta.arg;
+                
+                if (conversationId && state.messages[conversationId]) {
+                    const finalClientMsgId = clientMsgId || action.meta.requestId;
+                    const existingIndex = state.messages[conversationId].findIndex(m => m.clientMsgId === finalClientMsgId);
+                    if (existingIndex !== -1) {
+                        state.messages[conversationId][existingIndex].sendingStatus = 'failed';
+                    }
+                }
             })
             .addCase(createPrivateChat.fulfilled, (state, action: PayloadAction<ConversationRes>) => {
                 const newConv = normalizeConversation(action.payload);

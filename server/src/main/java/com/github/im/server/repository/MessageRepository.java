@@ -45,7 +45,15 @@ public interface MessageRepository extends JpaRepository<Message, Long> , JpaSpe
                                  Pageable pageable);
 
 
-    @Query("SELECT COUNT(m) FROM Message m WHERE m.conversation.conversationId = :conversationId AND m.fromAccountId.userId != :userId AND (m.status IS NULL OR m.status != 'READ')")
+    @Query("""
+        SELECT COUNT(m)
+        FROM Message m, ConversationMember cm
+        WHERE cm.conversation.conversationId = :conversationId
+          AND cm.user.userId = :userId
+          AND m.conversation.conversationId = :conversationId
+          AND m.fromAccountId.userId != :userId
+          AND m.sequenceId > COALESCE(cm.lastReadSequenceId, 0)
+        """)
     long countUnreadMessages(@Param("conversationId") Long conversationId, @Param("userId") Long userId);
 
     interface SequenceRes {

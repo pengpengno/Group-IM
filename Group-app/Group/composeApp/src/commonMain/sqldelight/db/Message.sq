@@ -122,3 +122,11 @@ SELECT COUNT(*) FROM message
 WHERE conversation_id = ?
 AND from_account_id != ?
 AND status = 'SENT';
+
+-- 将会话中非本人发送的 SENT 消息全部标记为 READ（用于进入会话后清红点）
+markConversationMessagesAsRead:
+UPDATE message
+SET status = 'READ'
+WHERE conversation_id = ?
+AND from_account_id != ?
+AND status = 'SENT';

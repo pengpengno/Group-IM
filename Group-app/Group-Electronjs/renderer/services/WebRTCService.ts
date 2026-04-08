@@ -11,6 +11,7 @@ import {
 } from '../features/video-call/videoCallSlice';
 import { RootState } from '../store';
 import { webrtcAPI } from './api/apiClient';
+import { socketService } from './socketService';
 
 export interface IceCandidateData {
   candidate: string;
@@ -190,6 +191,8 @@ export class WebRTCService extends EventEmitter {
       return;
     }
 
+    socketService.on('webrtc-message', (message) => this.handleSignalingMessage(message));
+
     console.log('Fetching ICE servers from backend...');
     try {
       const response = await webrtcAPI.getIceServers();
@@ -263,6 +266,13 @@ export class WebRTCService extends EventEmitter {
     const protocol = pageProtocol === 'https:' || pageProtocol === 'wss:' ? 'wss' : 'ws';
     const cleanHost = host.replace(/^https?:\/\//, '');
     const url = `${protocol}://${cleanHost}:${port}/ws?userId=${userId}&token=${token}`;
+
+    const sharedWS = socketService.getWebSocket();
+    if (sharedWS && sharedWS.readyState === WebSocket.OPEN) {
+      this.websocket = sharedWS;
+      console.log('Using shared WebSocket for signaling');
+      return;
+    }
 
     if (this.websocket && (this.websocket.readyState === WebSocket.OPEN || this.websocket.readyState === WebSocket.CONNECTING) && this.websocket.url === url) {
       console.log('Already connected or connecting to signaling server:', url);

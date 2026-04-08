@@ -13,9 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -52,11 +50,27 @@ public class MessageController {
 
     // 标记消息为已读
     @PostMapping("/mark-as-read")
-    public ResponseEntity<Void> markAsRead(@RequestParam Long msgId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Object principal = authentication.getPrincipal();
-        messageService.markAsRead(msgId, (User) principal);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Void> markAsRead(
+            @RequestParam(required = false) Long msgId,
+            @RequestParam(required = false) Long conversationId,
+            @RequestParam(required = false) Long sequenceId,
+            @AuthenticationPrincipal User user
+    ) {
+        if (user == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        if (conversationId != null && sequenceId != null) {
+            messageService.markConversationAsRead(conversationId, user.getUserId(), sequenceId);
+            return ResponseEntity.ok().build();
+        }
+
+        if (msgId != null) {
+            messageService.markAsRead(msgId, user);
+            return ResponseEntity.ok().build();
+        }
+
+        return ResponseEntity.badRequest().build();
     }
 
     // 撤回消息

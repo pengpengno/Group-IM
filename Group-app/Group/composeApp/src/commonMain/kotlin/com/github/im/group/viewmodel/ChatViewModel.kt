@@ -70,6 +70,18 @@ class ChatViewModel (
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
 
+    /**
+     * 仅刷新未读数（用于从 ChatRoom 返回后，红点立即正确）
+     */
+    fun refreshUnreadCounts(currentUserId: Long) {
+        _conversations.update { currentList ->
+            currentList.map { item ->
+                val unreadCount = messageRepository.getUnreadCount(item.conversation.conversationId, currentUserId)
+                if (unreadCount == item.unreadCount) item else item.copy(unreadCount = unreadCount)
+            }
+        }
+    }
+
 
     /**
      * 获取会话列表 - 重构版本

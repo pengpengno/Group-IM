@@ -126,7 +126,7 @@ object ConversationApi{
      */
     suspend fun createGroupConversation(groupInfo:GroupInfo ): ConversationRes {
         return ProxyApi.request< GroupInfo,ConversationRes>(
-            hmethod = HttpMethod.Get,
+            hmethod = HttpMethod.Post,
             path = "/api/conversations/group",
             body = groupInfo
         )
@@ -395,6 +395,20 @@ object ChatApi {
             hmethod = HttpMethod.Post,
             path = "/api/messages/mark-as-read",
             requestParams = mapOf("msgId" to msgId.toString())
+        )
+    }
+
+    /**
+     * 标记会话到指定序列为已读（推荐；支持群聊按用户维度已读推进）
+     */
+    suspend fun markConversationAsRead(conversationId: Long, sequenceId: Long): Unit {
+        return ProxyApi.request<Unit, Unit>(
+            hmethod = HttpMethod.Post,
+            path = "/api/messages/mark-as-read",
+            requestParams = mapOf(
+                "conversationId" to conversationId.toString(),
+                "sequenceId" to sequenceId.toString()
+            )
         )
     }
 }

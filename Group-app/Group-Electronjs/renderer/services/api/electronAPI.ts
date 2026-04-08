@@ -137,26 +137,9 @@ const webAPI: ElectronAPI = {
         throw new Error('Web environment only supports uploading File objects, not paths.');
     }
 
-    const formData = new FormData();
-    formData.append('file', fileOrPath);
-    formData.append('clientId', clientId || Math.random().toString(36).substring(2, 15));
-
-    const config: any = {
-        headers: {
-            'Content-Type': 'multipart/form-data'
-        }
-    };
-
-    if (token) {
-        config.headers['Authorization'] = `Bearer ${token}`;
-    }
-
     try {
-        const response = await authAPI.login({} as any); // Dummy call to get instance, or use authAPI directly if it has a way to POST
-        // Since authAPI in apiClient uses axios 'http' instance which already has base_url and interceptors
-        // We'll use axios directly with the base_url
-        const axios = require('axios').default;
-        const res = await axios.post(`${(authAPI as any).BASE_URL || (__API_BASE__)}/api/files/upload`, formData, config);
+        const { fileAPI } = require('./apiClient');
+        const res = await fileAPI.upload(fileOrPath, undefined, clientId);
         
         return {
             success: true,
@@ -267,7 +250,8 @@ export function getElectronAPI(): ElectronAPI {
       },
       uploadFile: async (filePath: string, clientId?: string, token?: string) => {
         const authToken = token || localStorage.getItem('token') || '';
-        return electron.uploadFile(filePath, clientId, authToken);
+        const cid = clientId || Math.random().toString(36).substring(2, 12);
+        return electron.uploadFile(filePath, cid, authToken);
       }
     };
   }

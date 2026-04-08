@@ -887,17 +887,30 @@ class ChatRoomViewModel(
     /**
      * 标记会话为已读
      */
-    fun markConversationAsRead(conversationId: Long) {
+    fun markConversationAsRead(conversationId: Long, currentUserId: Long) {
         viewModelScope.launch {
             try {
                 val lastSeq = _uiState.value.messages.firstOrNull()?.seqId ?: 0L
-                if (lastSeq > 0) {
-                    // 对于单条消息简单的做法是标记最后一条，服务端会批量处理
-                    val lastMsgId = _uiState.value.messages.firstOrNull()?.id
-                    lastMsgId?.let { ChatApi.markAsRead(it) }
-                    
-                    Napier.d("已标记会话 $conversationId 为已读, lastSeq: $lastSeq")
+                if (lastSeq <= 0) return@launch
+
+                // 1) 先本地清理未读红点（立即生效）
+                chatMessageRepository.markConversationMessagesAsRead(conversationId, currentUserId)
+                _uiState.update { currentState ->
+                    val updatedMessages = currentState.messages.map { msg ->
+                        val shouldMarkRead = msg.userInfo.userId != currentUserId && msg.status == MessageStatus.SENT
+                        if (shouldMarkRead && msg is MessageWrapper) {
+                            msg.withStatus(MessageStatus.READ)
+                        } else {
+                            msg
+                        }
+                    }
+                    currentState.copy(messages = updatedMessages)
                 }
+
+                // 2) 再同步到服务端（会话维度，支持群聊按用户维度推进）
+                ChatApi.markConversationAsRead(conversationId = conversationId, sequenceId = lastSeq)
+
+                Napier.d("已标记会话 $conversationId 为已读, lastSeq: $lastSeq")
             } catch (e: Exception) {
                 Napier.e("标记已读失败", e)
             }

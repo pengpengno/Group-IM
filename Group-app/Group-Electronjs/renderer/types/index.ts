@@ -120,6 +120,7 @@ export interface MessageDTO {
   fromAccount?: ApiUser;
   clientMsgId?: string;
   payload?: any;
+  sendingStatus?: 'sending' | 'success' | 'failed';
 }
 
 export interface Message {

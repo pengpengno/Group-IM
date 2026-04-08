@@ -50,54 +50,69 @@ actual fun TryGetMultiplePermissions(
     onAnyDenied: () -> Unit
 ) {
     val multiplePermissionsState = rememberMultiplePermissionsState(permissions)
-    var showPermissionScreen by remember { mutableStateOf(false) }
+    var hasRequestedOnce by remember { mutableStateOf(false) }
+    var showGuideDialog by remember { mutableStateOf(false) }
+    var showRationaleDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val allGranted = multiplePermissionsState.permissions.all { it.status.isGranted }
+        if (allGranted) {
+            onAllGranted()
+            return@LaunchedEffect
+        }
+
+        // 先触发系统权限弹窗，不要抢先弹引导页
+        hasRequestedOnce = true
+        onRequest()
+        multiplePermissionsState.launchMultiplePermissionRequest()
+    }
 
     LaunchedEffect(multiplePermissionsState.permissions) {
         val allGranted = multiplePermissionsState.permissions.all { it.status.isGranted }
         if (allGranted) {
-            showPermissionScreen = false
+            showGuideDialog = false
+            showRationaleDialog = false
             onAllGranted()
+            return@LaunchedEffect
+        }
+
+        if (!hasRequestedOnce) return@LaunchedEffect
+
+        val anyDenied = multiplePermissionsState.permissions.any { !it.status.isGranted }
+        if (!anyDenied) return@LaunchedEffect
+
+        val anyPermanentlyDenied = multiplePermissionsState.permissions.any { !it.status.isGranted && !it.status.shouldShowRationale }
+        if (anyPermanentlyDenied) {
+            showGuideDialog = true
+            showRationaleDialog = false
         } else {
-            val anyPermanentlyDenied = multiplePermissionsState.permissions.any { !it.status.isGranted && !it.status.shouldShowRationale }
-            if (anyPermanentlyDenied) {
-                showPermissionScreen = true
+            showRationaleDialog = true
+            showGuideDialog = false
+        }
+        onAnyDenied()
+    }
+
+    if (showRationaleDialog) {
+        MultiplePermissionRationaleDialog(
+            permissions = permissions,
+            onRequestAgain = {
                 onRequest()
-            } else {
-                showPermissionScreen = true
-                onRequest()
+                multiplePermissionsState.launchMultiplePermissionRequest()
+            },
+            onDismiss = {
+                showRationaleDialog = false
+                onAnyDenied()
             }
-        }
+        )
     }
-    
-    LaunchedEffect(Unit) {
-        // 初始时请求权限
-        if (!multiplePermissionsState.permissions.all { it.status.isGranted }) {
-            multiplePermissionsState.launchMultiplePermissionRequest()
-        } else {
-            onAllGranted()
-        }
-    }
-    
-    // 如果有任何权限被拒绝，显示权限请求界面
-    val anyDenied = multiplePermissionsState.permissions.any { !it.status.isGranted }
-    if (showPermissionScreen && anyDenied) {
+
+    if (showGuideDialog) {
         MultiplePermissionRequestScreen(
             permissions = permissions,
             onPermissionResult = { granted ->
-                if (granted) {
-                    val allGranted = multiplePermissionsState.permissions.all { it.status.isGranted }
-                    if (allGranted) {
-                        showPermissionScreen = false
-                        onAllGranted()
-                    } else {
-                        // 仍然有权限未被授予，继续显示
-                        showPermissionScreen = true
-                    }
-                } else {
-                    // 保持显示权限请求屏幕
-                    showPermissionScreen = true
-                    onAnyDenied()
-                }
+                // 该 Dialog 允许关闭，不阻塞后续操作
+                showGuideDialog = false
+                if (granted) onAllGranted() else onAnyDenied()
             }
         )
     }
@@ -112,57 +127,66 @@ actual fun TryGetPermission(
     onDenied: () -> Unit
 ) {
     val recordPermissionState = rememberPermissionState(permission)
-    var showPermissionScreen by remember { mutableStateOf(false) }
+    var hasRequestedOnce by remember { mutableStateOf(false) }
+    var showGuideDialog by remember { mutableStateOf(false) }
+    var showRationaleDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        if (recordPermissionState.status.isGranted) {
+            onGranted()
+            return@LaunchedEffect
+        }
+
+        // 先请求系统权限
+        hasRequestedOnce = true
+        onRequest()
+        recordPermissionState.launchPermissionRequest()
+    }
 
     LaunchedEffect(recordPermissionState.status) {
-        when {
-            recordPermissionState.status.isGranted -> {
-                Napier.d("权限已授权")
-                showPermissionScreen = false
-                onGranted()
-            }
-            !recordPermissionState.status.isGranted && !recordPermissionState.status.shouldShowRationale -> {
-                // 权限被永久拒绝
-                Napier.d ("权限被永久拒绝,申请获取权限")
-                recordPermissionState.launchPermissionRequest()
-                showPermissionScreen = true
-                onRequest()
-
-            }
-            else -> {
-                Napier.d ("权限被拒绝")
-                recordPermissionState.launchPermissionRequest()
-                showPermissionScreen = true
-                onRequest()
-
-            }
-        }
-    }
-    
-    LaunchedEffect(Unit) {
-        // 初始时检查权限状态
-        if (!recordPermissionState.status.isGranted) {
-            recordPermissionState.launchPermissionRequest()
-        } else {
+        if (recordPermissionState.status.isGranted) {
+            showGuideDialog = false
+            showRationaleDialog = false
             onGranted()
+            return@LaunchedEffect
         }
-    }
-    
-    // 权限被拒绝 就 页面提示并且 尝试 手动引导获取
-    if (showPermissionScreen) {
 
-            PermissionRequestScreen(
-                permission = permission,
-                onPermissionResult = { granted ->
-                    if (granted) {
-                        showPermissionScreen = false
-                        onGranted()
-                    } else {
-                        // 保持显示权限请求屏幕
-                        showPermissionScreen = true
-                    }
-                }
-            )
+        if (!hasRequestedOnce) return@LaunchedEffect
+
+        // 系统权限被拒绝后再引导
+        if (recordPermissionState.status.shouldShowRationale) {
+            showRationaleDialog = true
+            showGuideDialog = false
+        } else {
+            showGuideDialog = true
+            showRationaleDialog = false
+        }
+        onDenied()
+    }
+
+    if (showRationaleDialog) {
+        PermissionRationaleDialog(
+            permission = permission,
+            onRequestAgain = {
+                onRequest()
+                recordPermissionState.launchPermissionRequest()
+            },
+            onDismiss = {
+                showRationaleDialog = false
+                onDenied()
+            }
+        )
+    }
+
+    if (showGuideDialog) {
+        PermissionRequestScreen(
+            permission = permission,
+            onPermissionResult = { granted ->
+                // 该 Dialog 允许关闭，不阻塞后续操作
+                showGuideDialog = false
+                if (granted) onGranted() else onDenied()
+            }
+        )
     }
 }
 
@@ -259,6 +283,174 @@ fun PermissionRequestScreen(
 
                 androidx.compose.material3.TextButton(
                     onClick = { onPermissionResult(false) },
+                    modifier = Modifier.fillMaxWidth(0.85f)
+                ) {
+                    Text("稍后再说", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PermissionRationaleDialog(
+    permission: String,
+    onRequestAgain: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val needPermissionText = when (permission) {
+        Manifest.permission.RECORD_AUDIO -> "需要麦克风权限"
+        Manifest.permission.READ_MEDIA_VIDEO -> "需要相册权限"
+        Manifest.permission.READ_MEDIA_IMAGES -> "需要相册权限"
+        Manifest.permission.READ_EXTERNAL_STORAGE -> "需要相册权限"
+        else -> "需要权限"
+    }
+
+    val infoMessage = when (permission) {
+        Manifest.permission.RECORD_AUDIO -> "录制语音需要麦克风权限。你可以再试一次授权。"
+        Manifest.permission.READ_MEDIA_VIDEO -> "选择视频需要相册权限。你可以再试一次授权。"
+        Manifest.permission.READ_MEDIA_IMAGES -> "选择图片需要相册权限。你可以再试一次授权。"
+        Manifest.permission.READ_EXTERNAL_STORAGE -> "选择图片需要相册权限。你可以再试一次授权。"
+        else -> "需要权限以继续使用功能。你可以再试一次授权。"
+    }
+
+    val icon = when (permission) {
+        Manifest.permission.RECORD_AUDIO -> Icons.Default.Mic
+        Manifest.permission.READ_MEDIA_VIDEO -> Icons.Default.VideoCameraBack
+        Manifest.permission.READ_MEDIA_IMAGES -> Icons.Default.Image
+        Manifest.permission.READ_EXTERNAL_STORAGE -> Icons.Default.Image
+        else -> Icons.Default.Info
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = true)
+    ) {
+        androidx.compose.material3.Card(
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            modifier = androidx.compose.ui.Modifier.padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(52.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = needPermissionText,
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = infoMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = onRequestAgain,
+                    modifier = Modifier.fillMaxWidth(0.85f)
+                ) {
+                    Text("再试一次")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                androidx.compose.material3.TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(0.85f)
+                ) {
+                    Text("稍后再说", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MultiplePermissionRationaleDialog(
+    permissions: List<String>,
+    onRequestAgain: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val permissionsText = when {
+        permissions.containsAll(listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)) -> "需要相机和麦克风权限"
+        permissions.contains(Manifest.permission.CAMERA) -> "需要相机权限"
+        permissions.contains(Manifest.permission.RECORD_AUDIO) -> "需要麦克风权限"
+        permissions.any { it.contains("MEDIA") } -> "需要相册权限"
+        else -> "需要权限"
+    }
+
+    val infoMessage = when {
+        permissions.containsAll(listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)) -> "视频通话需要相机和麦克风权限，你可以再试一次授权。"
+        permissions.contains(Manifest.permission.CAMERA) -> "视频通话需要相机权限，你可以再试一次授权。"
+        permissions.contains(Manifest.permission.RECORD_AUDIO) -> "语音/通话需要麦克风权限，你可以再试一次授权。"
+        permissions.any { it.contains("MEDIA") } -> "选择媒体需要相册权限，你可以再试一次授权。"
+        else -> "需要权限以继续使用功能，你可以再试一次授权。"
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = true)
+    ) {
+        androidx.compose.material3.Card(
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            modifier = androidx.compose.ui.Modifier.padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(52.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = permissionsText,
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = infoMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = onRequestAgain,
+                    modifier = Modifier.fillMaxWidth(0.85f)
+                ) {
+                    Text("再试一次")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                androidx.compose.material3.TextButton(
+                    onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth(0.85f)
                 ) {
                     Text("稍后再说", color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -115,9 +115,15 @@ fun ChatRoomScreen(
     )
 
     val listState = rememberLazyListState()
+    var lastMarkedReadSeq by remember { mutableStateOf(0L) }
 
     LaunchedEffect(chatRoom) {
         chatRoomViewModel.initChatRoom(chatRoom)
+    }
+
+    LaunchedEffect(chatUiState.conversation?.conversationId, chatUiState.friend) {
+        conversationId = chatUiState.conversation?.conversationId
+        remoteUser = chatUiState.friend
     }
 
     DisposableEffect(conversationId) {
@@ -232,6 +238,27 @@ fun ChatRoomScreen(
                     }
                 }
 
+                // 进入会话并看到最新消息后，立即把本地未读清掉，同时同步服务端已读进度
+                val isAtBottom by remember {
+                    androidx.compose.runtime.derivedStateOf {
+                        listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+                    }
+                }
+                LaunchedEffect(isAtBottom, conversationId, userInfo?.userId, chatUiState.messages) {
+                    val cid = conversationId ?: return@LaunchedEffect
+                    val uid = userInfo?.userId ?: return@LaunchedEffect
+                    if (!isAtBottom) return@LaunchedEffect
+
+                    val hasUnread = chatUiState.messages.any { it.userInfo.userId != uid && it.status == MessageStatus.SENT }
+                    if (!hasUnread) return@LaunchedEffect
+
+                    val lastSeq = chatUiState.messages.firstOrNull()?.seqId ?: 0L
+                    if (lastSeq <= 0L || lastSeq <= lastMarkedReadSeq) return@LaunchedEffect
+
+                    lastMarkedReadSeq = lastSeq
+                    chatRoomViewModel.markConversationAsRead(cid, uid)
+                }
+
                 LaunchedEffect(chatUiState.scrollToTop) {
                     if (chatUiState.scrollToTop) {
                         listState.animateScrollToItem(0)
@@ -270,11 +297,11 @@ fun ChatRoomScreen(
                 }
                 
                 // 悬浮按钮 - 滚动到底部 (提示未查看的“新消息”数量：当前视口下方的条数)
-                val isAtBottom by remember {
-                    androidx.compose.runtime.derivedStateOf {
-                        listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-                    }
-                }
+//                val isAtBottom by remember {
+//                    androidx.compose.runtime.derivedStateOf {
+//                        listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+//                    }
+//                }
                 val belowCount by remember {
                     androidx.compose.runtime.derivedStateOf { listState.firstVisibleItemIndex.coerceAtLeast(0) }
                 }

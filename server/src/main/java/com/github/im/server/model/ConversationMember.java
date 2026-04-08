@@ -44,6 +44,12 @@ public class ConversationMember {
 
     private LocalDateTime leftAt;
 
+    /**
+     * 该成员在此会话中已读到的最大 sequenceId（会话维度）。
+     * 群聊已读/未读应基于成员维度推进，而不是全局修改 Message.status。
+     */
+    private Long lastReadSequenceId;
+
 //
 //    @PreUpdate
 //    protected void onUpdate() {
@@ -54,6 +60,9 @@ public class ConversationMember {
     protected void onPersist() {
         var now = LocalDateTime.now();
         this.joinedAt = now;
+        if (this.lastReadSequenceId == null) {
+            this.lastReadSequenceId = 0L;
+        }
     }
 }
 

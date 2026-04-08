@@ -141,7 +141,8 @@ const MessageBubble: React.FC<{
   message: MessageDTO;
   isOwnMessage: boolean;
   onImageClick?: (url: string, type: string) => void;
-}> = ({ message, isOwnMessage, onImageClick }) => {
+  onResend?: (message: MessageDTO) => void;
+}> = ({ message, isOwnMessage, onImageClick, onResend }) => {
   const token = useAppSelector((state: RootState) => state.auth.user?.token);
 
   const formatTime = (timestamp: any) => {
@@ -244,7 +245,19 @@ const MessageBubble: React.FC<{
           {renderContent()}
           <div className="msg-meta">
             <span className="msg-time">{formatTime(message.timestamp)}</span>
-            {isOwnMessage && <span className="msg-status">✓</span>}
+            {isOwnMessage && (
+              <span className={`msg-status-indicator ${message.sendingStatus || 'success'}`}>
+                {message.sendingStatus === 'sending' && <span className="spinner-loading-tiny"></span>}
+                {message.sendingStatus === 'failed' && (
+                  <button className="resend-btn" onClick={() => onResend && onResend(message)} title="点击重发">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                    </svg>
+                  </button>
+                )}
+                {(message.sendingStatus === 'success' || !message.sendingStatus) && <span className="sent-check">✓</span>}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -265,6 +278,15 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   const [screenSources, setScreenSources] = useState<any[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [previewMedia, setPreviewMedia] = useState<{ url: string; type: string } | null>(null);
+  const [isOnline, setIsOnline] = useState(false);
+  
+  // Recording State
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingIntervalRef = useRef<any>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
@@ -321,19 +343,33 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     const content = inputText.trim();
     setInputText('');
 
+    // Define a clientMsgId to track the message through optimistic update
+    const clientMsgId = window.crypto && window.crypto.randomUUID 
+        ? window.crypto.randomUUID() 
+        : Math.random().toString(36).substring(2) + Date.now().toString(36);
+
     try {
-      await dispatch(sendMessageViaSocket({
+      // Async dispatch, don't await unwrap here if we want immediate UI
+      dispatch(sendMessageViaSocket({
         conversationId: conversation.conversationId,
         content: content,
-        type: 'TEXT'
-      })).unwrap();
+        type: 'TEXT',
+        clientMsgId
+      }));
 
       scrollToBottom();
     } catch (err: any) {
-      console.error('Failed to send message:', err);
-      showToast(err.message || '消息发送失败，请检查网络');
-      setInputText(content);
+      console.error('Failed to send message async:', err);
     }
+  };
+
+  const handleResendMessage = (message: MessageDTO) => {
+    dispatch(sendMessageViaSocket({
+      conversationId: message.conversationId,
+      content: message.content,
+      type: message.type || 'TEXT',
+      clientMsgId: message.clientMsgId
+    }));
   };
 
   // 处理文件选取和上传
@@ -352,11 +388,11 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
       // 上传文件 - 优先使用 result.file (Web), 否则使用 result.filePath (Electron)
       const fileToUpload = result.file || (result as any).filePath;
-      const uploadRes = await api.uploadFile(fileToUpload);
+      const uploadRes = await api.uploadFile(fileToUpload, undefined, user?.token);
 
       if (uploadRes.success) {
         // 发送文件消息
-        const fileUrl = uploadRes.data?.url || uploadRes.data?.path || result.filePaths[0];
+        const fileUrl = uploadRes.data?.url || uploadRes.data?.path || uploadRes.data?.fileId || result.filePaths[0];
 
         await dispatch(sendMessageViaSocket({
           conversationId: conversation.conversationId,
@@ -373,6 +409,74 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       console.error('File selection/upload error:', err);
       showToast(err.message || '操作失败');
     }
+  };
+
+  // Voice Recording Logic
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const api = getElectronAPI();
+        
+        showToast('正在处理语音...', 'info' as any);
+        
+        try {
+          const res = await api.uploadFile(audioBlob as any, undefined, user?.token);
+          if (res.success) {
+             const fileUrl = res.data?.url || res.data?.path || res.data?.fileId;
+             await dispatch(sendMessageViaSocket({
+               conversationId: conversation.conversationId,
+               content: fileUrl,
+               type: 'VOICE'
+             })).unwrap();
+             showToast('语音已发送', 'success' as any);
+          } else {
+             showToast('语音上传失败');
+          }
+        } catch (err) {
+          console.error('Audio upload error:', err);
+          showToast('无法发送语音消息');
+        }
+
+        // Stop all tracks
+        stream.getTracks().forEach(t => t.stop());
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+
+    } catch (err) {
+      console.error('Failed to start recording:', err);
+      showToast('无法访问麦克风，请检查权限');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      clearInterval(recordingIntervalRef.current);
+    }
+  };
+
+  const formatRecordingTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   // 处理表情选择
@@ -460,6 +564,30 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     }
   };
 
+  // 查询在线状态
+  useEffect(() => {
+    let interval: any;
+    const checkOnline = async () => {
+      const otherUserId = getOtherUserId();
+      if (otherUserId && conversation.type === 'PRIVATE_CHAT') {
+        try {
+          const res = await import('../../services/api/apiClient').then(m => m.authAPI.isUserOnline(otherUserId));
+          // Accessing res.data.data because UserController returns ApiResponse<Boolean>
+          setIsOnline(res.data?.data === true);
+        } catch (err) {
+          console.warn('Failed to check online status');
+        }
+      } else {
+        setIsOnline(false);
+      }
+    };
+    
+    checkOnline();
+    interval = setInterval(checkOnline, 10000); // 10s polling
+    
+    return () => clearInterval(interval);
+  }, [conversation]);
+
   // 初始化加载
   useEffect(() => {
     loadMessages();
@@ -509,8 +637,8 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
           <div className="room-info">
             <h2 className="room-name">{getRoomName()}</h2>
             <div className="room-status">
-              <span className="status-indicator online"></span>
-              响应中
+              <span className={`status-indicator ${isOnline ? 'online' : 'offline'}`}></span>
+              {isOnline ? '在线' : '离线'}
             </div>
           </div>
         </div>
@@ -578,6 +706,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
                   message={msg}
                   isOwnMessage={msg.fromAccountId.toString() === user?.userId}
                   onImageClick={(url, type) => setPreviewMedia({ url, type })}
+                  onResend={handleResendMessage}
                 />
               );
             })}
@@ -721,13 +850,28 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
             </svg>
           </button>
           <div className="toolbar-divider"></div>
-          <button className="tool-action-btn" title="语音消息" onClick={() => setShowEmojiPicker(false)}>
-             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-               <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-               <line x1="12" y1="19" x2="12" y2="23"></line>
-               <line x1="8" y1="23" x2="16" y2="23"></line>
-             </svg>
+          <button 
+            className={`tool-action-btn ${isRecording ? 'recording' : ''}`} 
+            title={isRecording ? '停止录音' : '语音消息'} 
+            onClick={() => {
+                setShowEmojiPicker(false);
+                if (isRecording) stopRecording();
+                else startRecording();
+            }}
+          >
+             {isRecording ? (
+                <div className="recording-indicator">
+                    <span className="rec-dot"></span>
+                    <span className="rec-time">{formatRecordingTime(recordingTime)}</span>
+                </div>
+             ) : (
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                </svg>
+             )}
           </button>
         </div>
         <div className="input-row-modern">

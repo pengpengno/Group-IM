@@ -465,4 +465,16 @@ class ChatMessageRepository (
             0
         }
     }
+
+    /**
+     * 进入会话后将本地未读标记为已读，用于立即清除会话列表红点。
+     * 仅影响本地 DB 的展示逻辑（server 已读由 ChatApi 另行同步）。
+     */
+    fun markConversationMessagesAsRead(conversationId: Long, currentUserId: Long) {
+        try {
+            db.messageQueries.markConversationMessagesAsRead(conversationId, currentUserId)
+        } catch (e: Exception) {
+            Napier.e("本地标记会话已读失败: conversationId=$conversationId", e)
+        }
+    }
 }
