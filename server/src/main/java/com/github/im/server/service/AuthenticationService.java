@@ -3,6 +3,7 @@ package com.github.im.server.service;
 import com.github.im.dto.user.LoginRequest;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.server.mapstruct.UserMapper;
+import com.github.im.server.model.Company;
 import com.github.im.server.model.User;
 import com.github.im.server.repository.UserRepository;
 import com.github.im.server.service.impl.security.RefreshAuthenticationToken;
@@ -29,6 +30,7 @@ public class AuthenticationService  {
     private final JwtUtil jwtUtil;
     private final UserTokenManager userTokenManager;
     private final CompanyService companyService;
+    private final CompanyUserService companyUserService;
 
     public Optional<UserInfo> login(LoginRequest loginRequest){
 
@@ -103,6 +105,40 @@ public class AuthenticationService  {
         userInfo.setToken(accessToken);
         userInfo.setRefreshToken(user.getRefreshToken());
         
+        return Optional.of(userInfo);
+    }
+
+    /**
+     * 切换当前登录的公司
+     * @param companyId 目标公司ID
+     * @param user 当前用户
+     * @return 更新后的用户信息和 Token
+     */
+    @Transactional
+    public Optional<UserInfo> switchCompany(Long companyId, User user) {
+        // 1. 验证用户是否属于该公司
+        boolean belongsToCompany = companyUserService.isUserInCompany(user.getUserId(), companyId);
+        
+        // Admin 可以访问任何公司，或者用户确实属于该公司
+        if (!belongsToCompany && !user.getUsername().equals("admin")) { 
+             throw new BadCredentialsException("您不属于该公司，无法切换！");
+        }
+
+        // 2. 获取目标公司实体
+        Company company = companyService.findById(companyId)
+                .orElseThrow(() -> new BadCredentialsException("目标公司不存在！"));
+        
+        // 3. 更新用户当前公司上下文
+        user.setCurrentCompany(company);
+
+        // 4. 生成包含新公司信息的 Access Token
+        String token = userTokenManager.createAccessTokenAndCache(user);
+        
+        // 5. 封装返回信息
+        UserInfo userInfo = UserMapper.INSTANCE.userToUserInfo(user);
+        userInfo.setToken(token);
+        userInfo.setRefreshToken(user.getRefreshToken());
+
         return Optional.of(userInfo);
     }
 }

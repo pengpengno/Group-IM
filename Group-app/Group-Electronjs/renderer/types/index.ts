@@ -162,7 +162,7 @@ export interface ConversationDisplayState {
 }
 
 // 应用状态布局类型
-export type ActiveTab = 'home' | 'chats' | 'contacts' | 'settings';
+export type ActiveTab = 'home' | 'chats' | 'contacts' | 'settings' | 'meetings' | 'admin';
 
 export interface RootState {
   auth: AuthState;

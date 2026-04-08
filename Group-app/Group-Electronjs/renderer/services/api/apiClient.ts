@@ -47,6 +47,16 @@ export const authAPI = {
     return http.get('/api/users/company/list');
   },
 
+  // GET /api/company/my
+  getMyCompanies: async () => {
+    return http.get('/api/company/my');
+  },
+
+  // POST /api/company/switch/{companyId}
+  switchCompany: async (companyId: number) => {
+    return http.post(`/api/company/switch/${companyId}`);
+  },
+
   // POST /api/organization/company/register
   registerCompany: async (name: string, code: string) => {
     return http.post('/api/organization/company/register', { name, code });

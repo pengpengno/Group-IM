@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { logout } from '../auth/authSlice';
+import { logout, setCompanies, loginSuccess, loginFailure, loginStart } from '../auth/authSlice';
 import { getElectronAPI, isElectronEnvironment } from '../../services/api/electronAPI';
 import type { User, ApiUser, ActiveTab } from '../../types';
 import { RootState, AppDispatch } from '../../store';
@@ -12,8 +12,8 @@ import ChatRoom from '../chat/ChatRoom';
 import ContactsList from '../contacts/ContactsList';
 import ContactsScreen from '../contacts/ContactsScreen';
 import AdminPanel from '../admin/AdminPanel';
-import { setCurrentCompany, loginSuccess, loginFailure, loginStart } from '../auth/authSlice';
 import { createPrivateChat } from '../chat/chatSlice';
+import { authAPI } from '../../services/api/apiClient';
 import './Dashboard.css';
 import { useVideoCall } from '../video-call/useVideoCall';
 
@@ -23,7 +23,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     const dispatch = useDispatch<AppDispatch>();
-    const [activeTab, setActiveTab] = useState<string>('home');
+    const [activeTab, setActiveTab] = useState<ActiveTab>('home');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<User[]>([]);
@@ -81,7 +81,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
         setIsSearching(true);
         try {
-            // Small delay to prevent flickering and simulate network request properly
             const result = await electronAPI.searchUsers(query);
             let users: User[] = [];
 
@@ -139,18 +138,37 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
     const handleSwitchCompany = async (company: any) => {
         if (!electronAPI || isSwitchingCompany) return;
-        if (user.currentCompany?.companyId === company.companyId) return;
+        if (user.currentCompany?.companyId === company.companyId) {
+            setShowWorkspacePopover(false);
+            return;
+        }
 
         setIsSwitchingCompany(true);
-        dispatch(loginStart());
         setShowWorkspacePopover(false);
 
         try {
-            dispatch(setCurrentCompany(company));
-            await new Promise(resolve => setTimeout(resolve, 800));
-            window.location.reload(); 
-        } catch (error) {
-            dispatch(loginFailure('鍒囨崲鍏徃澶辫触'));
+            const response = await authAPI.switchCompany(company.companyId);
+            
+            if (response.data && response.data.success) {
+                const refreshedUser = response.data.data;
+                
+                dispatch(loginSuccess({
+                    user: refreshedUser,
+                    token: refreshedUser.token || '',
+                    refreshToken: refreshedUser.refreshToken || '',
+                    companies: user.companies,
+                    currentCompany: company
+                }));
+
+                setTimeout(() => {
+                    window.location.reload();
+                }, 500);
+            } else {
+                throw new Error(response.data?.message || 'Switch failed');
+            }
+        } catch (error: any) {
+            console.error('Failed to switch company:', error);
+            dispatch(loginFailure(error.message || '切换公司失败'));
             setIsSwitchingCompany(false);
         }
     };
@@ -162,6 +180,23 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             const token = localStorage.getItem('token') || '';
             webRTCService.connectSignaling(host, port, user.userId, token, protocol);
         }
+    }, [user?.userId]);
+
+    // Fetch companies if missing
+    useEffect(() => {
+        const fetchCompanies = async () => {
+            if (user?.userId && (!user.companies || user.companies.length === 0)) {
+                try {
+                    const response = await authAPI.getMyCompanies();
+                    if (response.data && response.data.success) {
+                        dispatch(setCompanies(response.data.data));
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch companies:', err);
+                }
+            }
+        };
+        fetchCompanies();
     }, [user?.userId]);
 
     // Debounce search
@@ -193,7 +228,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     {!isSidebarCollapsed && <h2>Group IM</h2>}
                 </div>
 
-                {/* Workspace Switcher Component (Integrated) */}
+                {/* Workspace Switcher Component */}
                 <div className="workspace-switcher-container">
                     <div className="workspace-current" onClick={() => setShowWorkspacePopover(!showWorkspacePopover)}>
                         <div className="workspace-icon">
@@ -265,6 +300,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                         <span>Chats</span>
                     </div>
                     <div
+                        className={`nav-item ${activeTab === 'meetings' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('meetings')}
+                        title={isSidebarCollapsed ? 'Meetings' : ''}
+                    >
+                        <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                        </svg>
+                        <span>Meetings</span>
+                    </div>
+                    <div
                         className={`nav-item ${activeTab === 'contacts' ? 'active' : ''}`}
                         onClick={() => setActiveTab('contacts')}
                         title={isSidebarCollapsed ? 'Contacts' : ''}
@@ -284,7 +330,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     >
                         <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <circle cx="12" cy="12" r="3"></circle>
-                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                         </svg>
                         <span>Settings</span>
                     </div>
@@ -447,6 +493,26 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                         </div>
                     )}
 
+                    {activeTab === 'meetings' && (
+                        <div className="meetings-view-container">
+                            <div className="empty-view-placeholder">
+                                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                                </svg>
+                                <h3>Team Meetings</h3>
+                                <p>Join or start a multi-party video conference with your team.</p>
+                                <button 
+                                    className="premium-action-btn" 
+                                    style={{ marginTop: '20px' }}
+                                    onClick={() => setActiveTab('chats')}
+                                >
+                                    Start from Chat
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {activeTab === 'contacts' && (
                         <div className="contacts-view-container">
                             <ContactsScreen onStartChat={() => setActiveTab('chats')} />
@@ -458,7 +524,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                             <div style={{ textAlign: 'center' }}>
                                 <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                                     <circle cx="12" cy="12" r="3"></circle>
-                                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                                 </svg>
                                 <h3>Settings Coming Soon</h3>
                                 <p>We're working on making this space customizable.</p>
@@ -490,7 +556,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 <VideoCallScreen 
                     remoteUserId={callState.remoteUserId} remoteUserName={callState.remoteUserName} remoteAvatar={callState.remoteAvatar} 
                     onCallEnd={() => {
-                        // The service handles cleanup, we just need the UI to hide
+                        // The service handles cleanup
                     }} 
                 />
             )}

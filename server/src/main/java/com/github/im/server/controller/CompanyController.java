@@ -1,7 +1,9 @@
 package com.github.im.server.controller;
 
 import com.github.im.dto.organization.DepartmentDTO;
+import com.github.im.dto.organization.CompanyDTO;
 import com.github.im.dto.user.BatchUserDepartmentRequest;
+import com.github.im.dto.user.UserInfo;
 import com.github.im.server.model.User;
 import com.github.im.server.service.*;
 import com.github.im.server.web.ApiResponse;
@@ -15,6 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @RestController
@@ -27,6 +30,7 @@ public class CompanyController {
     private final UserService userService;
     private final DepartmentService departmentService;
     private final CompanyUserService companyUserService;
+    private final AuthenticationService authenticationService;
 
     /**
      * 获取当前用户所在公司的组织架构
@@ -271,6 +275,45 @@ public class CompanyController {
             log.error("获取公司组织架构失败", e);
             return ResponseEntity.status(500)
                 .body(ApiResponse.error(500, "获取公司组织架构失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 获取当前用户所属的公司列表
+     * @param user 当前用户
+     * @return 公司列表
+     */
+    @GetMapping("/my")
+    public ResponseEntity<ApiResponse<List<CompanyDTO>>> getMyCompanies(@AuthenticationPrincipal User user) {
+        try {
+            List<CompanyDTO> companies = companyUserService.getCompanyByUserId(user.getUserId());
+            return ResponseUtil.success("获取公司列表成功", companies);
+        } catch (Exception e) {
+            log.error("获取用户公司列表失败", e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error(500, "获取用户公司列表失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 切换当前登录公司
+     * @param companyId 目标公司ID
+     * @param user 当前用户
+     * @return 更新后的用户信息
+     */
+    @PostMapping("/switch/{companyId}")
+    public ResponseEntity<ApiResponse<UserInfo>> switchCompany(
+            @PathVariable Long companyId,
+            @AuthenticationPrincipal User user
+    ) {
+        try {
+            Optional<UserInfo> userInfo = authenticationService.switchCompany(companyId, user);
+            return userInfo.map(info -> ResponseUtil.success("切换公司成功", info))
+                    .orElseGet(() -> ResponseEntity.status(500).body(ApiResponse.error(500, "切换公司失败")));
+        } catch (Exception e) {
+            log.error("切换公司时发生错误", e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error(500, "切换公司失败: " + e.getMessage()));
         }
     }
 }
