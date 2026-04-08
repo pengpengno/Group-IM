@@ -135,6 +135,11 @@ export const orgAPI = {
     return http.get('/api/organization/users/template', {
       responseType: 'blob'
     });
+  },
+
+  // POST /api/organization/company/sync-schema
+  syncSchema: async (companyIds?: number[]) => {
+    return http.post('/api/organization/company/sync-schema', companyIds);
   }
 };
 

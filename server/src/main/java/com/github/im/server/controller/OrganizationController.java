@@ -58,6 +58,7 @@ public class OrganizationController {
 //        }
 //    }
 //
+//
 
     // Schema name validation regex - only allow alphanumeric characters and underscores
     private static final String SCHEMA_NAME_PATTERN = "^[a-zA-Z0-9_]+$";
@@ -196,6 +197,33 @@ public class OrganizationController {
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=users_template.xlsx");
         
         organizationService.generateEmployeesImportTemplate(response.getOutputStream());
+    }
+
+    /**
+     * 同步公司Schema结构
+     * @param companyIds 公司ID列表（可选，不传则同步所有）
+     * @param user 当前登录用户
+     * @return 同步结果
+     */
+    @PostMapping("/company/sync-schema")
+    public ResponseEntity<ApiResponse<Object>> syncCompanySchema(
+            @RequestBody(required = false) List<Long> companyIds,
+            @AuthenticationPrincipal User user
+    ) {
+        try {
+            // 只有系统管理员才能执行同步操作
+            if (!isAdminUser(user)) {
+                return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error(org.springframework.http.HttpStatus.FORBIDDEN.value(), "无权限"));
+            }
+            
+            companyService.syncSchemas(companyIds);
+            return ResponseUtil.success("Schema同步任务已处理完成");
+        } catch (Exception e) {
+            log.error("Schema同步失败", e);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR.value(), "Schema同步失败: " + e.getMessage()));
+        }
     }
     
     /**

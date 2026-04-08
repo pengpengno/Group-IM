@@ -202,5 +202,36 @@ public class CompanyService {
         List<Company> companies = companyRepository.findAllById(companyIds);
         return companyMapper.companiesToCompanyDTOs(companies);
     }
-    
+
+    /**
+     * 同步公司Schema结构
+     * @param companyIds 需要同步的公司ID列表，如果为空则同步所有公司
+     */
+    @Transactional
+    public void syncSchemas(List<Long> companyIds) {
+        List<Company> companies;
+        if (companyIds == null || companyIds.isEmpty()) {
+            companies = companyRepository.findAll();
+        } else {
+            companies = companyRepository.findAllById(companyIds);
+        }
+
+        for (Company company : companies) {
+            String schemaName = company.getSchemaName();
+            Long companyId = company.getCompanyId();
+
+            if (schemaName != null && !schemaName.equalsIgnoreCase("public")) {
+                try {
+                    String sql = "SELECT public.create_or_sync_company_schema(:schemaName, :companyId)";
+                    Object singleResult = entityManager.createNativeQuery(sql)
+                            .setParameter("schemaName", schemaName)
+                            .setParameter("companyId", companyId)
+                            .getSingleResult();
+                    log.info("Successfully synced schema for company {}: result {}", schemaName, singleResult);
+                } catch (Exception e) {
+                    log.error("Failed to sync schema for company {}: {}", schemaName, e.getMessage());
+                }
+            }
+        }
+    }
 }

@@ -87,9 +87,20 @@ import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
 import kotlinx.coroutines.launch
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import org.koin.compose.viewmodel.koinViewModel
+
+private val meetingPayloadJson = Json { ignoreUnknownKeys = true }
+
+private fun extractMeetingPayload(message: MessageItem): MeetingMessagePayLoad? {
+    val wrapper = message as? MessageWrapper
+    val payload = wrapper?.messageDto?.payload
+    if (payload is MeetingMessagePayLoad) return payload
+
+    val raw = message.content
+    if (raw.isBlank() || !raw.trim().startsWith("{")) return null
+    return runCatching { meetingPayloadJson.decodeFromString<MeetingMessagePayLoad>(raw) }.getOrNull()
+}
 
 /**
  * 聊天室屏幕组?
@@ -129,16 +140,6 @@ fun ChatRoomScreen(
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val meetingJson = remember { Json { ignoreUnknownKeys = true } }
-
-    fun extractMeetingPayload(message: MessageItem): MeetingMessagePayLoad? {
-        val wrapper = message as? MessageWrapper
-        val payload = wrapper?.messageDto?.payload
-        if (payload is MeetingMessagePayLoad) return payload
-        val raw = message.content
-        if (raw.isBlank() || !raw.trim().startsWith("{")) return null
-        return runCatching { meetingJson.decodeFromString<MeetingMessagePayLoad>(raw) }.getOrNull()
-    }
     var lastMarkedReadSeq by remember { mutableStateOf(0L) }
 
     LaunchedEffect(chatRoom) {
@@ -308,6 +309,16 @@ fun ChatRoomScreen(
                         MessageBubble(
                             isOwnMessage = isMyMessage,
                             msg = message,
+                            onJoinMeeting = onJoinMeeting@{ payload ->
+                                val roomId = payload.roomId ?: return@onJoinMeeting
+                                scope.launch { MeetingApi.joinMeeting(roomId) }
+                                meetingRoomId = roomId
+                                meetingParticipantIds = payload.participantIds
+                                    .map { it.toString() }
+                                    .filter { it != userInfo?.userId?.toString() }
+                                meetingIsHost = payload.hostId == userInfo?.userId
+                                showMeeting = true
+                            },
                         )
                     }
                 }
@@ -379,7 +390,6 @@ fun ChatRoomScreen(
                 val belowCount by remember {
                     androidx.compose.runtime.derivedStateOf { listState.firstVisibleItemIndex.coerceAtLeast(0) }
                 }
-                val scope = rememberCoroutineScope()
                 androidx.compose.animation.AnimatedVisibility(
                     visible = !isAtBottom,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 80.dp, end = 16.dp),
@@ -402,9 +412,9 @@ fun ChatRoomScreen(
                                 }
                             }
                         ) {
-                            Icon(
-                               imageVector =  Icons.Default.ExpandMore,
-                                contentDescription = "滚动至最新消?,
+                                Icon(
+                                   imageVector =  Icons.Default.ExpandMore,
+                                contentDescription = "滚动至最新消息",
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -434,6 +444,7 @@ fun MessageBubble(
     isOwnMessage: Boolean,
     msg: MessageItem,
     showAvatar: Boolean = true,
+    onJoinMeeting: (MeetingMessagePayLoad) -> Unit = {},
 ) {
     val messageViewModel: ChatRoomViewModel = koinViewModel()
 
@@ -507,12 +518,7 @@ fun MessageBubble(
                                         payload = payload,
                                         isOwnMessage = isOwnMessage,
                                         onJoin = {
-                                            val roomId = payload?.roomId ?: return@MeetingMessageBubble
-                                            scope.launch { MeetingApi.joinMeeting(roomId) }
-                                            meetingRoomId = roomId
-                                            meetingParticipantIds = emptyList()
-                                            meetingIsHost = payload.hostId == userInfo?.userId
-                                            showMeeting = true
+                                            if (payload != null) onJoinMeeting(payload)
                                         }
                                     )
                                 }

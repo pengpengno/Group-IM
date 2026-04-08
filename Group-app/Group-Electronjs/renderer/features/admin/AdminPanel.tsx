@@ -9,6 +9,7 @@ const AdminPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'tenants' | 'users' | 'add-user'>('tenants');
   const [companies, setCompanies] = useState<CompanyDTO[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   
   // Tenant Form
   const [newTenant, setNewTenant] = useState({ name: '', code: '' });
@@ -132,6 +133,47 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const handleSyncSchema = async (all: boolean = false) => {
+    const ids = all ? [] : selectedIds;
+    if (!all && ids.length === 0) {
+      alert('请先勾选需要同步的公司');
+      return;
+    }
+
+    if (!window.confirm(all ? '确定要同步所有公司的Schema结构吗？' : `确定要同步选中的 ${ids.length} 个公司吗？`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await orgAPI.syncSchema(all ? undefined : ids);
+      if (response.data?.code === 200) {
+        alert('Schema 同步任务已成功触发');
+        if (!all) setSelectedIds([]);
+      } else {
+        alert('同步失败: ' + (response.data?.message || '未知错误'));
+      }
+    } catch (error: any) {
+      alert('同步异常: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === companies.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(companies.map(c => c.companyId));
+    }
+  };
+
   return (
     <div className="admin-panel">
       <div className="admin-nav">
@@ -184,10 +226,35 @@ const AdminPanel: React.FC = () => {
             </form>
 
             <div className="company-list">
-              <h3>已有租户</h3>
+              <div className="list-header-actions">
+                <h3>已有租户</h3>
+                <div className="sync-actions">
+                  <button 
+                    className="admin-btn secondary" 
+                    onClick={() => handleSyncSchema(false)}
+                    disabled={loading || selectedIds.length === 0}
+                  >
+                    同步选中 ({selectedIds.length})
+                  </button>
+                  <button 
+                    className="admin-btn primary" 
+                    onClick={() => handleSyncSchema(true)}
+                    disabled={loading}
+                  >
+                    同步全量
+                  </button>
+                </div>
+              </div>
               <table>
                 <thead>
                   <tr>
+                    <th>
+                      <input 
+                        type="checkbox" 
+                        checked={companies.length > 0 && selectedIds.length === companies.length}
+                        onChange={toggleSelectAll}
+                      />
+                    </th>
                     <th>ID</th>
                     <th>名称</th>
                     <th>代码</th>
@@ -196,6 +263,13 @@ const AdminPanel: React.FC = () => {
                 <tbody>
                   {companies.map(c => (
                     <tr key={c.companyId}>
+                      <td>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedIds.includes(c.companyId)}
+                          onChange={() => toggleSelect(c.companyId)}
+                        />
+                      </td>
                       <td>{c.companyId}</td>
                       <td>{c.name}</td>
                       <td>{c.code}</td>

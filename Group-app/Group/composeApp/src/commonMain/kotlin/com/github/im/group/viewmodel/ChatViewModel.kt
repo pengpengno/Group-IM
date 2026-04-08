@@ -198,6 +198,7 @@ class ChatViewModel (
             MessageType.VOICE -> "语音消息"
             MessageType.VIDEO -> "视频消息"
             MessageType.IMAGE -> "图片消息"
+            MessageType.MEETING -> "会议消息"
         }
     }
     
@@ -322,6 +323,7 @@ class ChatViewModel (
                     MessageType.VOICE -> "语音消息"
                     MessageType.VIDEO -> "视频消息"
                     MessageType.IMAGE -> "图片消息"
+                    MessageType.MEETING -> "会议消息"
                 }
             } ?: ""
             val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) }?:""
@@ -400,6 +402,7 @@ class ChatViewModel (
                 MessageType.VOICE -> "语音消息"
                 MessageType.VIDEO -> "视频消息"
                 MessageType.IMAGE -> "图片消息"
+                MessageType.MEETING -> "会议消息"
             }
         } ?: ""
         val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) }?:""
@@ -454,6 +457,7 @@ class ChatViewModel (
                     MessageType.VOICE -> "语音消息"
                     MessageType.VIDEO -> "视频消息"
                     MessageType.IMAGE -> "图片消息"
+                    MessageType.MEETING -> "会议消息"
                 }
             } ?: ""
 
