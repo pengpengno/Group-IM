@@ -1,4 +1,4 @@
-package com.github.im.group.viewmodel
+﻿package com.github.im.group.viewmodel
 
 import ChatMessageBuilder
 import androidx.lifecycle.ViewModel
@@ -10,6 +10,7 @@ import com.github.im.group.api.ConversationType
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.FileMeta
 import com.github.im.group.api.UserApi
+import com.github.im.group.db.entities.FileStatus
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.manager.FileStorageManager
@@ -21,6 +22,7 @@ import com.github.im.group.manager.getLocalFilePath
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.UserInfo
+import com.github.im.group.model.toUserInfo
 import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.ConversationRepository
 import com.github.im.group.repository.FilesRepository
@@ -28,11 +30,13 @@ import com.github.im.group.repository.MessageSyncRepository
 import com.github.im.group.repository.OfflineMessageRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.File
+import com.github.im.group.sdk.FileData
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.SenderSdk
 import com.github.im.group.sdk.VoiceRecordingResult
 import com.github.im.group.ui.ChatRoom
 import com.github.im.group.ui.ChatRoomType
+import db.OfflineMessage
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,17 +45,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Clock
 
-/**
- * 会话创建状态
- * 
- * 逻辑1: Idle - 闲置状态
- * 逻辑2: Creating - 创建中状态
- * 逻辑3: Pending - 待处理状态
- * 逻辑4: Success - 成功状态
- * 逻辑5: Error - 错误状态
- */
 sealed class SessionCreationState {
     object Idle : SessionCreationState()
     object Creating : SessionCreationState()
@@ -60,18 +54,6 @@ sealed class SessionCreationState {
     object Error : SessionCreationState()
 }
 
-/**
- * 聊天室 UI 状态数据类
- * 
- * 逻辑1: messages - 消息列表
- * 逻辑2: conversation - 会话信息
- * 逻辑3: chatRoom - 聊天室对象
- * 逻辑4: loading - 加载状态
- * 逻辑5: messageIndex - 消息索引
- * 逻辑6: sessionCreationState - 会话创建状态
- * 逻辑7: error - 错误信息
- * 逻辑8: friend - 好友信息
- */
 data class ChatUiState(
     val messages: List<MessageItem> = emptyList(),
     val conversation: ConversationRes? = null,
@@ -81,36 +63,21 @@ data class ChatUiState(
     val sessionCreationState: SessionCreationState = SessionCreationState.Idle,
     val error: String? = null,
     val friend: UserInfo? = null,
-    val scrollToTop: Boolean = false, // 控制滚动到最新消息
-    val scrollToIndex: Int = -1, // 指定滚动到的索引
+    val scrollToTop: Boolean = false,
 ) {
+    fun hasCreateConversation(): Boolean = conversation != null
 
-    /**
-     * 是否有创建会话的请求
-     */
-    fun hasCreateConversation(): Boolean {
-        return conversation != null
-    }
     fun getRoomName(): String {
         return conversation?.let {
-            if (it.type == ConversationType.PRIVATE_CHAT) {
+            if (it.conversationType == ConversationType.PRIVATE_CHAT) {
                 friend?.username ?: it.groupName
             } else {
                 it.groupName
             }
-        } ?: friend?.username ?: ""
+        } ?: friend?.username.orEmpty()
     }
 }
 
-/**
- * 文件下载进度状态
- * 
- * 逻辑1: fileId - 文件ID
- * 逻辑2: isDownloading - 是否正在下载
- * 逻辑3: isSuccess - 是否下载成功
- * 逻辑4: progress - 下载进度
- * 逻辑5: error - 错误信息
- */
 data class FileDownloadState(
     val fileId: String,
     val isDownloading: Boolean = false,
@@ -119,20 +86,6 @@ data class FileDownloadState(
     val error: String? = null
 )
 
-/**
- * ChatRoomViewModel - 聊天室核心业务逻辑管理器
- * 
- * 职责：
- * 1. 管理聊天消息的生命周期（加载、同步、发送、接收、ACK 确认）
- * 2. 处理离线消息与断网重连逻辑 (Offline-First 策略)
- * 3. 统一发送逻辑，屏蔽 UI 层对 Session 状态的判断
- * 
- * 核心逻辑：
- * 逻辑1: 消息加载 - 优先从本地获取，同时同步远程数据
- * 逻辑2: 消息发送 - 立即显示，异步发送，失败重试
- * 逻辑3: 消息状态管理 - 客户端ID与服务器ID映射
- * 逻辑4: 会话管理 - 创建、注册、注销
- */
 class ChatRoomViewModel(
     val userRepository: UserRepository,
     val chatSessionManager: MessageRouter,
@@ -148,345 +101,272 @@ class ChatRoomViewModel(
     val fileUploadService: FileUploadService
 ) : ViewModel(), MessageHandler {
 
-    private val _uiState = MutableStateFlow<ChatUiState>(ChatUiState())
+    private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private val _fileDownloadStates = MutableStateFlow<Map<String, FileDownloadState>>(emptyMap())
     val fileDownloadStates: StateFlow<Map<String, FileDownloadState>> = _fileDownloadStates.asStateFlow()
-    
-    private val messageStore = mutableMapOf<String, MessageItem>()
+
+    private val messageStore = linkedMapOf<String, MessageItem>()
+    private var activeConversationId: Long? = null
+
     private val _mediaMessages = MutableStateFlow<List<MessageItem>>(emptyList())
     val mediaMessages: StateFlow<List<MessageItem>> = _mediaMessages.asStateFlow()
-    
+
     init {
-        initializeWithOfflineMessages()
+        processOfflineMessages()
     }
-    
-    /**
-     * 实现MessageHandler接口
-     * 处理接收到的消息
-     */
+
     override fun onMessageReceived(message: MessageWrapper) {
         onReceiveMessage(message)
     }
-    
-    /**
-     * ViewModel被清除时的清理工作
-     * 
-     * 逻辑1: 注销当前会话，避免内存泄漏
-     */
+
     override fun onCleared() {
         super.onCleared()
-        uiState.value.conversation?.conversationId?.let { unregister(it) }
+        uiState.value.conversation?.conversationId?.let(::unregister)
     }
 
+    fun getFile(fileId: String): File? = fileStorageManager.getFile(fileId)
 
-    fun getFile(fileId: String): File?{
-        return fileStorageManager.getFile(fileId)
-    }
-
-    /**
-     * 初始化聊天室
-     * 
-     * 逻辑1: 更新UI状态，设置聊天室信息
-     * 逻辑2: 根据聊天室类型执行不同初始化流程
-     * 逻辑3: 加载消息和会话信息
-     * 逻辑4: 注册会话监听器
-     */
     fun initChatRoom(room: ChatRoom) {
         viewModelScope.launch {
             _uiState.update { it.copy(chatRoom = room, error = null) }
             when (room.type) {
                 ChatRoomType.CONVERSATION -> {
-                    val conversationId = room.roomId
-                    loadMessages(conversationId)
-                    loadConversationInfo(conversationId)
-                    register(conversationId)
+                    prepareConversation(room.roomId)
+                    loadMessages(room.roomId)
+                    loadConversationInfo(room.roomId)
+                    register(room.roomId)
                 }
+
                 ChatRoomType.CREATE_PRIVATE -> {
-                    // 查询是否存在私聊
-                    userRepository.getLocalUserInfo()?.let {
+                    val currentUser = userRepository.getLocalUserInfo() ?: return@launch
+                    val existingConversation = conversationRepository
+                        .getLocalConversationByMembers(currentUser.userId, room.roomId)
 
-                    val conversation = conversationRepository
-                        .getLocalConversationByMembers(it.userId, room.roomId)
-
-                        if (conversation != null){
-                            val conversationId = conversation.conversationId
-                            loadMessages(conversationId)
-                            loadConversationInfo(conversationId)
-                            register(conversationId)
-                        }else{
-                            loadFriendInfo(room.roomId)
-                        }
-
+                    if (existingConversation != null) {
+                        prepareConversation(existingConversation.conversationId)
+                        _uiState.update { it.copy(conversation = existingConversation) }
+                        loadMessages(existingConversation.conversationId)
+                        loadConversationInfo(existingConversation.conversationId)
+                        register(existingConversation.conversationId)
+                    } else {
+                        loadFriendInfo(room.roomId)
                     }
-//                    val privateConversation = conversationRepository.getLocalConversationByMembers(, room.roomId)
-//                    loadFriendInfo(room.roomId)
                 }
             }
         }
     }
 
-    /**
-     * 统一发送入口：文本消息
-     * 
-     * 逻辑1: 调用核心发送方法发送文本消息
-     */
     fun sendText(content: String) {
-        performSend(content)
+        if (content.isBlank()) return
+        performSend(content = content.trim())
     }
 
-    /**
-     * 统一发送入口：语音消息
-     * 
-     * 逻辑1: 调用核心发送方法发送语音消息
-     */
     fun sendVoice(voice: VoiceRecordingResult) {
-        performSend(
-            content = voice.file.name,
-//            type = MessageType.VOICE,
-            pickedFile = voice.file ,
-            duration = voice.durationMillis
-        )
+        performSend(content = voice.file.name, pickedFile = voice.file, duration = voice.durationMillis)
     }
 
-    /**
-     * 统一发送入口：文件消息 (包括图片、视频,音频  )
-     *  如果是音视频类的 需要 添加时长
-     * 逻辑1: 调用核心发送方法发送文件消息
-     */
-    fun sendFile(file: File,duration: Long = 0) {
-//        val type = when {
-//            file?.mimeType?.startsWith("image/") -> MessageType.IMAGE
-//            file?.mimeType?.startsWith("video/") == true -> MessageType.VIDEO
-//            else -> MessageType.FILE
-//        }
-
-        performSend(content = file.name, pickedFile = file,duration=duration)
-//        performSend(content = file.name/, type = type, pickedFile = file)
+    fun sendFile(file: File, duration: Long = 0) {
+        performSend(content = file.name, pickedFile = file, duration = duration)
     }
 
-    /**
-     * 核心发送逻辑 (Offline-First)
-     * 
-     * 逻辑1: 生成 ClientMsgId 并立即插入 UI，提供即时反馈
-     * 逻辑2: 存入离线消息库，确保离线时也能重发
-     * 逻辑3: 尝试发送消息，若 Session 未建立则启动建立流程
-     * 逻辑4: 处理发送失败的情况，加入离线重试队列
-     */
     private fun performSend(
         content: String,
-//        type: MessageType,
         pickedFile: File? = null,
         duration: Long = 0
     ) {
         viewModelScope.launch {
             val currentUser = userRepository.getLocalUserInfo() ?: return@launch
-            val conversationId = uiState.value.conversation?.conversationId
+            val currentConversationId = uiState.value.conversation?.conversationId
             val friendId = uiState.value.friend?.userId
 
-
-            // 如果是私聊且没会话，先创建
-            val targetConversationId = if (conversationId == null && friendId != null) {
+            val targetConversationId = if (currentConversationId == null && friendId != null) {
                 getOrCreatePrivateChat(currentUser.userId, friendId).conversationId
             } else {
-                //  如果 conversationId 不为空的话，说明已经有会话了
-                conversationId!!
+                currentConversationId ?: return@launch
             }
 
-            // 1. 构建并展示消息 Item (立即反馈)
-            val time = Clock.System.now().toString()
+            prepareConversation(targetConversationId)
 
-            // 使用chatMessageBuilder 生成 消息
-            // 三种类型 文本   、文件、 和 录音
-            val chatMessage = when {
-                pickedFile != null -> {
-                    chatMessageBuilder.fileMessage(targetConversationId, pickedFile.name, pickedFile.size,duration)
-                }
-//                voiceResult != null -> {
-//                    chatMessageBuilder.fileMessage(targetConversationId, voiceResult.file.name, voiceResult.file.size, voiceResult.durationMillis)
-//                }
-                else -> {
-                    chatMessageBuilder.textMessage(targetConversationId, content)
-                }
+            val outbound = when {
+                pickedFile != null -> chatMessageBuilder.fileMessage(targetConversationId, pickedFile.name, pickedFile.size, duration)
+                else -> chatMessageBuilder.textMessage(targetConversationId, content)
             }
-//
 
-
-            val messageItem = MessageWrapper(chatMessage)
-            updateOrInsertMessage(messageItem, true) // 发送消息时滚动到最新
-            val clientMsgId = messageItem.clientMsgId
-            val type =  messageItem.type
-
-            // 2. 持久化到离线库
+            val messageItem = MessageWrapper(message = outbound)
+            updateOrInsertMessage(messageItem, scrollToLatest = true)
 
             offlineMessageRepository.saveOfflineMessage(
                 clientMsgId = messageItem.clientMsgId,
-                conversationId = conversationId,
+                conversationId = targetConversationId,
                 fromUserId = currentUser.userId,
                 toUserId = friendId,
-                content = content,
+                content = messageItem.content,
                 messageType = messageItem.type,
-                filePath = pickedFile?.path ,
+                filePath = pickedFile?.path,
                 fileSize = pickedFile?.size,
                 fileDuration = duration.toInt()
             )
 
-            //
-            // 3. 尝试发送
-            try {
-
-
-                // 添加文件的记录
-                pickedFile?.let {
-                    filesRepository.addPendingFileRecord(chatMessage.content, pickedFile.name, duration, pickedFile?.path ?: "")
-                }
-
-
-                // 更新离线库中的会话 ID
-                offlineMessageRepository.updateOfflineMessageConversationId(clientMsgId, targetConversationId)
-
-
-                /**
-                 * 直接发送消息
-                 */
-                senderSdk.sendMessage(chatMessage)
-
-
-                // 如果是文件类型的  / 录音类型的 ， 还要继续上传文件
-                pickedFile?.let { file ->
-                    // 获取文件数据并上传
-                    val data = filePicker.readFileBytes(file)
-                    val fileUploadResponse = fileUploadService.uploadFileData(
-                        serverFileId = messageItem.content, // 使用消息内容字段作为文件ID
-                        data = data,
-                        fileName = file.name,
-                        duration = duration
-                    )
-
-                    // 更新数据库文件记录信息
-                    fileUploadResponse.fileMeta?.let { fileMeta ->
-                        filesRepository.addOrUpdateFile(fileMeta)
-                        
-                        // 更新UI上的文件状态
-                        // 从数据库获取最新消息并更新，确保包含最新的文件元数据
-                        val updatedDbMessage = chatMessageRepository.getMessageByClientMsgId(clientMsgId)
-                        updatedDbMessage?.let { msg ->
-                            updateOrInsertMessage(msg, true) // 文件上传成功后滚动到最新
-                        }
-
-                        // 文件上传成功后，清理离线消息记录
-                        offlineMessageRepository.deleteOfflineMessage(clientMsgId)
-                    }
-
-                }
-                Napier.d { "发送消息 ID: $clientMsgId" }
-//
-//
-//                // 分类型执行真实发送
-//                when (type) {
-//                    MessageType.TEXT -> sendTextMessageInternal(targetConversationId, content)
-//                    MessageType.VOICE -> sendVoiceMessageInternal(targetConversationId, voiceResult!!, clientMsgId)
-//                    MessageType.IMAGE, MessageType.VIDEO, MessageType.FILE ->
-//                        sendFileMessageInternal(targetConversationId, pickedFile!!, type, clientMsgId)
-//                    else -> {}
-//                }
-            } catch (e: Exception) {
-                Napier.e("发送失败，已进入离线重试队列: $clientMsgId", e)
-                // UI 状态依然是 SENDING，由离线重试机制处理
-            }
+            sendPreparedMessage(
+                currentUser = currentUser,
+                messageItem = messageItem,
+                pickedFile = pickedFile,
+                duration = duration,
+                toUserId = friendId,
+                persistOffline = false,
+                scrollToLatest = true
+            )
         }
     }
 
-    /**
-     * 发送文本消息内部方法
-     * 
-     * 逻辑1: 构建文本消息
-     * 逻辑2: 通过SDK发送消息
-     */
-    private suspend fun sendTextMessageInternal(conversationId: Long, content: String, clientMsgId: String) {
-        val chatMessage = chatMessageBuilder.textMessage(conversationId, content)
-        senderSdk.sendMessage(chatMessage)
-    }
-
-    /**
-     * 发送语音消息内部方法
-     * 
-     * 逻辑1: 调用文件消息发送方法处理语音消息
-     */
-    private suspend fun sendVoiceMessageInternal(conversationId: Long, voice: VoiceRecordingResult, clientMsgId: String) {
-        sendFileMessageInternal(conversationId, voice.file, MessageType.VOICE, clientMsgId, voice.durationMillis)
-    }
-
-    /**
-     * 发送文件消息
-     * 
-     * 逻辑1: 读取文件字节数据
-     * 逻辑2: 构建文件消息
-     * 逻辑3: 添加待处理文件到存储管理器
-     * 逻辑4: 发送消息信令
-     * 逻辑5: 上传文件数据
-     */
-    private suspend fun sendFileMessageInternal(
-        conversationId: Long,
-        file: File,
-        type: MessageType,
-        clientMsgId: String,
-        duration: Long = 0
+    private suspend fun sendPreparedMessage(
+        currentUser: UserInfo,
+        messageItem: MessageWrapper,
+        pickedFile: File?,
+        duration: Long,
+        toUserId: Long?,
+        persistOffline: Boolean,
+        scrollToLatest: Boolean = false
     ) {
-        withContext(Dispatchers.Default) {
-            val data = filePicker.readFileBytes(file)
-            val chatMessage = chatMessageBuilder.fileMessage(conversationId, file.name, file.size, duration)
-            val fileId = chatMessage.content
-            
-            // 1. 占位文件
-            fileStorageManager.addPendingFile(fileId, file.name, duration, file.path)
-            
-            // 2. 发送信令
-            senderSdk.sendMessage(chatMessage)
-            
-            // 3. 上传二进制
-            fileUploadService.uploadFileData(fileId, data, file.name, duration)
+        val clientMsgId = messageItem.clientMsgId
+
+        if (persistOffline) {
+            offlineMessageRepository.saveOfflineMessage(
+                clientMsgId = clientMsgId,
+                conversationId = messageItem.conversationId,
+                fromUserId = currentUser.userId,
+                toUserId = toUserId,
+                content = messageItem.content,
+                messageType = messageItem.type,
+                filePath = pickedFile?.path,
+                fileSize = pickedFile?.size,
+                fileDuration = duration.toInt()
+            )
+        }
+
+        offlineMessageRepository.updateOfflineMessageConversationId(clientMsgId, messageItem.conversationId)
+        offlineMessageRepository.updateOfflineMessageStatus(clientMsgId, MessageStatus.SENDING)
+
+        try {
+            if (pickedFile != null && filesRepository.getFile(messageItem.content) == null) {
+                filesRepository.addPendingFileRecord(
+                    fileId = messageItem.content,
+                    fileName = pickedFile.name,
+                    duration = duration,
+                    filePath = pickedFile.path
+                )
+            }
+
+            senderSdk.sendMessage(messageItem.message ?: buildResendChatMessage(messageItem, currentUser))
+
+            if (pickedFile != null) {
+                uploadAttachment(messageItem, pickedFile, duration, scrollToLatest)
+            }
+        } catch (e: Exception) {
+            markMessageAsFailed(clientMsgId, messageItem.content)
+            offlineMessageRepository.updateOfflineMessageStatus(clientMsgId, MessageStatus.FAILED, incrementRetry = true)
+            Napier.e("send message failed: $clientMsgId", e)
         }
     }
 
-    /**
-     * 加载消息系列
-     */
-    /**
-     * 从本地加载消息
-     * 
-     * 逻辑1: 从数据库获取指定会话的消息
-     * 逻辑2: 应用消息到UI
-     */
-    fun loadLocalMessages(conversationId: Long, limit: Long = 30) {
-        val messages = chatMessageRepository.getMessagesByConversation(conversationId, limit)
-        applyMessages(messages)
+    private suspend fun uploadAttachment(
+        messageItem: MessageWrapper,
+        file: File,
+        duration: Long,
+        scrollToLatest: Boolean
+    ) {
+        try {
+            val data = filePicker.readFileBytes(file)
+            val response = fileUploadService.uploadFileData(
+                serverFileId = messageItem.content,
+                data = data,
+                fileName = file.name,
+                duration = duration
+            )
+
+            response.fileMeta?.let { filesRepository.addOrUpdateFile(it) }
+            chatMessageRepository.getMessageByClientMsgId(messageItem.clientMsgId)?.let {
+                updateOrInsertMessage(it, scrollToLatest)
+            }
+            clearOfflineMessageIfReady(messageItem.clientMsgId)
+        } catch (e: Exception) {
+            markMessageAsFailed(messageItem.clientMsgId, messageItem.content)
+            offlineMessageRepository.updateOfflineMessageStatus(messageItem.clientMsgId, MessageStatus.FAILED, incrementRetry = true)
+            Napier.e("upload attachment failed: ${messageItem.clientMsgId}", e)
+        }
     }
 
-    /**
-     * 加载消息 - 优先从本地获取，同时同步远程数据
-     * 
-     * 逻辑1: 优先从本地数据库加载消息，立即显示给用户
-     * 逻辑2: 同步远程消息以确保数据最新
-     * 逻辑3: 在同步期间显示加载动画
-     * 逻辑4: 完成后更新UI状态
-     */
+    private fun buildResendChatMessage(
+        messageItem: MessageItem,
+        currentUser: UserInfo
+    ): com.github.im.common.connect.model.proto.ChatMessage {
+        return com.github.im.common.connect.model.proto.ChatMessage(
+            content = messageItem.content,
+            conversationId = messageItem.conversationId,
+            fromUser = currentUser.toUserInfo(),
+            type = com.github.im.common.connect.model.proto.MessageType.valueOf(messageItem.type.name),
+            messagesStatus = com.github.im.common.connect.model.proto.MessagesStatus.SENDING,
+            clientTimeStamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+            clientMsgId = messageItem.clientMsgId
+        )
+    }
+
+    private fun buildOfflineRetryMessage(
+        offlineMessage: OfflineMessage,
+        currentUser: UserInfo
+    ): MessageWrapper {
+        val message = com.github.im.common.connect.model.proto.ChatMessage(
+            content = offlineMessage.content,
+            conversationId = offlineMessage.conversation_id ?: 0L,
+            fromUser = currentUser.toUserInfo(),
+            type = com.github.im.common.connect.model.proto.MessageType.valueOf(offlineMessage.message_type.name),
+            messagesStatus = com.github.im.common.connect.model.proto.MessagesStatus.SENDING,
+            clientTimeStamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+            clientMsgId = offlineMessage.client_msg_id
+        )
+        return MessageWrapper(message = message)
+    }
+
+    private fun buildOfflineRetryFile(offlineMessage: OfflineMessage): File? {
+        val path = offlineMessage.file_path ?: return null
+        val fileName = path.substringAfterLast('/').substringAfterLast('\\').ifBlank { offlineMessage.content }
+        return File(
+            name = fileName,
+            path = path,
+            mimeType = null,
+            size = offlineMessage.file_size ?: 0L,
+            data = FileData.Path(path)
+        )
+    }
+
+    private fun prepareConversation(conversationId: Long) {
+        if (activeConversationId != conversationId) {
+            activeConversationId = conversationId
+            messageStore.clear()
+            _mediaMessages.value = emptyList()
+            _uiState.update { it.copy(messages = emptyList(), messageIndex = -1, scrollToTop = false) }
+        }
+    }
+
+    fun loadLocalMessages(conversationId: Long, limit: Long = 30) {
+        prepareConversation(conversationId)
+        applyMessages(chatMessageRepository.getMessagesByConversation(conversationId, limit))
+    }
+
     fun loadMessages(conversationId: Long, limit: Long = 30) {
         viewModelScope.launch {
-            // 优先从本地加载数据
-            val localMessages = chatMessageRepository.getMessagesByConversation(conversationId, limit)
-            applyMessages(localMessages)
-            
-            // 总是从远程获取最新数据，以确保数据是最新的
+            prepareConversation(conversationId)
+            applyMessages(chatMessageRepository.getMessagesByConversation(conversationId, limit))
+
             _uiState.update { it.copy(loading = true) }
             try {
                 val newMessageCount = withContext(Dispatchers.Default) {
                     messageSyncRepository.syncMessages(conversationId)
                 }
                 if (newMessageCount > 0) {
-                    val messages = chatMessageRepository.getMessagesByConversation(conversationId, limit)
-                    applyMessages(messages)
+                    applyMessages(chatMessageRepository.getMessagesByConversation(conversationId, limit))
                 }
             } finally {
                 _uiState.update { it.copy(loading = false) }
@@ -494,14 +374,6 @@ class ChatRoomViewModel(
         }
     }
 
-    /**
-     * 同步远程消息
-     * 
-     * 逻辑1: 设置加载状态
-     * 逻辑2: 从远程同步消息
-     * 逻辑3: 如果有新消息则更新本地数据
-     * 逻辑4: 清除加载状态
-     */
     fun syncRemoteMessages(conversationId: Long, limit: Long = 30) {
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true) }
@@ -510,8 +382,8 @@ class ChatRoomViewModel(
                     messageSyncRepository.syncMessages(conversationId)
                 }
                 if (newMessageCount > 0) {
-                    val messages = chatMessageRepository.getMessagesByConversation(conversationId, limit)
-                    applyMessages(messages)
+                    prepareConversation(conversationId)
+                    applyMessages(chatMessageRepository.getMessagesByConversation(conversationId, limit))
                 }
             } finally {
                 _uiState.update { it.copy(loading = false) }
@@ -519,235 +391,175 @@ class ChatRoomViewModel(
         }
     }
 
-    /**
-     * 加载好友信息
-     * 
-     * 逻辑1: 通过用户ID获取好友信息
-     * 逻辑2: 更新UI状态中的好友信息
-     * 逻辑3: 处理获取失败的情况
-     */
     private suspend fun loadFriendInfo(friendUserId: Long) {
         try {
-            val friend = getUserById(friendUserId)
-            _uiState.update { it.copy(friend = friend) }
-        } catch (e: Exception) {
+            _uiState.update { it.copy(friend = getUserById(friendUserId)) }
+        } catch (_: Exception) {
             _uiState.update { it.copy(error = "获取好友信息失败") }
         }
     }
 
-    /**
-     * 加载会话信息
-     * 
-     * 逻辑1: 从本地获取会话信息
-     * 逻辑2: 更新UI状态
-     * 逻辑3: 从远程获取会话信息
-     * 逻辑4: 处理私聊会话信息
-     */
     private suspend fun loadConversationInfo(conversationId: Long) {
-        val local = conversationRepository.getLocalConversation(conversationId)
-        val currentInfo = userRepository.getLocalUserInfo()!!
-        if (local != null) {
+        val currentUser = userRepository.getLocalUserInfo() ?: return
+        conversationRepository.getLocalConversation(conversationId)?.let { local ->
             _uiState.update { it.copy(conversation = local) }
-            handlePrivateChatInfo(local, currentInfo)
+            handlePrivateChatInfo(local, currentUser)
         }
+
         try {
-            val remote = withContext(Dispatchers.Default) { conversationRepository.getConversation(conversationId) }
+            val remote = withContext(Dispatchers.Default) {
+                conversationRepository.getConversation(conversationId)
+            }
             _uiState.update { it.copy(conversation = remote) }
-            handlePrivateChatInfo(remote, currentInfo)
+            handlePrivateChatInfo(remote, currentUser)
         } catch (e: Exception) {
-            Napier.w("远程获取会话信息失败")
+            Napier.w("load conversation info failed: ${e.message}")
         }
     }
 
-    /**
-     * 处理私聊会话信息
-     * 
-     * 逻辑1: 检查会话类型是否为私聊
-     * 逻辑2: 获取另一个参与者（非当前用户）
-     * 逻辑3: 更新UI状态中的好友信息
-     */
     private fun handlePrivateChatInfo(conversation: ConversationRes, currentInfo: UserInfo) {
-        if (conversation.type == ConversationType.PRIVATE_CHAT) {
+        if (conversation.conversationType == ConversationType.PRIVATE_CHAT) {
             val friend = conversation.members.firstOrNull { it.userId != currentInfo.userId }
             _uiState.update { it.copy(friend = friend) }
         }
     }
 
-    /**
-     * 处理消息确认（ACK）
-     * 
-     * 逻辑1: 根据客户端消息ID获取消息
-     * 逻辑2: 更新消息状态
-     * 逻辑3: 从离线消息库中删除已确认的消息
-     */
     fun handleMessageAck(clientMsgId: String) {
         viewModelScope.launch {
-            val updatedMsg = chatMessageRepository.getMessageByClientMsgId(clientMsgId)
-            if (updatedMsg != null) {
-                updateOrInsertMessage(updatedMsg)
-                // 发送成功，清理离线消息
-                offlineMessageRepository.deleteOfflineMessage(clientMsgId)
+            val updated = markMessageAsSent(clientMsgId)
+            if (updated != null) {
+                clearOfflineMessageIfReady(clientMsgId)
             }
         }
     }
 
-    /**
-     * 接收到新消息时的处理
-     * 
-     * 逻辑1: 将新消息添加或更新到本地存储和UI
-     */
     fun onReceiveMessage(message: MessageItem) {
+        if (message.conversationId > 0) {
+            prepareConversation(message.conversationId)
+        }
         updateOrInsertMessage(message)
     }
 
-    /**
-     * 注册会话监听器
-     * 
-     * 逻辑1: 将当前ViewModel注册到会话管理器
-     */
     fun register(conversationId: Long) {
         chatSessionManager.registerHandler(conversationId, this)
     }
 
-    /**
-     * 注销会话监听器
-     * 
-     * 逻辑1: 从会话管理器中注销当前会话
-     */
     fun unregister(conversationId: Long) {
         chatSessionManager.unregisterHandler(conversationId)
     }
 
-    /**
-     * 更新或插入消息到本地存储和内存缓存
-     * 
-     * 逻辑1: 插入或更新消息到数据库
-     * 逻辑2: 生成消息唯一键
-     * 逻辑3: 从内存缓存中移除旧的客户端消息（如果有）
-     * 逻辑4: 将消息添加到内存缓存
-     * 逻辑5: 发出UI更新事件
-     */
     private fun updateOrInsertMessage(message: MessageItem, scrollToLatest: Boolean = false) {
         chatMessageRepository.insertOrUpdateMessage(message)
-        val key = message.uniqueKey()
         if (message.seqId != 0L && message.clientMsgId.isNotBlank()) {
             messageStore.remove("C:${message.clientMsgId}")
         }
-        messageStore[key] = message
+        messageStore[message.uniqueKey()] = message
         emitUiMessages(scrollToLatest)
     }
 
-    /**
-     * 生成消息唯一键
-     * 
-     * 逻辑1: 优先使用序列ID（服务器分配）
-     * 逻辑2: 其次使用客户端消息ID
-     * 逻辑3: 最后生成临时键（随机数）
-     */
     private fun MessageItem.uniqueKey(): String = when {
         seqId != 0L -> "S:$seqId"
         clientMsgId.isNotBlank() -> "C:$clientMsgId"
-        else -> "T:${kotlin.random.Random.nextInt()}"
+        else -> "T:${kotlin.random.Random.nextLong()}"
     }
 
-    /**
-     * 应用消息列表到内存缓存
-     * 
-     * 逻辑1: 将消息列表中的每条消息添加到内存缓存
-     * 逻辑2: 发出UI更新事件
-     */
     private fun applyMessages(messages: List<MessageItem>) {
-        messages.forEach { msg -> messageStore[msg.uniqueKey()] = msg }
+        messages.forEach { messageStore[it.uniqueKey()] = it }
         emitUiMessages()
     }
 
-    /**
-     * 发出UI消息更新事件
-     * 
-     * 逻辑1: 按序列ID降序排列消息（未确认消息排在最前面）
-     * 逻辑2: 过滤出媒体消息（图片和视频）
-     * 逻辑3: 更新UI状态中的消息列表
-     */
     private fun emitUiMessages(scrollToLatest: Boolean = false) {
-        val sorted = messageStore.values.sortedByDescending { it.seqId.takeIf { it != 0L } ?: Long.MAX_VALUE }
+        val sorted = messageStore.values
+            .sortedWith(
+                compareByDescending<MessageItem> { if (it.seqId != 0L) it.seqId else Long.MIN_VALUE }
+                    .thenByDescending { it.clientTime ?: it.time }
+            )
+
         _mediaMessages.value = sorted.filter { it.type == MessageType.IMAGE || it.type == MessageType.VIDEO }
-        
-        // 计算当前消息索引（最新的消息在列表顶部，所以索引为0）
-        val currentIndex = if (sorted.isNotEmpty()) 0 else -1
-        
-        _uiState.update { 
+        _uiState.update {
             it.copy(
                 messages = sorted,
-                messageIndex = currentIndex,
+                messageIndex = if (sorted.isNotEmpty()) 0 else -1,
                 scrollToTop = scrollToLatest
-            ) 
+            )
         }
     }
 
-    /**
-     * 刷新消息
-     * 
-     * 逻辑1: 获取当前会话ID
-     * 逻辑2: 使用新的loadMessages方法刷新消息
-     */
-    fun refreshMessages() {
-        uiState.value.conversation?.conversationId?.let { loadMessages(it) }
+    private fun markMessageAsFailed(clientMsgId: String, fileId: String? = null) {
+        val current = chatMessageRepository.getMessageByClientMsgId(clientMsgId)
+        if (current is MessageWrapper) {
+            updateOrInsertMessage(current.withStatus(MessageStatus.FAILED))
+        }
+        if (!fileId.isNullOrBlank()) {
+            filesRepository.updateFileStatus(fileId, FileStatus.FAILED)
+        }
     }
 
-    /**
-     * 加载最新消息（通常是向上滚动时加载历史消息）
-     * 
-     * 逻辑1: 设置加载状态
-     * 逻辑2: 从指定序列ID之后获取消息
-     * 逻辑3: 应用新获取的消息
-     * 逻辑4: 清除加载状态
-     */
+    private fun markMessageAsSent(clientMsgId: String): MessageItem? {
+        val current = chatMessageRepository.getMessageByClientMsgId(clientMsgId)
+        return if (current is MessageWrapper) {
+            val updated = current.withStatus(MessageStatus.SENT)
+            updateOrInsertMessage(updated)
+            updated
+        } else {
+            current
+        }
+    }
+
+    private fun clearOfflineMessageIfReady(clientMsgId: String) {
+        val message = chatMessageRepository.getMessageByClientMsgId(clientMsgId) ?: return
+        val delivered = message.status == MessageStatus.SENT ||
+            message.status == MessageStatus.READ ||
+            message.status == MessageStatus.RECEIVED
+
+        if (!delivered) return
+
+        val uploadCompleted = !message.type.isFile() ||
+            filesRepository.getFileMeta(message.content)?.fileStatus == FileStatus.NORMAL
+
+        if (uploadCompleted) {
+            offlineMessageRepository.deleteOfflineMessage(clientMsgId)
+        } else {
+            offlineMessageRepository.updateOfflineMessageStatus(clientMsgId, MessageStatus.SENT)
+        }
+    }
+
+    fun refreshMessages() {
+        uiState.value.conversation?.conversationId?.let(::loadMessages)
+    }
+
     fun loadLatestMessages(conversationId: Long, afterSequenceId: Long) {
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true) }
             try {
-                val messages = messageSyncRepository.getMessagesWithStrategy(conversationId, afterSequenceId, false)
-                applyMessages(messages)
+                prepareConversation(conversationId)
+                applyMessages(messageSyncRepository.getMessagesWithStrategy(conversationId, afterSequenceId, false))
             } finally {
                 _uiState.update { it.copy(loading = false) }
             }
         }
     }
 
-    /**
-     * 根据用户ID获取用户信息
-     * 
-     * 逻辑1: 优先从本地仓库获取用户信息
-     * 逻辑2: 如果本地不存在则从远程API获取
-     * 逻辑3: 将远程获取的信息保存到本地仓库
-     */
     suspend fun getUserById(userId: Long): UserInfo? {
-        var user = userRepository.getUserById(userId)
-        if (user != null) return user
+        userRepository.getUserById(userId)?.let { return it }
         return try {
-            user = UserApi.getUserBasicInfo(userId)
-            userRepository.addOrUpdateUser(user)
-            user
-        } catch (e: Exception) { null }
+            val remoteUser = UserApi.getUserBasicInfo(userId)
+            userRepository.addOrUpdateUser(remoteUser)
+            remoteUser
+        } catch (_: Exception) {
+            null
+        }
     }
 
-    /**
-     * 下载文件消息
-     * 
-     * 逻辑1: 更新文件下载状态为正在下载
-     * 逻辑2: 执行文件下载并跟踪进度
-     * 逻辑3: 更新下载完成状态
-     * 逻辑4: 处理下载异常
-     */
     fun downloadFileMessage(fileId: String) {
         viewModelScope.launch {
             _fileDownloadStates.update { it + (fileId to FileDownloadState(fileId, isDownloading = true)) }
             try {
-                val path = fileStorageManager.getFileContentPathWithProgress(fileId) { down, total ->
-                    val prog = if (total > 0) down.toFloat() / total.toFloat() else 0f
+                val path = fileStorageManager.getFileContentPathWithProgress(fileId) { downloaded, total ->
+                    val progress = if (total > 0) downloaded.toFloat() / total.toFloat() else 0f
                     _fileDownloadStates.update { current ->
                         val item = current[fileId] ?: FileDownloadState(fileId)
-                        current + (fileId to item.copy(progress = prog))
+                        current + (fileId to item.copy(progress = progress))
                     }
                 }
                 _fileDownloadStates.update { current ->
@@ -755,176 +567,124 @@ class ChatRoomViewModel(
                     current + (fileId to item.copy(isDownloading = false, isSuccess = path != null))
                 }
             } catch (e: Exception) {
-                _fileDownloadStates.update { it + (fileId to it[fileId]!!.copy(isDownloading = false, error = e.message)) }
+                _fileDownloadStates.update { current ->
+                    val item = current[fileId] ?: FileDownloadState(fileId)
+                    current + (fileId to item.copy(isDownloading = false, error = e.message))
+                }
             }
         }
     }
 
-    /**
-     * 获取文件本地路径
-     * 
-     * 逻辑1: 通过文件ID从文件存储管理器获取本地路径
-     */
     fun getLocalFilePath(fileId: String): String? = fileStorageManager.getLocalFilePath(fileId)
-    
-    /**
-     * 异步获取文件消息元数据
-     * 
-     * 逻辑1: 检查消息是否为文件类型
-     * 逻辑2: 优先从消息对象中获取已有元数据
-     * 逻辑3: 从本地仓库获取元数据
-     * 逻辑4: 从远程API获取元数据
-     * 逻辑5: 将元数据保存到本地仓库
-     */
+
     suspend fun getFileMessageMetaAsync(messageItem: MessageItem): FileMeta? {
         if (!messageItem.type.isFile()) return null
         messageItem.fileMeta?.let { return it }
         filesRepository.getFileMeta(messageItem.content)?.let { return it }
         return try {
-            val meta = FileApi.getFileMeta(messageItem.content)
-            filesRepository.addOrUpdateFile(meta)
-            meta
-        } catch (e: Exception) { null }
+            val remote = FileApi.getFileMeta(messageItem.content)
+            filesRepository.addOrUpdateFile(remote)
+            remote
+        } catch (_: Exception) {
+            null
+        }
     }
 
-    /**
-     * 清除会话创建错误
-     * 
-     * 逻辑1: 重置会话创建状态为闲置
-     * 逻辑2: 清除错误信息
-     */
     fun clearSessionCreationError() {
         _uiState.update { it.copy(sessionCreationState = SessionCreationState.Idle, error = null) }
     }
 
-    /**
-     * 使用离线消息初始化
-     * 
-     * 逻辑1: 处理所有待处理的离线消息
-     */
-    private fun initializeWithOfflineMessages() {
-        processOfflineMessages()
-    }
-
-    /**
-     * 处理离线消息
-     * 
-     * 逻辑1: 获取待处理的离线消息
-     * 逻辑2: 遍历每条消息并执行重发逻辑
-     * 
-     * 注意: 目前仅获取消息，具体重发逻辑待实现
-     */
     fun processOfflineMessages() {
         viewModelScope.launch {
-            val pending = offlineMessageRepository.getPendingOfflineMessages()
-            pending.forEach { msg ->
-                // 这里应实现具体的离线重试逻辑，调用 performSend 类似的工作流
+            val currentUser = userRepository.getLocalUserInfo() ?: return@launch
+            val pendingMessages = offlineMessageRepository.getPendingOfflineMessages()
+            pendingMessages.forEach { offline ->
+                val conversationId = offline.conversation_id ?: return@forEach
+                val retryCount = offline.retry_count ?: 0L
+                val maxRetryCount = offline.max_retry_count ?: 3L
+                if (retryCount >= maxRetryCount) {
+                    offlineMessageRepository.updateOfflineMessageStatus(offline.client_msg_id, MessageStatus.FAILED)
+                    return@forEach
+                }
 
+                prepareConversation(conversationId)
+                val retryMessage = buildOfflineRetryMessage(offline, currentUser)
+                val retryFile = if (offline.message_type.isFile()) buildOfflineRetryFile(offline) else null
+                if (!messageStore.containsKey("C:${offline.client_msg_id}")) {
+                    updateOrInsertMessage(retryMessage)
+                }
+
+                sendPreparedMessage(
+                    currentUser = currentUser,
+                    messageItem = retryMessage,
+                    pickedFile = retryFile,
+                    duration = offline.file_duration ?: 0L,
+                    toUserId = offline.to_user_id,
+                    persistOffline = false
+                )
             }
         }
     }
 
-    /**
-     * 获取或创建私聊会话
-     * 
-     * 逻辑1: 从本地仓库查找现有会话
-     * 逻辑2: 如果找到现有会话则直接返回
-     * 逻辑3: 如果未找到则通过API创建新会话
-     * 逻辑4: 保存新会话到本地仓库
-     * 逻辑5: 更新UI状态
-     */
     suspend fun getOrCreatePrivateChat(userId: Long, friendId: Long): ConversationRes {
-        val local = conversationRepository.getLocalConversationByMembers(userId, friendId)
-        if (local != null) {
+        conversationRepository.getLocalConversationByMembers(userId, friendId)?.let { local ->
             _uiState.update { it.copy(conversation = local) }
             return local
         }
-        val remote = withContext(Dispatchers.Default) { ConversationApi.createOrGetConversation(friendId) }
+
+        val remote = withContext(Dispatchers.Default) {
+            ConversationApi.createOrGetConversation(friendId)
+        }
         conversationRepository.saveConversation(remote)
         _uiState.update { it.copy(conversation = remote) }
         return remote
     }
-    
-    /**
-     * 更新消息索引
-     * 
-     * 逻辑1: 更新当前消息索引
-     * 逻辑2: 更新UI状态
-     */
+
     fun updateMessageIndex(index: Int) {
-        _uiState.update { currentState ->
-            currentState.copy(messageIndex = index)
-        }
+        _uiState.update { it.copy(messageIndex = index) }
     }
-    
-    /**
-     * 重置滚动到顶部标志
-     * 
-     * 逻辑 1: 将 scrollToTop 标志重置为 false
-     */
+
     fun resetScrollToTopFlag() {
         _uiState.update { it.copy(scrollToTop = false) }
     }
-    
-    /**
-     * 撤回消息
-     */
+
     fun withdrawMessage(message: MessageItem) {
         viewModelScope.launch {
             try {
-                // 调用 API 撤回消息
-                message.id.let { ChatApi.withdrawMessage(it) }
-                
-                // 本地预更新：将其状态设为 REVOKE
-                updateMessageStatus(message.seqId, MessageStatus.REVOKE)
-                Napier.d("已请求撤回消息: ${message.id}")
+                ChatApi.withdrawMessage(message.id)
+                if (message is MessageWrapper) {
+                    updateOrInsertMessage(message.withStatus(MessageStatus.REVOKE))
+                }
             } catch (e: Exception) {
-                Napier.e("撤回消息失败", e)
+                Napier.e("withdraw message failed", e)
             }
         }
     }
 
-    /**
-     * 标记会话为已读
-     */
     fun markConversationAsRead(conversationId: Long, currentUserId: Long) {
         viewModelScope.launch {
             try {
                 val lastSeq = _uiState.value.messages.firstOrNull()?.seqId ?: 0L
-                if (lastSeq <= 0) return@launch
+                if (lastSeq <= 0L) return@launch
 
-                // 1) 先本地清理未读红点（立即生效）
                 chatMessageRepository.markConversationMessagesAsRead(conversationId, currentUserId)
-                _uiState.update { currentState ->
-                    val updatedMessages = currentState.messages.map { msg ->
-                        val shouldMarkRead = msg.userInfo.userId != currentUserId && msg.status == MessageStatus.SENT
-                        if (shouldMarkRead && msg is MessageWrapper) {
-                            msg.withStatus(MessageStatus.READ)
-                        } else {
-                            msg
-                        }
+                val updatedMessages = _uiState.value.messages.map { message ->
+                    val shouldMarkRead = message.userInfo.userId != currentUserId && message.status == MessageStatus.SENT
+                    if (shouldMarkRead && message is MessageWrapper) {
+                        val updated = message.withStatus(MessageStatus.READ)
+                        messageStore.remove(message.uniqueKey())
+                        messageStore[updated.uniqueKey()] = updated
+                        updated
+                    } else {
+                        message
                     }
-                    currentState.copy(messages = updatedMessages)
                 }
+                _uiState.update { it.copy(messages = updatedMessages) }
 
-                // 2) 再同步到服务端（会话维度，支持群聊按用户维度推进）
                 ChatApi.markConversationAsRead(conversationId = conversationId, sequenceId = lastSeq)
-
-                Napier.d("已标记会话 $conversationId 为已读, lastSeq: $lastSeq")
             } catch (e: Exception) {
-                Napier.e("标记已读失败", e)
+                Napier.e("mark conversation as read failed", e)
             }
-        }
-    }
-
-    private fun updateMessageStatus(seqId: Long, status: MessageStatus) {
-        _uiState.update { currentState ->
-            val updatedMessages = currentState.messages.map { msg ->
-                if (msg is MessageWrapper && msg.seqId == seqId) {
-                    msg.withStatus(status)
-                } else msg
-            }
-            currentState.copy(messages = updatedMessages)
         }
     }
 }

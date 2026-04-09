@@ -186,7 +186,7 @@ services:
       - WEBRTC_TURN_SERVER_CREDENTIAL=${COTURN_PASSWORD:-pengpeng123}
     volumes:
       - ./logs/app:/app/logs
-      - ./storage:/app/storage
+      - ./uploads:/app/uploads
     networks:
       - app-network
     depends_on:

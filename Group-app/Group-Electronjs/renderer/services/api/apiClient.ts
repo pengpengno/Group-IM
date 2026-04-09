@@ -169,12 +169,18 @@ export const meetingAPI = {
 };
 
 export const fileAPI = {
+  // POST /api/files/uploadId
+  getUploadId: async (request: { size: number; fileName: string; duration?: number }) => {
+    return http.post('/api/files/uploadId', request);
+  },
+
   // POST /api/files/upload (form-data)
-  upload: async (file: File | Blob, fileName?: string, clientId?: string) => {
+  upload: async (file: File | Blob, fileId: string, duration?: number) => {
     const formData = new FormData();
-    formData.append('file', file, fileName);
-    if (clientId) {
-      formData.append('clientId', clientId);
+    formData.append('file', file);
+    formData.append('fileId', fileId);
+    if (duration) {
+      formData.append('duration', duration.toString());
     }
     return http.post('/api/files/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }

@@ -347,10 +347,11 @@ const chatSlice = createSlice({
             })
             .addCase(sendMessageViaSocket.pending, (state, action) => {
                 const { conversationId, content, type } = action.meta.arg;
-                const currentUserId = (state as any).auth?.user?.userId;
+                const stateAuth = (state as any).auth;
+                const currentUser = stateAuth?.user;
+                const currentUserId = currentUser?.userId;
 
-                // Construct a temporary clientMsgId for the pending state if not provided
-                // This must match what we use in the thunk if not provided in arg
+                // Construct a temporary clientMsgId for the pending state
                 const clientMsgId = action.meta.arg.clientMsgId || action.meta.requestId;
 
                 const tempMsg: MessageDTO = {
@@ -359,6 +360,12 @@ const chatSlice = createSlice({
                     content,
                     type: (type as any) || 'TEXT',
                     fromAccountId: Number(currentUserId),
+                    fromAccount: currentUser ? {
+                        userId: Number(currentUser.userId),
+                        username: currentUser.username,
+                        email: currentUser.email || '',
+                        phoneNumber: currentUser.phoneNumber || ''
+                    } : undefined,
                     timestamp: Date.now(),
                     clientMsgId: clientMsgId,
                     sendingStatus: 'sending'
@@ -368,12 +375,19 @@ const chatSlice = createSlice({
                     state.messages[conversationId] = [];
                 }
 
-                // Only add if it doesn't exist already (e.g. from a previous attempt)
                 const existingIndex = state.messages[conversationId].findIndex(m => m.clientMsgId === clientMsgId);
                 if (existingIndex === -1) {
                     state.messages[conversationId].push(tempMsg);
                 } else {
                     state.messages[conversationId][existingIndex].sendingStatus = 'sending';
+                    if (currentUser) {
+                        state.messages[conversationId][existingIndex].fromAccount = {
+                            userId: Number(currentUser.userId),
+                            username: currentUser.username,
+                            email: currentUser.email || '',
+                            phoneNumber: currentUser.phoneNumber || ''
+                        };
+                    }
                 }
             })
             .addCase(sendMessageViaSocket.fulfilled, (state, action: PayloadAction<MessageDTO>) => {

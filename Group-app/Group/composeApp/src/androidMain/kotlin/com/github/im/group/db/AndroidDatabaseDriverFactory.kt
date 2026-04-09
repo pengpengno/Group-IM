@@ -4,7 +4,8 @@ import android.content.Context
 import app.cash.sqldelight.EnumColumnAdapter
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
-import com.github.im.group.db.entities.ConversationStatus
+import com.github.im.group.api.ConversationStatus
+import com.github.im.group.api.ConversationType
 import com.github.im.group.db.entities.FileStatus
 import com.github.im.group.db.entities.FriendRequestStatus
 import com.github.im.group.db.entities.MessageStatus
@@ -38,7 +39,8 @@ class AndroidDatabaseDriverFactory(private val context: Context) : DatabaseDrive
             ),
             ConversationAdapter = Conversation.Adapter(
                 createdAtAdapter = localDateTimeAdapter,
-                statusAdapter = EnumColumnAdapter<ConversationStatus>()
+                statusAdapter = EnumColumnAdapter<ConversationStatus>(),
+                conversationTypeAdapter =  EnumColumnAdapter<ConversationType>()
             ),
             FileResourceAdapter =  FileResource.Adapter(
                 statusAdapter = EnumColumnAdapter<FileStatus>(),

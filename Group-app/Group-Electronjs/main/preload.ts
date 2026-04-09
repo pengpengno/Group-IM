@@ -9,7 +9,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getUserCompanies: (token: string) => ipcRenderer.invoke('get-user-companies', token),
 
   // File related
-  uploadFile: (filePath: string, clientId?: string, token?: string) => ipcRenderer.invoke('upload-file', filePath, clientId, token),
+  getUploadId: (request: any, token?: string) => ipcRenderer.invoke('get-upload-id', request, token),
+  uploadFile: (filePath: string, fileId: string, token?: string, duration?: number) => ipcRenderer.invoke('upload-file', filePath, fileId, token, duration),
   downloadFile: (url: string, fileName: string, token?: string) => ipcRenderer.invoke('download-file', url, fileName, token),
   selectFile: (options?: any) => ipcRenderer.invoke('select-file', options),
 

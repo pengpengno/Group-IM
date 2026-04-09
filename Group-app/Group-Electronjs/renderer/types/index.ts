@@ -97,6 +97,9 @@ export interface SelectFileResult {
   canceled: boolean;
   filePaths: string[];
   bookmarks?: string[];
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
 }
 
 // API响应类型
@@ -107,8 +110,18 @@ export interface ApiResponse<T = any> {
   error?: string;
 }
 
+export const MessageType = {
+  TEXT: 'TEXT',
+  IMAGE: 'IMAGE',
+  FILE: 'FILE',
+  VOICE: 'VOICE',
+  VIDEO: 'VIDEO',
+  MEETING: 'MEETING',
+} as const;
+
 // 聊天交互相关类型
-export type MessageType = 'TEXT' | 'IMAGE' | 'FILE' | 'VOICE' | 'VIDEO' | 'MEETING';
+export type MessageType = typeof MessageType[keyof typeof MessageType];
+// export type MessageType = 'TEXT' | 'IMAGE' | 'FILE' | 'VOICE' | 'VIDEO' | 'MEETING';
 
 export interface MessageDTO {
   msgId: number;

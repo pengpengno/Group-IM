@@ -802,7 +802,7 @@ data class ConversationRes(
      * 用户信息
      */
     fun getOtherUser(currentUser: UserInfo?): UserInfo? {
-        return when (type) {
+        return when (conversationType) {
             ConversationType.GROUP -> null
             ConversationType.PRIVATE_CHAT -> {
                 if (members.isEmpty()) return null

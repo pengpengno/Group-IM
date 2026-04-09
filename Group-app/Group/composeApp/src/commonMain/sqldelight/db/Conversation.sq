@@ -1,5 +1,5 @@
-import com.github.im.group.db.entities.ConversationStatus;
-import com.github.im.group.db.entities.ConversationType;
+import com.github.im.group.api.ConversationStatus;
+import com.github.im.group.api.ConversationType;
 import kotlinx.datetime.LocalDateTime;
 
 CREATE TABLE Conversation (
@@ -24,8 +24,8 @@ LIMIT 1;
 
 insertConversation:
 INSERT OR REPLACE INTO Conversation(
-   conversationId ,groupName, description, createdBy, createdAt, status
-) VALUES ( ?, ?, ?, ?, ?, ?);
+   conversationId ,groupName, description, createdBy, createdAt, status, conversationType
+) VALUES ( ?, ?, ?, ?, ?, ?, ?);
 
 updateConversationStatus:
 UPDATE Conversation

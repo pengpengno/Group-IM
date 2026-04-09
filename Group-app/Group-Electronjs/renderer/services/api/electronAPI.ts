@@ -1,3 +1,4 @@
+import { UUID } from 'crypto';
 import type {
   AuthData,
   LoginCredentials,
@@ -7,7 +8,7 @@ import type {
   User,
   ApiUser
 } from '../../types/index';
-import { authAPI } from './apiClient';
+import { authAPI, fileAPI } from './apiClient';
 
 // 定义搜索结果接口
 export interface SearchResults {
@@ -20,6 +21,35 @@ export interface ApiSearchResults extends ApiResponse<SearchResults> {
   total: number;
 }
 
+export enum FileStatus {
+  UPLOADING = 'UPLOADING',
+  NORMAL = 'NORMAL',
+  DELETED = 'DELETED'
+}
+
+export interface FileUploadResponse {
+  id: UUID;
+  fileMeta: FileMeta,
+  fileStatus: FileStatus
+}
+
+export interface FileMeta {
+  fileId: UUID;
+  fileSize: number;
+  contentType: string;
+  filename: string;
+  hash: string;
+  duration?: number;
+  thumbnailId?: string;
+  fileStatus: FileStatus;
+}
+
+export interface UploadFileRequest {
+  size: number;
+  fileName: string;
+  duration?: number;
+}
+
 // Electron API 接口定义
 export interface ElectronAPI {
   // 认证相关
@@ -29,7 +59,8 @@ export interface ElectronAPI {
   // 文件操作相关
   selectFile: (options: SelectFileOptions) => Promise<SelectFileResult & { file?: File }>;
   selectFiles: (options: SelectFileOptions) => Promise<Array<SelectFileResult & { file?: File }>>;
-  uploadFile: (fileOrPath: string | File, clientId?: string, token?: string) => Promise<any>;
+  uploadFile: (fileOrPath: string | File, fileId: string, duration?: number) => Promise<FileUploadResponse>;
+  getUploadId: (request: UploadFileRequest) => Promise<FileUploadResponse>;
 
   // 用户搜索相关
   searchUsers: (query: string, token?: string) => Promise<ApiSearchResults>;
@@ -132,25 +163,27 @@ const webAPI: ElectronAPI = {
     });
   },
 
-  uploadFile: async (fileOrPath: string | File, clientId?: string, token?: string) => {
+  uploadFile: async (fileOrPath: string | File, fileId: string, duration?: number): Promise<FileUploadResponse> => {
     if (typeof fileOrPath === 'string') {
-        throw new Error('Web environment only supports uploading File objects, not paths.');
+      throw new Error('Web environment only supports uploading File objects, not paths.');
     }
 
     try {
-        const { fileAPI } = require('./apiClient');
-        const res = await fileAPI.upload(fileOrPath, undefined, clientId);
-        
-        return {
-            success: true,
-            data: res.data
-        };
+      const res = await fileAPI.upload(fileOrPath, fileId, duration);
+      return res.data;
     } catch (error: any) {
-        console.error('Web file upload error:', error);
-        return {
-            success: false,
-            error: error.response?.data?.message || error.message || 'File upload failed'
-        };
+      console.error('Web file upload error:', error);
+      throw error;
+    }
+  },
+
+  getUploadId: async (request: UploadFileRequest): Promise<FileUploadResponse> => {
+    try {
+      const res = await fileAPI.getUploadId(request);
+      return res.data;
+    } catch (error: any) {
+      console.error('Web get upload ID error:', error);
+      throw error;
     }
   },
 
@@ -233,12 +266,12 @@ export function getElectronAPI(): ElectronAPI {
     return {
       ...electron,
       socketMarkRead: async (data: any) => {
-          if (electron.socketMarkRead) {
-              return electron.socketMarkRead(data);
-          }
-          // Fallback if not injected (compatibility)
-          console.warn('socket:mark-read not supported in bridge');
-          return { success: false, error: 'Not supported' };
+        if (electron.socketMarkRead) {
+          return electron.socketMarkRead(data);
+        }
+        // Fallback if not injected (compatibility)
+        console.warn('socket:mark-read not supported in bridge');
+        return { success: false, error: 'Not supported' };
       },
       queryUsers: async (query: string, token?: string) => {
         const authToken = token || localStorage.getItem('token') || '';
@@ -248,10 +281,22 @@ export function getElectronAPI(): ElectronAPI {
         const authToken = token || localStorage.getItem('token') || '';
         return electron.queryUsers(query, authToken); // searchUsers usually calls queryUsers in this app
       },
-      uploadFile: async (filePath: string, clientId?: string, token?: string) => {
-        const authToken = token || localStorage.getItem('token') || '';
-        const cid = clientId || Math.random().toString(36).substring(2, 12);
-        return electron.uploadFile(filePath, cid, authToken);
+      getUploadId: async (request: UploadFileRequest): Promise<FileUploadResponse> => {
+        if (electron.getUploadId) {
+          const res = await electron.getUploadId(request, localStorage.getItem('token') || '');
+          // If IPC handler still returns {success, data}, extract it. 
+          // But I will update IPC handler to return raw data later.
+          return res.success !== undefined ? res.data : res;
+        }
+        return webAPI.getUploadId(request);
+      },
+      uploadFile: async (filePath: string | File, fileId: string, duration?: number): Promise<FileUploadResponse> => {
+        if (electron.uploadFile) {
+          const authToken = localStorage.getItem('token') || '';
+          const res = await electron.uploadFile(filePath, fileId, authToken, duration);
+          return res.success !== undefined ? res.data : res;
+        }
+        return webAPI.uploadFile(filePath, fileId, duration);
       }
     };
   }

@@ -1,9 +1,9 @@
 package com.github.im.group.manager
 
+import com.github.im.common.connect.model.proto.MessageType
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.FileMeta
 import com.github.im.group.db.entities.FileStatus
-import com.github.im.common.connect.model.proto.MessageType
 import com.github.im.group.repository.FilesRepository
 import com.github.im.group.sdk.File
 import com.github.im.group.sdk.FileData
@@ -11,11 +11,12 @@ import io.github.aakira.napier.Napier
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.io.files.FileNotFoundException
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
+import okio.SYSTEM
 import okio.use
-import java.io.FileNotFoundException
 
 /***
  * 判断文件是否存在
@@ -261,10 +262,6 @@ class FileStorageManager(
                     readByteArray()
                 }
             }
-        } catch (e: OutOfMemoryError) {
-            // 如果发生内存溢出，使用流式下载方式
-            Napier.e("内存不足，使用流式下载: $fileId", e)
-            return downloadFileStreaming(fileId)
         } catch (e: Exception) {
             // 区分协程取消异常和其他异常
             if (e is kotlinx.coroutines.CancellationException) {

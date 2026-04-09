@@ -11,6 +11,7 @@ import type { AuthState } from '../auth/authSlice';
 import Notification, { NotificationType } from '../../components/common/Notification';
 import { isGroupConversation, getConversationDisplayName, getConversationAvatarText } from '../../utils/conversationUtils';
 import './ChatRoom.css';
+import { MessageType } from '../../types';
 
 // 定义 Electron 接口扩展 (防止 TS 报错)
 declare global {
@@ -438,27 +439,65 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
       if (result.canceled) return;
 
-      showToast('正在上传文件...', 'info' as any);
+      showToast('准备上传...', 'info' as any);
 
-      // 上传文件 - 优先使用 result.file (Web), 否则使用 result.filePath (Electron)
-      const fileToUpload = result.file || (result as any).filePath;
-      const uploadRes = await api.uploadFile(fileToUpload, undefined, user?.token);
+      // 1. 获取文件元数据并申请 UploadId
+      let fileName = '';
+      let fileSize = 0;
 
-      if (uploadRes.success) {
-        // 发送文件消息
-        const fileUrl = uploadRes.data?.url || uploadRes.data?.path || uploadRes.data?.fileId || result.filePaths[0];
-
-        await dispatch(sendMessageViaSocket({
-          conversationId: conversation.conversationId,
-          content: fileUrl,
-          type: isImage ? 'IMAGE' : 'FILE'
-        })).unwrap();
-
-        showToast('发送成功', 'success' as any);
-        scrollToBottom();
-      } else {
-        showToast(uploadRes.error || '文件上传失败');
+      if (result.file) {
+        fileName = result.file.name;
+        fileSize = result.file.size;
+      } else if (result.filePaths && result.filePaths.length > 0) {
+        // Electron 环境
+        fileName = (result as any).fileName || result.filePaths[0].split(/[\\/]/).pop() || 'file';
+        fileSize = (result as any).fileSize || 0;
       }
+
+      const idRes = await api.getUploadId({
+        fileName: fileName,
+        size: fileSize
+      });
+      console.log(idRes)
+      if (!idRes || !idRes.id) {
+        showToast('无法初始化上传');
+        return;
+      }
+
+      const fileId = idRes.id;
+
+      // OPTIMISTIC: Send message immediately after getting uploadId
+      // The content is the fileId (UUID), the message type is IMAGE/FILE
+      // The recipient will see a loading state if they try to fetch a file that is still UPLOADING
+      const clientMsgId = window.crypto && window.crypto.randomUUID
+        ? window.crypto.randomUUID()
+        : Math.random().toString(36).substring(2) + Date.now().toString(36);
+
+      dispatch(sendMessageViaSocket({
+        conversationId: conversation.conversationId,
+        content: fileId,
+        type: isImage ? MessageType.IMAGE : MessageType.FILE,
+        clientMsgId
+      }));
+
+      scrollToBottom();
+      showToast('正在后台上传文件...', 'info' as any);
+
+      // 2. Background Upload
+      const fileToUpload = result.file || result.filePaths[0];
+      api.uploadFile(fileToUpload, fileId).then((uploadRes) => {
+        if (uploadRes && (uploadRes.id || uploadRes.fileMeta)) {
+          showToast('文件上传完成', 'success' as any);
+          // Optional: we could dispatch an update if the server gives us a permanent URL
+          // but usually the fileId is enough as the CDN/proxy handles it
+        } else {
+          showToast('文件上传失败，消息已发送但无法查看');
+        }
+      }).catch(err => {
+        console.error('Background upload error:', err);
+        showToast('后台上传出错');
+      });
+
     } catch (err: any) {
       console.error('File selection/upload error:', err);
       showToast(err.message || '操作失败');
@@ -480,22 +519,47 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       recorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const api = getElectronAPI();
+        const duration = recordingTime * 1000; // ms
 
         showToast('正在处理语音...', 'info' as any);
 
         try {
-          const res = await api.uploadFile(audioBlob as any, undefined, user?.token);
-          if (res.success) {
-            const fileUrl = res.data?.url || res.data?.path || res.data?.fileId;
-            await dispatch(sendMessageViaSocket({
-              conversationId: conversation.conversationId,
-              content: fileUrl,
-              type: 'VOICE'
-            })).unwrap();
-            showToast('语音已发送', 'success' as any);
-          } else {
-            showToast('语音上传失败');
+          // 1. 获取 UploadId
+          const idRes = await api.getUploadId({
+            fileName: `voice_${Date.now()}.webm`,
+            size: audioBlob.size,
+            duration: duration
+          });
+
+          if (!idRes || !idRes.id) {
+            showToast('语音初始化失败');
+            return;
           }
+
+          const fileId = idRes.id;
+
+          // OPTIMISTIC: Send voice message immediately
+          const clientMsgId = window.crypto && window.crypto.randomUUID
+            ? window.crypto.randomUUID()
+            : Math.random().toString(36).substring(2) + Date.now().toString(36);
+
+          dispatch(sendMessageViaSocket({
+            conversationId: conversation.conversationId,
+            content: fileId,
+            type: 'VOICE',
+            clientMsgId
+          }));
+
+          // 2. Background Upload
+          api.uploadFile(audioBlob as any, fileId, duration).then(res => {
+            if (res && (res.id || res.fileMeta)) {
+              console.log('Voice uploaded successfully');
+            } else {
+              showToast('语音上传失败');
+            }
+          }).catch(err => {
+            console.error('Background voice upload error:', err);
+          });
         } catch (err) {
           console.error('Audio upload error:', err);
           showToast('无法发送语音消息');
@@ -614,7 +678,8 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         console.error('Download error:', err);
       }
     } else {
-      window.open(`${BASE_URL}/api/files/download/${fileId}`);
+      console.log(`${BASE_URL}/api/files/download/${fileId}`);
+      // window.open(`${BASE_URL}/api/files/download/${fileId}`);
     }
   };
 

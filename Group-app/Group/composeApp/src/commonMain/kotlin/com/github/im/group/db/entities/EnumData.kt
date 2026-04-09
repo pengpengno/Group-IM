@@ -22,15 +22,6 @@ enum class MessageStatus {
 
 
 }
-@Serializable
-enum class ConversationStatus {
-    ACTIVE,
-    ACHEIVED,
-    DELETED,
-    INACTIVE
-}
-@Serializable
-
 enum class FileStatus {
     UPLOADING, // 分块上传中
     NORMAL,

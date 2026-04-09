@@ -6,46 +6,44 @@ import axios from 'axios';
 // BASE_URL is injected via Webpack DefinePlugin from configs/*.json
 const BASE_URL = __API_BASE__;
 
-// Handle file upload request
-ipcMain.handle('upload-file', async (_, filePath, clientId, token) => {
-  try {
-    const fileName = path.basename(filePath);
-
-    // Using axios with form-data library instead
-    const FormDataNode = require('form-data');
-    const form = new FormDataNode();
-    form.append('file', fs.createReadStream(filePath));
-    form.append('clientId', clientId || Math.random().toString(36).substring(2, 15));
-
-    const headers: any = {
-      ...form.getHeaders()
-    };
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await axios.post(`${BASE_URL}/api/files/upload`, form, {
-      headers,
-      onUploadProgress: (progressEvent) => {
-        if (progressEvent.total) {
-          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          // mainWindow.webContents.send('upload-progress', { clientId, progress });
-        }
-      }
-    });
-
-    return {
-      success: true,
-      data: response.data
-    };
-  } catch (error: any) {
-    console.error('File upload error:', error);
-    return {
-      success: false,
-      error: error.response?.data?.message || error.message || 'File upload failed'
-    };
+// Get upload ID
+ipcMain.handle('get-upload-id', async (_, request, token) => {
+  const headers: any = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
+
+  const response = await axios.post(`${BASE_URL}/api/files/uploadId`, request, {
+    headers
+  });
+
+  return response.data;
+});
+
+// Handle file upload request
+ipcMain.handle('upload-file', async (_, filePath, fileId, token, duration) => {
+  // Using axios with form-data library instead
+  const FormDataNode = require('form-data');
+  const form = new FormDataNode();
+  form.append('file', fs.createReadStream(filePath));
+  form.append('fileId', fileId);
+  if (duration) {
+    form.append('duration', duration.toString());
+  }
+
+  const headers: any = {
+    ...form.getHeaders()
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await axios.post(`${BASE_URL}/api/files/upload`, form, {
+    headers
+  });
+
+  return response.data;
 });
 
 // Handle file selection dialog

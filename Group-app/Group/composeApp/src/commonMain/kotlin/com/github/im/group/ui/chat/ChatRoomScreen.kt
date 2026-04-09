@@ -296,7 +296,7 @@ fun ChatRoomScreen(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     reverseLayout = true,
-                    contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp, start = 8.dp, end = 8.dp),
+                    contentPadding = PaddingValues(bottom = 104.dp, top = 8.dp, start = 8.dp, end = 8.dp),
                     verticalArrangement = Arrangement.Top // 顶部对齐（在反转布局中，顶部逻辑上是屏幕底部?
                 ) {
                     // Removed duplicate CircularProgressIndicator, keeping PullRefreshIndicator only
@@ -391,7 +391,7 @@ fun ChatRoomScreen(
                 }
                 androidx.compose.animation.AnimatedVisibility(
                     visible = !isAtBottom,
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 80.dp, end = 16.dp),
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 96.dp, end = 16.dp),
                     enter = androidx.compose.animation.fadeIn(),
                     exit = androidx.compose.animation.fadeOut()
                 ) {
@@ -413,7 +413,7 @@ fun ChatRoomScreen(
                         ) {
                                 Icon(
                                    imageVector =  Icons.Default.ExpandMore,
-                                contentDescription = "滚动至最新消息",
+                                contentDescription = "滚动至最新消息?",
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -599,6 +599,7 @@ fun MessageBubble(
         }
     }
 }
+
 
 
 
