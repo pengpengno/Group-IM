@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { logout, setCompanies, loginSuccess, loginFailure, loginStart } from '../auth/authSlice';
+import { logout, setCompanies, loginSuccess, loginFailure, loginStart, setCurrentCompany } from '../auth/authSlice';
 import { getElectronAPI, isElectronEnvironment } from '../../services/api/electronAPI';
 import type { User, ApiUser, ActiveTab } from '../../types';
 import { RootState, AppDispatch } from '../../store';
@@ -18,12 +18,10 @@ import './Dashboard.css';
 import { useVideoCall } from '../video-call/useVideoCall';
 import { meetingAPI } from '../../services/api/apiClient';
 
-interface DashboardProps {
-    user: any;
-}
-
-const Dashboard: React.FC<DashboardProps> = ({ user }) => {
+const Dashboard: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
+    const { user } = useSelector((state: RootState) => state.auth);
+    const fetchInitiated = React.useRef(false);
     const [activeTab, setActiveTab] = useState<ActiveTab>('home');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -31,7 +29,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     const [isSearching, setIsSearching] = useState(false);
     const [isSwitchingCompany, setIsSwitchingCompany] = useState(false);
     const [showWorkspacePopover, setShowWorkspacePopover] = useState(false);
-    
+
+    // DEBUG: Monitor Auth State
+    useEffect(() => {
+        console.log('[DEBUG-DASHBOARD] User State Updated:', {
+            activeUserId: user?.userId,
+            username: user?.username,
+            currentCompany: user?.currentCompany,
+            companiesCount: user?.companies?.length,
+            companies: user?.companies
+        });
+    }, [user]);
     // Connect to Video Call Service
     const { state: callState, startMeeting, joinMeeting } = useVideoCall();
 
@@ -147,7 +155,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     };
 
     const handleSwitchCompany = async (company: any) => {
-        if (isSwitchingCompany) return;
+        if (isSwitchingCompany || !user) return;
         if (user.currentCompany?.companyId === company.companyId) {
             setShowWorkspacePopover(false);
             return;
@@ -158,15 +166,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
         try {
             const response = await authAPI.switchCompany(company.companyId);
-            
+
             if (response.data && response.data.success) {
                 const refreshedUser = response.data.data;
-                
+
                 dispatch(loginSuccess({
                     user: refreshedUser,
-                    token: refreshedUser.token || user.token || '',
-                    refreshToken: refreshedUser.refreshToken || user.refreshToken || '',
-                    companies: user.companies,
+                    token: refreshedUser.token || user?.token || '',
+                    refreshToken: refreshedUser.refreshToken || user?.refreshToken || '',
+                    companies: user?.companies,
                     currentCompany: company
                 }));
 
@@ -196,43 +204,56 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     // Fetch companies if missing and handle current company initialization
     useEffect(() => {
         const fetchCompanies = async () => {
-            if (user?.userId && (!user.companies || user.companies.length === 0)) {
+            if (!user?.userId || fetchInitiated.current) return;
+
+            // Only fetch if companies list is empty
+            if (!user.companies || user.companies.length === 0) {
+                fetchInitiated.current = true;
                 try {
+                    console.log('[DEBUG-DASHBOARD] Fetching companies for user:', user.username);
                     const response = await authAPI.getMyCompanies();
-                    if (response.data && response.data.success) {
+                    console.log('[DEBUG-DASHBOARD] getMyCompanies Response:', response.data);
+
+                    if (response.data && response.data.code == 200) {
                         const companies = response.data.data;
+                        console.log('[DEBUG-DASHBOARD] Setting companies:', companies);
                         dispatch(setCompanies(companies));
-                        
+
                         // If current company not set, try to find it from the list using ID
-                        if (!user.currentCompany && user.currentLoginCompanyId) {
-                            const current = companies.find((c: any) => c.companyId === user.currentLoginCompanyId);
-                            if (current) {
-                                dispatch(loginSuccess({
-                                    user,
-                                    token: user.token || '',
-                                    refreshToken: user.refreshToken || '',
-                                    companies,
-                                    currentCompany: current
-                                }));
+                        if (!user.currentCompany) {
+                            const targetCompanyId = user.currentLoginCompanyId;
+                            console.log('[DEBUG-DASHBOARD] Auto-selecting company. Target ID:', targetCompanyId);
+                            let current = null;
+
+                            if (targetCompanyId) {
+                                // Use flexible comparison (double equals) in case of string/number mismatch
+                                current = companies.find((c: any) => c.companyId == targetCompanyId);
                             }
-                        } else if (!user.currentCompany && companies.length > 0) {
-                            // Default to first if none
-                            dispatch(loginSuccess({
-                                user,
-                                token: user.token || '',
-                                refreshToken: user.refreshToken || '',
-                                companies,
-                                currentCompany: companies[0]
-                            }));
+
+                            // Fallback to first company if no match or no ID provided
+                            if (!current && companies.length > 0) {
+                                current = companies[0];
+                            }
+
+                            if (current) {
+                                console.log('[DEBUG-DASHBOARD] Setting current company:', current);
+                                dispatch(setCurrentCompany(current));
+                            } else {
+                                console.warn('[DEBUG-DASHBOARD] No company could be selected as current');
+                            }
                         }
+                    } else {
+                        console.error('[DEBUG-DASHBOARD] API Success was false:', response.data);
                     }
                 } catch (err) {
-                    console.error('Failed to fetch companies:', err);
+                    console.error('[DEBUG-DASHBOARD] Failed to fetch companies error:', err);
+                } finally {
+                    fetchInitiated.current = false;
                 }
             }
         };
         fetchCompanies();
-    }, [user?.userId, user?.companies?.length, user?.currentLoginCompanyId]);
+    }, [user?.userId, user?.currentLoginCompanyId]);
 
     // Debounce search
     useEffect(() => {
@@ -254,8 +275,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 className={`dashboard-sidebar ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}
                 onMouseEnter={() => setIsSidebarCollapsed(false)}
                 onMouseLeave={() => {
-                    setIsSidebarCollapsed(true);
-                    setShowWorkspacePopover(false);
+                    if (!showWorkspacePopover) {
+                        setIsSidebarCollapsed(true);
+                    }
                 }}
             >
                 <div className="sidebar-app-title">
@@ -265,13 +287,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
                 {/* Workspace Switcher Component */}
                 <div className="workspace-switcher-container">
-                    <div className="workspace-current" onClick={() => setShowWorkspacePopover(!showWorkspacePopover)}>
+                    <div
+                        className={`workspace-current ${fetchInitiated.current ? 'loading' : ''}`}
+                        onClick={() => setShowWorkspacePopover(!showWorkspacePopover)}
+                    >
                         <div className="workspace-icon">
-                            {user.currentCompany?.name?.charAt(0) || user.username?.charAt(0).toUpperCase() || 'W'}
+                            {user?.currentCompany?.name ? user.currentCompany.name.charAt(0) : (user?.username ? user.username.charAt(0).toUpperCase() : 'W')}
+                            {fetchInitiated.current && <div className="icon-loader"></div>}
                         </div>
                         <div className="workspace-info">
-                            <span className="workspace-name">{user.currentCompany?.name || 'My Workspace'}</span>
-                            <span className="workspace-type">Business Identity</span>
+                            <span className="workspace-name">{user?.currentCompany?.name || 'My Workspace'}</span>
+                            <span className="workspace-type">
+                                {user?.companies && user.companies.length > 0
+                                    ? `${user.companies.length} Workplaces Available`
+                                    : (fetchInitiated.current ? 'Loading workspaces...' : 'Personal Workspace')}
+                            </span>
                         </div>
                         <svg className="workspace-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: showWorkspacePopover ? 'rotate(180deg)' : 'rotate(0deg)' }}>
                             <polyline points="6 9 12 15 18 9"></polyline>
@@ -280,37 +310,66 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
                     {showWorkspacePopover && !isSidebarCollapsed && (
                         <div className="workspace-popover">
-                            <div className="popover-header">
-                                <span>Switch Workspace</span>
-                            </div>
-                            <div className="workspace-list">
-                                {user.companies?.map((c: any) => (
-                                    <div 
-                                        key={c.companyId} 
-                                        className={`company-option ${user.currentCompany?.companyId === c.companyId ? 'active' : ''}`}
-                                        onClick={() => handleSwitchCompany(c)}
-                                    >
-                                        <div className="opt-icon">{c.name.charAt(0)}</div>
+                            <div className="popover-section">
+                                <div className="popover-header">
+                                    <span>Current Workplace</span>
+                                </div>
+                                {user?.currentCompany && (
+                                    <div className="company-option active current-selection">
+                                        <div className="opt-icon">{user.currentCompany.name.charAt(0)}</div>
                                         <div className="opt-info">
-                                            <span className="opt-name">{c.name}</span>
+                                            <span className="opt-name">{user.currentCompany.name}</span>
+                                            <span className="opt-status">Active now</span>
                                         </div>
-                                        {user.currentCompany?.companyId === c.companyId && (
-                                            <svg className="active-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                                <polyline points="20 6 9 17 4 12"></polyline>
-                                            </svg>
-                                        )}
+                                        <div className="active-dot"></div>
                                     </div>
-                                ))}
+                                )}
+                            </div>
+
+                            <div className="popover-divider"></div>
+
+                            <div className="popover-section">
+                                <div className="popover-header">
+                                    <span>Switch to Workplace</span>
+                                </div>
+                                <div className="workspace-list premium-scrollbar">
+                                    {user?.companies?.filter((c: any) => c.companyId !== user.currentCompany?.companyId).map((c: any) => (
+                                        <div
+                                            key={c.companyId}
+                                            className="company-option workplace-switch-btn"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleSwitchCompany(c);
+                                            }}
+                                        >
+                                            <div className="opt-icon">{c.name.charAt(0)}</div>
+                                            <div className="opt-info">
+                                                <span className="opt-name">{c.name}</span>
+                                            </div>
+                                            <div className="switch-hint">Switch</div>
+                                        </div>
+                                    ))}
+
+                                    {(!user?.companies || user.companies.length <= 1) && !fetchInitiated.current && (
+                                        <div className="empty-workspace-hint">
+                                            No other workspaces found
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="popover-footer">
                                 <div className="company-option add-workspace">
                                     <div className="opt-icon">+</div>
                                     <div className="opt-info">
-                                        <span className="opt-name">Add Workspace</span>
+                                        <span className="opt-name">Add New Workplace</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     )}
                 </div>
+
 
                 <div className="sidebar-nav">
                     <div
@@ -427,7 +486,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                         <div className="home-view-container">
                             <div className="welcome-hero-banner">
                                 <div className="banner-content">
-                                    <h2>Welcome back, {user?.username}</h2>
+                                    <h2>Welcome back, {user?.username || 'User'}</h2>
                                     <p>Search for colleagues, start a video call, or create a group chat directly from your workspace.</p>
                                 </div>
                                 <div className="banner-icon">
@@ -510,12 +569,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                             </div>
                             <div className="chat-room-area">
                                 {activeConversation ? (
-                                        <ChatRoom
-                                            conversation={activeConversation}
-                                            onStartMeeting={handleStartMeeting}
-                                            onJoinMeeting={handleJoinMeeting}
-                                            onVideoCall={handleCall}
-                                        />
+                                    <ChatRoom
+                                        conversation={activeConversation}
+                                        onStartMeeting={handleStartMeeting}
+                                        onJoinMeeting={handleJoinMeeting}
+                                        onVideoCall={handleCall}
+                                    />
                                 ) : (
                                     <div className="empty-view-placeholder">
                                         <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -538,8 +597,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                 </svg>
                                 <h3>Team Meetings</h3>
                                 <p>Join or start a multi-party video conference with your team.</p>
-                                <button 
-                                    className="premium-action-btn" 
+                                <button
+                                    className="premium-action-btn"
                                     style={{ marginTop: '20px' }}
                                     onClick={() => setActiveTab('chats')}
                                 >
@@ -582,18 +641,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     <div className="switching-content">
                         <div className="switching-loader"></div>
                         <h3>Switching Workspace...</h3>
-                        <p>Preparing your environment for {user.currentCompany?.name}</p>
+                        <p>Preparing your environment for {user?.currentCompany?.name}</p>
                     </div>
                 </div>
             )}
 
             {/* Global Video Call Overlay */}
             {callState.callStatus !== VideoCallStatus.IDLE && (
-                <VideoCallScreen 
-                    remoteUserId={callState.remoteUserId} remoteUserName={callState.remoteUserName} remoteAvatar={callState.remoteAvatar} 
+                <VideoCallScreen
+                    remoteUserId={callState.remoteUserId} remoteUserName={callState.remoteUserName} remoteAvatar={callState.remoteAvatar}
                     onCallEnd={() => {
                         // The service handles cleanup
-                    }} 
+                    }}
                 />
             )}
         </div>

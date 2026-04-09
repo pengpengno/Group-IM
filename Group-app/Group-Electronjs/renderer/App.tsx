@@ -59,7 +59,7 @@ const App: React.FC = () => {
         />
       )}
 
-      <Dashboard user={user} />
+      <Dashboard />
     </div>
   );
 };

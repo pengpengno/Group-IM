@@ -23,7 +23,6 @@ enum class MessageStatus {
 
 }
 @Serializable
-
 enum class ConversationStatus {
     ACTIVE,
     ACHEIVED,

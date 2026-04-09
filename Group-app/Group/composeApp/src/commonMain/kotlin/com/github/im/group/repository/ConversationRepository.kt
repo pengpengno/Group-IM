@@ -90,7 +90,7 @@ class ConversationRepository(
                     createUserId = entity.createdBy,
                     createAt = entity.createdAt.toString(),
                     status = ConversationStatus.valueOf(entity.status.name),
-                    type = when (members.size) {
+                    conversationType = when (members.size) {
                         2 -> com.github.im.group.api.ConversationType.PRIVATE_CHAT // 私聊会话通常只有2个人
                         else -> com.github.im.group.api.ConversationType.GROUP // 群聊会话通常超过2人
                     },

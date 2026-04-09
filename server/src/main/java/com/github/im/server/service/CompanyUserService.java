@@ -8,6 +8,8 @@ import com.github.im.server.repository.CompanyRepository;
 import com.github.im.server.repository.CompanyUserRepository;
 import com.github.im.server.service.CompanyService;
 import com.github.im.server.util.SchemaSwitcher;
+import jakarta.persistence.EntityManager;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -17,7 +19,8 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-@Transactional
+//@Transactional
+@RequiredArgsConstructor
 public class CompanyUserService {
     
     @Autowired
@@ -32,6 +35,9 @@ public class CompanyUserService {
     @Autowired
     private CompanyMapper companyMapper;
 
+
+    private final EntityManager entityManager;
+
     /**
      * 获取用户所属的公司列表
      * @param userId 用户ID
@@ -39,7 +45,14 @@ public class CompanyUserService {
      */
     public List<CompanyDTO> getCompanyByUserId(Long userId) {
         return  SchemaSwitcher.executeInPublicSchema(()-> {
-            List<Company> companies = companyRepository.findCompaniesByUserId(userId);
+            List<Company> companies = entityManager.createQuery(
+                            "SELECT c FROM Company c JOIN CompanyUser cu ON c.companyId = cu.companyId WHERE cu.userId = :userId",
+//                            "SELECT c FROM Company c",
+                            Company.class)
+//                    .setParameter("userId", userId)
+                    .getResultList();
+
+//            List<Company> companies = companyRepository.findCompaniesByUserId(userId);
             return companyMapper.companiesToCompanyDTOs(companies);
         });
     }

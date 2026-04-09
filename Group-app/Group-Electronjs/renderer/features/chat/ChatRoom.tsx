@@ -9,6 +9,7 @@ import axios from 'axios';
 import type { ConversationRes, MessageDTO, MeetingMessagePayload } from '../../types';
 import type { AuthState } from '../auth/authSlice';
 import Notification, { NotificationType } from '../../components/common/Notification';
+import { isGroupConversation, getConversationDisplayName, getConversationAvatarText } from '../../utils/conversationUtils';
 import './ChatRoom.css';
 
 // 定义 Electron 接口扩展 (防止 TS 报错)
@@ -30,89 +31,89 @@ interface ChatRoomProps {
  * Authenticated Media Hook to handle blob URLs with token
  */
 const useAuthenticatedMedia = (url: string, token?: string) => {
-    const [mediaSrc, setMediaSrc] = useState<string>('');
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(false);
+  const [mediaSrc, setMediaSrc] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-    useEffect(() => {
-        let objectUrl = '';
-        const fetchMedia = async () => {
-            if (!url) return;
-            setLoading(true);
-            try {
-                const response = await axios.get(url, {
-                    headers: token ? { Authorization: `Bearer ${token}` } : {},
-                    responseType: 'blob'
-                });
-                objectUrl = URL.createObjectURL(response.data);
-                setMediaSrc(objectUrl);
-                setError(false);
-            } catch (err) {
-                console.error('Failed to load authenticated media:', err);
-                setError(true);
-            } finally {
-                setLoading(false);
-            }
-        };
+  useEffect(() => {
+    let objectUrl = '';
+    const fetchMedia = async () => {
+      if (!url) return;
+      setLoading(true);
+      try {
+        const response = await axios.get(url, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          responseType: 'blob'
+        });
+        objectUrl = URL.createObjectURL(response.data);
+        setMediaSrc(objectUrl);
+        setError(false);
+      } catch (err) {
+        console.error('Failed to load authenticated media:', err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-        fetchMedia();
+    fetchMedia();
 
-        return () => {
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
-        };
-    }, [url, token]);
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [url, token]);
 
-    return { mediaSrc, loading, error };
+  return { mediaSrc, loading, error };
 };
 
 /**
  * Beautiful Custom Audio Player
  */
 const CustomAudioPlayer: React.FC<{ url: string; token?: string }> = ({ url, token }) => {
-    const { mediaSrc, loading } = useAuthenticatedMedia(url, token);
-    const audioRef = useRef<HTMLAudioElement>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [progress, setProgress] = useState(0);
+  const { mediaSrc, loading } = useAuthenticatedMedia(url, token);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
 
-    const togglePlay = () => {
-        if (!audioRef.current) return;
-        if (isPlaying) {
-            audioRef.current.pause();
-        } else {
-            audioRef.current.play();
-        }
-        setIsPlaying(!isPlaying);
-    };
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
 
-    const onTimeUpdate = () => {
-        if (!audioRef.current) return;
-        const p = (audioRef.current.currentTime / audioRef.current.duration) * 100;
-        setProgress(p);
-    };
+  const onTimeUpdate = () => {
+    if (!audioRef.current) return;
+    const p = (audioRef.current.currentTime / audioRef.current.duration) * 100;
+    setProgress(p);
+  };
 
-    if (loading) return <div className="audio-skeleton">Loading audio...</div>;
+  if (loading) return <div className="audio-skeleton">Loading audio...</div>;
 
-    return (
-        <div className="custom-audio-player">
-            <audio 
-                ref={audioRef} 
-                src={mediaSrc} 
-                onTimeUpdate={onTimeUpdate} 
-                onEnded={() => setIsPlaying(false)}
-            />
-            <button className="audio-play-btn" onClick={togglePlay}>
-                {isPlaying ? (
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                ) : (
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                )}
-            </button>
-            <div className="audio-progress-bar">
-                <div className="audio-progress-fill" style={{ width: `${progress}%` }}></div>
-            </div>
-            <span className="audio-time-label">Voice</span>
-        </div>
-    );
+  return (
+    <div className="custom-audio-player">
+      <audio
+        ref={audioRef}
+        src={mediaSrc}
+        onTimeUpdate={onTimeUpdate}
+        onEnded={() => setIsPlaying(false)}
+      />
+      <button className="audio-play-btn" onClick={togglePlay}>
+        {isPlaying ? (
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+        ) : (
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+        )}
+      </button>
+      <div className="audio-progress-bar">
+        <div className="audio-progress-fill" style={{ width: `${progress}%` }}></div>
+      </div>
+      <span className="audio-time-label">Voice</span>
+    </div>
+  );
 };
 
 const AuthenticatedImage: React.FC<{
@@ -125,14 +126,14 @@ const AuthenticatedImage: React.FC<{
 
   if (loading) return (
     <div className={`${className} media-placeholder`}>
-        <div className="spinner-small"></div>
+      <div className="spinner-small"></div>
     </div>
   );
-  
+
   if (error) return (
-      <div className={`${className} media-placeholder error`}>
-          <span>Failed to load</span>
-      </div>
+    <div className={`${className} media-placeholder error`}>
+      <span>Failed to load</span>
+    </div>
   );
 
   return <img src={mediaSrc} className={className} onClick={onClick} alt="Chat media" />;
@@ -173,26 +174,26 @@ const MessageBubble: React.FC<{
   const handleDownload = async (fileId: string, fileName: string) => {
     const api = getElectronAPI();
     if (isElectronEnvironment() && (api as any).downloadFile) {
-        const url = `${BASE_URL}/api/files/download/${fileId}`;
-        try {
-            const result = await (api as any).downloadFile(url, fileName, token);
-            if (result.success) {
-                console.log('File downloaded to:', result.filePath);
-            } else if (!result.canceled) {
-                alert('Download failed: ' + result.error);
-            }
-        } catch (err) {
-            console.error('Download error:', err);
+      const url = `${BASE_URL}/api/files/download/${fileId}`;
+      try {
+        const result = await (api as any).downloadFile(url, fileName, token);
+        if (result.success) {
+          console.log('File downloaded to:', result.filePath);
+        } else if (!result.canceled) {
+          alert('Download failed: ' + result.error);
         }
+      } catch (err) {
+        console.error('Download error:', err);
+      }
     } else {
-        window.open(`${BASE_URL}/api/files/download/${fileId}`);
+      window.open(`${BASE_URL}/api/files/download/${fileId}`);
     }
   };
 
   const renderContent = () => {
     const getFileUrl = (fileId: string) => `${BASE_URL}/api/files/download/${fileId}`;
     const type = message.type.toUpperCase();
-    
+
     switch (type) {
       case 'IMAGE': {
         const url = getFileUrl(message.content);
@@ -212,12 +213,12 @@ const MessageBubble: React.FC<{
         return (
           <div className="msg-media-container msg-video-container" onClick={() => onImageClick && onImageClick(url, 'VIDEO')}>
             <div className="video-overlay-play">
-                <svg viewBox="0 0 24 24" width="40" height="40" fill="white"><path d="M8 5v14l11-7z"/></svg>
+              <svg viewBox="0 0 24 24" width="40" height="40" fill="white"><path d="M8 5v14l11-7z" /></svg>
             </div>
             <div className="video-placeholder-thumb">
-                <svg viewBox="0 0 24 24" width="32" height="32" fill="white" opacity="0.5">
-                    <path d="M21 7L17 11V7C17 6.45 16.55 6 16 6H5C4.45 6 4 6.45 4 7V17C4 17.55 4.45 18 5 18H16C16.55 18 17 17.55 17 17V13L21 17V7Z"/>
-                </svg>
+              <svg viewBox="0 0 24 24" width="32" height="32" fill="white" opacity="0.5">
+                <path d="M21 7L17 11V7C17 6.45 16.55 6 16 6H5C4.45 6 4 6.45 4 7V17C4 17.55 4.45 18 5 18H16C16.55 18 17 17.55 17 17V13L21 17V7Z" />
+              </svg>
             </div>
           </div>
         );
@@ -227,9 +228,9 @@ const MessageBubble: React.FC<{
         return (
           <div className="msg-file-card" onClick={() => handleDownload(message.content, fileName)}>
             <div className="file-icon-box">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-                </svg>
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+              </svg>
             </div>
             <div className="file-detail">
               <span className="file-name" title={fileName}>{fileName}</span>
@@ -239,10 +240,10 @@ const MessageBubble: React.FC<{
         );
       }
       case 'VOICE': {
-          const url = getFileUrl(message.content);
-          return (
-              <CustomAudioPlayer url={url} token={token} />
-          );
+        const url = getFileUrl(message.content);
+        return (
+          <CustomAudioPlayer url={url} token={token} />
+        );
       }
       case 'MEETING': {
         const payload = parseMeetingPayload(message);
@@ -290,7 +291,7 @@ const MessageBubble: React.FC<{
                 {message.sendingStatus === 'failed' && (
                   <button className="resend-btn" onClick={() => onResend && onResend(message)} title="点击重发">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
                     </svg>
                   </button>
                 )}
@@ -318,7 +319,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [previewMedia, setPreviewMedia] = useState<{ url: string; type: string } | null>(null);
   const [isOnline, setIsOnline] = useState(false);
-  
+
   // Recording State
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -331,17 +332,12 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
   // 获取会话名称
   const getRoomName = () => {
-    if (conversation.type === 'GROUP') {
-      return conversation.groupName || '群组';
-    } else {
-      const otherUser = (Array.isArray(conversation.members) ? conversation.members : []).find(m => m.userId.toString() !== user?.userId);
-      return otherUser?.username || '未知用户';
-    }
+    return getConversationDisplayName(conversation, user?.userId);
   };
 
   // 获取对方用户ID（用于视频通话）
   const getOtherUserId = () => {
-    if (conversation.type === 'PRIVATE_CHAT') {
+    if (!isGroupConversation(conversation)) {
       const otherUser = (Array.isArray(conversation.members) ? conversation.members : []).find(m => m.userId.toString() !== user?.userId);
       return otherUser?.userId.toString();
     }
@@ -349,7 +345,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   };
 
   const getGroupParticipants = () => {
-    if (conversation.type !== 'GROUP') {
+    if (!isGroupConversation(conversation)) {
       return [];
     }
 
@@ -402,9 +398,9 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     setInputText('');
 
     // Define a clientMsgId to track the message through optimistic update
-    const clientMsgId = window.crypto && window.crypto.randomUUID 
-        ? window.crypto.randomUUID() 
-        : Math.random().toString(36).substring(2) + Date.now().toString(36);
+    const clientMsgId = window.crypto && window.crypto.randomUUID
+      ? window.crypto.randomUUID()
+      : Math.random().toString(36).substring(2) + Date.now().toString(36);
 
     try {
       // Async dispatch, don't await unwrap here if we want immediate UI
@@ -484,21 +480,21 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       recorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const api = getElectronAPI();
-        
+
         showToast('正在处理语音...', 'info' as any);
-        
+
         try {
           const res = await api.uploadFile(audioBlob as any, undefined, user?.token);
           if (res.success) {
-             const fileUrl = res.data?.url || res.data?.path || res.data?.fileId;
-             await dispatch(sendMessageViaSocket({
-               conversationId: conversation.conversationId,
-               content: fileUrl,
-               type: 'VOICE'
-             })).unwrap();
-             showToast('语音已发送', 'success' as any);
+            const fileUrl = res.data?.url || res.data?.path || res.data?.fileId;
+            await dispatch(sendMessageViaSocket({
+              conversationId: conversation.conversationId,
+              content: fileUrl,
+              type: 'VOICE'
+            })).unwrap();
+            showToast('语音已发送', 'success' as any);
           } else {
-             showToast('语音上传失败');
+            showToast('语音上传失败');
           }
         } catch (err) {
           console.error('Audio upload error:', err);
@@ -512,7 +508,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       recorder.start();
       setIsRecording(true);
       setRecordingTime(0);
-      
+
       recordingIntervalRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
@@ -547,21 +543,21 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   const startScreenShare = async () => {
     try {
       const api = getElectronAPI();
-      
+
       if (isElectronEnvironment()) {
-          const sources = await (api as any).getDesktopSources();
-          setScreenSources(sources);
-          setShowScreenPicker(true);
+        const sources = await (api as any).getDesktopSources();
+        setScreenSources(sources);
+        setShowScreenPicker(true);
       } else {
-          // Web fallback using getDisplayMedia
-          if (navigator.mediaDevices && (navigator.mediaDevices as any).getDisplayMedia) {
-              const stream = await (navigator.mediaDevices as any).getDisplayMedia({ video: true });
-              showToast('桌面分享已开启 (仅预览)', 'success' as any);
-              // Stop immediately as it is just a demo for now without real RTC signaling
-              stream.getTracks().forEach((track: any) => track.stop());
-          } else {
-              showToast('当前浏览器不支持桌面分享');
-          }
+        // Web fallback using getDisplayMedia
+        if (navigator.mediaDevices && (navigator.mediaDevices as any).getDisplayMedia) {
+          const stream = await (navigator.mediaDevices as any).getDisplayMedia({ video: true });
+          showToast('桌面分享已开启 (仅预览)', 'success' as any);
+          // Stop immediately as it is just a demo for now without real RTC signaling
+          stream.getTracks().forEach((track: any) => track.stop());
+        } else {
+          showToast('当前浏览器不支持桌面分享');
+        }
       }
     } catch (err: any) {
       console.error('Failed to get screen sources:', err);
@@ -606,19 +602,19 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   const handleFileDownload = async (fileId: string, fileName: string) => {
     const api = getElectronAPI();
     if (isElectronEnvironment() && (api as any).downloadFile) {
-        const url = `${BASE_URL}/api/files/download/${fileId}`;
-        try {
-            const result = await (api as any).downloadFile(url, fileName, user?.token);
-            if (result.success) {
-                console.log('File downloaded to:', result.filePath);
-            } else if (!result.canceled) {
-                alert('Download failed: ' + result.error);
-            }
-        } catch (err) {
-            console.error('Download error:', err);
+      const url = `${BASE_URL}/api/files/download/${fileId}`;
+      try {
+        const result = await (api as any).downloadFile(url, fileName, user?.token);
+        if (result.success) {
+          console.log('File downloaded to:', result.filePath);
+        } else if (!result.canceled) {
+          alert('Download failed: ' + result.error);
         }
+      } catch (err) {
+        console.error('Download error:', err);
+      }
     } else {
-        window.open(`${BASE_URL}/api/files/download/${fileId}`);
+      window.open(`${BASE_URL}/api/files/download/${fileId}`);
     }
   };
 
@@ -627,7 +623,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     let interval: any;
     const checkOnline = async () => {
       const otherUserId = getOtherUserId();
-      if (otherUserId && conversation.type === 'PRIVATE_CHAT') {
+      if (otherUserId && !isGroupConversation(conversation)) {
         try {
           const res = await import('../../services/api/apiClient').then(m => m.authAPI.isUserOnline(otherUserId));
           // Accessing res.data.data because UserController returns ApiResponse<Boolean>
@@ -639,10 +635,10 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         setIsOnline(false);
       }
     };
-    
+
     checkOnline();
     interval = setInterval(checkOnline, 10000); // 10s polling
-    
+
     return () => clearInterval(interval);
   }, [conversation]);
 
@@ -654,7 +650,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   // 消息更新时自动滚动且标记已读
   useEffect(() => {
     scrollToBottom();
-    
+
     // 如果有对方的消息，标记为已读
     if (messages.length > 0 && !chatLoading) {
       const lastOtherMsg = [...messages].reverse().find(m => m.fromAccountId.toString() !== user?.userId);
@@ -690,19 +686,25 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
             className="room-avatar"
             style={{ backgroundColor: getColorFromString(getRoomName() || '') }}
           >
-            {(getRoomName() || '?').charAt(0)}
+            {getConversationAvatarText(conversation, user?.userId)}
           </div>
           <div className="room-info">
             <h2 className="room-name">{getRoomName()}</h2>
             <div className="room-status">
-              <span className={`status-indicator ${isOnline ? 'online' : 'offline'}`}></span>
-              {isOnline ? '在线' : '离线'}
+              {isGroupConversation(conversation) ? (
+                <span>{conversation.members?.length || 0} 位成员</span>
+              ) : (
+                <>
+                  <span className={`status-indicator ${isOnline ? 'online' : 'offline'}`}></span>
+                  {isOnline ? '在线' : '离线'}
+                </>
+              )}
             </div>
           </div>
         </div>
 
         <div className="chatroom-header-actions">
-          {conversation.type === 'GROUP' && onStartMeeting && getGroupParticipants().length > 0 && (
+          {isGroupConversation(conversation) && onStartMeeting && getGroupParticipants().length > 0 && (
             <button
               className="action-icon-btn"
               onClick={startMeetingFromChat}
@@ -829,36 +831,36 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
       {/* 媒体预览 Modal - Enhanced with Glassmorphism */}
       {previewMedia && (
-          <div className="media-preview-overlay" onClick={handlePreviewClose}>
-              <div className="media-preview-container" onClick={e => e.stopPropagation()}>
-                  <div className="media-preview-header">
-                      <div className="media-info">
-                        <span className="media-type-badge">{previewMedia.type}</span>
-                      </div>
-                      <button className="media-close-btn" onClick={handlePreviewClose}>
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                      </button>
-                  </div>
-                  <div className="media-preview-body">
-                      {previewMedia.type === 'IMAGE' ? (
-                          <AuthenticatedImage 
-                            url={previewMedia.url} 
-                            token={user?.token} 
-                            className="active-media-preview" 
-                          />
-                      ) : (
-                          <video 
-                            controls 
-                            autoPlay 
-                            className="active-media-preview"
-                          >
-                            <source src={previewMedia.url} />
-                            Your browser does not support video playback.
-                          </video>
-                      )}
-                  </div>
+        <div className="media-preview-overlay" onClick={handlePreviewClose}>
+          <div className="media-preview-container" onClick={e => e.stopPropagation()}>
+            <div className="media-preview-header">
+              <div className="media-info">
+                <span className="media-type-badge">{previewMedia.type}</span>
               </div>
+              <button className="media-close-btn" onClick={handlePreviewClose}>
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" /></svg>
+              </button>
+            </div>
+            <div className="media-preview-body">
+              {previewMedia.type === 'IMAGE' ? (
+                <AuthenticatedImage
+                  url={previewMedia.url}
+                  token={user?.token}
+                  className="active-media-preview"
+                />
+              ) : (
+                <video
+                  controls
+                  autoPlay
+                  className="active-media-preview"
+                >
+                  <source src={previewMedia.url} />
+                  Your browser does not support video playback.
+                </video>
+              )}
+            </div>
           </div>
+        </div>
       )}
 
       {/* 输入区域 */}
@@ -909,28 +911,28 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
             </svg>
           </button>
           <div className="toolbar-divider"></div>
-          <button 
-            className={`tool-action-btn ${isRecording ? 'recording' : ''}`} 
-            title={isRecording ? '停止录音' : '语音消息'} 
+          <button
+            className={`tool-action-btn ${isRecording ? 'recording' : ''}`}
+            title={isRecording ? '停止录音' : '语音消息'}
             onClick={() => {
-                setShowEmojiPicker(false);
-                if (isRecording) stopRecording();
-                else startRecording();
+              setShowEmojiPicker(false);
+              if (isRecording) stopRecording();
+              else startRecording();
             }}
           >
-             {isRecording ? (
-                <div className="recording-indicator">
-                    <span className="rec-dot"></span>
-                    <span className="rec-time">{formatRecordingTime(recordingTime)}</span>
-                </div>
-             ) : (
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                    <line x1="12" y1="19" x2="12" y2="23"></line>
-                    <line x1="8" y1="23" x2="16" y2="23"></line>
-                </svg>
-             )}
+            {isRecording ? (
+              <div className="recording-indicator">
+                <span className="rec-dot"></span>
+                <span className="rec-time">{formatRecordingTime(recordingTime)}</span>
+              </div>
+            ) : (
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+              </svg>
+            )}
           </button>
         </div>
         <div className="input-row-modern">

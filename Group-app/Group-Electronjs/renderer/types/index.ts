@@ -173,8 +173,9 @@ export enum ConversationType {
 
 export interface ConversationRes {
   conversationId: number;
-  type: ConversationType;
+  conversationType: ConversationType;
   groupName?: string;
+  name?: string;
   description?: string;
   members: ApiUser[] | null;
   createAt: string;

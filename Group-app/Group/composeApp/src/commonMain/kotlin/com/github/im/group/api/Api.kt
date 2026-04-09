@@ -776,20 +776,26 @@ data class ConversationRes(
     val description: String? = "",
     val members: List<UserInfo> = emptyList(),
     val status: ConversationStatus = ConversationStatus.ACTIVE,
-    val type: ConversationType = ConversationType.PRIVATE_CHAT,
+    val conversationType: ConversationType = ConversationType.PRIVATE_CHAT,
 ) {
     fun getName(currentUser: UserInfo?): String {
-        return when (type) {
+        return when (conversationType) {
             ConversationType.GROUP -> groupName
             ConversationType.PRIVATE_CHAT -> {
                 if (members.isEmpty()) return "无成员"
-
                 // 返回非当前用户的名称
                 val otherUser = members.firstOrNull() { it.userId != (currentUser?.userId ?: "") }
                 otherUser?.username ?: ""
 
             }
         }
+    }
+
+    /***
+     * 是否为群组
+     */
+    fun isGroup(): Boolean {
+        return ConversationType.GROUP == conversationType
     }
 
     /**

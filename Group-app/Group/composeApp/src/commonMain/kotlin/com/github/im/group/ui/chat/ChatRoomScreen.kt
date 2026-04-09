@@ -243,12 +243,11 @@ fun ChatRoomScreen(
                     }
                 },
                 actions = {
-                    val isGroup = chatUiState.conversation?.type == ConversationType.GROUP
+                    val isGroup = chatUiState.conversation?.conversationType == ConversationType.GROUP
                     if (remoteUser != null || isGroup) {
                         IconButton(onClick = { 
                         if (isGroup) {
-                            val conversation = chatUiState.conversation
-                            if (conversation == null) return@IconButton
+                            val conversation = chatUiState.conversation ?: return@IconButton
                             val currentId = userInfo?.userId?.toString()
                             val participantIds = conversation.members
                                 .map { it.userId.toString() }

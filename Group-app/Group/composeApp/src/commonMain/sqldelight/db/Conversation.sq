@@ -1,4 +1,5 @@
 import com.github.im.group.db.entities.ConversationStatus;
+import com.github.im.group.db.entities.ConversationType;
 import kotlinx.datetime.LocalDateTime;
 
 CREATE TABLE Conversation (
@@ -8,7 +9,9 @@ CREATE TABLE Conversation (
   description TEXT,                 -- 描述
   createdBy INTEGER NOT NULL,       -- 对应 User.userId
   createdAt INTEGER AS LocalDateTime DEFAULT CURRENT_TIMESTAMP,
-  status TEXT AS ConversationStatus NOT NULL               -- 映射 ConversationStatus 枚举
+  status TEXT AS ConversationStatus NOT NULL  ,             -- 映射 ConversationStatus 枚举
+    conversationType TEXT AS ConversationType NOT NULL               -- 映射 ConversationType 枚举
+
 );
 
 selectAllConversations:

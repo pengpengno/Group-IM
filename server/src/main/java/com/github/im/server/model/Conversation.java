@@ -47,4 +47,9 @@ public class Conversation {
     @Column(nullable = false)
     private ConversationStatus status; // 添加状态字段
 
+
+    static void main() {
+        System.out.println(Math.round(17379 / 415 * 100.0 )/100.0);
+    }
+
 }

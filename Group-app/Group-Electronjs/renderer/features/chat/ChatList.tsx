@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { fetchConversations, setActiveConversation, createGroupConversation, addConversationMembers } from './chatSlice';
 import { fetchOrgStructure } from '../contacts/contactsSlice';
-import { ConversationDisplayState, ApiUser, OrgTreeNode } from '../../types';
+import { ConversationDisplayState, ApiUser, OrgTreeNode, ConversationRes } from '../../types';
 import './ChatList.css';
 
 interface ChatListProps {
@@ -137,9 +137,18 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
   };
 
   const filteredConversations = conversations.filter(item => {
-    const isGroup = item.conversation.type === 'GROUP';
+    const isGroup = item?.conversation.conversationType === 'GROUP';
+    // DEBUG: Trace Group Info
+    if (isGroup) {
+      console.log(`[DEBUG-CHATLIST] Group Conv ${item.conversation.conversationId}:`, {
+        groupName: item.conversation.groupName,
+        name: (item.conversation as any).name,
+        full: item.conversation
+      });
+    }
+
     const displayName = isGroup
-      ? item.conversation.groupName
+      ? (item.conversation.groupName || (item.conversation as any).name || '无名群组')
       : (Array.isArray(item.conversation.members) ? item.conversation.members : []).find((m: ApiUser) => m.userId.toString() !== user?.userId)?.username || '未知用户';
     return displayName?.toLowerCase().includes(searchQuery.toLowerCase());
   });
@@ -158,7 +167,7 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
           <div className="header-top">
             <h2>消息</h2>
             <div className="header-actions">
-              {activeConversation?.type === 'GROUP' && (
+              {activeConversation?.conversationType === 'GROUP' && (
                 <button className="icon-btn" title="添加群成员" onClick={() => openGroupModal('add-members')}>
                   <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -195,14 +204,14 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
         <div className="conversations-scroll">
           {filteredConversations.length === 0 ? (
             <div className="empty-chats">
-              <div className="empty-icon">聊</div>
+              <div className="empty-icon">会话</div>
               <p>{searchQuery ? '未找到相关会话' : '暂无最近会话'}</p>
             </div>
           ) : (
             filteredConversations.map((item: ConversationDisplayState) => {
-              const isGroup = item.conversation.type === 'GROUP';
-              const displayName = isGroup
-                ? item.conversation.groupName
+              const isGroup = isGroupConversation(item.conversation);
+              const displayName = item.conversation.groupName
+                ? (item.conversation.groupName || (item.conversation as any).name || '无名群组')
                 : (Array.isArray(item.conversation.members) ? item.conversation.members : []).find((m: ApiUser) => m.userId.toString() !== user?.userId)?.username || '未知用户';
 
               return (
@@ -338,5 +347,10 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
     </>
   );
 };
+
+
+function isGroupConversation(conv: ConversationRes) {
+  return conv?.conversationType === 'GROUP';
+}
 
 export default ChatList;
