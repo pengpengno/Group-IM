@@ -33,10 +33,12 @@ RUN groupadd -g 1001 spring && \
     useradd -u 1001 -g spring -m -s /bin/bash spring
 
 # 创建应用目录并授权
-RUN mkdir -p /app/logs/server/app \
-    /app/storage \
-    /app/uploads && \
-    chown -R spring:spring /app
+
+RUN mkdir -p /app/logs/server && \
+    mkdir -p /app/logs/server/app && \
+    mkdir -p /app/storage && \
+    chown -R spring:spring /app && \
+    chmod -R 755 /app
 
 # 切换为非 root 用户
 USER spring
