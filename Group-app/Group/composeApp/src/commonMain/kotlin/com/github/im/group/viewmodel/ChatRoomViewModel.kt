@@ -108,6 +108,7 @@ class ChatRoomViewModel(
     val fileDownloadStates: StateFlow<Map<String, FileDownloadState>> = _fileDownloadStates.asStateFlow()
 
     private val messageStore = linkedMapOf<String, MessageItem>()
+    /**当前 的会话ID*/
     private var activeConversationId: Long? = null
 
     private val _mediaMessages = MutableStateFlow<List<MessageItem>>(emptyList())
@@ -171,30 +172,42 @@ class ChatRoomViewModel(
         performSend(content = file.name, pickedFile = file, duration = duration)
     }
 
+    /***
+     * 发送文件消息
+     * @param content 任意字符串 TODO 未来设计为 媒体字段的消息
+     * @param pickedFile 文件
+     * @param duration 媒体时长 视频时长 、 音频时长
+     */
     private fun performSend(
         content: String,
         pickedFile: File? = null,
         duration: Long = 0
     ) {
         viewModelScope.launch {
+            // 当前用户
             val currentUser = userRepository.getLocalUserInfo() ?: return@launch
+            // 当前 会话Id
             val currentConversationId = uiState.value.conversation?.conversationId
+            //  看下是否存在朋友Id
             val friendId = uiState.value.friend?.userId
+            // 是否为群聊
+            val isGroup = uiState.value.conversation?.isGroup();
 
             val targetConversationId = if (currentConversationId == null && friendId != null) {
                 getOrCreatePrivateChat(currentUser.userId, friendId).conversationId
             } else {
                 currentConversationId ?: return@launch
             }
-
+             //  床架你回话
             prepareConversation(targetConversationId)
 
-            val outbound = when {
+            val message = when {
                 pickedFile != null -> chatMessageBuilder.fileMessage(targetConversationId, pickedFile.name, pickedFile.size, duration)
                 else -> chatMessageBuilder.textMessage(targetConversationId, content)
             }
 
-            val messageItem = MessageWrapper(message = outbound)
+            val messageItem = MessageWrapper(message = message)
+            // 先插入的
             updateOrInsertMessage(messageItem, scrollToLatest = true)
 
             offlineMessageRepository.saveOfflineMessage(
@@ -342,12 +355,10 @@ class ChatRoomViewModel(
     }
 
     private fun prepareConversation(conversationId: Long) {
-        if (activeConversationId != conversationId) {
-            activeConversationId = conversationId
-            messageStore.clear()
-            _mediaMessages.value = emptyList()
-            _uiState.update { it.copy(messages = emptyList(), messageIndex = -1, scrollToTop = false) }
-        }
+
+        messageStore.clear()
+        _mediaMessages.value = emptyList()
+        _uiState.update { it.copy(messages = emptyList(), messageIndex = -1, scrollToTop = false) }
     }
 
     fun loadLocalMessages(conversationId: Long, limit: Long = 30) {
@@ -448,6 +459,10 @@ class ChatRoomViewModel(
         chatSessionManager.unregisterHandler(conversationId)
     }
 
+    /***
+     * 更新或者新增消息
+     * 唯一索引为  clientMsgId 、 消息的msgId
+     */
     private fun updateOrInsertMessage(message: MessageItem, scrollToLatest: Boolean = false) {
         chatMessageRepository.insertOrUpdateMessage(message)
         if (message.seqId != 0L && message.clientMsgId.isNotBlank()) {
@@ -457,6 +472,9 @@ class ChatRoomViewModel(
         emitUiMessages(scrollToLatest)
     }
 
+    /**
+     * 构建消息的uniqueKey
+     */
     private fun MessageItem.uniqueKey(): String = when {
         seqId != 0L -> "S:$seqId"
         clientMsgId.isNotBlank() -> "C:$clientMsgId"
