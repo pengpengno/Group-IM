@@ -37,6 +37,7 @@ RUN groupadd -g 1001 spring && \
 RUN mkdir -p /app/logs/server && \
     mkdir -p /app/logs/server/app && \
     mkdir -p /app/storage && \
+    mkdir -p /app/uploads && \
     chown -R spring:spring /app && \
     chmod -R 755 /app
 

@@ -5,6 +5,7 @@
     <!-- 本地环境  -->
 
     <property name="LOG_HOME" value="/app/logs" />
+<!--    <property name="LOG_HOME" value="/app/logs" />-->
     <!-- 应用名称 -->
     <property name="APP_NAME" value="server"/>
     <!--日志文件保留天数-->
