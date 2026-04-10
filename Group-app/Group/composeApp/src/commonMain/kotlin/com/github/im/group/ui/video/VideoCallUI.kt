@@ -544,8 +544,7 @@ private fun ActiveVideoCallUI(
                     // 显示通话时长
                     videoCallState.callStartTime?.let { startTime ->
                         val duration by remember {
-                            //TODO  epochMilliseconds
-                            mutableStateOf((Clock.System.now().toEpochMilliseconds() - startTime) / 1000)
+                                    mutableStateOf((Clock.System.now().toEpochMilliseconds() - startTime) / 1000)
                         }
                         Text(text = formatDuration(duration), color = Color.White, fontSize = 14.sp)
                     }

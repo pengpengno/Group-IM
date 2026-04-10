@@ -55,11 +55,11 @@ import com.github.im.group.api.FriendshipDTO
 import com.github.im.group.model.UserInfo
 import com.github.im.group.ui.UserAvatar
 import com.github.im.group.ui.conversation
+import com.github.im.group.ui.theme.ThemeTokens
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.ConversationDisplayState
 import com.github.im.group.viewmodel.UserViewModel
 import io.github.aakira.napier.Napier
-import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -101,108 +101,105 @@ fun ChatUI(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ThemeTokens.BackgroundDark)
+            .padding(top = 16.dp)
     ) {
+//        Column(modifier = Modifier.padding(horizontal = 20.dp, bottom = 12.dp)) {
+//            Text(
+//                text = "正在聊天",
+//                style = MaterialTheme.typography.headlineMedium,
+//                color = Color.White,
+//                fontWeight = FontWeight.Bold
+//            )
+//        }
+
         // --- 离线状态提示 ---
         if (loading && conversations.isEmpty()) {
             OfflineStatusBanner()
         }
 
-        // --- 搜索框区域 ---
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+        Surface(
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+            color = Color.White.copy(alpha = 0.98f),
+            modifier = Modifier.fillMaxSize()
         ) {
-            OutlinedTextField(
-                value = userSearchQuery,
-                onValueChange = {
-                    userSearchQuery = it
-                    userViewModel.searchUser(it)
-                },
-                placeholder = { Text("搜索联系人或消息...", fontSize = 14.sp) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(20.dp)) },
-                trailingIcon = {
-                    IconButton(
-                        onClick = {
-                            userViewModel.loadFriendsIfNeeded()
-                            showCreateGroupDialog = true
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) {
+                // --- 搜索框区域 ---
+                OutlinedTextField(
+                    value = userSearchQuery,
+                    onValueChange = {
+                        userSearchQuery = it
+                        userViewModel.searchUser(it)
+                    },
+                    placeholder = { Text("搜索联系人或消息...", fontSize = 14.sp) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = ThemeTokens.TextMuted, modifier = Modifier.size(20.dp)) },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = {
+                                userViewModel.loadFriendsIfNeeded()
+                                showCreateGroupDialog = true
+                            }
+                        ) {
+                            Icon(Icons.Default.GroupAdd, contentDescription = "创建群聊", tint = ThemeTokens.PrimaryBlue)
                         }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = Color(0xFFF1F5F9),
+                        focusedContainerColor = Color(0xFFF1F5F9),
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedBorderColor = ThemeTokens.PrimaryBlue.copy(alpha = 0.4f)
+                    ),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                if (userSearchQuery.isNotBlank()) {
+                    // --- 搜索结果列表 ---
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(searchResults) { user ->
+                            UserSearchItem(
+                                user = user,
+                                currentUser = userInfo,
+                                onAddFriend = { /* logic */ }
+                            )
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 72.dp), thickness = 0.5.dp, color = Color(0xFFF1F5F9))
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(Icons.Default.GroupAdd, contentDescription = "创建群聊")
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(26.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                ),
-                singleLine = true
-            )
-        }
-
-        if (showCreateGroupDialog) {
-            CreateGroupDialog(
-                friends = friends,
-                onDismiss = { showCreateGroupDialog = false },
-                onCreate = { groupName, desc, members ->
-                    scope.launch {
-                        val conversation = chatViewModel.createGroupChat(groupName, desc, members)
-                        showCreateGroupDialog = false
-                        navHostController.navigate(conversation(conversation.conversationId))
-                    }
-                }
-            )
-        }
-
-        if (userSearchQuery.isNotBlank()) {
-            // --- 搜索结果列表 ---
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(searchResults) { user ->
-                    UserSearchItem(
-                        user = user,
-                        currentUser = userInfo,
-                        onAddFriend = { /* logic */ }
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 72.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-                }
-            }
-        } else {
-            // --- 聊天会话列表 ---
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-            ) {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    item { Spacer(modifier = Modifier.height(8.dp)) }
-                    items(conversations) { conversation ->
-                        userInfo?.let { me ->
-                            ChatItem(
-                                conversation = conversation,
-                                userInfo = me,
-                                onClick = {
-                                    val conversationId = conversation.conversation.conversationId
-                                    navHostController.navigate(conversation(conversationId))
-                                }
-                            )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(start = 76.dp, end = 16.dp),
-                                thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                            )
+                        items(conversations) { conversation ->
+                            userInfo?.let { me ->
+                                ChatItem(
+                                    conversation = conversation,
+                                    userInfo = me,
+                                    onClick = {
+                                        val conversationId = conversation.conversation.conversationId
+                                        navHostController.navigate(conversation(conversationId))
+                                    }
+                                )
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(start = 76.dp, end = 16.dp),
+                                    thickness = 0.5.dp,
+                                    color = Color(0xFFF1F5F9)
+                                )
+                            }
                         }
-                    }
-                    
-                    // 如果没有会话且不在加载中，显示空状态
-                    if (conversations.isEmpty() && !loading) {
-                        item {
-                            EmptyChatState()
+
+                        // 如果没有会话且不在加载中，显示空状态
+                        if (conversations.isEmpty() && !loading) {
+                            item {
+                                EmptyChatState()
+                            }
                         }
                     }
                 }

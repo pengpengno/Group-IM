@@ -1,4 +1,4 @@
-﻿package com.github.im.group.ui.chat
+package com.github.im.group.ui.chat
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.LinearEasing
@@ -165,6 +165,7 @@ fun ChatInputArea(
                                     onSendText(messageText.trim())
                                     messageText = ""
                                     focusManager.clearFocus()
+                                    activePanel = InputPanel.NONE
                                 }
                             }
                         ),
@@ -214,6 +215,7 @@ fun ChatInputArea(
                             onSendText(messageText.trim())
                             messageText = ""
                             focusManager.clearFocus()
+                            activePanel = InputPanel.NONE
                         }
                     )
                 } else {
@@ -236,9 +238,9 @@ fun ChatInputArea(
                     onEmojiSelected = { emoji -> messageText += emoji },
                     onDismiss = { activePanel = InputPanel.NONE }
                 )
-                InputPanel.MORE -> PlatformFilePickerPanel(
+                InputPanel.MORE -> MediaPickerScreen(
                     onDismiss = { activePanel = InputPanel.NONE },
-                    onFileSelected = { files ->
+                    onMediaSelected = { files ->
                         onFileSelected(files)
                         activePanel = InputPanel.NONE
                     }

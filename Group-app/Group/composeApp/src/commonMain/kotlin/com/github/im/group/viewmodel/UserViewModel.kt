@@ -72,6 +72,7 @@ class UserViewModel(
                     is LoginState.Authenticated -> {
                         // 登录成功，更新当前用户信息
                         _currentLocalUserInfo.value = state.userInfo
+                        loadCompanies()
                     }
                     else -> {
                         // 登录失败，更新当前用户信息
@@ -101,6 +102,23 @@ class UserViewModel(
 
 
 
+    /**
+     * 加载用户的公司/工作区列表
+     */
+    fun loadCompanies() {
+        viewModelScope.launch {
+            try {
+                val companies = com.github.im.group.api.CompanyApi.getMyCompanies()
+                _currentLocalUserInfo.value?.let { currentUser ->
+                    val updatedUser = currentUser.copy(companies = companies)
+                    _currentLocalUserInfo.value = updatedUser
+                    GlobalCredentialProvider.storage.saveUserInfo(updatedUser)
+                }
+            } catch (e: Exception) {
+                Napier.e("Failed to load companies", e)
+            }
+        }
+    }
     
     /**
      * 获取联系人列表

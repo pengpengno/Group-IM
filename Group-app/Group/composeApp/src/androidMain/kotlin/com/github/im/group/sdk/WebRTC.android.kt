@@ -460,65 +460,42 @@ actual fun VideoScreenView(
     videoTrack: com.github.im.group.sdk.VideoTrack?,
     audioTrack: com.github.im.group.sdk.AudioTrack?
 ) {
-    var renderer by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
-
-    val lifecycleEventObserver =
-        remember(renderer, videoTrack) {
-            LifecycleEventObserver { _, event -> 
-                when (event) {
-                    Lifecycle.Event.ON_RESUME -> {
-                        renderer?.also {
-                            it.init(WebRtc.rootEglBase.eglBaseContext, null)
-                            if (videoTrack is AndroidVideoTrack ){
-                                videoTrack.webrtcVideoTrack.addSinkCatching(it)
-                            }
-                        }
-                    }
-                    Lifecycle.Event.ON_PAUSE -> {
-                        renderer?.also {
-                            if (videoTrack is AndroidVideoTrack ){
-                                videoTrack.webrtcVideoTrack.removeSinkCatching(it)
-                            }
-                        }
-                        renderer?.release()
-                    }
-                    else -> {}
-                }
-            }
-        }
-
-    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
-    DisposableEffect(lifecycle, lifecycleEventObserver) {
-        lifecycle.addObserver(lifecycleEventObserver)
-        onDispose {
-            renderer?.let {
-                if (videoTrack is AndroidVideoTrack ){
-                    videoTrack.webrtcVideoTrack.removeSinkCatching(it)
-                }
-            }
-            renderer?.release()
-            lifecycle.removeObserver(lifecycleEventObserver)
-        }
-    }
-
     AndroidView(
         modifier = modifier,
         factory = { context -> 
             SurfaceViewRenderer(context).apply {
+                init(WebRtc.rootEglBase.eglBaseContext, null)
                 setScalingType(
                     RendererCommon.ScalingType.SCALE_ASPECT_BALANCED,
                     RendererCommon.ScalingType.SCALE_ASPECT_FIT,
                 )
-                renderer = this
+                setEnableHardwareScaler(true)
             }
         },
+        update = { view ->
+            if (videoTrack is AndroidVideoTrack) {
+                // To avoid multiple sinks, remove then add
+                try {
+                    videoTrack.webrtcVideoTrack.removeSink(view)
+                } catch (e: Exception) {
+                    // Ignore
+                }
+                try {
+                    videoTrack.webrtcVideoTrack.addSink(view)
+                } catch (e: Exception) {
+                    Napier.e("Failed to add sink", e)
+                }
+            }
+        },
+        onRelease = { view ->
+            if (videoTrack is AndroidVideoTrack) {
+                try {
+                    videoTrack.webrtcVideoTrack.removeSink(view)
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }
+            view.release()
+        }
     )
-}
-
-private fun VideoTrack.addSinkCatching(sink: VideoSink) {
-    runCatching { addSink(sink) }
-}
-
-private fun VideoTrack.removeSinkCatching(sink: VideoSink) {
-    runCatching { removeSink(sink) }
 }

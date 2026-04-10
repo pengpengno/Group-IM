@@ -1,129 +1,283 @@
-package com.github.im.group.repository
+﻿package com.github.im.group.repository
 
 import com.github.im.group.api.ChatApi
 import com.github.im.group.api.MessageDTO
-import com.github.im.group.api.extraAs
 import com.github.im.group.db.AppDatabase
+import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.UserInfo
 import db.Message
 import io.github.aakira.napier.Napier
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
-/**
- * 聊天消息本地存储
- */
-class ChatMessageRepository (
+class ChatMessageRepository(
     private val db: AppDatabase,
     private val userRepository: UserRepository
-){
+) {
 
-
-    /**
-     * 根据 clientMsgId 查询消息
-     */
     fun getMessageByClientMsgId(clientMsgId: String): MessageItem? {
-        val entity = db.messageQueries.selectMessageByClientMsgId(clientMsgId).executeAsOneOrNull()
-        return entity?.let {
-            MessageWrapper(
-                messageDto = entityToMessageDTO(it)
-            )
-        }
+        val entity = db.messageQueries.selectMessageByClientMsgId(clientMsgId).executeAsOneOrNull() ?: return null
+        return MessageWrapper(messageDto = entityToMessageDTO(entity))
     }
 
-    /**
-     * 在本地数据库中插入单条消息
-     *
-     * 根据 clientMsgId 来查询
-     */
-    fun insertOrUpdateMessage(messageItem: MessageItem){
+    fun insertOrUpdateMessage(messageItem: MessageItem) {
+        saveUserInfo(messageItem.userInfo)
 
-        // 检查是否已经存在相同 clientMsgId 的消息
-        val existingMessage = messageItem.id.let {
-            if (it <= 0L){
-                // 如果id 不存在说明是 本地生成的消息  还没在服务端ACK 的消息/  推送的消息
-                db.messageQueries.selectMessageByClientMsgId(messageItem.clientMsgId).executeAsOneOrNull()
-            }else{
-                // 如果id 存在说明是 服务端推送的消息 先在本地根据 clientID 查不到则说明不是本地更新的返回消息 再 通过 msg_id 查询
-                db.messageQueries.selectMessageByClientMsgId(messageItem.clientMsgId).executeAsOneOrNull()
-                    .let { message ->
-                        if (message == null){
-                            return@let db.messageQueries.selectMessageByMsgId(it).executeAsOneOrNull()
-                        }
-                        return@let  message
-                    }
+        val existing = findExistingMessage(messageItem)
+        if (existing != null) {
+            mergeIntoExistingMessage(existing, messageItem)
+            return
+        }
 
-            }
-        }
-        
-        if (existingMessage != null) {
-            // 如果消息已存在，则更新它
-            db.messageQueries.updateMessageByClientMsgId(
-                status = messageItem.status,
-                server_timestamp = messageItem.time,
-                sequence_id = messageItem.seqId,
-                client_msg_id = messageItem.clientMsgId,
-                msg_id = messageItem.id
-            )
-        } else {
-            // 如果消息不存在，则插入新记录
-            db.transaction {
-                val clientTime = messageItem.clientTime?.let {
-                    Instant.fromEpochMilliseconds(Clock.System.now().toEpochMilliseconds()).toLocalDateTime(TimeZone.currentSystemDefault())
-                }
-                messageItem.id.let {
-                    if (it <= 0L){
-                        // 如果id 不存在说明是 本地生成的消息  还没在服务端ACK 的消息/  推送的消息
-                        db.messageQueries.insertMessage(
-                            conversation_id = messageItem.conversationId,
-                            from_account_id = messageItem.userInfo.userId,
-                            content = messageItem.content,
-                            client_msg_id = messageItem.clientMsgId,
-                            client_timestamp = clientTime,
-                            type = messageItem.type,
-                            status =messageItem.status,
-                            sequence_id = messageItem.seqId
-                        )
-                    }else{
-                        // 如果id 存在说明是 服务端推送的消息
-                        db.messageQueries.insertMessageWithMsgId(
-                            conversation_id = messageItem.conversationId,
-                            from_account_id = messageItem.userInfo.userId,
-                            content = messageItem.content,
-                            client_msg_id = messageItem.clientMsgId,
-                            server_timestamp = messageItem.time,
-                            msg_id = messageItem.id,
-                            type = messageItem.type,
-                            status =messageItem.status,
-                            sequence_id = messageItem.seqId
-                        )
-                    }
-                }
-            }
-            
-            // 同时保存用户信息到用户表
-            saveUserInfo(messageItem.userInfo)
-        }
+        insertNewMessage(messageItem)
     }
-    
-    /**
-     * 保存用户信息到本地数据库
-     */
-    private fun saveUserInfo(userInfo: UserInfo) {
+
+    fun insertMessages(messageDTOs: List<MessageDTO>) {
+        if (messageDTOs.isEmpty()) return
         db.transaction {
-            // 先检查用户是否存在
+            messageDTOs.forEach { insertOrUpdateMessage(MessageWrapper(messageDto = it)) }
+        }
+    }
+
+    fun getMaxSequenceId(conversationId: Long): Long {
+        return db.messageQueries
+            .selectMaxSequenceIdByConversation(conversationId)
+            .executeAsOneOrNull()
+            ?.MAX ?: 0L
+    }
+
+    fun getMessagesByConversation(conversationId: Long, limit: Long = 30): List<MessageItem> {
+        val rows = db.messageQueries
+            .selectMessagesWithUserInfoByConversation(conversationId, limit)
+            .executeAsList()
+
+        return rows.map { row ->
+            rowToMessageWrapper(
+                msgId = row.msg_id,
+                conversationId = row.conversation_id,
+                clientMsgId = row.client_msg_id,
+                fromAccountId = row.from_account_id,
+                username = row.username,
+                email = row.email,
+                status = row.status,
+                content = row.content,
+                type = row.type,
+                serverTimestamp = row.server_timestamp,
+                clientTimestamp = row.client_timestamp,
+                sequenceId = row.sequence_id
+            )
+        }
+    }
+
+    fun getLatestMessages(conversationId: Long, limit: Long = 30): List<MessageItem> {
+        return getMessagesByConversation(conversationId, limit)
+    }
+
+    suspend fun getLatestMessage(conversationId: Long): MessageWrapper? {
+        try {
+            val localMaxSequenceId = getMaxSequenceId(conversationId)
+            val remoteMessages = ChatApi.getMessages(conversationId, localMaxSequenceId).content
+
+            if (remoteMessages.isNotEmpty()) {
+                val users = remoteMessages
+                    .mapNotNull { it.fromAccount }
+                    .filter { it.username.isNotBlank() }
+                if (users.isNotEmpty()) {
+                    userRepository.addOrUpdateUsers(users)
+                }
+                insertMessages(remoteMessages)
+            }
+        } catch (e: Exception) {
+            Napier.e("sync latest message failed, fallback to local conversationId=$conversationId", e)
+        }
+
+        return getLocalLatestMessage(conversationId)
+    }
+
+    fun getLocalLatestMessage(conversationId: Long): MessageWrapper? {
+        return try {
+            val row = db.messageQueries
+                .selectLatestMessageWithUserInfoByConversation(conversationId)
+                .executeAsOneOrNull() ?: return null
+
+            rowToMessageWrapper(
+                msgId = row.msg_id,
+                conversationId = row.conversation_id,
+                clientMsgId = row.client_msg_id,
+                fromAccountId = row.from_account_id,
+                username = row.username,
+                email = row.email,
+                status = row.status,
+                content = row.content,
+                type = row.type,
+                serverTimestamp = row.server_timestamp,
+                clientTimestamp = row.client_timestamp,
+                sequenceId = row.sequence_id
+            )
+        } catch (e: Exception) {
+            Napier.e("get local latest message failed, conversationId=$conversationId", e)
+            null
+        }
+    }
+
+    fun getMessagesBeforeSequence(
+        conversationId: Long,
+        beforeSequenceId: Long,
+        limit: Long = 20
+    ): List<MessageItem> {
+        val rows = db.messageQueries
+            .selectMessagesWithUserInfoBeforeSequence(conversationId, beforeSequenceId, limit)
+            .executeAsList()
+
+        return rows.map { row ->
+            rowToMessageWrapper(
+                msgId = row.msg_id,
+                conversationId = row.conversation_id,
+                clientMsgId = row.client_msg_id,
+                fromAccountId = row.from_account_id,
+                username = row.username,
+                email = row.email,
+                status = row.status,
+                content = row.content,
+                type = row.type,
+                serverTimestamp = row.server_timestamp,
+                clientTimestamp = row.client_timestamp,
+                sequenceId = row.sequence_id
+            )
+        }
+    }
+
+    fun getMessagesAfterSequence(
+        conversationId: Long,
+        afterSequenceId: Long,
+        limit: Long = 20
+    ): List<MessageItem> {
+        val rows = db.messageQueries
+            .selectMessagesWithUserInfoAfterSequence(conversationId, afterSequenceId, limit)
+            .executeAsList()
+
+        return rows.map { row ->
+            rowToMessageWrapper(
+                msgId = row.msg_id,
+                conversationId = row.conversation_id,
+                clientMsgId = row.client_msg_id,
+                fromAccountId = row.from_account_id,
+                username = row.username,
+                email = row.email,
+                status = row.status,
+                content = row.content,
+                type = row.type,
+                serverTimestamp = row.server_timestamp,
+                clientTimestamp = row.client_timestamp,
+                sequenceId = row.sequence_id
+            )
+        }
+    }
+
+    fun getUnreadCount(conversationId: Long, currentUserId: Long): Int {
+        return try {
+            db.messageQueries.selectUnreadCountByConversation(conversationId, currentUserId)
+                .executeAsOne()
+                .toInt()
+        } catch (e: Exception) {
+            Napier.e("get unread count failed, conversationId=$conversationId", e)
+            0
+        }
+    }
+
+    fun markConversationMessagesAsRead(conversationId: Long, currentUserId: Long) {
+        try {
+            db.messageQueries.markConversationMessagesAsRead(conversationId, currentUserId)
+        } catch (e: Exception) {
+            Napier.e("mark conversation messages as read failed, conversationId=$conversationId", e)
+        }
+    }
+
+    private fun findExistingMessage(messageItem: MessageItem): Message? {
+        val byClientMsgId = messageItem.clientMsgId.takeIf { it.isNotBlank() }
+            ?.let { db.messageQueries.selectMessageByClientMsgId(it).executeAsOneOrNull() }
+        if (byClientMsgId != null) return byClientMsgId
+
+        if (messageItem.id > 0L) {
+            val byMsgId = db.messageQueries.selectMessageByMsgId(messageItem.id).executeAsOneOrNull()
+            if (byMsgId != null) return byMsgId
+        }
+
+        return null
+    }
+
+    private fun mergeIntoExistingMessage(existing: Message, messageItem: MessageItem) {
+        val mergedStatus = resolveMergedStatus(existing.status, messageItem.status)
+        val mergedServerTime = messageItem.time.takeUnless { it == EPOCH }
+            ?: existing.server_timestamp
+            ?: existing.client_timestamp
+            ?: EPOCH
+        val mergedSequence = if (messageItem.seqId > 0L) messageItem.seqId else existing.sequence_id ?: 0L
+        val mergedMsgId = messageItem.id.takeIf { it > 0L } ?: existing.msg_id
+
+        when {
+            existing.client_msg_id != null -> db.messageQueries.updateMessageByClientMsgId(
+                status = mergedStatus,
+                server_timestamp = mergedServerTime,
+                sequence_id = mergedSequence,
+                msg_id = mergedMsgId,
+                client_msg_id = existing.client_msg_id
+            )
+
+            existing.msg_id != null -> db.messageQueries.updateMessageByMsgId(
+                status = mergedStatus,
+                server_timestamp = mergedServerTime,
+                sequence_id = mergedSequence,
+                msg_id = existing.msg_id
+            )
+
+            else -> Unit
+        }
+    }
+
+    private fun insertNewMessage(messageItem: MessageItem) {
+        db.transaction {
+            if (messageItem.id > 0L) {
+                db.messageQueries.insertMessageWithMsgId(
+                    conversation_id = messageItem.conversationId,
+                    msg_id = messageItem.id,
+                    from_account_id = messageItem.userInfo.userId,
+                    content = messageItem.content,
+                    client_msg_id = messageItem.clientMsgId.ifBlank { null },
+                    type = messageItem.type,
+                    status = messageItem.status,
+                    server_timestamp = messageItem.time.takeUnless { it == EPOCH } ?: messageItem.clientTime ?: EPOCH,
+                    sequence_id = messageItem.seqId
+                )
+            } else {
+                db.messageQueries.insertMessage(
+                    conversation_id = messageItem.conversationId,
+                    from_account_id = messageItem.userInfo.userId,
+                    content = messageItem.content,
+                    client_msg_id = messageItem.clientMsgId.ifBlank { null },
+                    type = messageItem.type,
+                    status = messageItem.status,
+                    client_timestamp = messageItem.clientTime ?: messageItem.time.takeUnless { it == EPOCH } ?: currentLocalTime(),
+                    sequence_id = messageItem.seqId
+                )
+            }
+        }
+    }
+
+    private fun saveUserInfo(userInfo: UserInfo) {
+        if (userInfo.userId <= 0L) return
+        db.transaction {
             val existingUser = db.userQueries.selectById(userInfo.userId).executeAsOneOrNull()
             if (existingUser == null) {
-                // 用户不存在则插入
                 db.userQueries.insertUser(
                     userId = userInfo.userId,
                     username = userInfo.username,
                     email = userInfo.email,
-                    phoneNumber = "",
+                    phoneNumber = userInfo.phoneNumber ?: "",
                     avatarUrl = null,
                     bio = null,
                     userStatus = com.github.im.group.db.entities.UserStatus.ACTIVE
@@ -131,312 +285,7 @@ class ChatMessageRepository (
             }
         }
     }
-    
-    /**
-     * 批量插入来自DTO的消息（使用事务优化）
-     * 通过减少重复查询和优化事务处理来提高性能
-     * 注意：SQLDelight没有原生的批量插入API，所以我们使用事务包装循环插入来模拟批量插入
-     */
-    fun insertMessages(messageDTOs: List<MessageDTO>) {
-        if (messageDTOs.isEmpty()) return
-        
-        db.transaction {
-            messageDTOs.forEach { messageDTO ->
-                insertOrUpdateMessage(MessageWrapper(messageDto = messageDTO))
-            }
-        }
-    }
 
-    /**
-     * 根据 msgId 更新消息
-     */
-    private fun updateMessageByMsgId(messageDTO: MessageDTO) {
-        val localDateTime = kotlinx.datetime.Instant.parse(messageDTO.timestamp).toLocalDateTime(TimeZone.currentSystemDefault())
-
-        messageDTO.msgId?.let { msgId ->
-            // 如果消息已存在，则更新它
-            db.messageQueries.updateMessageByMsgId(
-                status = messageDTO.status,
-                server_timestamp = localDateTime,
-                sequence_id = messageDTO.sequenceId ?: 0L,
-                msg_id = msgId
-            )
-        }
-
-    }
-
-
-    /**
-     * 获取指定会话的最大序列号
-     */
-    fun getMaxSequenceId(conversationId: Long): Long {
-
-        db.messageQueries
-            .selectMaxSequenceIdByConversation(conversationId)
-            .executeAsOneOrNull()
-            .let {return it?.MAX ?: 0L}
-    }
-    
-    /**
-     * 获取指定会话的 所有消息
-     * 根据服务端的创建时间排序 DESC
-     * @param conversationId 会话ID
-     * @param limit 限制返回的消息数量 默认30
-     */
-    fun getMessagesByConversation(conversationId: Long, limit: Long = 30): List<MessageItem> {
-        // 获取指定会话的所有消息  ORDER  BY  server_time_stamp DESC
-        val entities = db.messageQueries.selectMessagesWithUserInfoByConversation(conversationId, limit).executeAsList()
-        return entities.map { entity ->
-            MessageWrapper(
-                messageDto = MessageDTO(
-                    msgId = entity.msg_id,
-                    conversationId = entity.conversation_id,
-                    clientMsgId = entity.client_msg_id,
-                    fromAccountId = entity.from_account_id,
-                    status = entity.status,
-                    content = entity.content,
-                    type =  entity.type,
-                    timestamp = entity.server_timestamp.toString(),
-                    sequenceId = entity.sequence_id,
-                    fromAccount = UserInfo(
-                        userId = entity.from_account_id,
-                        username = entity.username?:"",
-                        email = entity.email?:""
-                    ),
-                )
-            )
-        }
-    }
-    
-    /**
-     * 获取指定会话的最新消息
-     * @param conversationId 会话ID
-     * @param limit 限制返回的消息数量 默认30
-     */
-    fun getLatestMessages(conversationId: Long, limit: Long = 30): List<MessageItem> {
-        // 获取指定会话的最新消息  ORDER  BY  server_time_stamp DESC
-
-        val entities = db.messageQueries.selectMessagesWithUserInfoByConversation(conversationId, limit).executeAsList()
-        return entities.map { entity ->
-            MessageWrapper(
-                messageDto = MessageDTO(
-                    msgId = entity.msg_id,
-                    conversationId = entity.conversation_id,
-                    clientMsgId = entity.client_msg_id,
-                    fromAccountId = entity.from_account_id,
-                    status = entity.status,
-                    content = entity.content,
-                    type =  entity.type,
-                    timestamp = entity.server_timestamp.toString(),
-                    sequenceId = entity.sequence_id,
-                    fromAccount = UserInfo(
-                        userId = entity.from_account_id,
-                        username = entity.username?:"",
-                        email = entity.email?:""
-                    ),
-                )
-            )
-        }
-    }
-
-    /**
-     * 获取指定会话的最新消息
-     * 优先从本地获取，网络异常时返回本地最新消息
-     */
-    suspend fun getLatestMessage(conversationId: Long): MessageWrapper? {
-        try {
-            // 获取本地最新Index
-            val localMaxSequenceId = getMaxSequenceId(conversationId)
-            if (localMaxSequenceId == 0L){
-                Napier.d("本地没有 conversationId ${conversationId} 消息")
-            }else{
-                Napier.d("本地最大序列号: $localMaxSequenceId")
-            }
-
-            // 从服务器获取消息，只获取比本地序列号大的消息
-            val pageResult = ChatApi.getMessages(conversationId, localMaxSequenceId)
-            val remoteMessages = pageResult.content
-            Napier.d("从服务器获取到 ${remoteMessages.size} 条新消息")
-
-            if (remoteMessages.isNotEmpty()) {
-                // 先保存用户数据
-                val userInfos = remoteMessages.filter {
-                    it.fromAccount != null && it.fromAccount.username.isNotBlank()
-                }.mapNotNull { it ->
-                    it.fromAccount?.takeIf { it.username.isNotBlank() }
-                }
-                if (userInfos.isNotEmpty()) {
-                    userRepository.addOrUpdateUsers(userInfos)
-                }
-                // 批量保存新消息到本地（使用事务）
-                insertMessages(remoteMessages)
-
-                // 批量保存文件元数据
-                val fileMetas = remoteMessages
-                    .filter { it.type.isFile() }
-                    .mapNotNull { it.extraAs<com.github.im.group.api.FileMeta>() }
-
-                Napier.d("同步完成，新增 ${remoteMessages.size} 条消息")
-            }
-            
-            // 开始查询展示最新消息
-            val entity = db.messageQueries.selectLatestMessageWithUserInfoByConversation(conversationId).executeAsOneOrNull()
-            return entity?.let {
-                MessageWrapper(
-                    messageDto = MessageDTO(
-                        msgId = entity.msg_id,  // 可能为空
-                        conversationId = entity.conversation_id,
-                        status = entity.status,
-                        content = entity.content,
-                        type =  entity.type,
-                        timestamp = entity.server_timestamp.toString(),  // 可能为空
-                        fromAccount = UserInfo(
-                            userId = entity.from_account_id,
-                            username = entity.username?:"",
-                            email = entity.email?:""
-                        ),
-                    )
-                )
-            }
-        } catch (e: Exception) {
-            Napier.e("获取最新消息失败，使用本地数据兜底: conversationId=$conversationId", e)
-            // 网络异常时，直接从本地获取最新消息
-            val localEntity = db.messageQueries.selectLatestMessageWithUserInfoByConversation(conversationId).executeAsOneOrNull()
-            return localEntity?.let {
-                MessageWrapper(
-                    messageDto = MessageDTO(
-                        msgId = localEntity.msg_id,
-                        conversationId = localEntity.conversation_id,
-                        status = localEntity.status,
-                        content = localEntity.content,
-                        type =  localEntity.type,
-                        timestamp = localEntity.server_timestamp.toString(),
-                        fromAccount = UserInfo(
-                            userId = localEntity.from_account_id,
-                            username = localEntity.username?:"",
-                            email = localEntity.email?:""
-                        ),
-                    )
-                )
-            }
-        }
-    }
-
-    /**
-     * 从本地获取会话的最新消息（纯本地操作，不调用网络）
-     * @param conversationId 会话的Id
-     */
-    fun getLocalLatestMessage(conversationId: Long): MessageWrapper? {
-        try {
-            val entity = db.messageQueries.selectLatestMessageWithUserInfoByConversation(conversationId).executeAsOneOrNull()
-            return entity?.let {
-                MessageWrapper(
-                    messageDto = MessageDTO(
-                        msgId = entity.msg_id,
-                        conversationId = entity.conversation_id,
-                        status = entity.status,
-                        content = entity.content,
-                        type =  entity.type,
-                        timestamp = entity.server_timestamp.toString(),
-                        fromAccount = UserInfo(
-                            userId = entity.from_account_id,
-                            username = entity.username?:"",
-                            email = entity.email?:""
-                        ),
-                    )
-                )
-            }
-        } catch (e: Exception) {
-            Napier.e("获取本地最新消息失败: conversationId=$conversationId", e)
-            return null
-        }
-    }
-
-//    fun updateMsgStatusAndTimeStampByClientMsgId(clientMsgId: String, status: MessageStatus, timestamp: LocalDateTime){
-//        db.messageQueries.updateMessageByClientMsgId(status, timestamp, clientMsgId)
-//
-//    }
-    
-    /**
-     * 获取指定会话中指定序列号之前的消息
-     * @param conversationId 会话ID
-     * @param beforeSequenceId 在此序列号之前的消息
-     * @param limit 限制返回的消息数量
-     */
-    fun getMessagesBeforeSequence(conversationId: Long, beforeSequenceId: Long, limit: Long = 20): List<MessageItem> {
-        val entities = db.messageQueries.selectMessagesWithUserInfoBeforeSequence(conversationId, beforeSequenceId,
-            limit
-        ).executeAsList()
-        return entities.map { entity ->
-            MessageWrapper(
-                messageDto = MessageDTO(
-                    clientMsgId = entity.client_msg_id,
-                    msgId = entity.msg_id,
-                    conversationId = entity.conversation_id,
-                    status = entity.status,
-                    content = entity.content,
-                    type =  entity.type,
-                    timestamp = entity.server_timestamp.toString(),
-                    fromAccount = UserInfo(
-                        userId = entity.from_account_id,
-                        username = entity.username?:"",
-                        email = entity.email?:""
-                    ),
-
-                    )
-            )
-        }
-    }
-    
-    /**
-     * 获取指定会话中指定序列号之后的消息
-     * @param conversationId 会话ID
-     * @param afterSequenceId 在此序列号之后的消息
-     */
-    fun getMessagesAfterSequence(conversationId: Long, afterSequenceId: Long, limit: Long = 20): List<MessageItem> {
-        val entities = db.messageQueries.selectMessagesWithUserInfoAfterSequence(conversationId, afterSequenceId, limit).executeAsList()
-        return entities.map { entity ->
-            MessageWrapper(
-                messageDto = MessageDTO(
-                    msgId = entity.msg_id,
-                    conversationId = entity.conversation_id,
-                    clientMsgId = entity.client_msg_id,
-                    status = entity.status,
-                    content = entity.content,
-                    type =  entity.type,
-                    timestamp = entity.server_timestamp.toString(),
-                    fromAccount = UserInfo(
-                        userId = entity.from_account_id,
-                        username = entity.username?:"",
-                        email = entity.email?:""
-                    ),
-
-                    )
-            )
-        }
-    }
-
-
-    /**
-     * 将DTO转换为数据库实体
-     */
-    private fun dtoToExistMessage(dto: MessageDTO, message: Message ): Message {
-        val localDateTime = kotlinx.datetime.Instant.parse(dto.timestamp).toLocalDateTime(TimeZone.currentSystemDefault())
-        return  message.copy(
-            msg_id = dto.msgId,
-            client_msg_id = dto.clientMsgId,
-            conversation_id = dto.conversationId ?: 0L,
-            from_account_id = dto.fromAccount?.userId ?: 0L,
-            content = dto.content ?: "",
-            type = dto.type,
-            status = dto.status,
-            server_timestamp = localDateTime,
-            sequence_id = dto.sequenceId
-        )
-    }
-    /**
-     * 将数据库实体转换为MessageDTO
-     */
     private fun entityToMessageDTO(entity: Message): MessageDTO {
         return MessageDTO(
             msgId = entity.msg_id,
@@ -445,36 +294,73 @@ class ChatMessageRepository (
             fromAccount = userRepository.getUserById(entity.from_account_id),
             type = entity.type,
             status = entity.status,
-            timestamp = entity.server_timestamp.toString(),
+            timestamp = effectiveTimestamp(entity.server_timestamp, entity.client_timestamp).toString(),
             conversationId = entity.conversation_id,
             sequenceId = entity.sequence_id
         )
     }
-    
-    /**
-     * 获取指定会话中当前用户的未读消息数量
-     * @param conversationId 会话ID
-     * @param currentUserId 当前用户ID（排除自己发的消息）
-     */
-    fun getUnreadCount(conversationId: Long, currentUserId: Long): Int {
-        return try {
-            db.messageQueries.selectUnreadCountByConversation(conversationId, currentUserId)
-                .executeAsOne().toInt()
-        } catch (e: Exception) {
-            Napier.e("获取未读消息数量失败: conversationId=$conversationId", e)
-            0
+
+    private fun rowToMessageWrapper(
+        msgId: Long?,
+        conversationId: Long,
+        clientMsgId: String?,
+        fromAccountId: Long,
+        username: String?,
+        email: String?,
+        status: MessageStatus,
+        content: String,
+        type: com.github.im.group.db.entities.MessageType,
+        serverTimestamp: LocalDateTime?,
+        clientTimestamp: LocalDateTime?,
+        sequenceId: Long?
+    ): MessageWrapper {
+        return MessageWrapper(
+            messageDto = MessageDTO(
+                msgId = msgId,
+                conversationId = conversationId,
+                clientMsgId = clientMsgId,
+                fromAccountId = fromAccountId,
+                status = status,
+                content = content,
+                type = type,
+                timestamp = effectiveTimestamp(serverTimestamp, clientTimestamp).toString(),
+                sequenceId = sequenceId,
+                fromAccount = UserInfo(
+                    userId = fromAccountId,
+                    username = username.orEmpty(),
+                    email = email.orEmpty()
+                )
+            )
+        )
+    }
+
+    private fun effectiveTimestamp(
+        serverTimestamp: LocalDateTime?,
+        clientTimestamp: LocalDateTime?
+    ): LocalDateTime {
+        return serverTimestamp ?: clientTimestamp ?: EPOCH
+    }
+
+    private fun currentLocalTime(): LocalDateTime {
+        return Instant.fromEpochMilliseconds(kotlinx.datetime.Clock.System.now().toEpochMilliseconds())
+            .toLocalDateTime(TimeZone.currentSystemDefault())
+    }
+
+    private fun resolveMergedStatus(
+        existingStatus: MessageStatus,
+        incomingStatus: MessageStatus
+    ): MessageStatus {
+        return when {
+            incomingStatus == MessageStatus.READ || existingStatus == MessageStatus.READ -> MessageStatus.READ
+            incomingStatus == MessageStatus.RECEIVED || existingStatus == MessageStatus.RECEIVED -> MessageStatus.RECEIVED
+            incomingStatus == MessageStatus.SENT || existingStatus == MessageStatus.SENT -> MessageStatus.SENT
+            incomingStatus == MessageStatus.FAILED -> MessageStatus.FAILED
+            else -> incomingStatus
         }
     }
 
-    /**
-     * 进入会话后将本地未读标记为已读，用于立即清除会话列表红点。
-     * 仅影响本地 DB 的展示逻辑（server 已读由 ChatApi 另行同步）。
-     */
-    fun markConversationMessagesAsRead(conversationId: Long, currentUserId: Long) {
-        try {
-            db.messageQueries.markConversationMessagesAsRead(conversationId, currentUserId)
-        } catch (e: Exception) {
-            Napier.e("本地标记会话已读失败: conversationId=$conversationId", e)
-        }
+    companion object {
+        private val EPOCH: LocalDateTime = Instant.fromEpochMilliseconds(0)
+            .toLocalDateTime(TimeZone.currentSystemDefault())
     }
 }

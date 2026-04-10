@@ -6,40 +6,99 @@ import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
+import android.provider.MediaStore
+import android.view.ViewGroup
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.media3.common.util.UnstableApi
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil3.compose.AsyncImage
-import com.github.im.group.sdk.*
+import com.github.im.group.sdk.File
+import com.github.im.group.sdk.FileData
+import com.github.im.group.sdk.MediaFileView
+import com.github.im.group.sdk.TryGetMultiplePermissions
+import com.github.im.group.ui.theme.ThemeTokens
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+private enum class PickerCategory(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    GALLERY("相册", Icons.Default.PhotoLibrary),
+    FILE("文件", Icons.AutoMirrored.Filled.InsertDriveFile),
+    LOCATION("位置", Icons.Default.LocationOn),
+    MUSIC("音乐", Icons.Default.MusicNote)
+}
 
 data class MediaItem(
     val id: Long,
@@ -47,15 +106,16 @@ data class MediaItem(
     val uri: Uri,
     val mimeType: String,
     val size: Long,
-    val dateTaken: Long
+    val dateTaken: Long,
+    val isVideo: Boolean
 ) {
     fun toPickedFile(): File {
         return File(
-            name = this.name,
-            path = this.uri.toString(),
-            mimeType = this.mimeType,
-            size = this.size,
-            data = FileData.Path(this.uri.toString())
+            name = name,
+            path = uri.toString(),
+            mimeType = mimeType,
+            size = size,
+            data = FileData.Path(uri.toString())
         )
     }
 }
@@ -66,678 +126,662 @@ actual fun MediaPickerScreen(
     onDismiss: () -> Unit,
     onMediaSelected: (List<File>) -> Unit
 ) {
-    var permissionCheck by remember { mutableStateOf(false) }
-    
-    // 根据Android版本确定需要请求的权限
-    val permissionsToRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        // Android 13+ 需要同时请求图片和视频权限
-        listOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
-    } else {
-        // Android 12及以下只需请求存储权限
-        listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-    }
-    
-    TryGetMultiplePermissions(
-        permissions = permissionsToRequest,
-        onAllGranted = {
-            permissionCheck = true
-        },
-        onRequest = {
-            // 权限请求中，可以保持当前状态或更新UI
-            Napier.d("permission request")
-        },
-        onAnyDenied = {
-            // 权限被拒绝的处理
-            Napier.d("permission denied")
+    var permissionGranted by remember { mutableStateOf(false) }
+
+    val permissions = remember {
+        val list = mutableListOf(Manifest.permission.CAMERA)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            list.add(Manifest.permission.READ_MEDIA_IMAGES)
+            list.add(Manifest.permission.READ_MEDIA_VIDEO)
+        } else {
+            list.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
+        list
+    }
+
+    TryGetMultiplePermissions(
+        permissions = permissions,
+        onAllGranted = { permissionGranted = true },
+        onRequest = { Napier.d("request media permissions") },
+        onAnyDenied = { permissionGranted = false }
     )
-    
-    if(permissionCheck) {
-        UnifiedMediaPicker(
+
+    if (permissionGranted) {
+        MediaPickerBottomSheet(
             onDismiss = onDismiss,
             onMediaSelected = onMediaSelected
         )
     }
 }
 
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
+/***
+ * Picker Bottom Sheet
+ *
+ */
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun UnifiedMediaPicker(
+private fun MediaPickerBottomSheet(
     onDismiss: () -> Unit,
     onMediaSelected: (List<File>) -> Unit
 ) {
-
-    Napier.d("link start")
-
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var previewItem by remember { mutableStateOf<MediaItem?>(null) }
-
+    var category by remember { mutableStateOf(PickerCategory.GALLERY) }
     var mediaItems by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
-    var selectedItems by remember { mutableStateOf<Set<MediaItem>>(emptySet()) }
+    var selectedIds by remember { mutableStateOf(setOf<Long>()) }
+    var previewIndex by remember { mutableStateOf<Int?>(null) }
+    var showDiscardDialog by remember { mutableStateOf(false) }
 
-    // 添加媒体类型选择状态
-    var selectedMediaType by remember { mutableStateOf("all") } // "all", "image", "video"
-
-    // 加载媒体
-    fun loadMedia() {
-        scope.launch {
-            Napier.d("loadMedia permission check success !")
-
-            loadMediaItems(context, selectedMediaType) { items ->
-                Napier.d("loadMediaItems success !")
-                mediaItems = items
-            }
+    val handleDismiss = {
+        if (selectedIds.isNotEmpty()) {
+            showDiscardDialog = true
+        } else {
+            onDismiss()
         }
     }
 
-    LaunchedEffect(selectedMediaType) {
-        loadMedia()
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            Napier.d("Captured camera photo successfully.")
+        }
     }
 
-    // BottomSheet
+    LaunchedEffect(Unit) {
+        mediaItems = loadMediaItems(context)
+    }
+
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
-        dragHandle = { }
+        onDismissRequest = handleDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Color(0xFFF8FAFC)
     ) {
         Column(
             modifier = Modifier
-                .fillMaxHeight(0.8f)
-                .padding(4.dp)
+                .fillMaxHeight(0.9f)
         ) {
-            // 1. 标题和媒体类型选择
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
-                Text(
-                    text = "相册",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                
-                // 媒体类型选择标签
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    val mediaTypes = listOf(
-                        Pair("all", "全部"),
-                        Pair("image", "图片"),
-                        Pair("video", "视频")
-                    )
-                    
-                    mediaTypes.forEach { (type, label) ->
-                        FilterChip(
-                            selected = selectedMediaType == type,
-                            onClick = {
-                                selectedMediaType = type
-                            },
-                            label = {
-                                Text(label)
-                            }
-                        )
-                    }
-                }
-            }
-
-            // 2. 媒体网格
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(2.dp)
-            ) {
-                items(mediaItems, key = { it.id }) { media ->
-                    MediaItemView(
-                        mediaItem = media,
-                        isSelected = selectedItems.contains(media),
-                        onSelected = { selected ->
-                            selectedItems = if (selected) selectedItems + media else selectedItems - media
-                        },
-                        onClickPreview = {
-                            // 打开预览
-                            previewItem = media  // 点击时更新状态
-
-                        }
-                    )
-                }
-            }
-// 显示预览
-            previewItem?.let { item ->
-                MediaPreviewDialog(
-                    items = mediaItems,
-                    currentItem = item,
-                    onDismiss = { previewItem = null },  // 点击关闭时置空状态
-                    onMediaSelected = { selectedMedia ->
-                        // 预览界面中选择文件后直接返回
-                        val files = selectedMedia.map { media ->
-                            File(media.name, media.uri.toString(), media.mimeType, media.size, FileData.Path(media.uri.toString()))
-                        }
-                        onMediaSelected(files)
-                        onDismiss()
-                    }
-                )
-            }
-            // 3. 发送按钮
-            if (selectedItems.isNotEmpty()) {
-                Button(
-                    onClick = {
-                        val files = selectedItems.map { media ->
-                            File(media.name, media.uri.toString(), media.mimeType, media.size, FileData.Path(media.uri.toString()))
-                        }
-                        onMediaSelected(files)
-                        onDismiss()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp)
-                ) {
-                    Text("发送 (${selectedItems.size})")
-                }
-            }
-        }
-    }
-}
-
-@androidx.annotation.OptIn(UnstableApi::class)
-@Composable
-fun MediaPreviewDialog(
-    items: List<MediaItem>,
-    currentItem: MediaItem,
-    onDismiss: () -> Unit = {},
-    onMediaSelected: ((List<MediaItem>) -> Unit)? = null
-) {
-    var currentIndex by remember { mutableIntStateOf(items.indexOf(currentItem)) }
-    var selectedItems by remember { mutableStateOf<Set<MediaItem>>(setOf(currentItem)) } // 默认选中当前项
-
-    Dialog(onDismissRequest = onDismiss
-    , properties = DialogProperties(dismissOnBackPress = true, usePlatformDefaultWidth = false ,dismissOnClickOutside = true)
-    ) {
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-            val media = items[currentIndex]
-            if (media.mimeType.startsWith("image/")) {
-                AsyncImage(
-                    model = media.uri,
-                    contentDescription = media.name,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else if (media.mimeType.startsWith("video/")) {
-                // 使用AndroidView和ExoPlayer直接播放视频
-                Napier.d("play video ${media.uri}")
-
-                MediaFileView(media.toPickedFile(), Modifier.fillMaxSize(), size = 200.dp)
-//                CrossPlatformVideo(media.toPickedFile(), Modifier.fillMaxSize(), size = 200.dp)
-            }
-
-            // 显示选中状态 - 在右上角
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp)
-            ) {
-                val isSelected = selectedItems.contains(media)
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clickable { 
-                            selectedItems = if (isSelected) {
-                                selectedItems - media
-                            } else {
-                                selectedItems + media
-                            }
-                        }
-                        .background(
-                            if (isSelected) Color(0xFF0088CC) else Color.Black.copy(alpha = 0.5f), 
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isSelected) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = if (isSelected) "取消选择" else "选择",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-
-            // 显示当前索引和总数
-            Text(
-                text = "${currentIndex + 1}/${items.size}",
-                color = Color.White,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 16.dp)
-            )
-
-            // 左右切换按钮
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // 左箭头（上一个）
-                if (currentIndex > 0) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clickable { 
-                                currentIndex--
-                            }
-                            .background(Color.Black.copy(alpha = 0.5f), shape = CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ChevronLeft, // 使用左箭头图标
-                            contentDescription = "上一个",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                } else {
-                    // 如果是第一项，显示一个透明的占位符
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                    )
-                }
-                
-                // 右箭头（下一个）
-                if (currentIndex < items.size - 1) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clickable { 
-                                currentIndex++
-                            }
-                            .background(Color.Black.copy(alpha = 0.5f), shape = CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight, // 使用右箭头图标
-                            contentDescription = "下一个",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                } else {
-                    // 如果是最后一项，显示一个透明的占位符
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                    )
-                }
-            }
-
-            // 底部选择按钮
+            // Header
             Row(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                TextButton(
-                    onClick = onDismiss
-                ) {
-                    Text("取消", color = Color.White)
+                Column {
+                    Text(
+                        text = "选取附件",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = ThemeTokens.TextMain,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (selectedIds.isEmpty()) "选择图片、视频或拍摄"
+                        else "已选择 ${selectedIds.size} 项",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ThemeTokens.TextSecondary,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
-
-                Button(
-                    onClick = {
-                        onMediaSelected?.invoke(selectedItems.toList())
-                        onDismiss()
-                    }
+                Surface(
+                    shape = CircleShape,
+                    color = Color.White,
+                    tonalElevation = 2.dp,
+                    modifier = Modifier.size(36.dp)
                 ) {
-                    Text("确定 (${selectedItems.size})")
+                    Box(contentAlignment = Alignment.Center) {
+                        IconButton(onClick = handleDismiss) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "关闭",
+                                tint = ThemeTokens.TextMain
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Content Area depending on Category
+            Box(modifier = Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                when (category) {
+                    PickerCategory.GALLERY -> {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(3),
+                            contentPadding = PaddingValues(bottom = 80.dp), // Space for bottom bar
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            // Camera Item
+                            item {
+                                CameraPreviewItem(
+                                    onClick = { cameraLauncher.launch(null) }
+                                )
+                            }
+                            
+                            items(mediaItems, key = { it.id }) { item ->
+                                MediaGridItem(
+                                    item = item,
+                                    isSelected = selectedIds.contains(item.id),
+                                    onClick = {
+                                        if (selectedIds.isNotEmpty()) {
+                                            selectedIds = selectedIds.toggle(item.id)
+                                        } else {
+                                            previewIndex = mediaItems.indexOfFirst { it.id == item.id }.takeIf { it >= 0 }
+                                        }
+                                    },
+                                    onLongPress = {
+                                        selectedIds = selectedIds.toggle(item.id)
+                                    },
+                                    onToggleSelected = {
+                                        selectedIds = selectedIds.toggle(item.id)
+                                    }
+                                )
+                            }
+                        }
+                        
+                        if (selectedIds.isNotEmpty()) {
+                            FloatingActionButton(
+                                onClick = {
+                                    val files = mediaItems
+                                        .filter { selectedIds.contains(it.id) }
+                                        .sortedByDescending { it.dateTaken }
+                                        .map { it.toPickedFile() }
+                                    onMediaSelected(files)
+                                    onDismiss()
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(bottom = 16.dp, end = 16.dp),
+                                containerColor = ThemeTokens.PrimaryBlue,
+                                contentColor = Color.White,
+                                shape = CircleShape
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = "发送",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                    else -> {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    category.icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = ThemeTokens.TextMuted.copy(alpha = 0.5f)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    "${category.label} 选择器开发中...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = ThemeTokens.TextSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Bottom Category Tabs (hidden when items are selected)
+            if (selectedIds.isEmpty()) {
+                Surface(
+                    color = Color.White,
+                    tonalElevation = 8.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        PickerCategory.values().forEach { cat ->
+                            val isSelected = category == cat
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { category = cat }
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = cat.icon,
+                                    contentDescription = cat.label,
+                                    tint = if (isSelected) ThemeTokens.PrimaryBlue else ThemeTokens.TextMuted,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = cat.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isSelected) ThemeTokens.PrimaryBlue else ThemeTokens.TextMuted,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
     }
+
+    // Discard Dialog
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text("放弃选择") },
+            text = { Text("您已经选择了一些项目，确定要放弃吗？") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDiscardDialog = false
+                    onDismiss()
+                }) {
+                    Text("放弃", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false }) {
+                    Text("继续选择")
+                }
+            }
+        )
+    }
+
+    // Preview
+    previewIndex?.let { index ->
+        MediaPreviewDialog(
+            items = mediaItems,
+            initialIndex = index,
+            selectedIds = selectedIds,
+            onDismiss = { previewIndex = null },
+            onToggleSelected = { item -> selectedIds = selectedIds.toggle(item.id) },
+            onSend = { selectedItems ->
+                val files = selectedItems.map { it.toPickedFile() }
+                onMediaSelected(files)
+                onDismiss()
+            }
+        )
+    }
 }
 
-
-/**
- * 图片 视频展示
- */
 @Composable
-fun MediaItemView(
-    mediaItem: MediaItem,
+fun CameraPreviewItem(onClick: () -> Unit) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color.Black)
+            .clickable(onClick = onClick)
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                PreviewView(ctx).apply {
+                    scaleType = PreviewView.ScaleType.FILL_CENTER
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxSize(),
+            update = { previewView ->
+                val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+                cameraProviderFuture.addListener({
+                    val cameraProvider = cameraProviderFuture.get()
+                    val preview = Preview.Builder().build().also {
+                        it.setSurfaceProvider(previewView.surfaceProvider)
+                    }
+                    val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                    try {
+                        cameraProvider.unbindAll()
+                        cameraProvider.bindToLifecycle(
+                            lifecycleOwner,
+                            cameraSelector,
+                            preview
+                        )
+                    } catch (exc: Exception) {
+                        Napier.e("Use case binding failed", exc)
+                    }
+                }, ContextCompat.getMainExecutor(context))
+            }
+        )
+        // Overlay a camera icon
+        Icon(
+            imageVector = Icons.Default.PhotoCamera,
+            contentDescription = "Camera",
+            tint = Color.White.copy(alpha = 0.8f),
+            modifier = Modifier.align(Alignment.Center).size(36.dp)
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MediaGridItem(
+    item: MediaItem,
     isSelected: Boolean,
-    onSelected: (Boolean) -> Unit,
-    onClickPreview: () -> Unit
+    onClick: () -> Unit,
+    onLongPress: () -> Unit,
+    onToggleSelected: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .aspectRatio(1f)
-            .padding(2.dp)
-    ) {
-        if (mediaItem.mimeType.startsWith("video/")) {
-            // 对于视频文件，显示视频第一帧
-            VideoThumbnail(
-                uri = mediaItem.uri,
-                contentDescription = mediaItem.name,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable { onClickPreview() }
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color.White)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress
             )
+    ) {
+        if (item.isVideo) {
+            VideoThumbnail(item = item, modifier = Modifier.fillMaxSize())
         } else {
-            // 对于图片文件，直接显示
             AsyncImage(
-                model = mediaItem.uri,
-                contentDescription = mediaItem.name,
+                model = item.uri,
+                contentDescription = item.name,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable { onClickPreview() }
+                modifier = Modifier.fillMaxSize()
             )
         }
 
-        // 视频标识
-        if (mediaItem.mimeType.startsWith("video/")) {
-            Box(
+        if (item.isVideo) {
+            Surface(
+                shape = CircleShape,
+                color = Color.Black.copy(alpha = 0.38f),
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(4.dp),
-                contentAlignment = Alignment.BottomStart
+                    .align(Alignment.Center)
+                    .size(34.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .background(Color.Black.copy(alpha = 0.5f), shape = CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "视频",
+                        contentDescription = "预览视频",
                         tint = Color.White,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
         }
 
-        // 多选选中状态 - 显示在右上角
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(4.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clickable { onSelected(!isSelected) }
-                    .background(
-                        if (isSelected) Color(0xFF0088CC) else Color.Black.copy(alpha = 0.5f), 
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isSelected) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "已选择",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun VideoThumbnail(
-    uri: Uri,
-    contentDescription: String?,
-    modifier: Modifier = Modifier
-) {
-    var thumbnailBitmap by remember(uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    
-    LaunchedEffect(uri) {
-        isLoading = true
-        withContext(Dispatchers.IO) {
-            thumbnailBitmap = extractVideoFrame(uri)
-        }
-        isLoading = false
-    }
-    
-    if (isLoading) {
-        Box(
-            modifier = modifier.background(Color.Gray),
+                .padding(8.dp)
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(if (isSelected) ThemeTokens.PrimaryBlue else Color.Black.copy(alpha = 0.32f))
+                .border(
+                    width = 1.2.dp,
+                    color = if (isSelected) ThemeTokens.PrimaryBlue else Color.White.copy(alpha = 0.9f),
+                    shape = CircleShape
+                )
+                .clickable(onClick = onToggleSelected),
             contentAlignment = Alignment.Center
         ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                color = Color.White
-            )
-        }
-    } else {
-        thumbnailBitmap?.let { bitmap ->
-            androidx.compose.foundation.Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = contentDescription,
-                contentScale = ContentScale.Crop,
-                modifier = modifier
-            )
-        } ?: Box(
-            modifier = modifier.background(Color.Gray),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = contentDescription,
-                tint = Color.White,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalPermissionsApi::class)
-@Composable
-fun CameraItem(
-    cameraPermissionState: com.google.accompanist.permissions.PermissionState,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .aspectRatio(1f)
-            .padding(2.dp)
-            .clickable { onClick() }
-            .background(Color.LightGray),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.CameraAlt,
-            contentDescription = "拍照",
-            tint = Color.White,
-            modifier = Modifier.size(48.dp)
-        )
-        
-        // 如果没有相机权限，显示锁定图标
-        if (!cameraPermissionState.status.isGranted) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f)),
-                contentAlignment = Alignment.Center
-            ) {
+            if (isSelected) {
                 Icon(
-                    imageVector = Icons.Default.Lock,
-                    contentDescription = "需要相机权限",
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "已选中",
                     tint = Color.White,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(14.dp)
                 )
             }
         }
     }
 }
 
-/**
- * 加载媒体项
- */
-private suspend fun loadMediaItems(
-    context: Context,
-    mediaType: String,
-    onResult: (List<MediaItem>) -> Unit
-) = withContext(Dispatchers.IO) {
-    val items = mutableListOf<MediaItem>()
-    
-    try {
-        android.util.Log.d("MediaPickerScreen", "开始加载媒体项，类型: $mediaType")
-        
-        val projection = arrayOf(
-            android.provider.MediaStore.MediaColumns._ID,
-            android.provider.MediaStore.MediaColumns.DISPLAY_NAME,
-            android.provider.MediaStore.MediaColumns.MIME_TYPE,
-            android.provider.MediaStore.MediaColumns.SIZE,
-            android.provider.MediaStore.MediaColumns.DATE_TAKEN
-        )
-        
-        // 根据媒体类型构建查询条件
-        val (selection, selectionArgs) = when (mediaType) {
-            "image" -> {
-                "${android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE} = ?" to 
-                    arrayOf(android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString())
-            }
-            "video" -> {
-                "${android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE} = ?" to 
-                    arrayOf(android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString())
-            }
-            else -> {
-                // 对于"all"情况，查询图片和视频
-                "${android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE} IN (?, ?)" to 
-                    arrayOf(
-                        android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
-                        android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()
-                    )
-            }
-        }
+@Composable
+private fun MediaPreviewDialog(
+    items: List<MediaItem>,
+    initialIndex: Int,
+    selectedIds: Set<Long>,
+    onDismiss: () -> Unit,
+    onToggleSelected: (MediaItem) -> Unit,
+    onSend: (List<MediaItem>) -> Unit
+) {
+    if (items.isEmpty()) return
+    var currentIndex by remember(items, initialIndex) { mutableStateOf(initialIndex.coerceIn(0, items.lastIndex)) }
+    val currentItem = items.getOrNull(currentIndex) ?: return
+    val currentSelected = selectedIds.contains(currentItem.id)
+    val sendItems = remember(selectedIds, currentItem, items) {
+        items.filter { selectedIds.contains(it.id) }.ifEmpty { listOf(currentItem) }
+    }
 
-        android.util.Log.d("MediaPickerScreen", "查询条件: selection=$selection, selectionArgs=${selectionArgs?.contentToString()}")
-        
-        val sortOrder = "${android.provider.MediaStore.MediaColumns.DATE_TAKEN} DESC"
-        
-        val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            android.provider.MediaStore.Files.getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL)
-        } else {
-            android.provider.MediaStore.Files.getContentUri("external")
-        }
-        
-        android.util.Log.d("MediaPickerScreen", "查询URI: $collection")
-        
-        val cursor: android.database.Cursor? = context.contentResolver.query(
-            collection,
-            projection,
-            selection,
-            selectionArgs,
-            sortOrder
-        )
-        
-        android.util.Log.d("MediaPickerScreen", "查询结果cursor: $cursor")
-        
-        cursor?.use { c ->
-            android.util.Log.d("MediaPickerScreen", "查询到 ${c.count} 条记录")
-            
-            if (c.count == 0) {
-                android.util.Log.d("MediaPickerScreen", "没有找到任何媒体文件")
-            }
-            
-            val idColumn = c.getColumnIndexOrThrow(android.provider.MediaStore.MediaColumns._ID)
-            val nameColumn = c.getColumnIndexOrThrow(android.provider.MediaStore.MediaColumns.DISPLAY_NAME)
-            val mimeColumn = c.getColumnIndexOrThrow(android.provider.MediaStore.MediaColumns.MIME_TYPE)
-            val sizeColumn = c.getColumnIndexOrThrow(android.provider.MediaStore.MediaColumns.SIZE)
-            val dateTakenColumn = c.getColumnIndexOrThrow(android.provider.MediaStore.MediaColumns.DATE_TAKEN)
-            
-            var count = 0
-            while (c.moveToNext()) {
-                try {
-                    val id = c.getLong(idColumn)
-                    val name = c.getString(nameColumn) ?: "未命名"
-                    val mimeType = c.getString(mimeColumn) ?: "unknown"
-                    val size = c.getLong(sizeColumn)
-                    val dateTaken = c.getLong(dateTakenColumn)
-                    
-                    // 根据MIME类型确定内容URI
-                    val contentUri = when {
-                        mimeType.startsWith("image/") -> {
-                            android.content.ContentUris.withAppendedId(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                        }
-                        mimeType.startsWith("video/") -> {
-                            android.content.ContentUris.withAppendedId(android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
-                        }
-                        else -> {
-                            // 默认使用文件URI
-                            android.content.ContentUris.withAppendedId(android.provider.MediaStore.Files.getContentUri("external"), id)
-                        }
-                    }
-                    
-                    items.add(
-                        MediaItem(
-                            id = id,
-                            name = name,
-                            uri = contentUri,
-                            mimeType = mimeType,
-                            size = size,
-                            dateTaken = dateTaken
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = true)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF0B1220))
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "返回",
+                            tint = Color.White
                         )
-                    )
-                    
-                    count++
-                    // 限制加载数量，避免过多内存占用
-                    if (count >= 100) {
-                        android.util.Log.d("MediaPickerScreen", "达到100个文件限制，停止加载")
-                        break
                     }
-                } catch (e: Exception) {
-                    android.util.Log.e("MediaPickerScreen", "处理单个媒体项时出错", e)
-                    continue
+                    Text(
+                        text = "${currentIndex + 1} / ${items.size}",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Surface(
+                        shape = CircleShape,
+                        color = if (currentSelected) ThemeTokens.PrimaryBlue else Color.White.copy(alpha = 0.15f),
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clickable { onToggleSelected(currentItem) }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            if (currentSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "取消选中",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (currentItem.isVideo) {
+                        MediaFileView(
+                            file = currentItem.toPickedFile(),
+                            modifier = Modifier.fillMaxSize(),
+                            size = 220.dp
+                        )
+                    } else {
+                        AsyncImage(
+                            model = currentItem.uri,
+                            contentDescription = currentItem.name,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = currentItem.name,
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Button(onClick = { onSend(sendItems) }) {
+                        Text("发送 ${sendItems.size}")
+                    }
                 }
             }
-            
-            android.util.Log.d("MediaPickerScreen", "成功加载 $count 个媒体项")
-        } ?: run {
-            android.util.Log.w("MediaPickerScreen", "Cursor 为 null，可能没有权限或查询失败")
+
+            if (currentIndex > 0) {
+                PreviewNavButton(
+                    modifier = Modifier.align(Alignment.CenterStart),
+                    isPrevious = true,
+                    onClick = { currentIndex -= 1 }
+                )
+            }
+            if (currentIndex < items.lastIndex) {
+                PreviewNavButton(
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    isPrevious = false,
+                    onClick = { currentIndex += 1 }
+                )
+            }
         }
-    } catch (e: SecurityException) {
-        // 权限异常处理
-        android.util.Log.e("MediaPickerScreen", "权限不足，无法访问媒体文件", e)
-    } catch (e: IllegalArgumentException) {
-        // 参数异常处理
-        android.util.Log.e("MediaPickerScreen", "查询参数错误", e)
-    } catch (e: Exception) {
-        // 其他异常处理
-        android.util.Log.e("MediaPickerScreen", "加载媒体文件时发生未知错误", e)
-    }
-    
-    android.util.Log.d("MediaPickerScreen", "最终返回 ${items.size} 个媒体项")
-    
-    withContext(Dispatchers.Main) {
-        onResult(items)
     }
 }
 
-/**
- * 提取视频第一帧
- */
-private fun extractVideoFrame(uri: Uri): Bitmap? {
-    return try {
-        val retriever = MediaMetadataRetriever()
-        retriever.setDataSource(uri.toString())
-        val bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-        retriever.release()
-        bitmap
-    } catch (e: Exception) {
-        e.printStackTrace()
-        null
+@Composable
+private fun PreviewNavButton(
+    modifier: Modifier = Modifier,
+    isPrevious: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = CircleShape,
+        color = Color.Black.copy(alpha = 0.32f),
+        modifier = modifier
+            .padding(horizontal = 12.dp)
+            .size(42.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = if (isPrevious) Icons.AutoMirrored.Filled.ArrowBack else Icons.Default.PlayArrow,
+                contentDescription = "切换预览",
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
+}
+
+@Composable
+private fun VideoThumbnail(
+    item: MediaItem,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val thumbnail by produceState<Bitmap?>(initialValue = null, item.uri) {
+        value = withContext(Dispatchers.IO) { loadVideoThumbnail(context, item.uri) }
+    }
+
+    Box(modifier = modifier.background(Color(0xFF0F172A))) {
+        if (thumbnail != null) {
+            Image(
+                bitmap = thumbnail!!.asImageBitmap(),
+                contentDescription = item.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+}
+
+private suspend fun loadMediaItems(
+    context: Context
+): List<MediaItem> = withContext(Dispatchers.IO) {
+    val projection = arrayOf(
+        MediaStore.Files.FileColumns._ID,
+        MediaStore.Files.FileColumns.DISPLAY_NAME,
+        MediaStore.Files.FileColumns.MIME_TYPE,
+        MediaStore.Files.FileColumns.SIZE,
+        MediaStore.Files.FileColumns.DATE_ADDED,
+        MediaStore.Files.FileColumns.MEDIA_TYPE
+    )
+
+    val selection = "${MediaStore.Files.FileColumns.MEDIA_TYPE}=? OR ${MediaStore.Files.FileColumns.MEDIA_TYPE}=?"
+
+    val selectionArgs = arrayOf(
+        MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
+        MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()
+    )
+
+    val sortOrder = "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
+    val mediaItems = mutableListOf<MediaItem>()
+
+    context.contentResolver.query(
+        MediaStore.Files.getContentUri("external"),
+        projection,
+        selection,
+        selectionArgs,
+        sortOrder
+    )?.use { cursor ->
+        val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+        val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME)
+        val mimeIndex = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE)
+        val sizeIndex = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE)
+        val dateIndex = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_ADDED)
+        val typeIndex = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
+
+        while (cursor.moveToNext()) {
+            val id = cursor.getLong(idIndex)
+            val mediaType = cursor.getInt(typeIndex)
+            val contentUri = when (mediaType) {
+                MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO -> {
+                    Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id.toString())
+                }
+                else -> Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString())
+            }
+
+            mediaItems += MediaItem(
+                id = id,
+                name = cursor.getString(nameIndex) ?: "媒体",
+                uri = contentUri,
+                mimeType = cursor.getString(mimeIndex) ?: "application/octet-stream",
+                size = cursor.getLong(sizeIndex),
+                dateTaken = cursor.getLong(dateIndex),
+                isVideo = mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO
+            )
+        }
+    }
+
+    mediaItems
+}
+
+private fun loadVideoThumbnail(context: Context, uri: Uri): Bitmap? {
+    return runCatching {
+        val retriever = MediaMetadataRetriever()
+        retriever.setDataSource(context, uri)
+        val frame = retriever.frameAtTime
+        retriever.release()
+        frame
+    }.getOrNull()
+}
+
+private fun Set<Long>.toggle(id: Long): Set<Long> {
+    return if (contains(id)) this - id else this + id
 }

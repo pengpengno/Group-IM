@@ -51,11 +51,17 @@ deleteMessageByConversationId:
 DELETE FROM Message WHERE conversation_id = ?;
 -- 根据 conversationId 查询 分页查询
 selectMessageByConversationId:
-SELECT * FROM Message WHERE conversation_id = ? ORDER BY server_timestamp DESC LIMIT ? OFFSET ?;
+SELECT * FROM Message
+WHERE conversation_id = ?
+ORDER BY COALESCE(server_timestamp, client_timestamp) DESC
+LIMIT ? OFFSET ?;
 
 -- 根据 conversationId 查询所有消息
 selectMessagesByConversation:
-SELECT * FROM Message WHERE conversation_id = ? ORDER BY server_timestamp DESC  LIMIT ? ;
+SELECT * FROM Message
+WHERE conversation_id = ?
+ORDER BY COALESCE(server_timestamp, client_timestamp) DESC
+LIMIT ? ;
 
 -- 根据 conversationId 查询所有消息并关联用户信息
 selectMessagesWithUserInfoByConversation:
@@ -63,7 +69,7 @@ SELECT m.*, u.username, u.email
 FROM Message m 
 LEFT JOIN User u ON m.from_account_id = u.userId 
 WHERE m.conversation_id = ? 
-ORDER BY m.server_timestamp DESC  
+ORDER BY COALESCE(m.server_timestamp, m.client_timestamp) DESC  
 LIMIT ? ;
 
 -- 根据 conversationId 和 sequence_id 查询指定序列号之前的消息并关联用户信息
@@ -72,7 +78,7 @@ SELECT m.*, u.username, u.email
 FROM Message m 
 LEFT JOIN User u ON m.from_account_id = u.userId 
 WHERE m.conversation_id = ? AND m.sequence_id < ? 
-ORDER BY m.server_timestamp DESC  
+ORDER BY COALESCE(m.server_timestamp, m.client_timestamp) DESC  
 LIMIT ? ;
 
 -- 根据 conversationId 和 sequence_id 查询指定序列号之后的消息并关联用户信息
@@ -81,7 +87,7 @@ SELECT m.*, u.username, u.email
 FROM Message m 
 LEFT JOIN User u ON m.from_account_id = u.userId 
 WHERE m.conversation_id = ? AND m.sequence_id > ? 
-ORDER BY m.server_timestamp ASC  
+ORDER BY COALESCE(m.server_timestamp, m.client_timestamp) ASC  
 LIMIT ? ;
 
 -- 根据conversationId 获取对应最大序列号
@@ -90,7 +96,10 @@ SELECT MAX(sequence_id) FROM Message WHERE conversation_id = ?;
 
 -- 根据conversationId 获取最新的一条消息
 selectLatestMessageByConversation:
-SELECT * FROM Message WHERE conversation_id = ? ORDER BY server_timestamp DESC LIMIT 1;
+SELECT * FROM Message
+WHERE conversation_id = ?
+ORDER BY COALESCE(server_timestamp, client_timestamp) DESC
+LIMIT 1;
 
 -- 根据conversationId 获取最新的一条消息并关联用户信息
 selectLatestMessageWithUserInfoByConversation:
@@ -98,16 +107,22 @@ SELECT m.*, u.username, u.email
 FROM Message m 
 LEFT JOIN User u ON m.from_account_id = u.userId 
 WHERE m.conversation_id = ? 
-ORDER BY m.server_timestamp DESC 
+ORDER BY COALESCE(m.server_timestamp, m.client_timestamp) DESC 
 LIMIT 1;
 
 -- 根据conversationId 和 sequence_id 查询指定序列号之前的消息
 selectMessagesBeforeSequence:
-SELECT * FROM Message WHERE conversation_id = ? AND sequence_id < ? ORDER BY server_timestamp DESC  LIMIT ? ;
+SELECT * FROM Message
+WHERE conversation_id = ? AND sequence_id < ?
+ORDER BY COALESCE(server_timestamp, client_timestamp) DESC
+LIMIT ? ;
 
 -- 根据conversationId 和 sequence_id 查询指定序列号之后的消息
 selectMessagesAfterSequence:
-SELECT * FROM Message WHERE conversation_id = ? AND sequence_id > ? ORDER BY server_timestamp ASC  LIMIT ? ;
+SELECT * FROM Message
+WHERE conversation_id = ? AND sequence_id > ?
+ORDER BY COALESCE(server_timestamp, client_timestamp) ASC
+LIMIT ? ;
 
 -- 根据 msgId 更新消息
 updateMessageByMsgId:

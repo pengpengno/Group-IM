@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,16 +31,21 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -58,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalFocusManager
@@ -80,6 +88,7 @@ import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.UserInfo
 import com.github.im.group.ui.ChatRoom
 import com.github.im.group.ui.UserAvatar
+import com.github.im.group.ui.theme.ThemeTokens
 import com.github.im.group.ui.video.MeetingLauncher
 import com.github.im.group.ui.video.VideoCallLauncher
 import com.github.im.group.viewmodel.ChatRoomViewModel
@@ -102,9 +111,6 @@ private fun extractMeetingPayload(message: MessageItem): MeetingMessagePayLoad? 
     return runCatching { meetingPayloadJson.decodeFromString<MeetingMessagePayLoad>(raw) }.getOrNull()
 }
 
-/**
- * 聊天室屏幕组?
- */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatRoomScreen(
@@ -125,9 +131,15 @@ fun ChatRoomScreen(
     var meetingRoomId by remember { mutableStateOf<String?>(null) }
     var meetingParticipantIds by remember { mutableStateOf<List<String>>(emptyList()) }
     var meetingIsHost by remember { mutableStateOf(false) }
-    var conversationId by remember {  mutableStateOf<Long?>(null)}
+    var conversationId by remember { mutableStateOf<Long?>(null) }
+    var remoteUser by remember { mutableStateOf<UserInfo?>(chatUiState.friend) }
 
-    var remoteUser by remember { mutableStateOf<UserInfo?>(chatUiState.friend) } 
+    val isGroupConversation = chatUiState.conversation?.conversationType == ConversationType.GROUP
+    val roomSubtitle = when {
+        isGroupConversation -> "${chatUiState.conversation?.members?.size ?: 0} 位成员"
+        remoteUser?.email?.isNotBlank() == true -> remoteUser?.email ?: ""
+        else -> "私聊"
+    }
 
     val pullRefreshState = rememberPullRefreshState(
         refreshing = chatUiState.loading,
@@ -158,19 +170,10 @@ fun ChatRoomScreen(
         }
     }
 
-    /**
-     * 滚动到顶部时加载更多历史消息
-     *
-     * 逻辑1: 监听列表滚动状?
-     * 逻辑2: 检测是否滚动到顶部
-     * 逻辑3: 获取最早的消息序列ID
-     * 逻辑4: 加载更多历史消息
-     */
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .collect { firstVisibleIndex ->
                 if (firstVisibleIndex == 0 && chatUiState.messages.isNotEmpty()) {
-                    // 用户滚动到了顶部，加载更多历史消?
                     val oldestMessage = chatUiState.messages.lastOrNull()
                     oldestMessage?.seqId?.let { sequenceId ->
                         conversationId?.let { id ->
@@ -181,7 +184,6 @@ fun ChatRoomScreen(
             }
     }
 
-    // 视频通话界面
     if (showVideoCall && remoteUser != null) {
         VideoCallLauncher(
             remoteUser = remoteUser!!,
@@ -189,7 +191,6 @@ fun ChatRoomScreen(
         )
     }
 
-    // 会议界面
     if (showMeeting && meetingRoomId != null) {
         val roomId = meetingRoomId!!
         MeetingLauncher(
@@ -215,9 +216,9 @@ fun ChatRoomScreen(
         )
     }
 
-
-    // 顶部聊天 tab 状态栏
     Scaffold(
+        modifier = Modifier.safeDrawingPadding(),
+        containerColor = ThemeTokens.BackgroundDark,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -225,82 +226,121 @@ fun ChatRoomScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        chatUiState.getRoomName().let { name ->
-                            UserAvatar(username = name, size = 32)
-                            Spacer(modifier = Modifier.width(8.dp))
+                        val roomName = chatUiState.getRoomName()
+                        UserAvatar(username = roomName, size = 32)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(horizontalAlignment = Alignment.Start) {
                             Text(
-                                text = name,
-                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                text = roomName,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Color.White,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = if (isGroupConversation) Icons.Default.Groups else Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.72f),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = roomSubtitle,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White.copy(alpha = 0.72f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .padding(start = 12.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color.White.copy(alpha = 0.1f))
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Color.White)
                     }
                 },
                 actions = {
-                    val isGroup = chatUiState.conversation?.conversationType == ConversationType.GROUP
-                    if (remoteUser != null || isGroup) {
-                        IconButton(onClick = { 
-                        if (isGroup) {
-                            val conversation = chatUiState.conversation ?: return@IconButton
-                            val currentId = userInfo?.userId?.toString()
-                            val participantIds = conversation.members
-                                .map { it.userId.toString() }
-                                .filter { it != currentId }
-                            scope.launch {
-                                val meeting = MeetingApi.createMeeting(
-                                    MeetingCreateRequest(
-                                        conversationId = conversation.conversationId,
-                                        title = conversation.groupName,
-                                        participantIds = participantIds.mapNotNull { it.toLongOrNull() }
-                                    )
-                                )
-                                meetingRoomId = meeting.roomId
-                                meetingParticipantIds = participantIds
-                                meetingIsHost = true
-                                showMeeting = true
-                            }
-                        } else showVideoCall = true
-                        }) {
-                            Icon(Icons.Default.VideoCall, contentDescription = "视频通话/会议")
+                    if (remoteUser != null || isGroupConversation) {
+                        IconButton(
+                            onClick = {
+                                if (isGroupConversation) {
+                                    val conversation = chatUiState.conversation ?: return@IconButton
+                                    val currentId = userInfo?.userId?.toString()
+                                    val participantIds = conversation.members
+                                        .map { it.userId.toString() }
+                                        .filter { it != currentId }
+                                    scope.launch {
+                                        val meeting = MeetingApi.createMeeting(
+                                            MeetingCreateRequest(
+                                                conversationId = conversation.conversationId,
+                                                title = conversation.groupName,
+                                                participantIds = participantIds.mapNotNull { it.toLongOrNull() }
+                                            )
+                                        )
+                                        meetingRoomId = meeting.roomId
+                                        meetingParticipantIds = participantIds
+                                        meetingIsHost = true
+                                        showMeeting = true
+                                    }
+                                } else {
+                                    showVideoCall = true
+                                }
+                            },
+                            modifier = Modifier
+                                .padding(end = 12.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFF0EA5E9))
+                        ) {
+                            Icon(Icons.Default.VideoCall, contentDescription = "发起视频通话", tint = Color.White)
                         }
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                    containerColor = ThemeTokens.BackgroundDark,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White,
+                    actionIconContentColor = Color.White
+                ),
+                windowInsets = WindowInsets(0, 0, 0, 0)
             )
-        },
-        content = { paddingValues ->
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .imePadding()
+                .pullRefresh(pullRefreshState)
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
-                    .imePadding()
-                    .pullRefresh(pullRefreshState)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f))
-                )
+                    .background(Color(0xFFF1F5F9))
+            )
 
-                // 消息列表
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 0.dp)
+                    .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)),
+                color = Color.White,
+                tonalElevation = 0.dp
+            ) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     reverseLayout = true,
-                    contentPadding = PaddingValues(bottom = 104.dp, top = 8.dp, start = 8.dp, end = 8.dp),
-                    verticalArrangement = Arrangement.Top // 顶部对齐（在反转布局中，顶部逻辑上是屏幕底部?
+                    contentPadding = PaddingValues(bottom = 100.dp, top = 20.dp, start = 12.dp, end = 12.dp),
+                    verticalArrangement = Arrangement.Top
                 ) {
-                    // Removed duplicate CircularProgressIndicator, keeping PullRefreshIndicator only
-
                     items(chatUiState.messages, key = { message ->
                         if (message.seqId != 0L) "seq_${message.seqId}" else "client_${message.clientMsgId}"
                     }) { message ->
@@ -320,121 +360,154 @@ fun ChatRoomScreen(
                             },
                         )
                     }
-                }
 
-                // 进入会话并看到最新消息后，立即把本地未读清掉，同时同步服务端已读进度
-                val isAtBottom by remember {
-                    androidx.compose.runtime.derivedStateOf {
-                        listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+                if (!chatUiState.loading && chatUiState.messages.isEmpty()) {
+                    item {
+                        EmptyChatPlaceholder(isGroup = isGroupConversation)
                     }
                 }
-                LaunchedEffect(isAtBottom, conversationId, userInfo?.userId, chatUiState.messages) {
-                    val cid = conversationId ?: return@LaunchedEffect
-                    val uid = userInfo?.userId ?: return@LaunchedEffect
-                    if (!isAtBottom) return@LaunchedEffect
-
-                    val hasUnread = chatUiState.messages.any { it.userInfo.userId != uid && it.status == MessageStatus.SENT }
-                    if (!hasUnread) return@LaunchedEffect
-
-                    val lastSeq = chatUiState.messages.firstOrNull()?.seqId ?: 0L
-                    if (lastSeq <= 0L || lastSeq <= lastMarkedReadSeq) return@LaunchedEffect
-
-                    lastMarkedReadSeq = lastSeq
-                    chatRoomViewModel.markConversationAsRead(cid, uid)
                 }
+            }
 
-                LaunchedEffect(chatUiState.scrollToTop) {
-                    if (chatUiState.scrollToTop) {
-                        listState.animateScrollToItem(0)
-                        kotlinx.coroutines.delay(300)
-                        chatRoomViewModel.resetScrollToTopFlag()
+            val isAtBottom by remember {
+                androidx.compose.runtime.derivedStateOf {
+                    listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+                }
+            }
+            LaunchedEffect(isAtBottom, conversationId, userInfo?.userId, chatUiState.messages) {
+                val cid = conversationId ?: return@LaunchedEffect
+                val uid = userInfo?.userId ?: return@LaunchedEffect
+                if (!isAtBottom) return@LaunchedEffect
+
+                val hasUnread = chatUiState.messages.any { it.userInfo.userId != uid && it.status == MessageStatus.SENT }
+                if (!hasUnread) return@LaunchedEffect
+
+                val lastSeq = chatUiState.messages.firstOrNull()?.seqId ?: 0L
+                if (lastSeq <= 0L || lastSeq <= lastMarkedReadSeq) return@LaunchedEffect
+
+                lastMarkedReadSeq = lastSeq
+                chatRoomViewModel.markConversationAsRead(cid, uid)
+            }
+
+            LaunchedEffect(chatUiState.scrollToTop) {
+                if (chatUiState.scrollToTop) {
+                    listState.animateScrollToItem(0)
+                    kotlinx.coroutines.delay(300)
+                    chatRoomViewModel.resetScrollToTopFlag()
+                }
+            }
+
+            PullRefreshIndicator(
+                refreshing = chatUiState.loading,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+
+            if (uiState is RecorderUiState.Recording) {
+                val am by voiceViewModel.amplitude.collectAsState()
+                VoiceControlOverlayWithRipple(amplitude = am)
+            }
+
+            val focusManager = LocalFocusManager.current
+            Box(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+                ChatInputArea(
+                    onSendText = { text ->
+                        if (text.isNotBlank()) chatRoomViewModel.sendText(text)
+                        focusManager.clearFocus()
+                    },
+                    onRelease = {
+                        voiceViewModel.getVoiceData()?.let { chatRoomViewModel.sendVoice(it) }
+                    },
+                    onFileSelected = { files ->
+                        files.forEach { chatRoomViewModel.sendFile(it) }
+                        focusManager.clearFocus()
                     }
-                }
-
-                // 下拉刷新指示?
-                PullRefreshIndicator(
-                    refreshing = chatUiState.loading,
-                    state = pullRefreshState,
-                    modifier = Modifier.align(Alignment.TopCenter)
                 )
+            }
 
-                if (uiState is RecorderUiState.Recording) {
-                    val am by voiceViewModel.amplitude.collectAsState()
-                    VoiceControlOverlayWithRipple(amplitude = am)
-                }
-
-                val focusManager = LocalFocusManager.current
-                Box(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
-                    ChatInputArea(
-                        onSendText = { text -> 
-                            if (text.isNotBlank()) chatRoomViewModel.sendText(text)
-                            focusManager.clearFocus() 
-                        },
-                        onRelease = {
-                            voiceViewModel.getVoiceData()?.let { chatRoomViewModel.sendVoice(it) }
-                        },
-                        onFileSelected = { files -> 
-                            files.forEach { chatRoomViewModel.sendFile(it) } 
-                            focusManager.clearFocus()
-                        }
-                    )
-                }
-                
-                // 悬浮按钮 - 滚动到底?(提示未查看的“新消息”数量：当前视口下方的条?
-//                val isAtBottom by remember {
-//                    androidx.compose.runtime.derivedStateOf {
-//                        listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-//                    }
-//                }
-                val belowCount by remember {
-                    androidx.compose.runtime.derivedStateOf { listState.firstVisibleItemIndex.coerceAtLeast(0) }
-                }
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = !isAtBottom,
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 96.dp, end = 16.dp),
-                    enter = androidx.compose.animation.fadeIn(),
-                    exit = androidx.compose.animation.fadeOut()
+            val belowCount by remember {
+                androidx.compose.runtime.derivedStateOf { listState.firstVisibleItemIndex.coerceAtLeast(0) }
+            }
+            androidx.compose.animation.AnimatedVisibility(
+                visible = !isAtBottom,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 98.dp, end = 16.dp),
+                enter = androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.fadeOut()
+            ) {
+                FloatingActionButton(
+                    onClick = { scope.launch { listState.animateScrollToItem(0) } },
+                    containerColor = Color.White,
+                    contentColor = ThemeTokens.TextMain,
+                    modifier = Modifier.size(44.dp)
                 ) {
-                    androidx.compose.material3.FloatingActionButton(
-                        onClick = { 
-                            scope.launch { listState.animateScrollToItem(0) }
-                        },
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        androidx.compose.material3.BadgedBox(
-                            badge = {
-                                if (belowCount > 0) {
-                                    androidx.compose.material3.Badge {
-                                        Text(text = belowCount.coerceAtMost(99).toString())
-                                    }
+                    BadgedBox(
+                        badge = {
+                            if (belowCount > 0) {
+                                Badge {
+                                    Text(text = belowCount.coerceAtMost(99).toString())
                                 }
                             }
-                        ) {
-                                Icon(
-                                   imageVector =  Icons.Default.ExpandMore,
-                                contentDescription = "滚动至最新消息?",
-                                modifier = Modifier.size(24.dp)
-                            )
                         }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ExpandMore,
+                            contentDescription = "回到底部",
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
+            }
 
-                if (chatUiState.error != null) {
-                    Surface(
-                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.errorContainer
-                    ) {
-                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = chatUiState.error ?: "", modifier = Modifier.weight(1f))
-                            Button(onClick = { chatRoomViewModel.clearSessionCreationError() }) { Text("重试") }
+            if (chatUiState.error != null) {
+                Surface(
+                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = chatUiState.error ?: "", modifier = Modifier.weight(1f))
+                        Button(onClick = { chatRoomViewModel.clearSessionCreationError() }) {
+                            Text("重试")
                         }
                     }
                 }
             }
         }
-    )
+    }
+}
+
+@Composable
+fun EmptyChatPlaceholder(isGroup: Boolean) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 56.dp, bottom = 24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = Color(0xFFF8FAFC),
+            tonalElevation = 1.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = if (isGroup) "群聊已创建" else "对话已开启",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = ThemeTokens.TextMain,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = if (isGroup) "发一条消息，开始团队协作。" else "发一条消息，开始这段对话。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ThemeTokens.TextSecondary,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -529,7 +602,7 @@ fun MessageBubble(
                         }
                     }
 
-                    // 消息长按菜单水平排列以防遮挡
+                    // 娑堟伅闀挎寜鑿滃崟姘村钩鎺掑垪浠ラ槻閬尅
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
@@ -546,7 +619,7 @@ fun MessageBubble(
                                     }
                                     showMenu = false
                                 },
-                                modifier = Modifier.weight(1f) // 使其能够在一行显?
+                                modifier = Modifier.weight(1f) // 浣垮叾鑳藉鍦ㄤ竴琛屾樉?
                             )
                             DropdownMenuItem(
                                 text = { Text("转发", fontSize = 14.sp) },
@@ -599,6 +672,8 @@ fun MessageBubble(
         }
     }
 }
+
+
 
 
 

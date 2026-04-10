@@ -1,4 +1,4 @@
-﻿package com.github.im.group.ui.contacts
+package com.github.im.group.ui.contacts
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
@@ -91,90 +90,75 @@ fun ContactsUI(
         modifier = Modifier
             .fillMaxSize()
             .background(ThemeTokens.BackgroundDark)
-            .padding(16.dp)
+            .padding(top = 16.dp)
     ) {
-        Text(
-            text = "组织架构",
-            style = MaterialTheme.typography.headlineSmall,
-            color = Color.White,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = if (isOfflineData) {
-                "当前展示的是离线缓存，可下拉或点击刷新同步最新组织数据"
-            } else {
-                "按公司组织架构浏览成员，点击成员即可发起会话"
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.72f)
-        )
-
-        Spacer(modifier = Modifier.height(14.dp))
+//        Column(modifier = Modifier.padding(horizontal = 20.dp, bottom = 12.dp)) {
+//            Text(
+//                text = "组织架构",
+//                style = MaterialTheme.typography.headlineMedium,
+//                color = Color.White,
+//                fontWeight = FontWeight.Bold
+//            )
+//        }
 
         Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = Color.White.copy(alpha = 0.96f),
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+            color = Color.White.copy(alpha = 0.98f),
             modifier = Modifier.fillMaxSize()
         ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
                     OutlinedTextField(
                         value = contactSearchQuery,
                         onValueChange = { contactSearchQuery = it },
                         placeholder = { Text("搜索部门或成员", fontSize = 14.sp) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = ThemeTokens.TextMuted) },
                         singleLine = true,
-                        shape = RoundedCornerShape(22.dp),
+                        shape = RoundedCornerShape(20.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = ThemeTokens.InputFocus.copy(alpha = 0.55f),
-                            unfocusedContainerColor = Color(0xFFF8FAFC),
-                            focusedContainerColor = Color(0xFFF8FAFC)
+                            focusedBorderColor = ThemeTokens.PrimaryBlue.copy(alpha = 0.4f),
+                            unfocusedContainerColor = Color(0xFFF1F5F9),
+                            focusedContainerColor = Color(0xFFF1F5F9)
                         ),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).height(52.dp)
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                     Surface(
                         onClick = { contactsViewModel.getOrganizationStructure() },
-                        shape = CircleShape,
-                        color = ThemeTokens.PrimaryBlue.copy(alpha = 0.12f)
+                        shape = RoundedCornerShape(16.dp),
+                        color = ThemeTokens.PrimaryBlue.copy(alpha = 0.1f)
                     ) {
-                        Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "刷新",
-                                tint = ThemeTokens.PrimaryBlue
-                            )
+                        Box(modifier = Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                            if (loading) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = ThemeTokens.PrimaryBlue)
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "刷新",
+                                    tint = ThemeTokens.PrimaryBlue
+                                )
+                            }
                         }
                     }
                 }
 
                 if (isOfflineData) {
-                    Spacer(modifier = Modifier.height(12.dp))
                     Surface(
-                        shape = RoundedCornerShape(18.dp),
-                        color = Color(0xFFFFF7ED)
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFFFEF2F2),
+                        modifier = Modifier.padding(vertical = 12.dp).fillMaxWidth()
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.CloudOff,
-                                contentDescription = null,
-                                tint = Color(0xFFEA580C),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "离线缓存模式",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFF9A3412),
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            Icon(Icons.Default.CloudOff, null, tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("离线数据模式", style = MaterialTheme.typography.labelSmall, color = Color(0xFFB91C1C))
                         }
                     }
                 }
@@ -183,14 +167,13 @@ fun ContactsUI(
 
                 if (loading && organizationTree.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator()
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text("正在加载组织架构", color = ThemeTokens.TextSecondary)
-                        }
+                        CircularProgressIndicator(color = ThemeTokens.PrimaryBlue)
                     }
                 } else {
-                    LazyColumn(contentPadding = PaddingValues(bottom = 12.dp)) {
+                    LazyColumn(
+                        contentPadding = PaddingValues(bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         items(filterNodes(organizationTree, contactSearchQuery)) { node ->
                             OrganizationNode(
                                 node = node,
