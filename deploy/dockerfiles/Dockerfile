@@ -28,9 +28,9 @@ WORKDIR /app
 # 从构建阶段复制 jar
 COPY --from=build /build/server/target/*.jar /app/server.jar
 
-# 创建运行用户
-RUN groupadd -g 1001 spring && \
-    useradd -u 1001 -g spring -m -s /bin/bash spring
+# 创建运行用户  NoteThat ！！！ 这里 1004 要和  部署时 宿主机的 用户 Uid 保持一致 ， 不然在 docker-compose 中挂载目前会将其权限强制为宿主机用户UID ，导致权限不足
+RUN groupadd -g 1004 spring && \
+    useradd -u 1004 -g spring -m -s /bin/bash spring
 
 # 创建应用目录并授权
 
