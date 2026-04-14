@@ -69,10 +69,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
@@ -99,17 +95,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.koin.compose.viewmodel.koinViewModel
 
-private val meetingPayloadJson = Json { ignoreUnknownKeys = true }
 
-private fun extractMeetingPayload(message: MessageItem): MeetingMessagePayLoad? {
-    val wrapper = message as? MessageWrapper
-    val payload = wrapper?.messageDto?.payload
-    if (payload is MeetingMessagePayLoad) return payload
-
-    val raw = message.content
-    if (raw.isBlank() || !raw.trim().startsWith("{")) return null
-    return runCatching { meetingPayloadJson.decodeFromString<MeetingMessagePayLoad>(raw) }.getOrNull()
-}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -220,96 +206,36 @@ fun ChatRoomScreen(
         modifier = Modifier.safeDrawingPadding(),
         containerColor = ThemeTokens.BackgroundDark,
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        val roomName = chatUiState.getRoomName()
-                        UserAvatar(username = roomName, size = 32)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column(horizontalAlignment = Alignment.Start) {
-                            Text(
-                                text = roomName,
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = Color.White,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+            ChatRoomTopBar(
+                roomName = chatUiState.getRoomName(),
+                roomSubtitle = roomSubtitle,
+                isGroupConversation = isGroupConversation,
+                remoteUser = remoteUser,
+                onBack = onBack,
+                onStartVideoCall = {
+                    if (isGroupConversation) {
+                        val conversation = chatUiState.conversation ?: return@ChatRoomTopBar
+                        val currentId = userInfo?.userId?.toString()
+                        val participantIds = conversation.members
+                            .map { it.userId.toString() }
+                            .filter { it != currentId }
+                        scope.launch {
+                            val meeting = MeetingApi.createMeeting(
+                                MeetingCreateRequest(
+                                    conversationId = conversation.conversationId,
+                                    title = conversation.groupName,
+                                    participantIds = participantIds.mapNotNull { it.toLongOrNull() }
+                                )
                             )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = if (isGroupConversation) Icons.Default.Groups else Icons.Default.Person,
-                                    contentDescription = null,
-                                    tint = Color.White.copy(alpha = 0.72f),
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = roomSubtitle,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.72f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
+                            meetingRoomId = meeting.roomId
+                            meetingParticipantIds = participantIds
+                            meetingIsHost = true
+                            showMeeting = true
                         }
+                    } else {
+                        showVideoCall = true
                     }
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier
-                            .padding(start = 12.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color.White.copy(alpha = 0.1f))
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Color.White)
-                    }
-                },
-                actions = {
-                    if (remoteUser != null || isGroupConversation) {
-                        IconButton(
-                            onClick = {
-                                if (isGroupConversation) {
-                                    val conversation = chatUiState.conversation ?: return@IconButton
-                                    val currentId = userInfo?.userId?.toString()
-                                    val participantIds = conversation.members
-                                        .map { it.userId.toString() }
-                                        .filter { it != currentId }
-                                    scope.launch {
-                                        val meeting = MeetingApi.createMeeting(
-                                            MeetingCreateRequest(
-                                                conversationId = conversation.conversationId,
-                                                title = conversation.groupName,
-                                                participantIds = participantIds.mapNotNull { it.toLongOrNull() }
-                                            )
-                                        )
-                                        meetingRoomId = meeting.roomId
-                                        meetingParticipantIds = participantIds
-                                        meetingIsHost = true
-                                        showMeeting = true
-                                    }
-                                } else {
-                                    showVideoCall = true
-                                }
-                            },
-                            modifier = Modifier
-                                .padding(end = 12.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color(0xFF0EA5E9))
-                        ) {
-                            Icon(Icons.Default.VideoCall, contentDescription = "发起视频通话", tint = Color.White)
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = ThemeTokens.BackgroundDark,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White,
-                    actionIconContentColor = Color.White
-                ),
-                windowInsets = WindowInsets(0, 0, 0, 0)
+                }
             )
         }
     ) { paddingValues ->
@@ -475,208 +401,3 @@ fun ChatRoomScreen(
         }
     }
 }
-
-@Composable
-fun EmptyChatPlaceholder(isGroup: Boolean) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 56.dp, bottom = 24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = Color(0xFFF8FAFC),
-            tonalElevation = 1.dp
-        ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = if (isGroup) "群聊已创建" else "对话已开启",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = ThemeTokens.TextMain,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = if (isGroup) "发一条消息，开始团队协作。" else "发一条消息，开始这段对话。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = ThemeTokens.TextSecondary,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun MessageBubble(
-    isOwnMessage: Boolean,
-    msg: MessageItem,
-    showAvatar: Boolean = true,
-    onJoinMeeting: (MeetingMessagePayLoad) -> Unit = {},
-) {
-    val messageViewModel: ChatRoomViewModel = koinViewModel()
-
-    var showMenu by remember { mutableStateOf(false) }
-    val clipboardManager = LocalClipboardManager.current
-
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start
-    ) {
-        if (!isOwnMessage) {
-            if (showAvatar) {
-                UserAvatar(username = msg.userInfo.username, size = 36)
-                Spacer(modifier = Modifier.width(8.dp))
-            } else {
-                Spacer(modifier = Modifier.width(44.dp))
-            }
-        }
-
-        Column(horizontalAlignment = if (isOwnMessage) Alignment.End else Alignment.Start) {
-            if (showAvatar && !isOwnMessage && msg.userInfo.username.isNotEmpty()) {
-                Text(
-                    text = msg.userInfo.username,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
-                )
-            }
-
-            Row(verticalAlignment = Alignment.Bottom) {
-                if (isOwnMessage && msg.status == MessageStatus.SENDING) {
-                    SendingSpinner(modifier = Modifier.padding(end = 4.dp).size(12.dp))
-                }
-
-                Box {
-                    Surface(
-                        color = if (isOwnMessage) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                        shape = RoundedCornerShape(
-                            topStart = if (isOwnMessage) 12.dp else 4.dp,
-                            topEnd = if (isOwnMessage) 4.dp else 12.dp,
-                            bottomStart = 12.dp,
-                            bottomEnd = 12.dp
-                        ),
-                        tonalElevation = if (isOwnMessage) 1.dp else 0.5.dp,
-                        modifier = Modifier.combinedClickable(
-                            onLongClick = { showMenu = true },
-                            onClick = { /* Default click behavior */ }
-                        )
-                    ) {
-                        Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                            when (msg.type) {
-                                MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content), isOwnMessage)
-                                MessageType.VOICE -> {
-                                    FileMessageLoader(
-                                        msg = msg,
-                                        messageViewModel = messageViewModel,
-                                        onContentReady = { file, meta ->
-                                            VoiceMessage(
-                                                content = MessageContent.Voice(file.path, meta.duration),
-                                                senderName = msg.userInfo.username,
-                                                isOwnMessage = isOwnMessage,
-                                                messageId = if (msg.seqId != 0L) "seq_${msg.seqId}" else "client_${msg.clientMsgId}"
-                                            )
-                                        },
-                                        onLoading = { CircularProgressIndicator(modifier = Modifier.size(16.dp)) }
-                                    )
-                                }
-                                MessageType.MEETING -> {
-                                    val payload = extractMeetingPayload(msg)
-                                    MeetingMessageBubble(
-                                        payload = payload,
-                                        isOwnMessage = isOwnMessage,
-                                        onJoin = {
-                                            if (payload != null) onJoinMeeting(payload)
-                                        }
-                                    )
-                                }
-                                MessageType.IMAGE, MessageType.VIDEO, MessageType.FILE -> {
-                                    UnifiedFileMessage(message = msg, messageViewModel = messageViewModel)
-                                }
-                                else -> TextMessage(MessageContent.Text(msg.content), isOwnMessage)
-                            }
-                        }
-                    }
-
-                    // 娑堟伅闀挎寜鑿滃崟姘村钩鎺掑垪浠ラ槻閬尅
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                        offset = DpOffset(if (isOwnMessage) (-16).dp else 16.dp, 0.dp),
-                        modifier = Modifier.background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                    ) {
-                        Row(modifier = Modifier.padding(horizontal = 4.dp)) {
-                            DropdownMenuItem(
-                                text = { Text("复制", fontSize = 14.sp) },
-                                leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                                onClick = {
-                                    if (msg.type == MessageType.TEXT) {
-                                        clipboardManager.setText(AnnotatedString(msg.content))
-                                    }
-                                    showMenu = false
-                                },
-                                modifier = Modifier.weight(1f) // 浣垮叾鑳藉鍦ㄤ竴琛屾樉?
-                            )
-                            DropdownMenuItem(
-                                text = { Text("转发", fontSize = 14.sp) },
-                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                                onClick = {
-                                    showMenu = false
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                            if (isOwnMessage) {
-                                DropdownMenuItem(
-                                    text = { Text("撤回", fontSize = 14.sp, color = Color.Red) },
-                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.Red) },
-                                    onClick = {
-                                        showMenu = false
-                                    },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (isOwnMessage) {
-                Row(
-                    modifier = Modifier.padding(top = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = msg.time.toString().substring(11, 16),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    val statusIcon = when (msg.status) {
-                        MessageStatus.SENT -> Icons.Default.Check
-                        MessageStatus.READ -> Icons.Default.CheckCircle
-                        MessageStatus.FAILED -> Icons.Default.Error
-                        else -> Icons.Default.Check
-                    }
-                    Icon(
-                        imageVector = statusIcon,
-                        contentDescription = null,
-                        modifier = Modifier.size(12.dp),
-                        tint = if (msg.status == MessageStatus.READ) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
-                }
-            }
-        }
-    }
-}
-
-
-
-
-
-
-
-

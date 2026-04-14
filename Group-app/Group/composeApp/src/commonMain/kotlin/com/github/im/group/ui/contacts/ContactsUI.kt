@@ -33,6 +33,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -101,10 +102,11 @@ fun ContactsUI(
 //            )
 //        }
 
-        Surface(
-            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-            color = Color.White.copy(alpha = 0.98f),
-            modifier = Modifier.fillMaxSize()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                .background(Color.White.copy(alpha = 0.98f))
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(

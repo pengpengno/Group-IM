@@ -1,7 +1,5 @@
 package com.github.im.group
 
-import ChatMessageBuilder
-import ChatMessageBuilderImpl
 import android.content.Context
 import android.os.Environment
 import com.github.im.group.config.SocketClient
@@ -22,17 +20,19 @@ import com.github.im.group.repository.ConversationRepository
 import com.github.im.group.repository.FilesRepository
 import com.github.im.group.repository.FriendRequestRepository
 import com.github.im.group.repository.MessageSyncRepository
+import com.github.im.group.repository.OrganizationRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.AndroidAudioPlayer
 import com.github.im.group.sdk.AndroidFilePicker
 import com.github.im.group.sdk.AndroidVoiceRecorder
 import com.github.im.group.sdk.AndroidWebRTCManager
 import com.github.im.group.sdk.AudioPlayer
+import com.github.im.group.sdk.ChatMessageBuilder
+import com.github.im.group.sdk.ChatMessageBuilderImpl
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.SenderSdk
 import com.github.im.group.sdk.VoiceRecorder
 import com.github.im.group.sdk.WebRTCManager
-import com.github.im.group.repository.OrganizationRepository
 import com.github.im.group.service.SessionPreCreationService
 import com.github.im.group.service.SessionPreCreationServiceImpl
 import com.github.im.group.ui.video.VideoCallViewModel
@@ -105,24 +105,21 @@ val appmodule = module {
         )
     }
 
-    // 为ChatMessageViewModel添加所有必需的依赖项
+    single { com.github.im.group.manager.MessageStore(get(), get()) }
+    single { com.github.im.group.manager.MessageFacade(get(), get(), get(), get(), get(), get(), get()) }
+
     viewModel {
         ChatRoomViewModel(
-            get(),
+            messageStore = get(),
+            messageFacade = get(),
+            userRepository = get(),
             chatSessionManager = get(),
-            chatMessageRepository = get(),
-            messageSyncRepository = get(),
-            filesRepository = get(), // 添加文件仓库依赖
             conversationRepository = get(),
-            offlineMessageRepository = get(), // 添加离线消息仓库依赖
-            senderSdk = get(),
-            filePicker = get(),
             fileStorageManager = get(),
-            chatMessageBuilder = get(),
-            fileUploadService = get()
+            filePicker = get(),
+            filesRepository = get()
         )
     }
-
 
     single { FileUploadService(
         filePicker = get(),
@@ -131,9 +128,7 @@ val appmodule = module {
         chatMessageRepository = get(),
         fileStorageManager = get()
     ) }
-    factory<ChatMessageBuilder> { ChatMessageBuilderImpl(
-        userRepository = get(),
-    ) }
+    factory<ChatMessageBuilder> { ChatMessageBuilderImpl(    ) }
 
     single {
         AndroidVoiceRecorder(
@@ -147,7 +142,7 @@ val appmodule = module {
         VoiceViewModel(
             voiceRecorder = get(),
             audioPlayer = get(),
-//            filesRepository = get()
+
         )
     }
     single { SenderSdk(get(),get()) }

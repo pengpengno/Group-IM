@@ -120,12 +120,16 @@ fun ChatUI(
             OfflineStatusBanner()
         }
 
-        Surface(
-            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-            color = Color.White.copy(alpha = 0.98f),
-            modifier = Modifier.fillMaxSize()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+//                圆角处理
+//                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                .background(Color.White.copy(alpha = 0.98f))
         ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) {
+            Column(modifier = Modifier.fillMaxSize()
+//                .padding(horizontal = 16.dp, vertical = 20.dp)
+            ) {
                 // --- 搜索框区域 ---
                 OutlinedTextField(
                     value = userSearchQuery,

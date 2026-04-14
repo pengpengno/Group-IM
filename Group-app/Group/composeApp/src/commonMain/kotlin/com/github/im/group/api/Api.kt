@@ -874,8 +874,8 @@ object CompanyApi {
      * 切换当前登录公司
      * @param companyId 目标公司ID
      */
-    suspend fun switchCompany(companyId: Long): com.github.im.group.model.UserInfo {
-        return ProxyApi.request<Unit, com.github.im.group.model.UserInfo>(
+    suspend fun switchCompany(companyId: Long): UserInfo {
+        return ProxyApi.request<Unit, UserInfo>(
             hmethod = HttpMethod.Post,
             path = "/api/company/switch/$companyId"
         )

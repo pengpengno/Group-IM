@@ -196,7 +196,7 @@ const MessageBubble: React.FC<{
     const type = message.type.toUpperCase();
 
     switch (type) {
-      case 'IMAGE': {
+      case MessageType.IMAGE: {
         const url = getFileUrl(message.content);
         return (
           <div className="msg-media-container msg-image-container">
@@ -209,7 +209,7 @@ const MessageBubble: React.FC<{
           </div>
         );
       }
-      case 'VIDEO': {
+      case MessageType.VIDEO: {
         const url = getFileUrl(message.content);
         return (
           <div className="msg-media-container msg-video-container" onClick={() => onImageClick && onImageClick(url, 'VIDEO')}>
@@ -224,7 +224,7 @@ const MessageBubble: React.FC<{
           </div>
         );
       }
-      case 'FILE': {
+      case MessageType.FILE: {
         const fileName = message.payload?.filename || message.payload?.fileName || 'Document';
         return (
           <div className="msg-file-card" onClick={() => handleDownload(message.content, fileName)}>
@@ -240,13 +240,13 @@ const MessageBubble: React.FC<{
           </div>
         );
       }
-      case 'VOICE': {
+      case MessageType.VOICE: {
         const url = getFileUrl(message.content);
         return (
           <CustomAudioPlayer url={url} token={token} />
         );
       }
-      case 'MEETING': {
+      case MessageType.MEETING: {
         const payload = parseMeetingPayload(message);
         const title = payload?.title || '会议';
         const count = payload?.participantCount ?? payload?.participantIds?.length ?? 0;
@@ -330,6 +330,13 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const currentUserId = user?.userId ? Number(user.userId) : null;
+  const currentSenderSnapshot = user ? {
+    userId: Number(user.userId),
+    username: user.username,
+    email: user.email || '',
+    phoneNumber: user.phoneNumber || ''
+  } : undefined;
 
   // 获取会话名称
   const getRoomName = () => {
@@ -360,6 +367,13 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
   const showToast = (message: string, type: NotificationType = 'error') => {
     setToast({ message, type });
+  };
+
+  const isOwnMessage = (message: MessageDTO) => {
+    if (currentUserId == null) return false;
+    if (Number(message.fromAccountId) === currentUserId) return true;
+    if (Number(message.fromAccount?.userId) === currentUserId) return true;
+    return false;
   };
 
   const startMeetingFromChat = async () => {
@@ -409,7 +423,8 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         conversationId: conversation.conversationId,
         content: content,
         type: 'TEXT',
-        clientMsgId
+        clientMsgId,
+        senderSnapshot: currentSenderSnapshot
       }));
 
       scrollToBottom();
@@ -423,7 +438,9 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       conversationId: message.conversationId,
       content: message.content,
       type: message.type || 'TEXT',
-      clientMsgId: message.clientMsgId
+      clientMsgId: message.clientMsgId,
+      msgDto: message,
+      senderSnapshot: currentSenderSnapshot
     }));
   };
 
@@ -477,7 +494,8 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         conversationId: conversation.conversationId,
         content: fileId,
         type: isImage ? MessageType.IMAGE : MessageType.FILE,
-        clientMsgId
+        clientMsgId,
+        senderSnapshot: currentSenderSnapshot
       }));
 
       scrollToBottom();
@@ -547,7 +565,8 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
             conversationId: conversation.conversationId,
             content: fileId,
             type: 'VOICE',
-            clientMsgId
+            clientMsgId,
+            senderSnapshot: currentSenderSnapshot
           }));
 
           // 2. Background Upload
@@ -639,7 +658,8 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       await dispatch(sendMessageViaSocket({
         conversationId: conversation.conversationId,
         content: `Desktop Sharing: ${source.name}`,
-        type: 'TEXT'
+        type: 'TEXT',
+        senderSnapshot: currentSenderSnapshot
       })).unwrap();
     }
 
@@ -829,7 +849,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
                 <MessageBubble
                   key={msg.clientMsgId || msg.msgId.toString()}
                   message={msg}
-                  isOwnMessage={msg.fromAccountId.toString() === user?.userId}
+                  isOwnMessage={isOwnMessage(msg)}
                   onImageClick={(url, type) => setPreviewMedia({ url, type })}
                   onResend={handleResendMessage}
                   onJoinMeeting={onJoinMeeting}

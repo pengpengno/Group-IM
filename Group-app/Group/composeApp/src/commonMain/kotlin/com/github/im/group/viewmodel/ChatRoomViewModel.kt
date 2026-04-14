@@ -1,6 +1,5 @@
-﻿package com.github.im.group.viewmodel
+package com.github.im.group.viewmodel
 
-import ChatMessageBuilder
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.im.group.api.ChatApi
@@ -10,33 +9,25 @@ import com.github.im.group.api.ConversationType
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.FileMeta
 import com.github.im.group.api.UserApi
-import com.github.im.group.db.entities.FileStatus
 import com.github.im.group.db.entities.MessageStatus
-import com.github.im.group.db.entities.MessageType
 import com.github.im.group.manager.FileStorageManager
-import com.github.im.group.manager.FileUploadService
+import com.github.im.group.manager.MessageFacade
 import com.github.im.group.manager.MessageHandler
 import com.github.im.group.manager.MessageRouter
+import com.github.im.group.manager.MessageStore
 import com.github.im.group.manager.getFile
 import com.github.im.group.manager.getLocalFilePath
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.UserInfo
-import com.github.im.group.model.toUserInfo
-import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.ConversationRepository
 import com.github.im.group.repository.FilesRepository
-import com.github.im.group.repository.MessageSyncRepository
-import com.github.im.group.repository.OfflineMessageRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.File
-import com.github.im.group.sdk.FileData
 import com.github.im.group.sdk.FilePicker
-import com.github.im.group.sdk.SenderSdk
 import com.github.im.group.sdk.VoiceRecordingResult
 import com.github.im.group.ui.ChatRoom
 import com.github.im.group.ui.ChatRoomType
-import db.OfflineMessage
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -87,18 +78,14 @@ data class FileDownloadState(
 )
 
 class ChatRoomViewModel(
+    val messageStore: MessageStore,
+    val messageFacade: MessageFacade,
     val userRepository: UserRepository,
     val chatSessionManager: MessageRouter,
-    val chatMessageRepository: ChatMessageRepository,
-    val messageSyncRepository: MessageSyncRepository,
-    val filesRepository: FilesRepository,
     val conversationRepository: ConversationRepository,
-    val offlineMessageRepository: OfflineMessageRepository,
-    val filePicker: FilePicker,
     val fileStorageManager: FileStorageManager,
-    val senderSdk: SenderSdk,
-    val chatMessageBuilder: ChatMessageBuilder,
-    val fileUploadService: FileUploadService
+    val filePicker: FilePicker,
+    val filesRepository: FilesRepository
 ) : ViewModel(), MessageHandler {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -107,24 +94,37 @@ class ChatRoomViewModel(
     private val _fileDownloadStates = MutableStateFlow<Map<String, FileDownloadState>>(emptyMap())
     val fileDownloadStates: StateFlow<Map<String, FileDownloadState>> = _fileDownloadStates.asStateFlow()
 
-    private val messageStore = linkedMapOf<String, MessageItem>()
-    /**当前 的会话ID*/
     private var activeConversationId: Long? = null
 
-    private val _mediaMessages = MutableStateFlow<List<MessageItem>>(emptyList())
-    val mediaMessages: StateFlow<List<MessageItem>> = _mediaMessages.asStateFlow()
-
     init {
-        processOfflineMessages()
+        viewModelScope.launch {
+            userRepository.getLocalUserInfo()?.let { user ->
+                messageFacade.startSync(user)
+            }
+        }
+        
+        viewModelScope.launch {
+            messageStore.messages.collect { msgs ->
+                _uiState.update { 
+                    it.copy(
+                        messages = msgs,
+                        messageIndex = if (msgs.isNotEmpty()) 0 else -1
+                    )
+                }
+            }
+        }
     }
 
     override fun onMessageReceived(message: MessageWrapper) {
-        onReceiveMessage(message)
+        if (message.conversationId > 0 && activeConversationId != message.conversationId) {
+            // Not for current room visually immediately if background, but let's store it
+        }
+        messageStore.saveOrUpdate(message)
     }
 
     override fun onCleared() {
         super.onCleared()
-        uiState.value.conversation?.conversationId?.let(::unregister)
+        uiState.value.conversation?.conversationId?.let { unregister(it) }
     }
 
     fun getFile(fileId: String): File? = fileStorageManager.getFile(fileId)
@@ -134,10 +134,11 @@ class ChatRoomViewModel(
             _uiState.update { it.copy(chatRoom = room, error = null) }
             when (room.type) {
                 ChatRoomType.CONVERSATION -> {
-                    prepareConversation(room.roomId)
-                    loadMessages(room.roomId)
+                    activeConversationId = room.roomId
+                    loadLocalMessages(room.roomId)
                     loadConversationInfo(room.roomId)
                     register(room.roomId)
+                    syncRemoteMessages(room.roomId)
                 }
 
                 ChatRoomType.CREATE_PRIVATE -> {
@@ -146,11 +147,12 @@ class ChatRoomViewModel(
                         .getLocalConversationByMembers(currentUser.userId, room.roomId)
 
                     if (existingConversation != null) {
-                        prepareConversation(existingConversation.conversationId)
+                        activeConversationId = existingConversation.conversationId
                         _uiState.update { it.copy(conversation = existingConversation) }
-                        loadMessages(existingConversation.conversationId)
+                        loadLocalMessages(existingConversation.conversationId)
                         loadConversationInfo(existingConversation.conversationId)
                         register(existingConversation.conversationId)
+                        syncRemoteMessages(existingConversation.conversationId)
                     } else {
                         loadFriendInfo(room.roomId)
                     }
@@ -172,216 +174,45 @@ class ChatRoomViewModel(
         performSend(content = file.name, pickedFile = file, duration = duration)
     }
 
-    /***
-     * 发送文件消息
-     * @param content 任意字符串 TODO 未来设计为 媒体字段的消息
-     * @param pickedFile 文件
-     * @param duration 媒体时长 视频时长 、 音频时长
-     */
     private fun performSend(
-        content: String,
+        content: String? = null,
         pickedFile: File? = null,
         duration: Long = 0
     ) {
         viewModelScope.launch {
-            // 当前用户
             val currentUser = userRepository.getLocalUserInfo() ?: return@launch
-            // 当前 会话Id
             val currentConversationId = uiState.value.conversation?.conversationId
-            //  看下是否存在朋友Id
             val friendId = uiState.value.friend?.userId
-            // 是否为群聊
-            val isGroup = uiState.value.conversation?.isGroup();
 
             val targetConversationId = if (currentConversationId == null && friendId != null) {
                 getOrCreatePrivateChat(currentUser.userId, friendId).conversationId
             } else {
                 currentConversationId ?: return@launch
             }
-             //  床架你回话
-            prepareConversation(targetConversationId)
 
-            val message = when {
-                pickedFile != null -> chatMessageBuilder.fileMessage(targetConversationId, pickedFile.name, pickedFile.size, duration)
-                else -> chatMessageBuilder.textMessage(targetConversationId, content)
+            if (currentConversationId == null) {
+                activeConversationId = targetConversationId
+                messageStore.clear()
             }
-
-            val messageItem = MessageWrapper(message = message)
-            // 先插入的
-            updateOrInsertMessage(messageItem, scrollToLatest = true)
-
-            offlineMessageRepository.saveOfflineMessage(
-                clientMsgId = messageItem.clientMsgId,
-                conversationId = targetConversationId,
-                fromUserId = currentUser.userId,
-                toUserId = friendId,
-                content = messageItem.content,
-                messageType = messageItem.type,
-                filePath = pickedFile?.path,
-                fileSize = pickedFile?.size,
-                fileDuration = duration.toInt()
-            )
-
-            sendPreparedMessage(
-                currentUser = currentUser,
-                messageItem = messageItem,
-                pickedFile = pickedFile,
-                duration = duration,
-                toUserId = friendId,
-                persistOffline = false,
-                scrollToLatest = true
-            )
-        }
-    }
-
-    private suspend fun sendPreparedMessage(
-        currentUser: UserInfo,
-        messageItem: MessageWrapper,
-        pickedFile: File?,
-        duration: Long,
-        toUserId: Long?,
-        persistOffline: Boolean,
-        scrollToLatest: Boolean = false
-    ) {
-        val clientMsgId = messageItem.clientMsgId
-
-        if (persistOffline) {
-            offlineMessageRepository.saveOfflineMessage(
-                clientMsgId = clientMsgId,
-                conversationId = messageItem.conversationId,
-                fromUserId = currentUser.userId,
-                toUserId = toUserId,
-                content = messageItem.content,
-                messageType = messageItem.type,
-                filePath = pickedFile?.path,
-                fileSize = pickedFile?.size,
-                fileDuration = duration.toInt()
-            )
-        }
-
-        offlineMessageRepository.updateOfflineMessageConversationId(clientMsgId, messageItem.conversationId)
-        offlineMessageRepository.updateOfflineMessageStatus(clientMsgId, MessageStatus.SENDING)
-
-        try {
-            if (pickedFile != null && filesRepository.getFile(messageItem.content) == null) {
-                filesRepository.addPendingFileRecord(
-                    fileId = messageItem.content,
-                    fileName = pickedFile.name,
-                    duration = duration,
-                    filePath = pickedFile.path
-                )
-            }
-
-            senderSdk.sendMessage(messageItem.message ?: buildResendChatMessage(messageItem, currentUser))
 
             if (pickedFile != null) {
-                uploadAttachment(messageItem, pickedFile, duration, scrollToLatest)
+                messageFacade.sendFile(targetConversationId, pickedFile, duration, currentUser, friendId)
+            } else if (content != null) {
+                messageFacade.sendText(targetConversationId, content, currentUser, friendId)
             }
-        } catch (e: Exception) {
-            markMessageAsFailed(clientMsgId, messageItem.content)
-            offlineMessageRepository.updateOfflineMessageStatus(clientMsgId, MessageStatus.FAILED, incrementRetry = true)
-            Napier.e("send message failed: $clientMsgId", e)
         }
-    }
-
-    private suspend fun uploadAttachment(
-        messageItem: MessageWrapper,
-        file: File,
-        duration: Long,
-        scrollToLatest: Boolean
-    ) {
-        try {
-            val data = filePicker.readFileBytes(file)
-            val response = fileUploadService.uploadFileData(
-                serverFileId = messageItem.content,
-                data = data,
-                fileName = file.name,
-                duration = duration
-            )
-
-            response.fileMeta?.let { filesRepository.addOrUpdateFile(it) }
-            chatMessageRepository.getMessageByClientMsgId(messageItem.clientMsgId)?.let {
-                updateOrInsertMessage(it, scrollToLatest)
-            }
-            clearOfflineMessageIfReady(messageItem.clientMsgId)
-        } catch (e: Exception) {
-            markMessageAsFailed(messageItem.clientMsgId, messageItem.content)
-            offlineMessageRepository.updateOfflineMessageStatus(messageItem.clientMsgId, MessageStatus.FAILED, incrementRetry = true)
-            Napier.e("upload attachment failed: ${messageItem.clientMsgId}", e)
-        }
-    }
-
-    private fun buildResendChatMessage(
-        messageItem: MessageItem,
-        currentUser: UserInfo
-    ): com.github.im.common.connect.model.proto.ChatMessage {
-        return com.github.im.common.connect.model.proto.ChatMessage(
-            content = messageItem.content,
-            conversationId = messageItem.conversationId,
-            fromUser = currentUser.toUserInfo(),
-            type = com.github.im.common.connect.model.proto.MessageType.valueOf(messageItem.type.name),
-            messagesStatus = com.github.im.common.connect.model.proto.MessagesStatus.SENDING,
-            clientTimeStamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
-            clientMsgId = messageItem.clientMsgId
-        )
-    }
-
-    private fun buildOfflineRetryMessage(
-        offlineMessage: OfflineMessage,
-        currentUser: UserInfo
-    ): MessageWrapper {
-        val message = com.github.im.common.connect.model.proto.ChatMessage(
-            content = offlineMessage.content,
-            conversationId = offlineMessage.conversation_id ?: 0L,
-            fromUser = currentUser.toUserInfo(),
-            type = com.github.im.common.connect.model.proto.MessageType.valueOf(offlineMessage.message_type.name),
-            messagesStatus = com.github.im.common.connect.model.proto.MessagesStatus.SENDING,
-            clientTimeStamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
-            clientMsgId = offlineMessage.client_msg_id
-        )
-        return MessageWrapper(message = message)
-    }
-
-    private fun buildOfflineRetryFile(offlineMessage: OfflineMessage): File? {
-        val path = offlineMessage.file_path ?: return null
-        val fileName = path.substringAfterLast('/').substringAfterLast('\\').ifBlank { offlineMessage.content }
-        return File(
-            name = fileName,
-            path = path,
-            mimeType = null,
-            size = offlineMessage.file_size ?: 0L,
-            data = FileData.Path(path)
-        )
-    }
-
-    private fun prepareConversation(conversationId: Long) {
-
-        messageStore.clear()
-        _mediaMessages.value = emptyList()
-        _uiState.update { it.copy(messages = emptyList(), messageIndex = -1, scrollToTop = false) }
     }
 
     fun loadLocalMessages(conversationId: Long, limit: Long = 30) {
-        prepareConversation(conversationId)
-        applyMessages(chatMessageRepository.getMessagesByConversation(conversationId, limit))
+        viewModelScope.launch {
+            messageStore.loadLocal(conversationId, limit)
+        }
     }
 
     fun loadMessages(conversationId: Long, limit: Long = 30) {
         viewModelScope.launch {
-            prepareConversation(conversationId)
-            applyMessages(chatMessageRepository.getMessagesByConversation(conversationId, limit))
-
-            _uiState.update { it.copy(loading = true) }
-            try {
-                val newMessageCount = withContext(Dispatchers.Default) {
-                    messageSyncRepository.syncMessages(conversationId)
-                }
-                if (newMessageCount > 0) {
-                    applyMessages(chatMessageRepository.getMessagesByConversation(conversationId, limit))
-                }
-            } finally {
-                _uiState.update { it.copy(loading = false) }
-            }
+            messageStore.loadLocal(conversationId, limit)
+            syncRemoteMessages(conversationId, limit)
         }
     }
 
@@ -389,12 +220,11 @@ class ChatRoomViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true) }
             try {
-                val newMessageCount = withContext(Dispatchers.Default) {
-                    messageSyncRepository.syncMessages(conversationId)
+                val hasNew = withContext(Dispatchers.Default) {
+                    messageStore.syncRemote(conversationId)
                 }
-                if (newMessageCount > 0) {
-                    prepareConversation(conversationId)
-                    applyMessages(chatMessageRepository.getMessagesByConversation(conversationId, limit))
+                if (hasNew) {
+                    messageStore.loadLocal(conversationId, limit)
                 }
             } finally {
                 _uiState.update { it.copy(loading = false) }
@@ -436,19 +266,7 @@ class ChatRoomViewModel(
     }
 
     fun handleMessageAck(clientMsgId: String) {
-        viewModelScope.launch {
-            val updated = markMessageAsSent(clientMsgId)
-            if (updated != null) {
-                clearOfflineMessageIfReady(clientMsgId)
-            }
-        }
-    }
-
-    fun onReceiveMessage(message: MessageItem) {
-        if (message.conversationId > 0) {
-            prepareConversation(message.conversationId)
-        }
-        updateOrInsertMessage(message)
+        messageFacade.handleAck(clientMsgId)
     }
 
     fun register(conversationId: Long) {
@@ -459,99 +277,17 @@ class ChatRoomViewModel(
         chatSessionManager.unregisterHandler(conversationId)
     }
 
-    /***
-     * 更新或者新增消息
-     * 唯一索引为  clientMsgId 、 消息的msgId
-     */
-    private fun updateOrInsertMessage(message: MessageItem, scrollToLatest: Boolean = false) {
-        chatMessageRepository.insertOrUpdateMessage(message)
-        if (message.seqId != 0L && message.clientMsgId.isNotBlank()) {
-            messageStore.remove("C:${message.clientMsgId}")
-        }
-        messageStore[message.uniqueKey()] = message
-        emitUiMessages(scrollToLatest)
-    }
-
-    /**
-     * 构建消息的uniqueKey
-     */
-    private fun MessageItem.uniqueKey(): String = when {
-        seqId != 0L -> "S:$seqId"
-        clientMsgId.isNotBlank() -> "C:$clientMsgId"
-        else -> "T:${kotlin.random.Random.nextLong()}"
-    }
-
-    private fun applyMessages(messages: List<MessageItem>) {
-        messages.forEach { messageStore[it.uniqueKey()] = it }
-        emitUiMessages()
-    }
-
-    private fun emitUiMessages(scrollToLatest: Boolean = false) {
-        val sorted = messageStore.values
-            .sortedWith(
-                compareByDescending<MessageItem> { if (it.seqId != 0L) it.seqId else Long.MIN_VALUE }
-                    .thenByDescending { it.clientTime ?: it.time }
-            )
-
-        _mediaMessages.value = sorted.filter { it.type == MessageType.IMAGE || it.type == MessageType.VIDEO }
-        _uiState.update {
-            it.copy(
-                messages = sorted,
-                messageIndex = if (sorted.isNotEmpty()) 0 else -1,
-                scrollToTop = scrollToLatest
-            )
-        }
-    }
-
-    private fun markMessageAsFailed(clientMsgId: String, fileId: String? = null) {
-        val current = chatMessageRepository.getMessageByClientMsgId(clientMsgId)
-        if (current is MessageWrapper) {
-            updateOrInsertMessage(current.withStatus(MessageStatus.FAILED))
-        }
-        if (!fileId.isNullOrBlank()) {
-            filesRepository.updateFileStatus(fileId, FileStatus.FAILED)
-        }
-    }
-
-    private fun markMessageAsSent(clientMsgId: String): MessageItem? {
-        val current = chatMessageRepository.getMessageByClientMsgId(clientMsgId)
-        return if (current is MessageWrapper) {
-            val updated = current.withStatus(MessageStatus.SENT)
-            updateOrInsertMessage(updated)
-            updated
-        } else {
-            current
-        }
-    }
-
-    private fun clearOfflineMessageIfReady(clientMsgId: String) {
-        val message = chatMessageRepository.getMessageByClientMsgId(clientMsgId) ?: return
-        val delivered = message.status == MessageStatus.SENT ||
-            message.status == MessageStatus.READ ||
-            message.status == MessageStatus.RECEIVED
-
-        if (!delivered) return
-
-        val uploadCompleted = !message.type.isFile() ||
-            filesRepository.getFileMeta(message.content)?.fileStatus == FileStatus.NORMAL
-
-        if (uploadCompleted) {
-            offlineMessageRepository.deleteOfflineMessage(clientMsgId)
-        } else {
-            offlineMessageRepository.updateOfflineMessageStatus(clientMsgId, MessageStatus.SENT)
-        }
-    }
-
     fun refreshMessages() {
-        uiState.value.conversation?.conversationId?.let(::loadMessages)
+        uiState.value.conversation?.conversationId?.let { syncRemoteMessages(it) }
     }
 
     fun loadLatestMessages(conversationId: Long, afterSequenceId: Long) {
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true) }
             try {
-                prepareConversation(conversationId)
-                applyMessages(messageSyncRepository.getMessagesWithStrategy(conversationId, afterSequenceId, false))
+                withContext(Dispatchers.Default) {
+                    messageStore.loadLatest(conversationId, afterSequenceId)
+                }
             } finally {
                 _uiState.update { it.copy(loading = false) }
             }
@@ -596,7 +332,6 @@ class ChatRoomViewModel(
     fun getLocalFilePath(fileId: String): String? = fileStorageManager.getLocalFilePath(fileId)
 
     suspend fun getFileMessageMetaAsync(messageItem: MessageItem): FileMeta? {
-        if (!messageItem.type.isFile()) return null
         messageItem.fileMeta?.let { return it }
         filesRepository.getFileMeta(messageItem.content)?.let { return it }
         return try {
@@ -612,39 +347,7 @@ class ChatRoomViewModel(
         _uiState.update { it.copy(sessionCreationState = SessionCreationState.Idle, error = null) }
     }
 
-    fun processOfflineMessages() {
-        viewModelScope.launch {
-            val currentUser = userRepository.getLocalUserInfo() ?: return@launch
-            val pendingMessages = offlineMessageRepository.getPendingOfflineMessages()
-            pendingMessages.forEach { offline ->
-                val conversationId = offline.conversation_id ?: return@forEach
-                val retryCount = offline.retry_count ?: 0L
-                val maxRetryCount = offline.max_retry_count ?: 3L
-                if (retryCount >= maxRetryCount) {
-                    offlineMessageRepository.updateOfflineMessageStatus(offline.client_msg_id, MessageStatus.FAILED)
-                    return@forEach
-                }
-
-                prepareConversation(conversationId)
-                val retryMessage = buildOfflineRetryMessage(offline, currentUser)
-                val retryFile = if (offline.message_type.isFile()) buildOfflineRetryFile(offline) else null
-                if (!messageStore.containsKey("C:${offline.client_msg_id}")) {
-                    updateOrInsertMessage(retryMessage)
-                }
-
-                sendPreparedMessage(
-                    currentUser = currentUser,
-                    messageItem = retryMessage,
-                    pickedFile = retryFile,
-                    duration = offline.file_duration ?: 0L,
-                    toUserId = offline.to_user_id,
-                    persistOffline = false
-                )
-            }
-        }
-    }
-
-    suspend fun getOrCreatePrivateChat(userId: Long, friendId: Long): ConversationRes {
+    private suspend fun getOrCreatePrivateChat(userId: Long, friendId: Long): ConversationRes {
         conversationRepository.getLocalConversationByMembers(userId, friendId)?.let { local ->
             _uiState.update { it.copy(conversation = local) }
             return local
@@ -671,7 +374,8 @@ class ChatRoomViewModel(
             try {
                 ChatApi.withdrawMessage(message.id)
                 if (message is MessageWrapper) {
-                    updateOrInsertMessage(message.withStatus(MessageStatus.REVOKE))
+                    val updated = message.withStatus(MessageStatus.REVOKE)
+                    messageStore.saveOrUpdate(updated)
                 }
             } catch (e: Exception) {
                 Napier.e("withdraw message failed", e)
@@ -685,19 +389,7 @@ class ChatRoomViewModel(
                 val lastSeq = _uiState.value.messages.firstOrNull()?.seqId ?: 0L
                 if (lastSeq <= 0L) return@launch
 
-                chatMessageRepository.markConversationMessagesAsRead(conversationId, currentUserId)
-                val updatedMessages = _uiState.value.messages.map { message ->
-                    val shouldMarkRead = message.userInfo.userId != currentUserId && message.status == MessageStatus.SENT
-                    if (shouldMarkRead && message is MessageWrapper) {
-                        val updated = message.withStatus(MessageStatus.READ)
-                        messageStore.remove(message.uniqueKey())
-                        messageStore[updated.uniqueKey()] = updated
-                        updated
-                    } else {
-                        message
-                    }
-                }
-                _uiState.update { it.copy(messages = updatedMessages) }
+                messageStore.markConversationRead(conversationId, currentUserId)
 
                 ChatApi.markConversationAsRead(conversationId = conversationId, sequenceId = lastSeq)
             } catch (e: Exception) {

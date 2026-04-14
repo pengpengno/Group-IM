@@ -3,6 +3,13 @@ import { conversationAPI } from '../../services/api/apiClient';
 import { socketService } from '../../services/socketService';
 import { ConversationDisplayState, MessageDTO, ConversationRes, GroupConversationPayload } from '../../types';
 
+interface SenderSnapshot {
+    userId?: number | string;
+    username?: string;
+    email?: string;
+    phoneNumber?: string;
+}
+
 interface ChatState {
     conversations: ConversationDisplayState[];
     activeConversationId: number | null;
@@ -160,15 +167,16 @@ function buildSocketPayload(
 
 export const sendMessageViaSocket = createAsyncThunk(
     'chat/sendMessageViaSocket',
-    async ({ conversationId, content, type, msgDto, clientMsgId }: {
+    async ({ conversationId, content, type, msgDto, clientMsgId, senderSnapshot }: {
         conversationId: number,
         content: string,
         type?: string,
         msgDto?: MessageDTO,
-        clientMsgId?: string
+        clientMsgId?: string,
+        senderSnapshot?: SenderSnapshot
     }, { getState }) => {
         const state = getState() as any;
-        const currentUser = state.auth.user;
+        const currentUser = state.auth.user || senderSnapshot;
         const currentUserId = currentUser?.userId;
 
         // Use provided clientMsgId or from msgDto or generate new
@@ -192,6 +200,12 @@ export const sendMessageViaSocket = createAsyncThunk(
                     conversationId,
                     content,
                     fromAccountId: Number(currentUserId),
+                    fromAccount: currentUser ? {
+                        userId: Number(currentUser.userId),
+                        username: currentUser.username || '',
+                        email: currentUser.email || '',
+                        phoneNumber: currentUser.phoneNumber || ''
+                    } : undefined,
                     type: (type as any) || 'TEXT',
                     timestamp: Date.now(),
                     clientMsgId: finalClientMsgId,
@@ -346,10 +360,9 @@ const chatSlice = createSlice({
                 }
             })
             .addCase(sendMessageViaSocket.pending, (state, action) => {
-                const { conversationId, content, type } = action.meta.arg;
-                const stateAuth = (state as any).auth;
-                const currentUser = stateAuth?.user;
-                const currentUserId = currentUser?.userId;
+                const { conversationId, content, type, senderSnapshot, msgDto } = action.meta.arg;
+                const currentUser = senderSnapshot || msgDto?.fromAccount;
+                const currentUserId = currentUser?.userId ?? msgDto?.fromAccountId;
 
                 // Construct a temporary clientMsgId for the pending state
                 const clientMsgId = action.meta.arg.clientMsgId || action.meta.requestId;
@@ -362,7 +375,7 @@ const chatSlice = createSlice({
                     fromAccountId: Number(currentUserId),
                     fromAccount: currentUser ? {
                         userId: Number(currentUser.userId),
-                        username: currentUser.username,
+                        username: currentUser.username || '',
                         email: currentUser.email || '',
                         phoneNumber: currentUser.phoneNumber || ''
                     } : undefined,
@@ -378,12 +391,17 @@ const chatSlice = createSlice({
                 const existingIndex = state.messages[conversationId].findIndex(m => m.clientMsgId === clientMsgId);
                 if (existingIndex === -1) {
                     state.messages[conversationId].push(tempMsg);
+                    state.messages[conversationId].sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
                 } else {
-                    state.messages[conversationId][existingIndex].sendingStatus = 'sending';
+                    state.messages[conversationId][existingIndex] = {
+                        ...state.messages[conversationId][existingIndex],
+                        ...tempMsg,
+                        sendingStatus: 'sending'
+                    };
                     if (currentUser) {
                         state.messages[conversationId][existingIndex].fromAccount = {
                             userId: Number(currentUser.userId),
-                            username: currentUser.username,
+                            username: currentUser.username || '',
                             email: currentUser.email || '',
                             phoneNumber: currentUser.phoneNumber || ''
                         };
@@ -402,8 +420,12 @@ const chatSlice = createSlice({
                 );
 
                 if (existingIndex !== -1) {
+                    const existingMessage = state.messages[conversationId][existingIndex];
                     state.messages[conversationId][existingIndex] = {
+                        ...existingMessage,
                         ...action.payload,
+                        fromAccountId: Number(action.payload.fromAccountId || existingMessage.fromAccountId),
+                        fromAccount: action.payload.fromAccount || existingMessage.fromAccount,
                         sendingStatus: 'success'
                     };
                 } else {
@@ -411,6 +433,7 @@ const chatSlice = createSlice({
                         ...action.payload,
                         sendingStatus: 'success'
                     });
+                    state.messages[conversationId].sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
                 }
             })
             .addCase(sendMessageViaSocket.rejected, (state, action) => {
