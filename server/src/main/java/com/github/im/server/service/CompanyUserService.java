@@ -47,12 +47,10 @@ public class CompanyUserService {
         return  SchemaSwitcher.executeInPublicSchema(()-> {
             List<Company> companies = entityManager.createQuery(
                             "SELECT c FROM Company c JOIN CompanyUser cu ON c.companyId = cu.companyId WHERE cu.userId = :userId",
-//                            "SELECT c FROM Company c",
                             Company.class)
-//                    .setParameter("userId", userId)
+                    .setParameter("userId", userId)
                     .getResultList();
 
-//            List<Company> companies = companyRepository.findCompaniesByUserId(userId);
             return companyMapper.companiesToCompanyDTOs(companies);
         });
     }
