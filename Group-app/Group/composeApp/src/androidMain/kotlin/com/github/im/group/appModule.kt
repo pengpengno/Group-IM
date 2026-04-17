@@ -39,6 +39,7 @@ import com.github.im.group.ui.video.VideoCallViewModel
 import com.github.im.group.viewmodel.ChatRoomViewModel
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.ContactsViewModel
+import com.github.im.group.viewmodel.MeetingsViewModel
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
 import okio.FileSystem
@@ -186,4 +187,8 @@ val appmodule = module {
         ContactsViewModel(get(), get(), get())
     }
 
+    // 注册MeetingsViewModel
+    viewModel {
+        MeetingsViewModel()
+    }
 }

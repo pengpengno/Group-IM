@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import ParticipantPicker from './ParticipantPicker';
+import ScheduleMeetingDialog from './ScheduleMeetingDialog';
 import { RootState, AppDispatch } from '../../store';
 import { fetchMessages, sendMessageViaSocket } from './chatSlice';
 import { BASE_URL, meetingAPI } from '../../services/api/apiClient';
@@ -251,18 +253,23 @@ const MessageBubble: React.FC<{
         const title = payload?.title || '会议';
         const count = payload?.participantCount ?? payload?.participantIds?.length ?? 0;
         const roomId = payload?.roomId;
+        const isScheduled = payload?.action === 'SCHEDULE';
+        const scheduledTime = payload?.scheduledAt ? new Date(payload.scheduledAt).toLocaleString() : '';
 
         return (
-          <div className="msg-meeting-card">
-            <div className="meeting-title">{title}</div>
+          <div className={`msg-meeting-card ${isScheduled ? 'scheduled' : ''}`}>
+            <div className="meeting-title">{isScheduled ? `📅 预定会议: ${title}` : title}</div>
+            {isScheduled && <div className="meeting-time">时间: {scheduledTime}</div>}
             <div className="meeting-meta">参会人数: {count}</div>
-            <button
-              className="meeting-join-btn"
-              onClick={() => roomId && onJoinMeeting && onJoinMeeting(roomId)}
-              disabled={!roomId || !onJoinMeeting}
-            >
-              加入会议
-            </button>
+            {!isScheduled && (
+              <button
+                className="meeting-join-btn"
+                onClick={() => roomId && onJoinMeeting && onJoinMeeting(roomId)}
+                disabled={!roomId || !onJoinMeeting}
+              >
+                加入会议
+              </button>
+            )}
           </div>
         );
       }
@@ -320,6 +327,8 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [previewMedia, setPreviewMedia] = useState<{ url: string; type: string } | null>(null);
   const [isOnline, setIsOnline] = useState(false);
+  const [showParticipantPicker, setShowParticipantPicker] = useState(false);
+  const [showScheduleMeeting, setShowScheduleMeeting] = useState(false);
 
   // Recording State
   const [isRecording, setIsRecording] = useState(false);
@@ -376,9 +385,16 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     return false;
   };
 
-  const startMeetingFromChat = async () => {
+  const startMeetingFromChat = async (selectedParticipants?: string[]) => {
     if (!onStartMeeting) return;
-    const participants = getGroupParticipants();
+    
+    // If we haven't selected participants yet, show the picker
+    if (!selectedParticipants) {
+      setShowParticipantPicker(true);
+      return;
+    }
+
+    const participants = getGroupParticipants().filter(p => selectedParticipants.includes(p.userId));
     if (!participants.length) return;
 
     try {
@@ -389,9 +405,26 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       });
       const meeting = response.data?.data || response.data;
       onStartMeeting(participants, meeting?.roomId);
+      setShowParticipantPicker(false);
     } catch (err: any) {
       console.error('Failed to create meeting:', err);
       showToast(err?.message || '创建会议失败');
+    }
+  };
+
+  const handleScheduleConfirm = async (data: { title: string; scheduledAt: string; participantIds: string[] }) => {
+    try {
+      await meetingAPI.create({
+        conversationId: conversation.conversationId,
+        title: data.title,
+        scheduledAt: data.scheduledAt,
+        participantIds: data.participantIds.map(id => Number(id))
+      });
+      showToast('会议预定成功', 'success' as any);
+      setShowScheduleMeeting(false);
+    } catch (err: any) {
+      console.error('Failed to schedule meeting:', err);
+      showToast(err?.message || '预定会议失败');
     }
   };
 
@@ -418,7 +451,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       : Math.random().toString(36).substring(2) + Date.now().toString(36);
 
     try {
-      // Async dispatch, don't await unwrap here if we want immediate UI
+      // Async dispatch, don't await unwrap if we want immediate UI
       dispatch(sendMessageViaSocket({
         conversationId: conversation.conversationId,
         content: content,
@@ -683,26 +716,6 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
   const handlePreviewClose = () => setPreviewMedia(null);
 
-  const handleFileDownload = async (fileId: string, fileName: string) => {
-    const api = getElectronAPI();
-    if (isElectronEnvironment() && (api as any).downloadFile) {
-      const url = `${BASE_URL}/api/files/download/${fileId}`;
-      try {
-        const result = await (api as any).downloadFile(url, fileName, user?.token);
-        if (result.success) {
-          console.log('File downloaded to:', result.filePath);
-        } else if (!result.canceled) {
-          alert('Download failed: ' + result.error);
-        }
-      } catch (err) {
-        console.error('Download error:', err);
-      }
-    } else {
-      console.log(`${BASE_URL}/api/files/download/${fileId}`);
-      // window.open(`${BASE_URL}/api/files/download/${fileId}`);
-    }
-  };
-
   // 查询在线状态
   useEffect(() => {
     let interval: any;
@@ -790,18 +803,32 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
         <div className="chatroom-header-actions">
           {isGroupConversation(conversation) && onStartMeeting && getGroupParticipants().length > 0 && (
-            <button
-              className="action-icon-btn"
-              onClick={startMeetingFromChat}
-              title="Start Meeting"
-            >
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-              </svg>
-            </button>
+            <>
+              <button
+                className="action-icon-btn"
+                onClick={() => setShowScheduleMeeting(true)}
+                title="Schedule Meeting"
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+              </button>
+              <button
+                className="action-icon-btn"
+                onClick={() => startMeetingFromChat()}
+                title="Start Meeting"
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+              </button>
+            </>
           )}
           {getOtherUserId() && onVideoCall && (
             <>
@@ -844,22 +871,37 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
           </div>
         ) : (
           <div className="messages-list-desktop">
-            {messages.map((msg: MessageDTO) => {
-              return (
-                <MessageBubble
-                  key={msg.clientMsgId || msg.msgId.toString()}
-                  message={msg}
-                  isOwnMessage={isOwnMessage(msg)}
-                  onImageClick={(url, type) => setPreviewMedia({ url, type })}
-                  onResend={handleResendMessage}
-                  onJoinMeeting={onJoinMeeting}
-                />
-              );
-            })}
+            {messages.map((msg: MessageDTO) => (
+              <MessageBubble
+                key={msg.clientMsgId || msg.msgId.toString()}
+                message={msg}
+                isOwnMessage={isOwnMessage(msg)}
+                onImageClick={(url, type) => setPreviewMedia({ url, type })}
+                onResend={handleResendMessage}
+                onJoinMeeting={onJoinMeeting}
+              />
+            ))}
             <div ref={messagesEndRef} style={{ height: '1px' }} />
           </div>
         )}
       </div>
+
+      {showParticipantPicker && (
+        <ParticipantPicker
+          title="发起多人会议"
+          members={getGroupParticipants()}
+          onConfirm={(selectedIds) => startMeetingFromChat(selectedIds)}
+          onCancel={() => setShowParticipantPicker(false)}
+        />
+      )}
+
+      {showScheduleMeeting && (
+        <ScheduleMeetingDialog
+          members={getGroupParticipants()}
+          onConfirm={handleScheduleConfirm}
+          onCancel={() => setShowScheduleMeeting(false)}
+        />
+      )}
 
       {/* 表情包选择器 */}
       {showEmojiPicker && (

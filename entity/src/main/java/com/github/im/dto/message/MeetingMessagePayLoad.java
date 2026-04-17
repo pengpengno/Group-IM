@@ -11,6 +11,7 @@ public class MeetingMessagePayLoad implements MessagePayLoad {
     private String title;
     private String action;
     private Long hostId;
+    private java.time.LocalDateTime scheduledAt;
     private List<Long> participantIds;
     private Integer participantCount;
 }

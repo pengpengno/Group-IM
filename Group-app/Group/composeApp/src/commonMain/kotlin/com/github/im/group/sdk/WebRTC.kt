@@ -154,6 +154,13 @@ interface WebRTCManager {
  * WebRTC消息对象
  */
 @Serializable
+data class ParticipantInfo(
+    val userId: String,
+    val userName: String? = null,
+    val avatar: String? = null
+)
+
+@Serializable
 data class WebrtcMessage(
     val type: String,              // 消息类型: call/request, call/accept, call/end, offer, answer, candidate, meeting/join, meeting/request, etc.
     val fromUser: String? = null,  // 发送方用户ID
@@ -165,7 +172,7 @@ data class WebrtcMessage(
     val sdpType: String? = null,   // SDP类型: offer/answer
     val candidate: IceCandidateData? = null,  // ICE候选信息
     val reason: String? = null,    // 失败原因
-    val participants: List<String>? = null // 参与者列表 (会议邀请使用)
+    val participants: List<ParticipantInfo>? = null // 参与者列表 (会议邀请使用)
 )
 
 /**
@@ -174,7 +181,7 @@ data class WebrtcMessage(
 @Serializable
 data class IceCandidateData(
     val candidate: String,         // 候选描述
-    val sdpMid: String,            // SDP中段标识
+    val sdpMid: String? = null,    // SDP中段标识
     val sdpMLineIndex: Int,        // SDP中媒体行索引
     val usernameFragment: String? = null, // usernameFragment字段
     val sdp: String? = null

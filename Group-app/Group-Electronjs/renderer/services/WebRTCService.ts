@@ -394,6 +394,9 @@ export class WebRTCService extends EventEmitter {
       case 'call/end':
         this.handleRemoteHangup(message.fromUser);
         break;
+      case 'meeting/end':
+        this.cleanupCallState(true);
+        break;
       default:
         break;
     }

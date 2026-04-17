@@ -54,4 +54,14 @@ public class MeetingController {
     public ResponseEntity<MeetingDTO> getByRoom(@PathVariable String roomId) {
         return ResponseEntity.ok(meetingService.getByRoomId(roomId));
     }
+
+    @GetMapping("/conversation/{conversationId}")
+    public ResponseEntity<java.util.List<MeetingDTO>> getByConversation(@PathVariable Long conversationId) {
+        return ResponseEntity.ok(meetingService.getMeetingsByConversation(conversationId));
+    }
+
+    @GetMapping("/my")
+    public ResponseEntity<java.util.List<MeetingDTO>> getMyMeetings(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(meetingService.getMyMeetings(user.getUserId()));
+    }
 }

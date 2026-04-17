@@ -200,6 +200,9 @@ class ChatRoomViewModel(
             } else if (content != null) {
                 messageFacade.sendText(targetConversationId, content, currentUser, friendId)
             }
+            
+            // Trigger scroll to bottom for the newly sent message
+            _uiState.update { it.copy(scrollToTop = true) }
         }
     }
 

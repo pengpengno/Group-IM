@@ -154,6 +154,7 @@ export interface MeetingDTO {
   title?: string;
   hostId?: number;
   status?: string;
+  scheduledAt?: string;
   startedAt?: string;
   endedAt?: string;
   participants?: MeetingParticipantDTO[];
@@ -165,6 +166,7 @@ export interface MeetingMessagePayload {
   title?: string;
   action?: string;
   hostId?: number;
+  scheduledAt?: string;
   participantIds?: number[];
   participantCount?: number;
 }

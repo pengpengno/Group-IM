@@ -13,6 +13,7 @@ public class MeetingDTO {
     private String title;
     private Long hostId;
     private String status;
+    private LocalDateTime scheduledAt;
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;
     private List<MeetingParticipantDTO> participants;

@@ -12,7 +12,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,7 +72,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.github.im.group.sdk.File
 import com.github.im.group.sdk.TryGetPermission
-import com.github.im.group.ui.PlatformFilePickerPanel
 import com.github.im.group.ui.theme.ThemeTokens
 import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.VoiceViewModel
@@ -465,7 +465,6 @@ fun VoiceRecordButton(
             permission = permission,
             onGranted = {
                 hasPermission = true
-                onPress()
             },
             onRequest = { Napier.d("request record audio permission") },
             onDenied = { hasPermission = false }
@@ -492,35 +491,60 @@ fun VoiceRecordButton(
             .height(42.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(pillColor)
-            .pointerInput(hasPermission, permissionRequested) {
-                detectTapGestures(
-                    onPress = {
-                        if (!permissionRequested) permissionRequested = true
-                        if (hasPermission) {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onPress()
-                            isRecording = true
+            .pointerInput(hasPermission) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val down = awaitFirstDown()
+                        var isLongPress = false
+
+                        try {
+                            // Wait for long press timeout
+                            withTimeout(viewConfiguration.longPressTimeoutMillis) {
+                                waitForUpOrCancellation()
+                                // If we reach here, it's a tap or cancellation
+                                Napier.d { "按键时间过短" }
+                            }
+                        } catch (e: Exception) {
+                            // Timeout reached -> Long press!
+                            isLongPress = true
                         }
-                        awaitPointerEventScope {
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                isCancelRecording = event.changes.any { change ->
-                                    change.position.x < 0 || change.position.x > size.width ||
-                                        change.position.y < 0 || change.position.y > size.height
+
+                        if (isLongPress) {
+                            if (!hasPermission) {
+                                permissionRequested = true
+                            } else {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onPress()
+                                isRecording = true
+
+                                // Now track release
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val anyUp = event.changes.any { it.changedToUp() }
+
+                                    isCancelRecording = event.changes.any { change ->
+                                        change.position.x < 0 || change.position.x > size.width ||
+                                                change.position.y < 0 || change.position.y > size.height
+                                    }
+
+                                    if (anyUp) {
+                                        if (isRecording && !isCancelRecording) {
+                                            voiceViewModel.stopRecording()
+                                            onRelease()
+                                        } else if (isRecording) {
+                                            voiceViewModel.cancel()
+                                        }
+                                        isRecording = false
+                                        isCancelRecording = false
+                                        break
+                                    }
+                                    // Consume to prevent other gestures
+                                    event.changes.forEach { it.consume() }
                                 }
-                                if (event.changes.any { it.changedToUp() }) break
                             }
                         }
-                        if (isRecording && !isCancelRecording) {
-                            voiceViewModel.stopRecording()
-                            onRelease()
-                        } else if (isRecording) {
-                            voiceViewModel.cancel()
-                        }
-                        isRecording = false
-                        isCancelRecording = false
                     }
-                )
+                }
             },
         contentAlignment = Alignment.Center
     ) {

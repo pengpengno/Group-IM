@@ -1,4 +1,4 @@
-﻿package com.github.im.group.api
+package com.github.im.group.api
 
 import com.github.im.group.GlobalCredentialProvider
 import com.github.im.group.config.ProxyConfig
@@ -455,6 +455,20 @@ object MeetingApi {
             path = "/api/meetings/room/$roomId"
         )
     }
+
+    suspend fun listMyMeetings(): List<MeetingRes> {
+        return ProxyApi.request<Unit, List<MeetingRes>>(
+            hmethod = HttpMethod.Get,
+            path = "/api/meetings/my"
+        )
+    }
+
+    suspend fun listMeetingsByConversation(conversationId: Long): List<MeetingRes> {
+        return ProxyApi.request<Unit, List<MeetingRes>>(
+            hmethod = HttpMethod.Get,
+            path = "/api/meetings/conversation/$conversationId"
+        )
+    }
 }
 
 /**
@@ -539,7 +553,8 @@ data class MeetingCreateRequest(
     val roomId: String? = null,
     val title: String? = null,
     val participantIds: List<Long> = emptyList(),
-    val recordMessage: Boolean = true
+    val recordMessage: Boolean = true,
+    val scheduledAt: String? = null
 )
 
 @Serializable
@@ -576,6 +591,7 @@ data class MeetingRes(
     val title: String? = null,
     val hostId: Long? = null,
     val status: String? = null,
+    val scheduledAt: LocalDateTime? = null,
     val startedAt: LocalDateTime? = null,
     val endedAt: LocalDateTime? = null,
     val participants: List<MeetingParticipantRes> = emptyList()
@@ -621,7 +637,8 @@ data class MeetingMessagePayLoad(
     val action: String? = null,
     val hostId: Long? = null,
     val participantIds: List<Long> = emptyList(),
-    val participantCount: Int? = null
+    val participantCount: Int? = null,
+    val scheduledAt: String? = null
 ) : MessagePayLoad
 
 @Serializable

@@ -32,6 +32,18 @@
   /* Ensure header items remain interactive */
 }
 
+.msg-meeting-card.scheduled {
+  background: rgba(16, 185, 129, 0.1);
+  border-left: 4px solid #10b981;
+}
+
+.meeting-time {
+  font-size: 12px;
+  color: #059669;
+  margin: 4px 0;
+  font-weight: 600;
+}
+
 .chatroom-header-left {
   display: flex;
   align-items: center;

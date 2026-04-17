@@ -151,7 +151,7 @@ export const webrtcAPI = {
 };
 
 export const meetingAPI = {
-  create: async (payload: { conversationId: number; roomId?: string; title?: string; participantIds?: number[]; recordMessage?: boolean }) => {
+  create: async (payload: { conversationId: number; roomId?: string; title?: string; participantIds?: number[]; recordMessage?: boolean; scheduledAt?: string }) => {
     return http.post('/api/meetings/create', payload);
   },
   join: async (roomId: string) => {
@@ -165,6 +165,12 @@ export const meetingAPI = {
   },
   getByRoom: async (roomId: string) => {
     return http.get(`/api/meetings/room/${roomId}`);
+  },
+  listByConversation: async (conversationId: number) => {
+    return http.get(`/api/meetings/conversation/${conversationId}`);
+  },
+  listMyMeetings: async () => {
+    return http.get('/api/meetings/my');
   }
 };
 

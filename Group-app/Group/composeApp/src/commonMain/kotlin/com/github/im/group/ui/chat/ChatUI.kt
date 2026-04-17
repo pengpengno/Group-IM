@@ -104,7 +104,7 @@ fun ChatUI(
         modifier = Modifier
             .fillMaxSize()
             .background(ThemeTokens.BackgroundDark)
-            .padding(top = 16.dp)
+//            .padding(top = 16.dp)
     ) {
 //        Column(modifier = Modifier.padding(horizontal = 20.dp, bottom = 12.dp)) {
 //            Text(

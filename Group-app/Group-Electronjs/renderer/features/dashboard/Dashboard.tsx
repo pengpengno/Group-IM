@@ -9,6 +9,7 @@ import { VideoCallStatus } from '../video-call/videoCallSlice';
 import VideoCallScreen from '../video-call/VideoCallScreen';
 import ChatList from '../chat/ChatList';
 import ChatRoom from '../chat/ChatRoom';
+import MeetingList from '../chat/MeetingList';
 import ContactsList from '../contacts/ContactsList';
 import ContactsScreen from '../contacts/ContactsScreen';
 import AdminPanel from '../admin/AdminPanel';
@@ -589,22 +590,8 @@ const Dashboard: React.FC = () => {
                     )}
 
                     {activeTab === 'meetings' && (
-                        <div className="meetings-view-container">
-                            <div className="empty-view-placeholder">
-                                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <polygon points="23 7 16 12 23 17 23 7"></polygon>
-                                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-                                </svg>
-                                <h3>Team Meetings</h3>
-                                <p>Join or start a multi-party video conference with your team.</p>
-                                <button
-                                    className="premium-action-btn"
-                                    style={{ marginTop: '20px' }}
-                                    onClick={() => setActiveTab('chats')}
-                                >
-                                    Start from Chat
-                                </button>
-                            </div>
+                        <div className="meetings-view-container" style={{ height: '100%', background: '#f9fafb' }}>
+                            <MeetingList onJoin={handleJoinMeeting} />
                         </div>
                     )}
 

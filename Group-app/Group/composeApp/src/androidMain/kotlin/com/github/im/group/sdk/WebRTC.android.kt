@@ -210,6 +210,7 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
             when (msg.type) {
                 "meeting/request", "call/request" -> handleCallRequest(msg)
                 "meeting/join" -> handleMeetingJoin(msg)
+                "meeting/participants" -> handleMeetingParticipants(msg)
                 "meeting/participant-joined" -> handleParticipantJoined(msg)
                 "meeting/participant-left" -> handleParticipantLeft(msg)
                 "meeting/reject", "call/failed" -> handleCallFailed(msg)
@@ -217,6 +218,7 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
                 "answer" -> handleAnswer(msg)
                 "candidate" -> handleIceCandidate(msg)
                 "meeting/leave", "call/end" -> handleHangup(msg)
+                "meeting/end" -> cleanup()
                 else -> Log.d("WebRTC", "Unknown type: ${msg.type}")
             }
         } catch (e: Exception) {
@@ -231,12 +233,40 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
             username = msg.fromUserName ?: "User-${msg.fromUser}",
             email = "",
         )
+        
+        val participantInfos = msg.participants?.map { 
+            com.github.im.group.model.UserInfo(
+                userId = it.userId.toLongOrNull() ?: 0L,
+                username = it.userName ?: "User-${it.userId}",
+                email = ""
+            )
+        } ?: listOf(callerInfo)
+
         _connectionState.value = _connectionState.value.copy(
             callStatus = VideoCallStatus.INCOMING,
             caller = callerInfo,
-            participants = listOf(callerInfo),
+            participants = participantInfos,
             callId = msg.roomId
         )
+    }
+
+    private fun handleMeetingParticipants(msg: WebrtcMessage) {
+        Log.d("WebRTC", "Received participants: ${msg.participants?.size}")
+        val participantInfos = msg.participants?.map { 
+            com.github.im.group.model.UserInfo(
+                userId = it.userId.toLongOrNull() ?: 0L,
+                username = it.userName ?: "User-${it.userId}",
+                email = ""
+            )
+        } ?: emptyList()
+        
+        _connectionState.value = _connectionState.value.copy(
+            participants = participantInfos
+        )
+        
+        // As a newcomer, I wait for offers from existing members to avoid glare.
+        // Or I can send offers to them if we use a tie-breaker. 
+        // For simplicity, we match Web client behavior: existing members send offers to newcomer.
     }
 
     private fun handleMeetingJoin(msg: WebrtcMessage) {
@@ -327,6 +357,12 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     }
     
     private fun handleHangup(msg: WebrtcMessage) {
+        val status = _connectionState.value.callStatus
+        if (status == VideoCallStatus.INCOMING || status == VideoCallStatus.OUTGOING) {
+            Log.d("WebRTC", "Hangup during ring/call phase, cleaning up")
+            cleanup()
+            return
+        }
         msg.fromUser?.let { removePeerConnection(it) } ?: cleanup()
     }
     
@@ -391,10 +427,13 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     override fun initiateMeeting(roomId: String, participantIds: List<String>) {
         this.roomId = roomId
         _connectionState.value = _connectionState.value.copy(callStatus = VideoCallStatus.OUTGOING, callId = roomId)
+        
+        val participants = participantIds.map { ParticipantInfo(userId = it) }
+        
         participantIds.forEach { targetId ->
             sendWebSocketMessage(WebrtcMessage(
                 type = "call/request", fromUser = userId, toUser = targetId,
-                roomId = roomId, participants = participantIds
+                roomId = roomId, participants = participants
             ))
         }
         joinMeeting(roomId)

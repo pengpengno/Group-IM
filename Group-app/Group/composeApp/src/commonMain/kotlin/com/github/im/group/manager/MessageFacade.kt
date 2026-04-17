@@ -2,7 +2,6 @@ package com.github.im.group.manager
 
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.UploadFileRequest
-import com.github.im.group.sdk.ChatMessageBuilder
 import com.github.im.group.db.entities.FileStatus
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.model.MessageItem
@@ -11,17 +10,18 @@ import com.github.im.group.model.UserInfo
 import com.github.im.group.model.toUserInfo
 import com.github.im.group.repository.FilesRepository
 import com.github.im.group.repository.OfflineMessageRepository
+import com.github.im.group.sdk.ChatMessageBuilder
 import com.github.im.group.sdk.File
 import com.github.im.group.sdk.FileData
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.SenderSdk
 import db.OfflineMessage
 import io.github.aakira.napier.Napier
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 /**
  * V8 Architecture: MessageFacade
@@ -139,6 +139,9 @@ class MessageFacade(
         }
     }
 
+    /**
+     * 上传附件
+     */
     private suspend fun uploadAttachment(messageItem: MessageWrapper, file: File, duration: Long) {
         try {
             val data = filePicker.readFileBytes(file)

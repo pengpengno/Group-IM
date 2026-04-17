@@ -119,6 +119,7 @@ fun ChatRoomScreen(
     var meetingIsHost by remember { mutableStateOf(false) }
     var conversationId by remember { mutableStateOf<Long?>(null) }
     var remoteUser by remember { mutableStateOf<UserInfo?>(chatUiState.friend) }
+    var showUserSelector by remember { mutableStateOf(false) }
 
     val isGroupConversation = chatUiState.conversation?.conversationType == ConversationType.GROUP
     val roomSubtitle = when {
@@ -202,6 +203,37 @@ fun ChatRoomScreen(
         )
     }
 
+    if (showUserSelector) {
+        val members = chatUiState.conversation?.members?.filter { it.userId != userInfo?.userId } ?: emptyList()
+        UserSelectorDialog(
+            title = "邀请参会者",
+            initialSelectedUsers = members,
+            onDismiss = { showUserSelector = false },
+            onConfirm = { selected ->
+                showUserSelector = false
+                val conversation = chatUiState.conversation ?: return@UserSelectorDialog
+                val participantIds = selected.map { it.userId.toString() }
+                scope.launch {
+                    try {
+                        val meeting = MeetingApi.createMeeting(
+                            MeetingCreateRequest(
+                                conversationId = conversation.conversationId,
+                                title = conversation.groupName,
+                                participantIds = participantIds.mapNotNull { it.toLongOrNull() }
+                            )
+                        )
+                        meetingRoomId = meeting.roomId
+                        meetingParticipantIds = participantIds
+                        meetingIsHost = true
+                        showMeeting = true
+                    } catch (e: Exception) {
+                        Napier.e("Failed to create meeting", e)
+                    }
+                }
+            }
+        )
+    }
+
     Scaffold(
         modifier = Modifier.safeDrawingPadding(),
         containerColor = ThemeTokens.BackgroundDark,
@@ -214,24 +246,7 @@ fun ChatRoomScreen(
                 onBack = onBack,
                 onStartVideoCall = {
                     if (isGroupConversation) {
-                        val conversation = chatUiState.conversation ?: return@ChatRoomTopBar
-                        val currentId = userInfo?.userId?.toString()
-                        val participantIds = conversation.members
-                            .map { it.userId.toString() }
-                            .filter { it != currentId }
-                        scope.launch {
-                            val meeting = MeetingApi.createMeeting(
-                                MeetingCreateRequest(
-                                    conversationId = conversation.conversationId,
-                                    title = conversation.groupName,
-                                    participantIds = participantIds.mapNotNull { it.toLongOrNull() }
-                                )
-                            )
-                            meetingRoomId = meeting.roomId
-                            meetingParticipantIds = participantIds
-                            meetingIsHost = true
-                            showMeeting = true
-                        }
+                        showUserSelector = true
                     } else {
                         showVideoCall = true
                     }
@@ -317,8 +332,7 @@ fun ChatRoomScreen(
 
             LaunchedEffect(chatUiState.scrollToTop) {
                 if (chatUiState.scrollToTop) {
-                    listState.animateScrollToItem(0)
-                    kotlinx.coroutines.delay(300)
+                    listState.scrollToItem(0)
                     chatRoomViewModel.resetScrollToTopFlag()
                 }
             }

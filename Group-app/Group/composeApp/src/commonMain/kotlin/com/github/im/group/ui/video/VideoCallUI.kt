@@ -209,65 +209,88 @@ private fun OutgoingVideoCallUI(
             onDismissRequest = { /* 不允许通过点击外部关闭 */},
             properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-            // 背景内容
-            Box(modifier = Modifier.fillMaxSize().background(Color(0xFF2D2D2D))) {
-                // 显示本地视频小窗口（即使在呼叫阶段也可以预览自己）
-                Box(
-                        modifier =
-                                Modifier.size(120.dp)
-                                        .align(Alignment.TopEnd)
-                                        .padding(16.dp)
-                                        .background(
-                                                Color(0xFF1E1E1E),
-                                                shape =
-                                                        androidx.compose.foundation.shape
-                                                                .RoundedCornerShape(8.dp)
-                                        )
-                ) {
-                    val localVideoTrack = localStream?.videoTracks?.firstOrNull()
-                    val localAudioTrack = localStream?.audioTracks?.firstOrNull()
-
-                    if (localVideoTrack != null && videoCallState.isLocalVideoEnabled) {
-                        VideoScreenView(
-                                modifier = Modifier.fillMaxSize(),
-                                videoTrack = localVideoTrack,
-                                audioTrack = localAudioTrack
+        Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0F0F12))) {
+            // 背景渐变
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0xFF232526), Color(0xFF0F0F10))
                         )
-                    } else {
-                        // 显示本地用户占位符
-                        Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = "本地视频",
-                                    tint = Color.Gray
-                            )
-                        }
-                    }
-                }
-
-                // 呼叫状态和用户信息
-                Column(
-                        modifier = Modifier.align(Alignment.Center).fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    UserAvatar(username = remoteUser.username ?: "未知", size = 120)
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Text(
-                            text = remoteUser.username ?: "未知用户",
-                            color = Color.White,
-                            fontSize = 28.sp,
-                            style = MaterialTheme.typography.titleLarge
                     )
+            )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+            // 装饰性光晕
+            Box(
+                modifier = Modifier
+                    .size(300.dp)
+                    .align(Alignment.Center)
+                    .background(Color(0xFF4A90E2).copy(alpha = 0.05f), androidx.compose.foundation.shape.CircleShape)
+            )
 
-                    Text(text = "正在呼叫...", color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp)
+            // 用户信息
+            Column(
+                    modifier = Modifier.align(Alignment.Center).fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                UserAvatar(username = remoteUser.username ?: "未知", size = 120)
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                Text(
+                        text = remoteUser.username ?: "未知用户",
+                        color = Color.White,
+                        fontSize = 32.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        style = MaterialTheme.typography.headlineMedium
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "正在呼叫",
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontSize = 18.sp,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    // 后续可以加个跳动的点动画
+                }
+            }
+
+            // 本地预览小窗 - 精细化设计
+            Box(
+                    modifier =
+                            Modifier.size(140.dp, 200.dp)
+                                    .align(Alignment.TopEnd)
+                                    .padding(20.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(Color(0xFF1E1E22))
+                                    .padding(1.dp) // Border effect
+                                    .clip(RoundedCornerShape(15.dp))
+            ) {
+                val localVideoTrack = localStream?.videoTracks?.firstOrNull()
+                val localAudioTrack = localStream?.audioTracks?.firstOrNull()
+
+                if (localVideoTrack != null && videoCallState.isLocalVideoEnabled) {
+                    VideoScreenView(
+                            modifier = Modifier.fillMaxSize(),
+                            videoTrack = localVideoTrack,
+                            audioTrack = localAudioTrack
+                    )
+                } else {
+                    Box(
+                            modifier = Modifier.fillMaxSize().background(Color(0xFF252529)),
+                            contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "本地视频",
+                                modifier = Modifier.size(48.dp),
+                                tint = Color.White.copy(alpha = 0.2f)
+                        )
+                    }
                 }
             }
 
@@ -276,7 +299,7 @@ private fun OutgoingVideoCallUI(
                     videoCallState = videoCallState,
                     videoCallViewModel = videoCallViewModel,
                     onEndCall = onEndCall,
-                    modifier = Modifier.align(Alignment.BottomCenter)
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp)
             )
         }
     }
@@ -625,96 +648,104 @@ private fun CallControlPanel(
 ) {
     Row(
             modifier =
-                    modifier.padding(horizontal = 24.dp, vertical = 32.dp)
-                            .fillMaxWidth()
-                            .background(
-                                    color = Color(0x66000000),
-                                    shape =
-                                            androidx.compose.foundation.shape.RoundedCornerShape(
-                                                    36.dp
-                                            )
-                            )
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier.padding(horizontal = 20.dp)
+                            .clip(RoundedCornerShape(40.dp))
+                            .background(Color.Black.copy(alpha = 0.4f))
+                            .padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
     ) {
-        // Switch Camera
-        IconButton(
+        // Switch Camera - Glass button
+        ControlIconButton(
                 onClick = { videoCallViewModel.switchCamera() },
-                modifier = Modifier.size(48.dp)
-        ) {
-            Icon(
-                    imageVector = Icons.Default.Cameraswitch,
-                    contentDescription = "切换摄像头",
-                    tint = Color.White
-            )
-        }
+                icon = Icons.Default.Cameraswitch,
+                contentDescription = "切换摄像头"
+        )
 
         // Microphone
-        FloatingActionButton(
+        ControlActionButton(
                 onClick = { videoCallViewModel.toggleMicrophone() },
-                containerColor =
-                        if (videoCallState.isMicrophoneEnabled) Color(0xFF4A4A4A) else Color.White,
-                contentColor = if (videoCallState.isMicrophoneEnabled) Color.White else Color.Black,
-                elevation = FloatingActionButtonDefaults.elevation(0.dp),
-                modifier = Modifier.size(56.dp),
-                shape = androidx.compose.foundation.shape.CircleShape
-        ) {
-            Icon(
-                    imageVector =
-                            if (videoCallState.isMicrophoneEnabled) Icons.Default.Mic
-                            else Icons.Default.MicOff,
-                    contentDescription = "麦克风"
-            )
-        }
+                isActive = videoCallState.isMicrophoneEnabled,
+                activeIcon = Icons.Default.Mic,
+                inactiveIcon = Icons.Default.MicOff,
+                activeColor = Color.White.copy(alpha = 0.2f),
+                inactiveColor = Color.White,
+                iconColor = if (videoCallState.isMicrophoneEnabled) Color.White else Color.Black
+        )
 
-        // End Call
+        // End Call - Prominent Red
         FloatingActionButton(
                 onClick = onEndCall,
-                containerColor = Color(0xFFFF3B30),
+                containerColor = Color(0xFFE91E63),
                 contentColor = Color.White,
-                elevation = FloatingActionButtonDefaults.elevation(4.dp),
-                modifier = Modifier.size(64.dp),
+                elevation = FloatingActionButtonDefaults.elevation(8.dp),
+                modifier = Modifier.size(72.dp),
                 shape = androidx.compose.foundation.shape.CircleShape
         ) {
             Icon(
                     imageVector = Icons.Default.CallEnd,
                     contentDescription = "挂断",
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(36.dp)
             )
         }
 
         // Camera
-        FloatingActionButton(
+        ControlActionButton(
                 onClick = { videoCallViewModel.toggleCamera() },
-                containerColor =
-                        if (videoCallState.isLocalVideoEnabled) Color(0xFF4A4A4A) else Color.White,
-                contentColor = if (videoCallState.isLocalVideoEnabled) Color.White else Color.Black,
-                elevation = FloatingActionButtonDefaults.elevation(0.dp),
-                modifier = Modifier.size(56.dp),
-                shape = androidx.compose.foundation.shape.CircleShape
-        ) {
-            Icon(
-                    imageVector =
-                            if (videoCallState.isLocalVideoEnabled) Icons.Default.Videocam
-                            else Icons.Default.VideocamOff,
-                    contentDescription = "摄像头"
-            )
-        }
+                isActive = videoCallState.isLocalVideoEnabled,
+                activeIcon = Icons.Default.Videocam,
+                inactiveIcon = Icons.Default.VideocamOff,
+                activeColor = Color.White.copy(alpha = 0.2f),
+                inactiveColor = Color.White,
+                iconColor = if (videoCallState.isLocalVideoEnabled) Color.White else Color.Black
+        )
 
         // Speaker
-        IconButton(
+        ControlIconButton(
                 onClick = { videoCallViewModel.toggleSpeaker() },
-                modifier = Modifier.size(48.dp)
-        ) {
-            Icon(
-                    imageVector =
-                            if (videoCallState.isSpeakerEnabled) Icons.AutoMirrored.Filled.VolumeUp
-                            else Icons.AutoMirrored.Filled.VolumeOff,
-                    contentDescription = "扬声器",
-                    tint = Color.White
-            )
-        }
+                icon = if (videoCallState.isSpeakerEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                contentDescription = "扬声器"
+        )
+    }
+}
+
+@Composable
+private fun ControlIconButton(
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(52.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color.White.copy(alpha = 0.1f))
+    ) {
+        Icon(imageVector = icon, contentDescription = contentDescription, tint = Color.White)
+    }
+}
+
+@Composable
+private fun ControlActionButton(
+    onClick: () -> Unit,
+    isActive: Boolean,
+    activeIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    inactiveIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    activeColor: Color,
+    inactiveColor: Color,
+    iconColor: Color
+) {
+    Box(
+        modifier = Modifier
+            .size(56.dp)
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(if (isActive) activeColor else inactiveColor)
+            .androidx.compose.foundation.clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = if (isActive) activeIcon else inactiveIcon,
+            contentDescription = null,
+            tint = iconColor
+        )
     }
 }
 
@@ -771,7 +802,7 @@ fun MultiPartyVideoGrid(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "用户 $participantId",
+                                text = participant.username ?: "用户 $participantId",
                                 color = Color.White.copy(alpha = 0.8f),
                                 fontSize = 14.sp
                             )
@@ -788,7 +819,7 @@ fun MultiPartyVideoGrid(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "用户 $participantId",
+                        text = participant.username ?: "用户 $participantId",
                         color = Color.White,
                         fontSize = 12.sp
                     )

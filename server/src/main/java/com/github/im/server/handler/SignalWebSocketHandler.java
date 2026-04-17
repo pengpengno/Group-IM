@@ -46,11 +46,18 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
     private final Map<String, Set<String>> userMeetings = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Object>> userSignalProfiles = new ConcurrentHashMap<>();
 
+    private static SignalWebSocketHandler instance;
+
+    public static SignalWebSocketHandler getInstance() {
+        return instance;
+    }
+
     public SignalWebSocketHandler(MessageService messageService, UserTokenManager userTokenManager, OnlineService onlineService) {
         this.mapper = new ObjectMapper();
         this.messageService = messageService;
         this.userTokenManager = userTokenManager;
         this.onlineService = onlineService;
+        instance = this;
     }
 
     @Override
@@ -344,6 +351,41 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
         for (String memberId : existingMembers) {
             send(memberId, json);
         }
+    }
+
+    /**
+     * 向指定会议的所有当前参与者广播信令消息
+     */
+    public void broadcastToMeeting(String roomId, String type, Map<String, Object> extraData) {
+        Set<String> members = meetingRooms.get(roomId);
+        if (members == null || members.isEmpty()) {
+            return;
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("type", type);
+        payload.put("roomId", roomId);
+        if (extraData != null) {
+            payload.putAll(extraData);
+        }
+
+        String json = toJson(payload);
+        for (String memberId : members) {
+            send(memberId, json);
+        }
+    }
+
+    /**
+     * 向指定用户发送信令消息
+     */
+    public void sendToUser(String userId, String type, Map<String, Object> extraData) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("type", type);
+        if (extraData != null) {
+            payload.putAll(extraData);
+        }
+
+        send(userId, toJson(payload));
     }
 
     private Map<String, Object> buildParticipantInfo(String userId) {

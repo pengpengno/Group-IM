@@ -11,4 +11,5 @@ public class MeetingCreateRequest {
     private String title;
     private List<Long> participantIds;
     private Boolean recordMessage;
+    private String scheduledAt; // ISO-8601 string or LocalDateTime
 }

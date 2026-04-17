@@ -144,45 +144,7 @@ private fun MediaGalleryBrowserContent(
                 }
             }
             
-            // 左侧快速切换按钮
-            if (pagerState.currentPage > 0) {
-                IconButton(
-                    onClick = { 
-                        // 触发 Pager 滚动
-                    },
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .padding(start = 8.dp)
-                        .background(Color.Black.copy(alpha = 0.3f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ChevronLeft,
-                        contentDescription = "上一个",
-                        tint = Color.White,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-            }
-            
-            // 右侧快速切换按钮
-            if (pagerState.currentPage < galleryManager.mediaList.size - 1) {
-                IconButton(
-                    onClick = { 
-                        // 触发 Pager 滚动
-                    },
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .padding(end = 8.dp)
-                        .background(Color.Black.copy(alpha = 0.3f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = "下一个",
-                        tint = Color.White,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-            }
+            // 移除显式的切换按钮，依靠手势滑动
             
             // 顶部操作栏
             Row(

@@ -184,6 +184,24 @@ private fun MediaPickerBottomSheet(
     ) { bitmap ->
         if (bitmap != null) {
             Napier.d("Captured camera photo successfully.")
+            // Save to temp file and send
+            val tempFile = java.io.File(context.cacheDir, "camera_photo_${System.currentTimeMillis()}.jpg")
+            try {
+                java.io.FileOutputStream(tempFile).use { out ->
+                    bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, out)
+                }
+                val pickedFile = File(
+                    name = tempFile.name,
+                    path = tempFile.absolutePath,
+                    mimeType = "image/jpeg",
+                    size = tempFile.length(),
+                    data = FileData.Path(tempFile.absolutePath)
+                )
+                onMediaSelected(listOf(pickedFile))
+                onDismiss()
+            } catch (e: Exception) {
+                Napier.e("Save camera photo failed", e)
+            }
         }
     }
 

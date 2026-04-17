@@ -182,42 +182,6 @@ fun MediaMessage(
     }
 }
 
-//@Composable
-//fun ImageMessage(
-//    content: MessageContent.Image,
-//    mediaList: List<MessageContent.Image>? = null,
-//    currentIndex: Int = 0,
-//    onDownloadFile: ((String) -> Unit)? = null,
-//    onShowMenu: ((com.github.im.group.sdk.File) -> Unit)? = null
-//) {
-//    val actualMediaList = mediaList?.map { it.file }
-//    MediaMessage(
-//        file = content.file,
-//        mediaList = actualMediaList,
-//        currentIndex = currentIndex,
-//        onDownloadFile = onDownloadFile,
-//        onShowMenu = onShowMenu
-//    )
-//}
-//
-//@Composable
-//fun VideoBubble(
-//    content: MessageContent.Video,
-//    mediaList: List<MessageContent.Video>? = null,
-//    currentIndex: Int = 0,
-//    onDownloadFile: ((String) -> Unit)? = null,
-//    onShowMenu: ((com.github.im.group.sdk.File) -> Unit)? = null
-//) {
-//    val actualMediaList = mediaList?.map { it.file }
-//    MediaMessage(
-//        file = content.file,
-//        mediaList = actualMediaList,
-//        currentIndex = currentIndex,
-//        onDownloadFile = onDownloadFile,
-//        onShowMenu = onShowMenu
-//    )
-//}
-
 /**
  * 语音消息气泡 - 优化版
  * 使用 AudioPlaybackManager 管理全局播放状态
@@ -299,7 +263,6 @@ fun VoiceMessage(
                     } else {
                         // 如果没在播放，先开始播放再拖动
                         manager.play(messageId, audioPath, senderName, content.duration.toLong())
-                        // 注意：这里可能需要一小点延迟等待时长初始化，或者 manager 内部处理
                     }
                 }
             )
@@ -357,7 +320,6 @@ fun VoiceWaveform(
 
         for (i in 0 until barCount) {
             val progressRatio = i.toFloat() / barCount
-            // 生成比较自然的伪波形
             val waveFactor = abs(sin(progressRatio * 4f) * 0.4f + sin(progressRatio * 10f) * 0.6f)
             val barHeight =
                 (height * 0.3f + height * 0.7f * waveFactor).coerceIn(4.dp.toPx(), height)
@@ -374,6 +336,7 @@ fun VoiceWaveform(
         }
     }
 }
+
 /**
  * 文本消息气泡
  */
@@ -411,7 +374,6 @@ fun TextMessage(content: MessageContent.Text, isOwnMessage: Boolean) {
             DropdownMenuItem(
                 text = { Text("转发") },
                 onClick = {
-                    // TODO: 转发逻辑
                     showMenu = false
                 },
                 leadingIcon = { Icon(Icons.Default.Forward, contentDescription = null, modifier = Modifier.size(18.dp)) }
@@ -426,9 +388,12 @@ fun MeetingMessageBubble(
     isOwnMessage: Boolean,
     onJoin: () -> Unit
 ) {
-    val title = payload?.title?.takeIf { it.isNotBlank() } ?: "会议"
+    val isScheduled = payload?.action == "SCHEDULE"
+    val titleString = payload?.title?.takeIf { it.isNotBlank() } ?: "会议"
+    val displayTitle = if (isScheduled) "📅 预定会议: $titleString" else titleString
     val count = payload?.participantCount ?: payload?.participantIds?.size ?: 0
     val actionLabel = payload?.action ?: "START"
+    val scheduledTime = payload?.scheduledAt ?: ""
 
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -437,20 +402,31 @@ fun MeetingMessageBubble(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
-                text = title,
+                text = displayTitle,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 14.sp,
                 color = if (isOwnMessage) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
             )
+            if (isScheduled && !scheduledTime.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "时间: $scheduledTime",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "状态: $actionLabel · 参会人数: $count",
+                text = if (isScheduled) "参会人数: $count" else "状态: $actionLabel · 参会人数: $count",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(onClick = onJoin, modifier = Modifier.fillMaxWidth().height(32.dp)) {
-                Text("加入会议", fontSize = 12.sp)
+            if (!isScheduled) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = onJoin, modifier = Modifier.fillMaxWidth().height(32.dp)) {
+                    Text("加入会议", fontSize = 12.sp)
+                }
             }
         }
     }
@@ -592,197 +568,14 @@ fun FileActionDialog(
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
-                ) { Text("取消") }
-            }
-        }
-    }
-}
-
-/**
- * 发送中的圆形动画
- */
-@Composable
-fun SendingSpinner(modifier: Modifier = Modifier, color: Color = Color.Gray) {
-    val infiniteTransition = rememberInfiniteTransition()
-    val angle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(animation = tween(800, easing = LinearEasing))
-    )
-
-    Canvas(modifier.size(12.dp)) {
-        rotate(angle) {
-            drawArc(
-                color = color,
-                startAngle = 0f,
-                sweepAngle = 270f,
-                useCenter = false,
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
-            )
-        }
-    }
-}
-
-
-@Composable
-fun UnifiedFileMessage(
-    message: MessageItem,
-    messageViewModel: ChatRoomViewModel
-) {
-    FileMessageLoader(
-        msg = message,
-        messageViewModel = messageViewModel,
-        maxDownloadSize = 5 * 1024 * 1024,
-        onContentReady = { pickedFile, meta ->
-            val downloadFile = { fileId: String -> messageViewModel.downloadFileMessage(fileId) }
-            
-            val mediaManager = rememberMessageMediaManager(
-                messageViewModel = messageViewModel,
-                currentMessage = message
-            )
-            
-            Box {
-                var showMenu by remember { mutableStateOf(false) }
-
-                MediaMessage(
-                    file = pickedFile,
-                    mediaList = mediaManager.mediaFiles,
-                    currentIndex = mediaManager.currentIndex,
-                    onDownloadFile = downloadFile,
-                    onShowMenu = { showMenu = true }
-                )
-
-                // 媒体文件的操作菜单
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("保存到本地") },
-                        onClick = {
-                            downloadFile(meta.fileId)
-                            showMenu = false
-                        },
-                        leadingIcon = { Icon(Icons.Default.FileDownload, null, modifier = Modifier.size(18.dp)) }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("转发") },
-                        onClick = {
-                            // TODO: 转发逻辑
-                            showMenu = false
-                        },
-                        leadingIcon = { Icon(Icons.Default.Forward, null, modifier = Modifier.size(18.dp)) }
-                    )
-                }
-            }
-        },
-        onLoading = {
-            CircularProgressIndicator(
-                modifier = Modifier.size(16.dp).padding(4.dp),
-                strokeWidth = 2.dp
-            )
-        },
-        onError = { Text("${message.type.name}加载失败", fontSize = 12.sp) }
-    )
-}
-
-
-@Composable
-fun FileMessageLoader(
-    msg: MessageItem,
-    messageViewModel: ChatRoomViewModel,
-    maxDownloadSize: Long = 50 * 1024 * 1024,
-    allMessages: List<MessageItem>? = null,
-    onContentReady: @Composable (File, FileMeta) -> Unit,
-    onLoading: @Composable () -> Unit,
-    onError: @Composable (() -> Unit)? = null
-) {
-    val fileStorageManager = koinInject<FileStorageManager>()
-    var fileMeta by remember { mutableStateOf<FileMeta?>(null) }
-    var file by remember { mutableStateOf<File?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    var hasError by remember { mutableStateOf(false) }
-    var shouldDownload by remember { mutableStateOf(false) }
-    var showDownloadButton by remember { mutableStateOf(false) }
-    val fileId = msg.content
-
-    LaunchedEffect(msg) {
-        try {
-            val meta = messageViewModel.getFileMessageMetaAsync(msg)
-            file = fileStorageManager.getFile(fileId)
-            fileMeta = meta
-
-            meta?.let { fileMeta ->
-                if (fileMeta.size > maxDownloadSize) {
-                    showDownloadButton = true
-                    file = fileMeta.toFile()
-                    isLoading = false
-                    return@LaunchedEffect
-                }
-
-                val fileExists = fileStorageManager.isFileExists(fileId)
-                if (!fileExists) {
-                    shouldDownload = true
-                    file = fileMeta.toFile()
-                } else {
-                    val path = messageViewModel.getLocalFilePath(fileId)
-                    path?.let { file = fileMeta.toFile(it) }
-                }
-            }
-            isLoading = false
-        } catch (e: Exception) {
-            hasError = true
-            isLoading = false
-            Napier.e("加载文件消息失败", e)
-        }
-    }
-
-    LaunchedEffect(shouldDownload) {
-        if (shouldDownload) {
-            try {
-                messageViewModel.downloadFileMessage(fileId)
-            } catch (e: Exception) {
-                hasError = true
-            }
-        }
-    }
-
-    val downloadStates by  messageViewModel.fileDownloadStates.collectAsState()
-    LaunchedEffect(downloadStates) {
-        downloadStates[fileId]?.let { chatUiState ->
-            if (chatUiState.isSuccess && !chatUiState.isDownloading) {
-                val path = messageViewModel.getLocalFilePath(fileId)
-                path?.let { file = fileMeta?.toFile(it) }
-            }
-        }
-    }
-
-    when {
-        hasError -> onError?.invoke() ?: Text("加载失败", fontSize = 12.sp)
-        isLoading -> onLoading()
-        showDownloadButton -> {
-            file?.let { fileObj ->
-                fileMeta?.let { meta ->
-                    Box {
-                        MediaFileView(
-                            file = fileObj,
-                            modifier = Modifier.size(100.dp),
-                            onDownloadFile = { shouldDownload = true }
-                        )
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .background(Color.Black.copy(alpha = 0.6f), shape = CircleShape)
-                                .padding(4.dp)
-                        ) {
-                            Icon(Icons.Default.FileDownload, null, tint = Color.White, modifier = Modifier.size(14.dp))
-                        }
-                    }
+                    Text("关闭")
                 }
             }
         }
-        file != null  && fileMeta !=null-> onContentReady(file!!, fileMeta!!)
-        else -> onLoading()
     }
 }

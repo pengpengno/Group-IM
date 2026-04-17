@@ -58,6 +58,7 @@ public class Meeting {
     @Column(nullable = false)
     private MeetingStatus status;
 
+    private LocalDateTime scheduledAt;
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;
 
