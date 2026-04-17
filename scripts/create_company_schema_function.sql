@@ -232,6 +232,68 @@ BEGIN
                      );
         END IF;
     END LOOP;
+    -- 五、同步 CHECK 约束（包括 enum 限制）
+    FOR constraint_rec IN
+        SELECT conname,
+               pg_get_constraintdef(oid) AS condef,
+               conrelid::regclass AS tablename
+        FROM pg_constraint
+        WHERE connamespace = 'public'::regnamespace
+          AND contype = 'c'   -- CHECK 约束
+    LOOP
+        -- 跳过系统表
+        IF REPLACE(constraint_rec.tablename::text, '"', '') = ANY(system_tables) THEN
+            CONTINUE;
+        END IF;
+
+        -- 检查是否存在
+        SELECT EXISTS(
+            SELECT 1
+            FROM pg_constraint
+            WHERE connamespace = schema_name::regnamespace
+              AND conname = constraint_rec.conname
+        ) INTO exists_constraint;
+
+        -- 如果不存在 → 创建
+        IF NOT exists_constraint THEN
+            EXECUTE format(
+                'ALTER TABLE %I.%I ADD CONSTRAINT %I %s',
+                schema_name,
+                constraint_rec.tablename,
+                constraint_rec.conname,
+                constraint_rec.condef
+            );
+        ELSE
+            -- 如果存在但定义不一致  需要替换
+            DECLARE existing_def TEXT;
+            BEGIN
+                SELECT pg_get_constraintdef(oid)
+                INTO existing_def
+                FROM pg_constraint
+                WHERE connamespace = schema_name::regnamespace
+                  AND conname = constraint_rec.conname;
+
+                IF existing_def IS DISTINCT FROM constraint_rec.condef THEN
+                    -- 删除旧的
+                    EXECUTE format(
+                        'ALTER TABLE %I.%I DROP CONSTRAINT %I',
+                        schema_name,
+                        constraint_rec.tablename,
+                        constraint_rec.conname
+                    );
+
+                    -- 重新创建
+                    EXECUTE format(
+                        'ALTER TABLE %I.%I ADD CONSTRAINT %I %s',
+                        schema_name,
+                        constraint_rec.tablename,
+                        constraint_rec.conname,
+                        constraint_rec.condef
+                    );
+                END IF;
+            END;
+        END IF;
+    END LOOP;
     RETURN schema_name;
 END;
 $$ LANGUAGE plpgsql;
