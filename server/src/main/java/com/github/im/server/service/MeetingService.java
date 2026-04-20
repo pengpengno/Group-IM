@@ -94,15 +94,15 @@ public class MeetingService {
             MeetingParticipantRole role = userId.equals(creator.getUserId())
                     ? MeetingParticipantRole.HOST
                     : MeetingParticipantRole.PARTICIPANT;
-            MeetingParticipantStatus status = userId.equals(creator.getUserId())
+            MeetingParticipantStatus participantStatus = userId.equals(creator.getUserId())
                     ? MeetingParticipantStatus.JOINED
                     : MeetingParticipantStatus.INVITED;
             MeetingParticipant participant = MeetingParticipant.builder()
                     .meeting(meeting)
                     .user(user)
                     .role(role)
-                    .status(status)
-                    .joinedAt(status == MeetingParticipantStatus.JOINED ? LocalDateTime.now() : null)
+                    .status(participantStatus)
+                    .joinedAt(participantStatus == MeetingParticipantStatus.JOINED ? LocalDateTime.now() : null)
                     .build();
             participants.add(participant);
         }
