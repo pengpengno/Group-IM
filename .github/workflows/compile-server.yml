@@ -64,6 +64,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: "release-bundle/groupim-server-deploy.tar.gz,release-bundle/groupim-web-deploy.tar.gz"
           target: /opt/app/incoming
+          strip_components: 1
           overwrite: true
 
       - name: Deploy via SSH
