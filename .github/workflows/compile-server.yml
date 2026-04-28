@@ -80,7 +80,11 @@ jobs:
             docker tag groupim-server:deploy pengpeng163/groupim-server:master
             docker tag groupim-web:deploy pengpeng163/groupim-web:master
             cd /opt/app
-            docker compose up -d
+            if docker compose version >/dev/null 2>&1; then
+              docker compose up -d
+            else
+              docker-compose up -d
+            fi
 
   # ==========================================
   # 阶段三：通知 (Notify)
