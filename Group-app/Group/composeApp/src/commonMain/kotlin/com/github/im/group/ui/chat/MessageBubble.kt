@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -40,9 +41,11 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.github.im.group.api.FileMeta
 import com.github.im.group.api.MeetingMessagePayLoad
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
+import com.github.im.group.manager.toFile
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
 import com.github.im.group.ui.UserAvatar
@@ -121,21 +124,11 @@ fun MessageBubble(
                         Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
                             when (msg.type) {
                                 MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content), isOwnMessage)
-                                MessageType.VOICE -> {
-                                    FileMessageLoader(
-                                        msg = msg,
-                                        messageViewModel = messageViewModel,
-                                        onContentReady = { file, meta ->
-                                            VoiceMessage(
-                                                content = MessageContent.Voice(file.path, meta.duration),
-                                                senderName = msg.userInfo.username,
-                                                isOwnMessage = isOwnMessage,
-                                                messageId = if (msg.seqId != 0L) "seq_${msg.seqId}" else "client_${msg.clientMsgId}"
-                                            )
-                                        },
-                                        onLoading = { CircularProgressIndicator(modifier = Modifier.size(16.dp)) }
-                                    )
-                                }
+                                MessageType.VOICE -> VoiceMessageContent(
+                                    msg = msg,
+                                    messageViewModel = messageViewModel,
+                                    isOwnMessage = isOwnMessage
+                                )
                                 MessageType.MEETING -> {
                                     val payload = extractMeetingPayload(msg)
                                     MeetingMessageBubble(
@@ -146,9 +139,8 @@ fun MessageBubble(
                                         }
                                     )
                                 }
-                                MessageType.IMAGE, MessageType.VIDEO, MessageType.FILE -> {
-                                    UnifiedFileMessage(message = msg, messageViewModel = messageViewModel)
-                                }
+                                MessageType.IMAGE, MessageType.VIDEO, MessageType.FILE ->
+                                    FileMessageContent(message = msg, messageViewModel = messageViewModel)
                                 else -> TextMessage(MessageContent.Text(msg.content), isOwnMessage)
                             }
                         }
@@ -217,5 +209,90 @@ fun MessageBubble(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SendingSpinner(modifier: Modifier = Modifier) {
+    CircularProgressIndicator(
+        modifier = modifier,
+        strokeWidth = 1.5.dp
+    )
+}
+
+@Composable
+private fun VoiceMessageContent(
+    msg: MessageItem,
+    messageViewModel: ChatRoomViewModel,
+    isOwnMessage: Boolean
+) {
+    val meta by produceState<FileMeta?>(initialValue = msg.fileMeta, key1 = msg.content) {
+        value = msg.fileMeta ?: messageViewModel.getFileMessageMetaAsync(msg)
+    }
+    val resolvedFile = remember(meta) {
+        meta?.let { fileMeta ->
+            messageViewModel.getFile(fileMeta.fileId)
+                ?: messageViewModel.getLocalFilePath(fileMeta.fileId)?.let(fileMeta::toFile)
+                ?: fileMeta.toFile()
+        }
+    }
+
+    if (meta == null || resolvedFile == null) {
+        CircularProgressIndicator(modifier = Modifier.size(16.dp))
+        return
+    }
+
+    VoiceMessage(
+        content = MessageContent.Voice(
+            audioPath = resolvedFile.path.ifBlank { meta?.getFileUrl().orEmpty() },
+            duration = meta?.duration ?: 0
+        ),
+        senderName = msg.userInfo.username,
+        isOwnMessage = isOwnMessage,
+        messageId = if (msg.seqId != 0L) "seq_${msg.seqId}" else "client_${msg.clientMsgId}"
+    )
+}
+
+@Composable
+private fun FileMessageContent(
+    message: MessageItem,
+    messageViewModel: ChatRoomViewModel
+) {
+    val meta by produceState<FileMeta?>(initialValue = message.fileMeta, key1 = message.content) {
+        value = message.fileMeta ?: messageViewModel.getFileMessageMetaAsync(message)
+    }
+
+    if (meta == null) {
+        CircularProgressIndicator(modifier = Modifier.size(16.dp))
+        return
+    }
+
+    when (message.type) {
+        MessageType.IMAGE, MessageType.VIDEO -> {
+            val resolvedFile = remember(meta) {
+                meta?.let { fileMeta ->
+                    messageViewModel.getFile(fileMeta.fileId)
+                        ?: messageViewModel.getLocalFilePath(fileMeta.fileId)?.let(fileMeta::toFile)
+                        ?: fileMeta.toFile()
+                }
+            }
+
+            if (resolvedFile == null) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                return
+            }
+
+            MediaMessage(
+                file = resolvedFile,
+                onDownloadFile = messageViewModel::downloadFileMessage
+            )
+        }
+
+        MessageType.FILE -> FileMessageBubble(
+            meta = meta!!,
+            onDownloadFile = messageViewModel::downloadFileMessage
+        )
+
+        else -> TextMessage(MessageContent.Text(message.content), isOwnMessage = false)
     }
 }

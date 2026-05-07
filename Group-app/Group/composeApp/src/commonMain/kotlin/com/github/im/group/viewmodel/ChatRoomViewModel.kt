@@ -54,7 +54,7 @@ data class ChatUiState(
     val sessionCreationState: SessionCreationState = SessionCreationState.Idle,
     val error: String? = null,
     val friend: UserInfo? = null,
-    val scrollToTop: Boolean = false,
+    val scrollToLatestEvent: Long = 0L,
 ) {
     fun hasCreateConversation(): Boolean = conversation != null
 
@@ -201,8 +201,7 @@ class ChatRoomViewModel(
                 messageFacade.sendText(targetConversationId, content, currentUser, friendId)
             }
             
-            // Trigger scroll to bottom for the newly sent message
-            _uiState.update { it.copy(scrollToTop = true) }
+            triggerScrollToLatest()
         }
     }
 
@@ -368,8 +367,8 @@ class ChatRoomViewModel(
         _uiState.update { it.copy(messageIndex = index) }
     }
 
-    fun resetScrollToTopFlag() {
-        _uiState.update { it.copy(scrollToTop = false) }
+    fun triggerScrollToLatest() {
+        _uiState.update { it.copy(scrollToLatestEvent = it.scrollToLatestEvent + 1) }
     }
 
     fun withdrawMessage(message: MessageItem) {

@@ -114,8 +114,7 @@ fun VideoCallIncomingNotification(
                         color = Color.White,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.sp
-                    99
+                        letterSpacing = 1.sp)
 
                     Spacer(modifier = Modifier.height(12.dp))
 

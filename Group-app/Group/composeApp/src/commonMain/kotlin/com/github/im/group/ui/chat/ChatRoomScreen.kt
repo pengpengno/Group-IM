@@ -2,57 +2,36 @@ package com.github.im.group.ui.chat
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Reply
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -67,23 +46,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.github.im.group.api.ConversationType
 import com.github.im.group.api.MeetingApi
 import com.github.im.group.api.MeetingCreateRequest
-import com.github.im.group.api.MeetingMessagePayLoad
 import com.github.im.group.db.entities.MessageStatus
-import com.github.im.group.db.entities.MessageType
-import com.github.im.group.model.MessageItem
-import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.UserInfo
 import com.github.im.group.ui.ChatRoom
-import com.github.im.group.ui.UserAvatar
 import com.github.im.group.ui.theme.ThemeTokens
 import com.github.im.group.ui.video.MeetingLauncher
 import com.github.im.group.ui.video.VideoCallLauncher
@@ -91,10 +63,9 @@ import com.github.im.group.viewmodel.ChatRoomViewModel
 import com.github.im.group.viewmodel.RecorderUiState
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 import org.koin.compose.viewmodel.koinViewModel
-
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalFoundationApi::class)
@@ -123,7 +94,7 @@ fun ChatRoomScreen(
 
     val isGroupConversation = chatUiState.conversation?.conversationType == ConversationType.GROUP
     val roomSubtitle = when {
-        isGroupConversation -> "${chatUiState.conversation?.members?.size ?: 0} 位成员"
+        isGroupConversation -> "${chatUiState.conversation?.members?.size ?: 0} members"
         remoteUser?.email?.isNotBlank() == true -> remoteUser?.email ?: ""
         else -> "私聊"
     }
@@ -171,42 +142,10 @@ fun ChatRoomScreen(
             }
     }
 
-    if (showVideoCall && remoteUser != null) {
-        VideoCallLauncher(
-            remoteUser = remoteUser!!,
-            onCallEnded = { showVideoCall = false }
-        )
-    }
-
-    if (showMeeting && meetingRoomId != null) {
-        val roomId = meetingRoomId!!
-        MeetingLauncher(
-            roomId = roomId,
-            participantIds = meetingParticipantIds,
-            onCallEnded = {
-                showMeeting = false
-                val finalRoomId = meetingRoomId
-                val shouldEnd = meetingIsHost
-                meetingRoomId = null
-                meetingParticipantIds = emptyList()
-                meetingIsHost = false
-                if (finalRoomId != null) {
-                    scope.launch {
-                        if (shouldEnd) {
-                            MeetingApi.endMeeting(finalRoomId)
-                        } else {
-                            MeetingApi.leaveMeeting(finalRoomId)
-                        }
-                    }
-                }
-            }
-        )
-    }
-
     if (showUserSelector) {
         val members = chatUiState.conversation?.members?.filter { it.userId != userInfo?.userId } ?: emptyList()
         UserSelectorDialog(
-            title = "邀请参会者",
+            title = "Invite participants",
             initialSelectedUsers = members,
             onDismiss = { showUserSelector = false },
             onConfirm = { selected ->
@@ -310,15 +249,17 @@ fun ChatRoomScreen(
                 }
             }
 
-            val isAtBottom by remember {
+            val isLatestMessageVisible by remember {
                 androidx.compose.runtime.derivedStateOf {
-                    listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+                    val visibleItems = listState.layoutInfo.visibleItemsInfo
+                    visibleItems.any { it.index == 0 } ||
+                        (listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 96)
                 }
             }
-            LaunchedEffect(isAtBottom, conversationId, userInfo?.userId, chatUiState.messages) {
+            LaunchedEffect(isLatestMessageVisible, conversationId, userInfo?.userId, chatUiState.messages) {
                 val cid = conversationId ?: return@LaunchedEffect
                 val uid = userInfo?.userId ?: return@LaunchedEffect
-                if (!isAtBottom) return@LaunchedEffect
+                if (!isLatestMessageVisible) return@LaunchedEffect
 
                 val hasUnread = chatUiState.messages.any { it.userInfo.userId != uid && it.status == MessageStatus.SENT }
                 if (!hasUnread) return@LaunchedEffect
@@ -330,10 +271,9 @@ fun ChatRoomScreen(
                 chatRoomViewModel.markConversationAsRead(cid, uid)
             }
 
-            LaunchedEffect(chatUiState.scrollToTop) {
-                if (chatUiState.scrollToTop) {
-                    listState.scrollToItem(0)
-                    chatRoomViewModel.resetScrollToTopFlag()
+            LaunchedEffect(chatUiState.scrollToLatestEvent) {
+                if (chatUiState.scrollToLatestEvent > 0L) {
+                    listState.animateScrollToItem(0)
                 }
             }
 
@@ -366,10 +306,13 @@ fun ChatRoomScreen(
             }
 
             val belowCount by remember {
-                androidx.compose.runtime.derivedStateOf { listState.firstVisibleItemIndex.coerceAtLeast(0) }
+                androidx.compose.runtime.derivedStateOf {
+                    val newestVisibleIndex = listState.layoutInfo.visibleItemsInfo.minOfOrNull { it.index } ?: 0
+                    newestVisibleIndex.coerceAtLeast(0)
+                }
             }
             androidx.compose.animation.AnimatedVisibility(
-                visible = !isAtBottom,
+                visible = chatUiState.messages.isNotEmpty() && !isLatestMessageVisible,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 98.dp, end = 16.dp),
                 enter = androidx.compose.animation.fadeIn(),
                 exit = androidx.compose.animation.fadeOut()
@@ -413,5 +356,37 @@ fun ChatRoomScreen(
                 }
             }
         }
+    }
+
+    if (showVideoCall && remoteUser != null) {
+        VideoCallLauncher(
+            remoteUser = remoteUser!!,
+            onCallEnded = { showVideoCall = false }
+        )
+    }
+
+    if (showMeeting && meetingRoomId != null) {
+        val roomId = meetingRoomId!!
+        MeetingLauncher(
+            roomId = roomId,
+            participantIds = meetingParticipantIds,
+            onCallEnded = {
+                showMeeting = false
+                val finalRoomId = meetingRoomId
+                val shouldEnd = meetingIsHost
+                meetingRoomId = null
+                meetingParticipantIds = emptyList()
+                meetingIsHost = false
+                if (finalRoomId != null) {
+                    scope.launch {
+                        if (shouldEnd) {
+                            MeetingApi.endMeeting(finalRoomId)
+                        } else {
+                            MeetingApi.leaveMeeting(finalRoomId)
+                        }
+                    }
+                }
+            }
+        )
     }
 }

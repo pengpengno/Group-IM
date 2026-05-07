@@ -96,7 +96,7 @@ fun UserSelectorDialog(
                     placeholder = { Text("搜索联系人...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                    colors = OutlinedTextFieldDefaults.colors(
                         unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f)
                     ),
                     singleLine = true

@@ -88,7 +88,36 @@ fun SideDrawer(
                 fontWeight = FontWeight.Bold
             )
         }
+        Spacer(modifier = Modifier.height(16.dp))
 
+        // Current User Profile
+        Surface(
+            onClick = onProfileClick,
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White.copy(alpha = 0.05f),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                UserAvatar(username = userInfo?.username ?: "Guest", size = 44)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        userInfo?.username ?: "未登录",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        userInfo?.email ?: "点击管理账号",
+                        color = Color.White.copy(alpha = 0.5f),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+        }
         Spacer(modifier = Modifier.height(16.dp))
 
         // Workspace Switcher (Web-like)
@@ -140,36 +169,8 @@ fun SideDrawer(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+//        Spacer(modifier = Modifier.height(20.dp))
 
-        // Current User Profile
-        Surface(
-            onClick = onProfileClick,
-            shape = RoundedCornerShape(20.dp),
-            color = Color.White.copy(alpha = 0.05f),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                UserAvatar(username = userInfo?.username ?: "Guest", size = 44)
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        userInfo?.username ?: "未登录",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        userInfo?.email ?: "点击管理账号",
-                        color = Color.White.copy(alpha = 0.5f),
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
-            }
-        }
 
         Spacer(modifier = Modifier.weight(1f))
 
