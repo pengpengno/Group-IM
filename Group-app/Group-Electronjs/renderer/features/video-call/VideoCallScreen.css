@@ -508,6 +508,193 @@
 
 .modal-btn span { font-size: 14px; font-weight: 600; }
 
+.meeting-session-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  width: 100%;
+  height: 100%;
+}
+
+.meeting-session-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.meeting-session-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 24px;
+  background: rgba(12, 15, 24, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.meeting-room-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.16);
+  color: #bfdbfe;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.meeting-session-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.meeting-session-copy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+}
+
+.meeting-session-divider {
+  opacity: 0.45;
+}
+
+.meeting-center-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.meeting-stage-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 36px 44px;
+  border-radius: 32px;
+  background: rgba(12, 15, 24, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+.meeting-gradient-bg {
+  opacity: 0.92;
+}
+
+.meeting-side-panel {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  min-height: 0;
+  padding: 20px;
+  border-radius: 28px;
+  background: rgba(12, 15, 24, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+.meeting-side-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.meeting-side-subtitle {
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.meeting-roster {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 18px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.meeting-roster-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+}
+
+.meeting-roster-item.local {
+  border-color: rgba(59, 130, 246, 0.24);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.meeting-roster-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #2563eb, #0f172a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.meeting-roster-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.meeting-roster-copy {
+  min-width: 0;
+}
+
+.meeting-roster-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.meeting-you-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.16);
+  color: #bbf7d0;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.meeting-roster-state {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.call-action-bar.compact .actions-wrapper {
+  gap: 14px;
+  padding: 12px 18px;
+}
+
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .local-preview-card.init { width: 200px; height: 150px; }
@@ -515,6 +702,10 @@
   .actions-wrapper { gap: 10px; padding: 10px 16px; }
   .action-fab { width: 44px; height: 44px; }
   .action-fab.end-call { width: 50px; height: 50px; }
+  .meeting-session-shell { grid-template-columns: 1fr; }
+  .meeting-side-panel { order: -1; min-height: 180px; }
+  .meeting-stage-card { width: 100%; padding: 28px 20px; }
+  .meeting-session-copy { flex-wrap: wrap; }
 }
 /* Floating Mini Window (PIP) */
 .video-call-floating-window {

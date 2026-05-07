@@ -130,16 +130,19 @@ const Dashboard: React.FC = () => {
     const handleStartMeeting = (participants: Array<{ userId: string; userName?: string }>, roomId?: string) => {
         if (!participants.length) return;
         const finalRoomId = roomId || (activeConversation ? `meeting_${activeConversation.conversationId}` : undefined);
+        setActiveTab('meetings');
         startMeeting(participants, finalRoomId);
     };
 
     const handleJoinMeeting = async (roomId: string) => {
+        setActiveTab('meetings');
+        joinMeeting(roomId);
+
         try {
             await meetingAPI.join(roomId);
         } catch (error) {
             console.error('Failed to join meeting:', error);
         }
-        joinMeeting(roomId);
     };
 
     const handleStartMessage = async (targetUserId: string) => {

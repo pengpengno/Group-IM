@@ -69,6 +69,14 @@ export interface CallInternalState {
   errorMessage?: string;
 }
 
+interface SignalingConnectionConfig {
+  host: string;
+  port: number;
+  userId: string;
+  token: string;
+  pageProtocol: string;
+}
+
 const DEFAULT_ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 
 export class WebRTCService extends EventEmitter {
@@ -88,6 +96,8 @@ export class WebRTCService extends EventEmitter {
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private isConnecting = false;
+  private signalingConfig: SignalingConnectionConfig | null = null;
+  private pendingSignalingMessages: WebrtcMessage[] = [];
 
   private state: CallInternalState = {
     callStatus: VideoCallStatus.IDLE,
@@ -263,6 +273,7 @@ export class WebRTCService extends EventEmitter {
   }
 
   public connectSignaling(host: string, port: number, userId: string, token: string, pageProtocol: string = 'http:'): void {
+    this.signalingConfig = { host, port, userId, token, pageProtocol };
     const protocol = pageProtocol === 'https:' || pageProtocol === 'wss:' ? 'wss' : 'ws';
     const cleanHost = host.replace(/^https?:\/\//, '');
     const url = `${protocol}://${cleanHost}:${port}/ws?userId=${userId}&token=${token}`;
@@ -305,12 +316,14 @@ export class WebRTCService extends EventEmitter {
     this.websocket = new WebSocket(url);
 
     this.websocket.onopen = () => {
+      const wasReconnecting = this.reconnectAttempts > 0;
       console.log('Signaling WebSocket connected');
       this.reconnectAttempts = 0;
       this.isConnecting = false;
       this.startHeartbeat();
+      this.flushPendingSignalingMessages();
 
-      if (this.state.roomId && this.state.callStatus !== VideoCallStatus.IDLE) {
+      if (wasReconnecting && this.state.roomId && this.state.callStatus !== VideoCallStatus.IDLE) {
         this.sendMeetingJoin(this.state.roomId);
       }
     };
@@ -844,12 +857,58 @@ export class WebRTCService extends EventEmitter {
     this.emit('call-ended', { remoteId: remoteUserId || this.state.remoteUserId });
   }
 
-  private sendSignalingMessage(message: WebrtcMessage): void {
-    if (this.websocket?.readyState === WebSocket.OPEN) {
-      this.websocket.send(JSON.stringify(message));
-    } else {
-      console.warn('Cannot send signaling message: WebSocket not open');
+  private getActiveSignalingSocket(): WebSocket | null {
+    const sharedWS = socketService.getWebSocket();
+    if (sharedWS?.readyState === WebSocket.OPEN) {
+      return sharedWS;
     }
+
+    if (this.websocket?.readyState === WebSocket.OPEN) {
+      return this.websocket;
+    }
+
+    return null;
+  }
+
+  private flushPendingSignalingMessages(): void {
+    if (!this.pendingSignalingMessages.length) {
+      return;
+    }
+
+    const socket = this.getActiveSignalingSocket();
+    if (!socket) {
+      return;
+    }
+
+    const queuedMessages = [...this.pendingSignalingMessages];
+    this.pendingSignalingMessages = [];
+
+    queuedMessages.forEach((message) => {
+      socket.send(JSON.stringify(message));
+    });
+  }
+
+  private sendSignalingMessage(message: WebrtcMessage): void {
+    const socket = this.getActiveSignalingSocket();
+    if (socket) {
+      socket.send(JSON.stringify(message));
+      return;
+    }
+
+    this.pendingSignalingMessages.push(message);
+
+    if (this.signalingConfig && !this.isConnecting) {
+      const sharedWS = socketService.getWebSocket();
+      const isSharedConnecting = sharedWS?.readyState === WebSocket.CONNECTING;
+      const isLocalConnecting = this.websocket?.readyState === WebSocket.CONNECTING;
+
+      if (!isSharedConnecting && !isLocalConnecting) {
+        const { host, port, userId, token, pageProtocol } = this.signalingConfig;
+        this.connectSignaling(host, port, userId, token, pageProtocol);
+      }
+    }
+
+    console.warn('Queued signaling message until WebSocket is ready:', message.type);
   }
 
   private createRoomId(): string {
