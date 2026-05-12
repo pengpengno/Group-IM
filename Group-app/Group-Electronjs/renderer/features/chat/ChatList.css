@@ -148,9 +148,16 @@
   right: -4px;
   width: 14px;
   height: 14px;
-  background: #10b981;
   border: 3px solid white;
   border-radius: 50%;
+}
+
+.online-status.online {
+  background: #10b981;
+}
+
+.online-status.offline {
+  background: #9ca3af;
 }
 
 .chat-item-info {
@@ -172,6 +179,22 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.chat-item-presence {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.chat-item-presence.online {
+  color: #059669;
+}
+
+.chat-item-presence.offline {
+  color: #9ca3af;
 }
 
 .chat-item-time {

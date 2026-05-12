@@ -175,6 +175,28 @@
   flex-direction: column;
 }
 
+.socket-status-banner {
+  align-self: center;
+  margin-bottom: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+}
+
+.socket-status-banner.connecting,
+.socket-status-banner.reconnecting {
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+}
+
+.socket-status-banner.disconnected {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
+
 /* Scrollbar adjustment */
 .messages-viewport::-webkit-scrollbar {
   width: 6px;
@@ -211,8 +233,8 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  min-height: 100%;
+  margin-top: auto;
+  min-height: min-content;
 }
 
 /* Message Rows & Bubbles */

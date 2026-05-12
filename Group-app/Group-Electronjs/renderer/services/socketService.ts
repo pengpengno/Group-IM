@@ -9,6 +9,7 @@ import { EventEmitter } from 'events';
 class SocketService extends EventEmitter {
   private static readonly WEB_LEADER_LEASE_MS = 10000;
   private static readonly WEB_LEADER_HEARTBEAT_MS = 4000;
+  private static readonly MAX_PENDING_PAYLOADS = 200;
   private store: Store<RootState> | null = null;
   private userId: string | null = null;
   private host: string = 'localhost';
@@ -28,6 +29,8 @@ class SocketService extends EventEmitter {
   private browserLeaderElectionTimer: NodeJS.Timeout | null = null;
   private browserLeader = false;
   private browserCoordinationReady = false;
+  private connectionState: 'disconnected' | 'connecting' | 'reconnecting' | 'connected' = 'disconnected';
+  private pendingPayloads: any[] = [];
   private readonly onStorage = (event: StorageEvent) => {
     if (!this.isBrowserEnvironment() || event.key !== this.getLeaderStorageKey()) {
       return;
@@ -51,6 +54,24 @@ class SocketService extends EventEmitter {
     return this.signalingWS;
   }
 
+  public getConnectionState(): 'disconnected' | 'connecting' | 'reconnecting' | 'connected' {
+    return this.connectionState;
+  }
+
+  public onConnectionStateChange(handler: (state: 'disconnected' | 'connecting' | 'reconnecting' | 'connected') => void): () => void {
+    this.on('connection-state', handler);
+    return () => this.off('connection-state', handler);
+  }
+
+  private setConnectionState(state: 'disconnected' | 'connecting' | 'reconnecting' | 'connected') {
+    if (this.connectionState === state) {
+      return;
+    }
+
+    this.connectionState = state;
+    this.emit('connection-state', state);
+  }
+
   private handleWebRTCMessage(message: any) {
     this.emit('webrtc-message', message);
   }
@@ -69,12 +90,14 @@ class SocketService extends EventEmitter {
     this.username = username;
     this.intentionToClose = false;
     this.isInitializing = true;
+    this.setConnectionState('connecting');
     this.connect();
   }
 
   private async connect() {
     if (!this.userId) {
       console.error('Cannot connect: userId is not set');
+      this.setConnectionState('disconnected');
       return;
     }
 
@@ -99,17 +122,21 @@ class SocketService extends EventEmitter {
         console.log('Socket connected successfully via IPC');
         this.isConnected = true;
         this.isInitializing = false;
+        this.setConnectionState('connected');
         this.setupListeners();
+        this.flushPendingPayloads();
         this.connectSignalingWS();
       } else {
         console.error('Socket connection failed (IPC):', result.error);
         this.isInitializing = false;
+        this.setConnectionState('reconnecting');
         // Even if IPC fails, try polling as a fail-safe
         this.startPollingFallback();
       }
     } catch (error) {
       console.error('Socket connection error (IPC):', error);
       this.isInitializing = false;
+      this.setConnectionState('reconnecting');
       this.startPollingFallback();
     }
   }
@@ -165,6 +192,7 @@ class SocketService extends EventEmitter {
 
     if (!this.browserLeader) {
       this.isInitializing = false;
+      this.setConnectionState('reconnecting');
       this.startPollingFallback();
     }
   }
@@ -276,6 +304,7 @@ class SocketService extends EventEmitter {
     this.startBrowserElectionWatch();
     this.isConnected = false;
     this.isInitializing = false;
+    this.setConnectionState('reconnecting');
     this.stopHeartbeat();
 
     if (this.reconnectTimer) {
@@ -354,6 +383,7 @@ class SocketService extends EventEmitter {
   private connectNativeWS() {
     if (this.isBrowserEnvironment() && !this.browserLeader) {
       this.isInitializing = false;
+      this.setConnectionState('reconnecting');
       this.startPollingFallback();
       return;
     }
@@ -378,6 +408,7 @@ class SocketService extends EventEmitter {
         console.log('Native WebSocket connected');
         this.isConnected = true;
         this.isInitializing = false;
+        this.setConnectionState('connected');
         this.stopBrowserElectionWatch();
 
         // 停止掉轮询降级
@@ -388,6 +419,7 @@ class SocketService extends EventEmitter {
 
         this.registerToRemoteWS();
         this.startHeartbeat();
+        this.flushPendingPayloads();
       };
 
       this.socket.onmessage = (event) => {
@@ -411,6 +443,7 @@ class SocketService extends EventEmitter {
         console.log('Native WebSocket closed');
         this.isConnected = false;
         this.isInitializing = false;
+        this.setConnectionState(this.intentionToClose ? 'disconnected' : 'reconnecting');
         this.stopHeartbeat();
 
         if (!this.intentionToClose) {
@@ -432,11 +465,13 @@ class SocketService extends EventEmitter {
       this.socket.onerror = (error) => {
         console.error('Native WebSocket error:', error);
         this.isInitializing = false;
+        this.setConnectionState('reconnecting');
         this.startPollingFallback();
       };
     } catch (err) {
       console.error('Failed to initiate native WebSocket:', err);
       this.isInitializing = false;
+      this.setConnectionState('reconnecting');
       this.startPollingFallback();
     }
   }
@@ -500,6 +535,35 @@ class SocketService extends EventEmitter {
     }
   }
 
+  private enqueuePayload(payload: any): boolean {
+    if (this.pendingPayloads.length >= SocketService.MAX_PENDING_PAYLOADS) {
+      console.error('Pending realtime payload queue is full');
+      return false;
+    }
+
+    this.pendingPayloads.push(payload);
+    return true;
+  }
+
+  private async flushPendingPayloads() {
+    if (this.pendingPayloads.length === 0) {
+      return;
+    }
+
+    const queuedPayloads = [...this.pendingPayloads];
+    this.pendingPayloads = [];
+
+    for (let index = 0; index < queuedPayloads.length; index += 1) {
+      const payload = queuedPayloads[index];
+      const result = await this.sendPayload(payload, true);
+
+      if (!result.accepted) {
+        this.pendingPayloads = queuedPayloads.slice(index);
+        break;
+      }
+    }
+  }
+
   /**
    * 设置IPC事件监听
    */
@@ -519,6 +583,10 @@ class SocketService extends EventEmitter {
     if (electronAPI.onSocketConnected) {
       electronAPI.onSocketConnected(() => {
         console.log('Socket connected/reconnected, triggering sync...');
+        this.isConnected = true;
+        this.isInitializing = false;
+        this.setConnectionState('connected');
+        this.flushPendingPayloads();
         if (this.store && this.userId) {
           // 重新获取会话列表以更新未读数和最新的 MaxIndex
           (this.store.dispatch as any)(fetchConversations(this.userId));
@@ -530,6 +598,8 @@ class SocketService extends EventEmitter {
     if (electronAPI.onSocketDisconnected) {
       electronAPI.onSocketDisconnected(() => {
         console.log('Socket disconnected');
+        this.isConnected = false;
+        this.setConnectionState('reconnecting');
       });
     }
 
@@ -537,6 +607,7 @@ class SocketService extends EventEmitter {
     if (electronAPI.onSocketError) {
       electronAPI.onSocketError((error: any) => {
         console.error('Socket error:', error);
+        this.setConnectionState('reconnecting');
       });
     }
 
@@ -544,6 +615,7 @@ class SocketService extends EventEmitter {
     if (electronAPI.onSocketReconnecting) {
       electronAPI.onSocketReconnecting((data: any) => {
         console.log('Socket reconnecting:', data);
+        this.setConnectionState('reconnecting');
       });
     }
   }
@@ -604,24 +676,45 @@ class SocketService extends EventEmitter {
   /**
    * 发送结构化负载
    */
-  async sendPayload(payload: any): Promise<boolean> {
+  async sendPayload(payload: any, skipQueue: boolean = false): Promise<{ accepted: boolean; queued: boolean }> {
     if (this.isElectron) {
-      const result = await (window as any).electronAPI.socketSendMessage(payload);
-      return result.success;
+      try {
+        const result = await (window as any).electronAPI.socketSendMessage(payload);
+        if (result.success) {
+          return { accepted: true, queued: false };
+        }
+      } catch (error) {
+        console.error('Electron socket send failed:', error);
+      }
+
+      if (!skipQueue && !this.intentionToClose && this.enqueuePayload(payload)) {
+        this.setConnectionState('reconnecting');
+        return { accepted: true, queued: true };
+      }
+
+      return { accepted: false, queued: false };
     } else if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       try {
         // 将普通对象转换为 Protobuf 格式发送
         const pkg = BaseMessagePkg.create(payload);
         const buffer = BaseMessagePkg.encode(pkg).finish();
         this.socket.send(buffer);
-        return true;
+        return { accepted: true, queued: false };
       } catch (err) {
         console.error('Failed to send Protobuf over WebSocket:', err);
-        return false;
+        if (!skipQueue && !this.intentionToClose && this.enqueuePayload(payload)) {
+          this.setConnectionState('reconnecting');
+          return { accepted: true, queued: true };
+        }
+        return { accepted: false, queued: false };
       }
     } else {
+      if (!skipQueue && !this.intentionToClose && this.enqueuePayload(payload)) {
+        this.setConnectionState('reconnecting');
+        return { accepted: true, queued: true };
+      }
       console.error('Socket not connected, cannot send payload');
-      return false;
+      return { accepted: false, queued: false };
     }
   }
 
@@ -710,6 +803,8 @@ class SocketService extends EventEmitter {
     this.intentionToClose = true;
     this.isConnected = false;
     this.isInitializing = false;
+    this.setConnectionState('disconnected');
+    this.pendingPayloads = [];
 
     if (this.pollingTimer) {
       clearInterval(this.pollingTimer);

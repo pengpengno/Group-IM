@@ -92,14 +92,7 @@ fun ContactsUI(
             .background(ThemeTokens.BackgroundDark)
 //            .padding(top = 16.dp)
     ) {
-//        Column(modifier = Modifier.padding(horizontal = 20.dp, bottom = 12.dp)) {
-//            Text(
-//                text = "组织架构",
-//                style = MaterialTheme.typography.headlineMedium,
-//                color = Color.White,
-//                fontWeight = FontWeight.Bold
-//            )
-//        }
+
 
         Box(
             modifier = Modifier
@@ -159,7 +152,7 @@ fun ContactsUI(
                         ) {
                             Icon(Icons.Default.CloudOff, null, tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("离线数据模式", style = MaterialTheme.typography.labelSmall, color = Color(0xFFB91C1C))
+                            Text("收取数据中...", style = MaterialTheme.typography.labelSmall, color = Color(0xFFB91C1C))
                         }
                     }
                 }

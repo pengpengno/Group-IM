@@ -8,7 +8,6 @@ spring:
     password: admin
     # 基础DN
     base: dc=mycompany,dc=com
-    
   security:
     ldap:
       # 用户DN模式（可选，如果指定则直接使用该模式构建用户DN）

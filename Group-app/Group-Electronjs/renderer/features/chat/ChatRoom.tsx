@@ -4,9 +4,10 @@ import ParticipantPicker from './ParticipantPicker';
 import ScheduleMeetingDialog from './ScheduleMeetingDialog';
 import { RootState, AppDispatch } from '../../store';
 import { fetchMessages, sendMessageViaSocket } from './chatSlice';
-import { BASE_URL, meetingAPI } from '../../services/api/apiClient';
+import { BASE_URL, authAPI, meetingAPI } from '../../services/api/apiClient';
 import { useAppSelector } from '../../hooks';
 import { getElectronAPI, isElectronEnvironment } from '../../services/api/electronAPI';
+import { socketService } from '../../services/socketService';
 import axios from 'axios';
 import type { ConversationRes, MessageDTO, MeetingMessagePayload } from '../../types';
 import type { AuthState } from '../auth/authSlice';
@@ -14,6 +15,8 @@ import Notification, { NotificationType } from '../../components/common/Notifica
 import { isGroupConversation, getConversationDisplayName, getConversationAvatarText } from '../../utils/conversationUtils';
 import './ChatRoom.css';
 import { MessageType } from '../../types';
+
+type SocketConnectionState = 'disconnected' | 'connecting' | 'reconnecting' | 'connected';
 
 // 定义 Electron 接口扩展 (防止 TS 报错)
 declare global {
@@ -327,6 +330,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [previewMedia, setPreviewMedia] = useState<{ url: string; type: string } | null>(null);
   const [isOnline, setIsOnline] = useState(false);
+  const [socketConnectionState, setSocketConnectionState] = useState<SocketConnectionState>(socketService.getConnectionState());
   const [showParticipantPicker, setShowParticipantPicker] = useState(false);
   const [showScheduleMeeting, setShowScheduleMeeting] = useState(false);
 
@@ -376,6 +380,19 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
   const showToast = (message: string, type: NotificationType = 'error') => {
     setToast({ message, type });
+  };
+
+  const getSocketStatusText = () => {
+    switch (socketConnectionState) {
+      case 'connected':
+        return '实时连接正常';
+      case 'connecting':
+        return '实时连接中';
+      case 'reconnecting':
+        return '重连中，消息会自动补发';
+      default:
+        return '实时连接已断开，消息会暂存';
+    }
   };
 
   const isOwnMessage = (message: MessageDTO) => {
@@ -723,7 +740,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       const otherUserId = getOtherUserId();
       if (otherUserId && !isGroupConversation(conversation)) {
         try {
-          const res = await import('../../services/api/apiClient').then(m => m.authAPI.isUserOnline(otherUserId));
+          const res = await authAPI.isUserOnline(otherUserId);
           // Accessing res.data.data because UserController returns ApiResponse<Boolean>
           setIsOnline(res.data?.data === true);
         } catch (err) {
@@ -743,7 +760,14 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   // 初始化加载
   useEffect(() => {
     loadMessages();
-  }, [conversation]);
+  }, [conversation.conversationId]);
+
+  useEffect(() => {
+    setSocketConnectionState(socketService.getConnectionState());
+    return socketService.onConnectionStateChange((state) => {
+      setSocketConnectionState(state);
+    });
+  }, []);
 
   // 消息更新时自动滚动且标记已读
   useEffect(() => {
@@ -790,11 +814,11 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
             <h2 className="room-name">{getRoomName()}</h2>
             <div className="room-status">
               {isGroupConversation(conversation) ? (
-                <span>{conversation.members?.length || 0} 位成员</span>
+                <span>{conversation.members?.length || 0} 位成员 · {getSocketStatusText()}</span>
               ) : (
                 <>
                   <span className={`status-indicator ${isOnline ? 'online' : 'offline'}`}></span>
-                  {isOnline ? '在线' : '离线'}
+                  {isOnline ? '在线' : '离线'} · {getSocketStatusText()}
                 </>
               )}
             </div>
@@ -865,22 +889,32 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
       {/* 消息列表 */}
       <div className="messages-viewport" ref={viewportRef} onClick={() => setShowEmojiPicker(false)}>
+        {socketConnectionState !== 'connected' && (
+          <div className={`socket-status-banner ${socketConnectionState}`}>
+            {getSocketStatusText()}
+          </div>
+        )}
         {chatLoading && messages.length === 0 ? (
           <div className="viewport-loading">
             <div className="spinner-medium"></div>
           </div>
         ) : (
           <div className="messages-list-desktop">
-            {messages.map((msg: MessageDTO) => (
-              <MessageBubble
-                key={msg.clientMsgId || msg.msgId.toString()}
-                message={msg}
-                isOwnMessage={isOwnMessage(msg)}
-                onImageClick={(url, type) => setPreviewMedia({ url, type })}
-                onResend={handleResendMessage}
-                onJoinMeeting={onJoinMeeting}
-              />
-            ))}
+            {messages.map((msg: MessageDTO, index: number) => {
+              const uniqueKey = msg.msgId > 0
+                ? `server-${msg.msgId}`
+                : `client-${msg.clientMsgId || `${msg.timestamp}-${index}`}-${index}`;
+              return (
+                <MessageBubble
+                  key={uniqueKey}
+                  message={msg}
+                  isOwnMessage={isOwnMessage(msg)}
+                  onImageClick={(url, type) => setPreviewMedia({ url, type })}
+                  onResend={handleResendMessage}
+                  onJoinMeeting={onJoinMeeting}
+                />
+              );
+            })}
             <div ref={messagesEndRef} style={{ height: '1px' }} />
           </div>
         )}

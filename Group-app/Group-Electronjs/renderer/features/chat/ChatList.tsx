@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { fetchConversations, setActiveConversation, createGroupConversation, addConversationMembers } from './chatSlice';
 import { fetchOrgStructure } from '../contacts/contactsSlice';
+import { authAPI } from '../../services/api/apiClient';
 import { ConversationDisplayState, ApiUser, OrgTreeNode, ConversationRes } from '../../types';
 import './ChatList.css';
 
@@ -31,6 +32,15 @@ const flattenUsers = (nodes: OrgTreeNode[]): ApiUser[] => {
   return Array.from(unique.values());
 };
 
+const getConversationPeer = (conversation: ConversationRes, currentUserId?: string | null): ApiUser | undefined => {
+  if (conversation.conversationType === 'GROUP') {
+    return undefined;
+  }
+
+  return (Array.isArray(conversation.members) ? conversation.members : [])
+    .find((member: ApiUser) => member.userId.toString() !== currentUserId);
+};
+
 const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { conversations, loading, activeConversationId } = useSelector((state: RootState) => state.chat);
@@ -44,12 +54,60 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
   const [memberSearch, setMemberSearch] = useState('');
   const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [onlineStatuses, setOnlineStatuses] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     if (user?.userId) {
       dispatch(fetchConversations(user.userId));
     }
   }, [dispatch, user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const syncOnlineStatuses = async () => {
+      const privateConversations = conversations
+        .map((item) => item.conversation)
+        .filter((conversation) => conversation.conversationType !== 'GROUP');
+
+      if (!privateConversations.length) {
+        if (!cancelled) {
+          setOnlineStatuses({});
+        }
+        return;
+      }
+
+      const entries = await Promise.all(privateConversations.map(async (conversation) => {
+        const peer = getConversationPeer(conversation, user?.userId);
+        if (!peer) {
+          return [conversation.conversationId, false] as const;
+        }
+
+        try {
+          const response = await authAPI.isUserOnline(peer.userId);
+          return [conversation.conversationId, response.data?.data === true] as const;
+        } catch (error) {
+          console.warn('Failed to sync online status for conversation', conversation.conversationId, error);
+          return [conversation.conversationId, false] as const;
+        }
+      }));
+
+      if (!cancelled) {
+        setOnlineStatuses(Object.fromEntries(entries));
+      }
+    };
+
+    syncOnlineStatuses();
+    timer = setInterval(syncOnlineStatuses, 15000);
+
+    return () => {
+      cancelled = true;
+      if (timer) {
+        clearInterval(timer);
+      }
+    };
+  }, [conversations, user?.userId]);
 
   const activeConversation = useMemo(
     () => conversations.find((item) => item.conversation.conversationId === activeConversationId)?.conversation,
@@ -210,6 +268,7 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
           ) : (
             filteredConversations.map((item: ConversationDisplayState) => {
               const isGroup = isGroupConversation(item.conversation);
+              const isOnline = !!onlineStatuses[item.conversation.conversationId];
               const displayName = item.conversation.groupName
                 ? (item.conversation.groupName || (item.conversation as any).name || '无名群组')
                 : (Array.isArray(item.conversation.members) ? item.conversation.members : []).find((m: ApiUser) => m.userId.toString() !== user?.userId)?.username || '未知用户';
@@ -222,12 +281,19 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
                 >
                   <div className="chat-item-avatar">
                     {displayName?.charAt(0).toUpperCase()}
-                    {!isGroup && <span className="online-status"></span>}
+                    {!isGroup && <span className={`online-status ${isOnline ? 'online' : 'offline'}`}></span>}
                   </div>
 
                   <div className="chat-item-info">
                     <div className="chat-item-top">
-                      <span className="chat-item-name">{displayName}</span>
+                      <span className="chat-item-name">
+                        {displayName}
+                        {!isGroup && (
+                          <span className={`chat-item-presence ${isOnline ? 'online' : 'offline'}`}>
+                            {isOnline ? '在线' : '离线'}
+                          </span>
+                        )}
+                      </span>
                       <span className="chat-item-time">{item.displayDateTime}</span>
                     </div>
                     <div className="chat-item-bottom">

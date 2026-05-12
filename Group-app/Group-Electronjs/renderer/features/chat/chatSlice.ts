@@ -26,6 +26,58 @@ const initialState: ChatState = {
     error: null,
 };
 
+function normalizeMessage(message: MessageDTO): MessageDTO {
+    return {
+        ...message,
+        timestamp: message.timestamp ? new Date(message.timestamp).getTime() : Date.now()
+    };
+}
+
+function findMessageIndex(messages: MessageDTO[], target: MessageDTO): number {
+    return messages.findIndex((message) =>
+        (target.msgId > 0 && message.msgId > 0 && message.msgId === target.msgId) ||
+        (!!target.clientMsgId && !!message.clientMsgId && message.clientMsgId === target.clientMsgId)
+    );
+}
+
+function upsertMessage(messages: MessageDTO[], nextMessage: MessageDTO) {
+    const normalizedMessage = normalizeMessage(nextMessage);
+    const existingIndex = findMessageIndex(messages, normalizedMessage);
+
+    if (existingIndex !== -1) {
+        messages[existingIndex] = {
+            ...messages[existingIndex],
+            ...normalizedMessage
+        };
+    } else {
+        messages.push(normalizedMessage);
+    }
+
+    messages.sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+        const candidate = messages[index];
+        const duplicateIndex = messages.findIndex((message, position) => {
+            if (position === index) {
+                return false;
+            }
+
+            return (candidate.msgId > 0 && message.msgId > 0 && message.msgId === candidate.msgId) ||
+                (!!candidate.clientMsgId && !!message.clientMsgId && message.clientMsgId === candidate.clientMsgId);
+        });
+
+        if (duplicateIndex !== -1) {
+            const preferred = messages[duplicateIndex].msgId > 0 ? messages[duplicateIndex] : candidate;
+            const secondary = preferred === candidate ? messages[duplicateIndex] : candidate;
+            messages[duplicateIndex] = {
+                ...secondary,
+                ...preferred
+            };
+            messages.splice(index, 1);
+        }
+    }
+}
+
 function normalizeConversation(conv: ConversationRes): ConversationRes {
     return {
         ...conv,
@@ -184,18 +236,10 @@ export const sendMessageViaSocket = createAsyncThunk(
             (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36));
 
         try {
-            const socketActive = await socketService.isActive();
-            if (!socketActive) {
-                console.warn('Socket not active, falling back to HTTP');
-                const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
-                const result = response.data?.data || response.data;
-                return { ...result, clientMsgId: finalClientMsgId, sendingStatus: 'success' } as MessageDTO;
-            }
-
             const payload = buildSocketPayload(conversationId, content, type || 'TEXT', currentUser, { ...msgDto, clientMsgId: finalClientMsgId } as any);
-            const sendSuccess = await socketService.sendPayload(payload);
+            const sendResult = await socketService.sendPayload(payload);
 
-            if (sendSuccess) {
+            if (sendResult.accepted) {
                 return {
                     conversationId,
                     content,
@@ -209,14 +253,11 @@ export const sendMessageViaSocket = createAsyncThunk(
                     type: (type as any) || 'TEXT',
                     timestamp: Date.now(),
                     clientMsgId: finalClientMsgId,
-                    sendingStatus: 'success'
+                    sendingStatus: sendResult.queued ? 'sending' : 'success'
                 } as MessageDTO;
             }
 
-            console.warn('Socket send failed, trying HTTP fallback');
-            const response = await conversationAPI.sendMessage(conversationId, content, type || 'TEXT');
-            const result = response.data?.data || response.data;
-            return { ...result, clientMsgId: finalClientMsgId, sendingStatus: 'success' } as MessageDTO;
+            throw new Error('Realtime channel is unavailable');
         } catch (error) {
             console.error('Error in sendMessageViaSocket:', error);
             // Re-throw if it's a real failure so we can catch it in rejected
@@ -285,28 +326,21 @@ const chatSlice = createSlice({
                 state.messages[conversationId] = [];
             }
 
-            const normalizedMsg = {
+            const beforeLength = state.messages[conversationId].length;
+            upsertMessage(state.messages[conversationId], {
                 ...action.payload,
-                timestamp: action.payload.timestamp ? new Date(action.payload.timestamp).getTime() : Date.now()
-            };
+                sendingStatus: 'success'
+            });
 
-            const existingIndex = state.messages[conversationId].findIndex(m =>
-                (m.msgId === normalizedMsg.msgId && m.msgId > 0) ||
-                (m.clientMsgId && normalizedMsg.clientMsgId && m.clientMsgId === normalizedMsg.clientMsgId)
-            );
-
-            if (existingIndex !== -1) {
-                state.messages[conversationId][existingIndex] = normalizedMsg;
-            } else {
-                state.messages[conversationId].push(normalizedMsg);
-                state.messages[conversationId].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-
-                const conv = state.conversations.find(c => c.conversation.conversationId === conversationId);
-                if (conv) {
-                    conv.lastMessage = getMessageDisplayText(normalizedMsg.content, normalizedMsg.type);
-                    if (fromAccountId.toString() !== currentUserId && conversationId !== state.activeConversationId) {
-                        conv.unreadCount += 1;
-                    }
+            const conv = state.conversations.find(c => c.conversation.conversationId === conversationId);
+            if (conv) {
+                conv.lastMessage = getMessageDisplayText(action.payload.content, action.payload.type);
+                if (
+                    state.messages[conversationId].length > beforeLength &&
+                    fromAccountId.toString() !== currentUserId &&
+                    conversationId !== state.activeConversationId
+                ) {
+                    conv.unreadCount += 1;
                 }
             }
         }
@@ -328,18 +362,20 @@ const chatSlice = createSlice({
                 }
 
                 if (isIncremental) {
-                    const existingMessages = state.messages[conversationId];
-                    const newMessages = messages.filter((nMsg: MessageDTO) =>
-                        !existingMessages.some(eMsg =>
-                            (eMsg.msgId > 0 && eMsg.msgId === nMsg.msgId) ||
-                            (eMsg.clientMsgId && eMsg.clientMsgId === nMsg.clientMsgId)
-                        )
-                    );
-                    state.messages[conversationId] = [...existingMessages, ...newMessages]
-                        .sort((a: MessageDTO, b: MessageDTO) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+                    messages.forEach((message: MessageDTO) => {
+                        upsertMessage(state.messages[conversationId], {
+                            ...message,
+                            sendingStatus: 'success'
+                        });
+                    });
                 } else {
-                    state.messages[conversationId] = messages
-                        .sort((a: MessageDTO, b: MessageDTO) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+                    state.messages[conversationId] = [];
+                    messages.forEach((message: MessageDTO) => {
+                        upsertMessage(state.messages[conversationId], {
+                            ...message,
+                            sendingStatus: 'success'
+                        });
+                    });
                 }
             })
             .addCase(sendMessage.fulfilled, (state, action: PayloadAction<MessageDTO>) => {
@@ -348,16 +384,10 @@ const chatSlice = createSlice({
                     state.messages[conversationId] = [];
                 }
 
-                const existingIndex = state.messages[conversationId].findIndex(m =>
-                    (m.msgId === action.payload.msgId && m.msgId > 0) ||
-                    (m.clientMsgId && action.payload.clientMsgId && m.clientMsgId === action.payload.clientMsgId)
-                );
-
-                if (existingIndex !== -1) {
-                    state.messages[conversationId][existingIndex] = action.payload;
-                } else {
-                    state.messages[conversationId].push(action.payload);
-                }
+                upsertMessage(state.messages[conversationId], {
+                    ...action.payload,
+                    sendingStatus: 'success'
+                });
             })
             .addCase(sendMessageViaSocket.pending, (state, action) => {
                 const { conversationId, content, type, senderSnapshot, msgDto } = action.meta.arg;
@@ -389,10 +419,7 @@ const chatSlice = createSlice({
                 }
 
                 const existingIndex = state.messages[conversationId].findIndex(m => m.clientMsgId === clientMsgId);
-                if (existingIndex === -1) {
-                    state.messages[conversationId].push(tempMsg);
-                    state.messages[conversationId].sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
-                } else {
+                if (existingIndex !== -1) {
                     state.messages[conversationId][existingIndex] = {
                         ...state.messages[conversationId][existingIndex],
                         ...tempMsg,
@@ -406,6 +433,8 @@ const chatSlice = createSlice({
                             phoneNumber: currentUser.phoneNumber || ''
                         };
                     }
+                } else {
+                    upsertMessage(state.messages[conversationId], tempMsg);
                 }
             })
             .addCase(sendMessageViaSocket.fulfilled, (state, action: PayloadAction<MessageDTO>) => {
@@ -414,27 +443,10 @@ const chatSlice = createSlice({
                     state.messages[conversationId] = [];
                 }
 
-                const existingIndex = state.messages[conversationId].findIndex(m =>
-                    (m.msgId === action.payload.msgId && m.msgId > 0) ||
-                    (m.clientMsgId && action.payload.clientMsgId && m.clientMsgId === action.payload.clientMsgId)
-                );
-
-                if (existingIndex !== -1) {
-                    const existingMessage = state.messages[conversationId][existingIndex];
-                    state.messages[conversationId][existingIndex] = {
-                        ...existingMessage,
-                        ...action.payload,
-                        fromAccountId: Number(action.payload.fromAccountId || existingMessage.fromAccountId),
-                        fromAccount: action.payload.fromAccount || existingMessage.fromAccount,
-                        sendingStatus: 'success'
-                    };
-                } else {
-                    state.messages[conversationId].push({
-                        ...action.payload,
-                        sendingStatus: 'success'
-                    });
-                    state.messages[conversationId].sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
-                }
+                upsertMessage(state.messages[conversationId], {
+                    ...action.payload,
+                    sendingStatus: action.payload.sendingStatus || 'success'
+                });
             })
             .addCase(sendMessageViaSocket.rejected, (state, action) => {
                 state.error = action.error.message || '发送消息失败?'
