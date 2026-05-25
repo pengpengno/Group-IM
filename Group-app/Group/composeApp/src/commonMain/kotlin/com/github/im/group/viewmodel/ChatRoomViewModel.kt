@@ -30,6 +30,7 @@ import com.github.im.group.ui.ChatRoom
 import com.github.im.group.ui.ChatRoomType
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -95,6 +96,10 @@ class ChatRoomViewModel(
     val fileDownloadStates: StateFlow<Map<String, FileDownloadState>> = _fileDownloadStates.asStateFlow()
 
     private var activeConversationId: Long? = null
+    private var initSessionId: Long = 0L
+    private var syncRemoteJob: Job? = null
+    private var loadMoreJob: Job? = null
+    private var lastHistoryBoundarySeqId: Long? = null
 
     init {
         viewModelScope.launch {
@@ -130,15 +135,21 @@ class ChatRoomViewModel(
     fun getFile(fileId: String): File? = fileStorageManager.getFile(fileId)
 
     fun initChatRoom(room: ChatRoom) {
+        val sessionId = ++initSessionId
+        syncRemoteJob?.cancel()
+        loadMoreJob?.cancel()
+        lastHistoryBoundarySeqId = null
+
+        val previousConversationId = activeConversationId
+        if (previousConversationId != null && previousConversationId != room.roomId) {
+            unregister(previousConversationId)
+        }
+
         viewModelScope.launch {
-            _uiState.update { it.copy(chatRoom = room, error = null) }
+            _uiState.update { it.copy(chatRoom = room, error = null, loading = false) }
             when (room.type) {
                 ChatRoomType.CONVERSATION -> {
-                    activeConversationId = room.roomId
-                    loadLocalMessages(room.roomId)
-                    loadConversationInfo(room.roomId)
-                    register(room.roomId)
-                    syncRemoteMessages(room.roomId)
+                    bindConversation(room.roomId, sessionId)
                 }
 
                 ChatRoomType.CREATE_PRIVATE -> {
@@ -147,14 +158,18 @@ class ChatRoomViewModel(
                         .getLocalConversationByMembers(currentUser.userId, room.roomId)
 
                     if (existingConversation != null) {
-                        activeConversationId = existingConversation.conversationId
-                        _uiState.update { it.copy(conversation = existingConversation) }
-                        loadLocalMessages(existingConversation.conversationId)
-                        loadConversationInfo(existingConversation.conversationId)
-                        register(existingConversation.conversationId)
-                        syncRemoteMessages(existingConversation.conversationId)
+                        bindConversation(existingConversation.conversationId, sessionId, existingConversation)
                     } else {
-                        loadFriendInfo(room.roomId)
+                        activeConversationId = null
+                        messageStore.clear()
+                        _uiState.update {
+                            it.copy(
+                                conversation = null,
+                                messages = emptyList(),
+                                messageIndex = -1
+                            )
+                        }
+                        launch { loadFriendInfo(room.roomId) }
                     }
                 }
             }
@@ -214,22 +229,32 @@ class ChatRoomViewModel(
     fun loadMessages(conversationId: Long, limit: Long = 30) {
         viewModelScope.launch {
             messageStore.loadLocal(conversationId, limit)
-            syncRemoteMessages(conversationId, limit)
+            syncRemoteMessages(conversationId, limit, showLoading = false)
         }
     }
 
-    fun syncRemoteMessages(conversationId: Long, limit: Long = 30) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(loading = true) }
+    fun syncRemoteMessages(
+        conversationId: Long,
+        limit: Long = 30,
+        showLoading: Boolean = true,
+        sessionId: Long = initSessionId
+    ) {
+        syncRemoteJob?.cancel()
+        syncRemoteJob = viewModelScope.launch {
+            if (showLoading) {
+                _uiState.update { it.copy(loading = true) }
+            }
             try {
                 val hasNew = withContext(Dispatchers.Default) {
                     messageStore.syncRemote(conversationId)
                 }
-                if (hasNew) {
+                if (hasNew && isSessionValid(conversationId, sessionId)) {
                     messageStore.loadLocal(conversationId, limit)
                 }
             } finally {
-                _uiState.update { it.copy(loading = false) }
+                if (showLoading && isSessionValid(conversationId, sessionId)) {
+                    _uiState.update { it.copy(loading = false) }
+                }
             }
         }
     }
@@ -242,9 +267,10 @@ class ChatRoomViewModel(
         }
     }
 
-    private suspend fun loadConversationInfo(conversationId: Long) {
+    private suspend fun loadConversationInfo(conversationId: Long, sessionId: Long = initSessionId) {
         val currentUser = userRepository.getLocalUserInfo() ?: return
         conversationRepository.getLocalConversation(conversationId)?.let { local ->
+            if (!isSessionValid(conversationId, sessionId)) return
             _uiState.update { it.copy(conversation = local) }
             handlePrivateChatInfo(local, currentUser)
         }
@@ -253,8 +279,10 @@ class ChatRoomViewModel(
             val remote = withContext(Dispatchers.Default) {
                 conversationRepository.getConversation(conversationId)
             }
-            _uiState.update { it.copy(conversation = remote) }
-            handlePrivateChatInfo(remote, currentUser)
+            if (isSessionValid(conversationId, sessionId)) {
+                _uiState.update { it.copy(conversation = remote) }
+                handlePrivateChatInfo(remote, currentUser)
+            }
         } catch (e: Exception) {
             Napier.w("load conversation info failed: ${e.message}")
         }
@@ -283,13 +311,22 @@ class ChatRoomViewModel(
         uiState.value.conversation?.conversationId?.let { syncRemoteMessages(it) }
     }
 
-    fun loadLatestMessages(conversationId: Long, afterSequenceId: Long) {
-        viewModelScope.launch {
+    fun loadOlderMessages(conversationId: Long, beforeSequenceId: Long) {
+        if (beforeSequenceId <= 0L || lastHistoryBoundarySeqId == beforeSequenceId) {
+            return
+        }
+
+        loadMoreJob?.cancel()
+        loadMoreJob = viewModelScope.launch {
+            lastHistoryBoundarySeqId = beforeSequenceId
             _uiState.update { it.copy(loading = true) }
             try {
                 withContext(Dispatchers.Default) {
-                    messageStore.loadLatest(conversationId, afterSequenceId)
+                    messageStore.loadHistoryBefore(conversationId, beforeSequenceId)
                 }
+            } catch (e: Exception) {
+                lastHistoryBoundarySeqId = null
+                throw e
             } finally {
                 _uiState.update { it.copy(loading = false) }
             }
@@ -398,5 +435,26 @@ class ChatRoomViewModel(
                 Napier.e("mark conversation as read failed", e)
             }
         }
+    }
+
+    private fun bindConversation(
+        conversationId: Long,
+        sessionId: Long,
+        initialConversation: ConversationRes? = null
+    ) {
+        activeConversationId = conversationId
+        register(conversationId)
+        initialConversation?.let { conversation ->
+            _uiState.update { it.copy(conversation = conversation) }
+        }
+        loadLocalMessages(conversationId)
+        viewModelScope.launch {
+            loadConversationInfo(conversationId, sessionId)
+        }
+        syncRemoteMessages(conversationId, showLoading = false, sessionId = sessionId)
+    }
+
+    private fun isSessionValid(conversationId: Long, sessionId: Long): Boolean {
+        return activeConversationId == conversationId && initSessionId == sessionId
     }
 }

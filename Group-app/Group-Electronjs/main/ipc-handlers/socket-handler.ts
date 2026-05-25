@@ -47,6 +47,19 @@ class ElectronSocketClient {
     this.mainWindow = mainWindow;
   }
 
+  private log(scope: string, details?: Record<string, unknown>): void {
+    console.log('[ElectronSocketClient]', {
+      scope,
+      userId: this.config?.userId,
+      username: this.config?.username,
+      reconnectAttempts: this.reconnectAttempts,
+      isReconnecting: this.isReconnecting,
+      socketWritable: this.socket?.writable ?? false,
+      socketDestroyed: this.socket?.destroyed ?? true,
+      ...(details || {})
+    });
+  }
+
   /**
    * 编码 Varint32
    */
@@ -108,7 +121,7 @@ class ElectronSocketClient {
   private async registerToRemote(): Promise<void> {
     if (!this.config || !this.socket) return;
 
-    console.log(`Registering user ${this.config.username} (ID: ${this.config.userId}) to remote server...`);
+    this.log('register-start');
 
     const userInfo: proto.IUserInfo = {
       userId: Long.fromString(this.config.userId),
@@ -121,9 +134,9 @@ class ElectronSocketClient {
       const payload: IBaseMessagePkg = { userInfo };
       const data = protobufService.encode(payload);
       await this.send(data);
-      console.log('Registration message sent successfully');
+      this.log('register-success');
     } catch (error) {
-      console.error('Failed to send registration message:', error);
+      console.error('[ElectronSocketClient] register-failed', error);
       throw error;
     }
   }
@@ -134,7 +147,7 @@ class ElectronSocketClient {
   async connect(host: string, port: number, userId: string, token: string, username: string): Promise<void> {
     // 竞态保护：如果已经连接且可用，直接返回
     if (this.socket && this.socket.writable) {
-      console.log('Socket already connected, skipping new connection request');
+      this.log('connect-skipped-already-connected', { host, port });
       return;
     }
 
@@ -142,7 +155,7 @@ class ElectronSocketClient {
     if (this.connectionPromise) {
       // 只有在非重连状态下才打印此日志，减少刷屏
       if (!this.isReconnecting) {
-        console.log('Socket connection already in progress...');
+        this.log('connect-skipped-in-progress', { host, port });
       }
       return this.connectionPromise;
     }
@@ -151,13 +164,13 @@ class ElectronSocketClient {
 
     this.connectionPromise = new Promise((resolve, reject) => {
       const connectHost = host === 'localhost' ? '127.0.0.1' : host;
-      console.log(`Establishing TCP connection to ${connectHost}:${port}...`);
+      this.log('connect-start', { host: connectHost, port });
 
       const socket = net.createConnection(port, connectHost);
       this.socket = socket;
 
       socket.on('connect', async () => {
-        console.log(`Socket connected to ${host}:${port}`);
+        this.log('tcp-connect', { host, port });
         // 连接建立后，设置闲置超时为心跳超时的时长
         socket.setTimeout(this.HEARTBEAT_TIMEOUT);
         this.reconnectAttempts = 0;
@@ -165,7 +178,7 @@ class ElectronSocketClient {
 
         try {
           // 在连接成功后，立即按照 Android/KMP 逻辑注册身份
-          console.log(`TCP Connection established. Sending registration for user: ${this.config?.username} (ID: ${this.config?.userId}) with Platform WEB`);
+          this.log('tcp-ready-register', { platformType: 'WEB' });
           await this.registerToRemote();
 
           this.startHeartbeat();
@@ -187,7 +200,7 @@ class ElectronSocketClient {
       });
 
       socket.on('error', (error) => {
-        console.error('Socket error:', error);
+        console.error('[ElectronSocketClient] socket-error', error);
         this.notifyRenderer('socket:error', { message: error.message });
         if (this.connectionPromise) {
           this.connectionPromise = null;
@@ -196,7 +209,7 @@ class ElectronSocketClient {
       });
 
       socket.on('close', (hadError) => {
-        console.log(`TCP Socket closed. hadError: ${hadError}, intentionToClose: ${!this.config}`);
+        this.log('tcp-close', { hadError, intentionToClose: !this.config });
         this.clearHeartbeat();
         this.notifyRenderer('socket:disconnected', {});
         this.connectionPromise = null;
@@ -204,7 +217,7 @@ class ElectronSocketClient {
 
         // 如果配置存在且不是主动关闭，也不是刚注册失败，则尝试重连
         if (this.config && this.reconnectAttempts < this.maxReconnectAttempts) {
-          console.log(`Initiating auto-reconnect logic... current attempts: ${this.reconnectAttempts}`);
+          this.log('auto-reconnect-trigger');
           this.startAutoReconnect();
         }
       });
@@ -234,9 +247,10 @@ class ElectronSocketClient {
 
       this.socket!.write(fullData, (error) => {
         if (error) {
-          console.error('Error writing to socket:', error);
+          console.error('[ElectronSocketClient] send-write-failed', error, { payloadBytes: data.length });
           reject(error);
         } else {
+          this.log('send-write-success', { payloadBytes: data.length, framedBytes: fullData.length });
           resolve();
         }
       });
@@ -256,10 +270,10 @@ class ElectronSocketClient {
           const heartbeatData = protobufService.createHeartbeat(true);
           await this.send(heartbeatData);
           this.lastHeartbeatTime = Date.now();
-          console.log('Heartbeat sent');
+          this.log('heartbeat-sent');
         }
       } catch (error) {
-        console.error('Error sending heartbeat:', error);
+        console.error('[ElectronSocketClient] heartbeat-send-failed', error);
         this.startAutoReconnect();
       }
     }, this.HEARTBEAT_INTERVAL);
@@ -268,7 +282,7 @@ class ElectronSocketClient {
     this.heartbeatTimeout = setInterval(() => {
       const timeSinceLastHeartbeat = Date.now() - this.lastHeartbeatTime;
       if (timeSinceLastHeartbeat > this.HEARTBEAT_TIMEOUT) {
-        console.warn('Heartbeat timeout, reconnecting...');
+        console.warn('[ElectronSocketClient] heartbeat-timeout', { timeSinceLastHeartbeat });
         this.socket?.destroy();
       }
     }, 5000);
@@ -296,6 +310,7 @@ class ElectronSocketClient {
 
     this.socket.on('data', (chunk: Buffer) => {
       this.receiveBuffer = Buffer.concat([this.receiveBuffer, chunk]);
+      this.log('data-received', { chunkBytes: chunk.length, bufferBytes: this.receiveBuffer.length });
 
       // 尝试读取完整的消息
       while (this.receiveBuffer.length > 0) {
@@ -313,7 +328,7 @@ class ElectronSocketClient {
           // 处理接收到的消息
           this.handleMessage(messageData);
         } catch (error) {
-          console.error('Error parsing message:', error);
+          console.error('[ElectronSocketClient] parse-message-failed', error, { bufferBytes: this.receiveBuffer.length });
           break;
         }
       }
@@ -333,11 +348,11 @@ class ElectronSocketClient {
 
       // 处理心跳回应
       if (decodedMessage.heartbeat) {
-        console.log('Received heartbeat:', decodedMessage.heartbeat.ping ? 'PING' : 'PONG');
+        this.log('heartbeat-received', { heartbeatType: decodedMessage.heartbeat.ping ? 'PING' : 'PONG' });
         if (decodedMessage.heartbeat.ping) {
           // 收到 PING，回复 PONG
           const pongData = protobufService.createHeartbeat(false);
-          this.send(pongData).catch(err => console.error('Failed to send PONG:', err));
+          this.send(pongData).catch(err => console.error('[ElectronSocketClient] pong-send-failed', err));
         }
         return;
       }
@@ -351,7 +366,7 @@ class ElectronSocketClient {
         payload: messageObj
       });
     } catch (error) {
-      console.error('Error handling message:', error);
+      console.error('[ElectronSocketClient] handle-message-failed', error, { payloadBytes: data.length });
       // 如果解码失败，至少通知渲染进程原始数据
       this.notifyRenderer('socket:message', {
         type: 'raw',
@@ -367,7 +382,7 @@ class ElectronSocketClient {
     // 已经正在重连，或者重连次数超限，或者没有配置 (说明已登出)，则退出
     if (this.isReconnecting || this.reconnectAttempts >= this.maxReconnectAttempts || !this.config) {
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        console.error('Max reconnect attempts reached, stopping.');
+        console.error('[ElectronSocketClient] reconnect-max-attempts-reached');
         this.notifyRenderer('socket:reconnect-failed', {});
       }
       return;
@@ -378,7 +393,7 @@ class ElectronSocketClient {
 
     // 指数退避延迟，基础2秒，最大30秒
     const delay = Math.min(30000, 2000 * Math.pow(1.5, this.reconnectAttempts - 1));
-    console.log(`Reconnecting (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${Math.round(delay)}ms...`);
+    this.log('reconnect-scheduled', { delayMs: Math.round(delay), maxReconnectAttempts: this.maxReconnectAttempts });
     this.notifyRenderer('socket:reconnecting', { attempt: this.reconnectAttempts });
 
     setTimeout(async () => {
@@ -390,11 +405,11 @@ class ElectronSocketClient {
 
       try {
         await this.connect(this.config.host, this.config.port, this.config.userId, this.config.token, this.config.username);
-        console.log('Reconnection successful');
+        this.log('reconnect-success');
         this.isReconnecting = false;
         this.reconnectAttempts = 0;
       } catch (error) {
-        console.error('Reconnection attempt failed:', error);
+        console.error('[ElectronSocketClient] reconnect-attempt-failed', error);
         this.isReconnecting = false;
         // 递归触发下一次重连
         this.startAutoReconnect();
@@ -466,11 +481,11 @@ export async function initializeSocketHandler(mainWindow: BrowserWindow): Promis
       if (!socketClient) {
         throw new Error('Socket client not initialized');
       }
-
+      console.log('[socket:connect]', { host, port, userId, username });
       await socketClient.connect(host, port, userId, token, username);
       return { success: true };
     } catch (error: any) {
-      console.error('Socket connection error:', error);
+      console.error('[socket:connect] failed', error);
       return {
         success: false,
         error: error.message || 'Connection failed'
@@ -535,7 +550,7 @@ export async function initializeSocketHandler(mainWindow: BrowserWindow): Promis
       await socketClient.send(data);
       return { success: true };
     } catch (error: any) {
-      console.error('Socket send-message error:', error);
+      console.error('[socket:send-message] failed', error);
       return {
         success: false,
         error: error.message || 'Send failed'
@@ -549,6 +564,7 @@ export async function initializeSocketHandler(mainWindow: BrowserWindow): Promis
       if (!socketClient || !socketClient.isActive()) {
         return { success: false, error: 'Socket not active' };
       }
+      console.log('[socket:mark-read]', { conversationId, lastMsgId, status: status || 4 });
       const config = socketClient.getConfig();
       const payload = {
           ack: {
@@ -565,7 +581,7 @@ export async function initializeSocketHandler(mainWindow: BrowserWindow): Promis
       await socketClient.send(data);
       return { success: true };
     } catch (error: any) {
-      console.error('Socket mark-read error:', error);
+      console.error('[socket:mark-read] failed', error);
       return { success: false, error: error.message };
     }
   });

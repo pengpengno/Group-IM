@@ -50,6 +50,19 @@ class SocketService extends EventEmitter {
     this.releaseBrowserLeadership();
   };
 
+  private log(scope: string, details?: Record<string, unknown>) {
+    const base = {
+      scope,
+      userId: this.userId,
+      state: this.connectionState,
+      isElectron: this.isElectron,
+      isConnected: this.isConnected,
+      isInitializing: this.isInitializing,
+      browserLeader: this.browserLeader
+    };
+    console.log('[SocketService]', details ? { ...base, ...details } : base);
+  }
+
   public getWebSocket(): WebSocket | null {
     return this.signalingWS;
   }
@@ -78,7 +91,7 @@ class SocketService extends EventEmitter {
 
   initialize(store: Store<RootState>, userId: string, host: string = 'localhost', port: number = 8088, token: string = '', username: string = '') {
     if (this.isConnected || this.isInitializing) {
-      console.log('Socket already connected or initializing, skipping...');
+      this.log('initialize-skipped', { host, port });
       return;
     }
 
@@ -91,6 +104,7 @@ class SocketService extends EventEmitter {
     this.intentionToClose = false;
     this.isInitializing = true;
     this.setConnectionState('connecting');
+    this.log('initialize', { host, port, username });
     this.connect();
   }
 
@@ -103,13 +117,13 @@ class SocketService extends EventEmitter {
 
     const electronAPI = getElectronAPI();
     if (!electronAPI || !((window as any).electronAPI)) {
-      console.warn('Electron API not available, coordinating browser WebSocket...');
+      this.log('connect-browser-branch', { host: this.host, port: this.port });
       this.connectBrowserRealtime();
       return;
     }
 
     try {
-      console.log(`Socket connecting via Electron IPC to ${this.host}:${this.port}`);
+      this.log('connect-electron-ipc', { host: this.host, port: this.port });
       const result = await electronAPI.socketConnect({
         host: this.host,
         port: this.port,
@@ -119,7 +133,7 @@ class SocketService extends EventEmitter {
       });
 
       if (result.success) {
-        console.log('Socket connected successfully via IPC');
+        this.log('connect-electron-ipc-success');
         this.isConnected = true;
         this.isInitializing = false;
         this.setConnectionState('connected');
@@ -127,14 +141,14 @@ class SocketService extends EventEmitter {
         this.flushPendingPayloads();
         this.connectSignalingWS();
       } else {
-        console.error('Socket connection failed (IPC):', result.error);
+        console.error('[SocketService] connect-electron-ipc-failed', result.error);
         this.isInitializing = false;
         this.setConnectionState('reconnecting');
         // Even if IPC fails, try polling as a fail-safe
         this.startPollingFallback();
       }
     } catch (error) {
-      console.error('Socket connection error (IPC):', error);
+      console.error('[SocketService] connect-electron-ipc-error', error);
       this.isInitializing = false;
       this.setConnectionState('reconnecting');
       this.startPollingFallback();
@@ -190,11 +204,17 @@ class SocketService extends EventEmitter {
     this.setupBrowserCoordination();
     this.tryAcquireBrowserLeadership();
 
-    if (!this.browserLeader) {
-      this.isInitializing = false;
-      this.setConnectionState('reconnecting');
-      this.startPollingFallback();
+    if (this.browserLeader) {
+      this.log('browser-leader-ready');
+      this.isInitializing = true;
+      this.connectNativeWS();
+      return;
     }
+
+    this.log('browser-follower-polling');
+    this.isInitializing = false;
+    this.setConnectionState('reconnecting');
+    this.startPollingFallback();
   }
 
   private setupBrowserCoordination() {
@@ -211,11 +231,11 @@ class SocketService extends EventEmitter {
     const protocol = this.host.startsWith('https') ? 'wss' : 'ws';
     const cleanHost = this.host.replace(/^https?:\/\//, '');
     const url = `${protocol}://${cleanHost}:${this.port}/ws?userId=${this.userId}&token=${this.token}`;
-    console.log('Connecting signaling WS:', url);
+    this.log('connect-signaling-ws', { url });
 
     this.signalingWS = new WebSocket(url);
     this.signalingWS.onopen = () => {
-      console.log('Signaling WS connected');
+      this.log('signaling-ws-open');
     };
     this.signalingWS.onmessage = (event) => {
       if (typeof event.data === 'string') {
@@ -228,10 +248,10 @@ class SocketService extends EventEmitter {
       }
     };
     this.signalingWS.onclose = (event) => {
-      console.log('Signaling WS closed');
+      this.log('signaling-ws-close', { code: event.code, reason: event.reason });
     };
     this.signalingWS.onerror = (error) => {
-      console.error('Signaling WS error:', error);
+      console.error('[SocketService] signaling-ws-error', error);
     };
   }
 
@@ -248,16 +268,16 @@ class SocketService extends EventEmitter {
       this.browserLeader = true;
       this.writeLeaderRecord();
       this.startBrowserLeaderHeartbeat();
-
-      if (!this.socket && !this.isConnected && !this.isInitializing) {
-        this.isInitializing = true;
-        this.connectNativeWS();
-      }
+      this.log('browser-leader-acquired', {
+        previousLeaderTabId: currentLeader?.tabId,
+        leaderExpired: currentLeader ? currentLeader.expiresAt <= now : true
+      });
 
       return;
     }
 
     this.browserLeader = false;
+    this.log('browser-leader-exists', { leaderTabId: currentLeader?.tabId, leaderExpiresAt: currentLeader?.expiresAt });
     this.stopBrowserLeaderHeartbeat();
     this.startBrowserElectionWatch();
   }
@@ -299,6 +319,7 @@ class SocketService extends EventEmitter {
   }
 
   private demoteBrowserLeader() {
+    this.log('browser-leader-demoted');
     this.browserLeader = false;
     this.stopBrowserLeaderHeartbeat();
     this.startBrowserElectionWatch();
@@ -330,6 +351,7 @@ class SocketService extends EventEmitter {
       return;
     }
 
+    this.log('browser-leader-release');
     const leader = this.readLeaderRecord();
     if (leader?.tabId === this.browserTabId) {
       window.localStorage.removeItem(this.getLeaderStorageKey());
@@ -350,7 +372,7 @@ class SocketService extends EventEmitter {
       clearInterval(this.pollingTimer);
     }
 
-    console.log('SocketService: Starting HTTP Polling Fallback (5s interval)');
+    this.log('polling-fallback-start');
 
     // 立即执行一次
     this.executePollingSync();
@@ -384,6 +406,7 @@ class SocketService extends EventEmitter {
     if (this.isBrowserEnvironment() && !this.browserLeader) {
       this.isInitializing = false;
       this.setConnectionState('reconnecting');
+      this.log('connect-native-skipped-not-leader');
       this.startPollingFallback();
       return;
     }
@@ -398,14 +421,14 @@ class SocketService extends EventEmitter {
       const currentHost = typeof window !== 'undefined' ? window.location.host : `${this.host}:${this.port}`;
       // Web 端统一走当前页面同源 /ws，由 devServer/nginx 负责转发
       const wsUrl = `${wsProtocol}://${currentHost}/ws?userId=${this.userId}&token=${this.token}`;
-      console.log(`Native WebSocket connecting to ${wsUrl}...`);
+      this.log('connect-native-ws', { wsUrl });
 
       this.socket = new WebSocket(wsUrl);
       this.socket.binaryType = 'arraybuffer';
       this.signalingWS = this.socket;
 
       this.socket.onopen = () => {
-        console.log('Native WebSocket connected');
+        this.log('native-ws-open');
         this.isConnected = true;
         this.isInitializing = false;
         this.setConnectionState('connected');
@@ -439,8 +462,8 @@ class SocketService extends EventEmitter {
         }
       };
 
-      this.socket.onclose = () => {
-        console.log('Native WebSocket closed');
+      this.socket.onclose = (event) => {
+        this.log('native-ws-close', { code: event.code, reason: event.reason });
         this.isConnected = false;
         this.isInitializing = false;
         this.setConnectionState(this.intentionToClose ? 'disconnected' : 'reconnecting');
@@ -463,13 +486,13 @@ class SocketService extends EventEmitter {
       };
 
       this.socket.onerror = (error) => {
-        console.error('Native WebSocket error:', error);
+        console.error('[SocketService] native-ws-error', error);
         this.isInitializing = false;
         this.setConnectionState('reconnecting');
         this.startPollingFallback();
       };
     } catch (err) {
-      console.error('Failed to initiate native WebSocket:', err);
+      console.error('[SocketService] native-ws-init-failed', err);
       this.isInitializing = false;
       this.setConnectionState('reconnecting');
       this.startPollingFallback();
@@ -479,7 +502,7 @@ class SocketService extends EventEmitter {
   private async registerToRemoteWS() {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
 
-    console.log('Sending registration via WebSocket...');
+    this.log('register-ws-start');
 
     try {
       const userInfoPayload = UserInfo.create({
@@ -495,9 +518,9 @@ class SocketService extends EventEmitter {
 
       const buffer = BaseMessagePkg.encode(pkg).finish();
       this.socket.send(buffer);
-      console.log('Registration sent successfully');
+      this.log('register-ws-success');
     } catch (err) {
-      console.error('Failed to encode/send registration:', err);
+      console.error('[SocketService] register-ws-failed', err);
     }
   }
 
@@ -510,6 +533,7 @@ class SocketService extends EventEmitter {
         });
         const buffer = BaseMessagePkg.encode(pkg).finish();
         this.socket.send(buffer);
+        this.log('heartbeat-sent');
       }
     }, 30000); // 30s heartbeat
   }
@@ -524,14 +548,18 @@ class SocketService extends EventEmitter {
   private handleWSData(data: Uint8Array) {
     try {
       const pkg = BaseMessagePkg.decode(data) as any;
-      console.log('Received WebSocket IM Package:', pkg.payload);
+      this.log('ws-binary-received', {
+        hasMessage: !!pkg.message,
+        hasAck: !!pkg.ack,
+        hasNotification: !!pkg.notification
+      });
 
       this.handleMessage({
         type: 'message',
         payload: pkg
       });
     } catch (err) {
-      console.error('Failed to decode binary WebSocket data:', err);
+      console.error('[SocketService] ws-binary-decode-failed', err);
     }
   }
 
@@ -550,6 +578,7 @@ class SocketService extends EventEmitter {
       return;
     }
 
+    this.log('flush-pending-payloads', { count: this.pendingPayloads.length });
     const queuedPayloads = [...this.pendingPayloads];
     this.pendingPayloads = [];
 
@@ -677,18 +706,26 @@ class SocketService extends EventEmitter {
    * 发送结构化负载
    */
   async sendPayload(payload: any, skipQueue: boolean = false): Promise<{ accepted: boolean; queued: boolean }> {
+    const messageSummary = {
+      messageType: payload?.message?.type,
+      conversationId: payload?.message?.conversationId,
+      clientMsgId: payload?.message?.clientMsgId,
+      skipQueue
+    };
     if (this.isElectron) {
       try {
         const result = await (window as any).electronAPI.socketSendMessage(payload);
         if (result.success) {
+          this.log('send-payload-electron-success', messageSummary);
           return { accepted: true, queued: false };
         }
       } catch (error) {
-        console.error('Electron socket send failed:', error);
+        console.error('[SocketService] send-payload-electron-failed', error, messageSummary);
       }
 
       if (!skipQueue && !this.intentionToClose && this.enqueuePayload(payload)) {
         this.setConnectionState('reconnecting');
+        this.log('send-payload-electron-queued', messageSummary);
         return { accepted: true, queued: true };
       }
 
@@ -699,11 +736,13 @@ class SocketService extends EventEmitter {
         const pkg = BaseMessagePkg.create(payload);
         const buffer = BaseMessagePkg.encode(pkg).finish();
         this.socket.send(buffer);
+        this.log('send-payload-browser-success', messageSummary);
         return { accepted: true, queued: false };
       } catch (err) {
-        console.error('Failed to send Protobuf over WebSocket:', err);
+        console.error('[SocketService] send-payload-browser-failed', err, messageSummary);
         if (!skipQueue && !this.intentionToClose && this.enqueuePayload(payload)) {
           this.setConnectionState('reconnecting');
+          this.log('send-payload-browser-queued-after-error', messageSummary);
           return { accepted: true, queued: true };
         }
         return { accepted: false, queued: false };
@@ -711,9 +750,10 @@ class SocketService extends EventEmitter {
     } else {
       if (!skipQueue && !this.intentionToClose && this.enqueuePayload(payload)) {
         this.setConnectionState('reconnecting');
+        this.log('send-payload-queued-no-socket', messageSummary);
         return { accepted: true, queued: true };
       }
-      console.error('Socket not connected, cannot send payload');
+      console.error('[SocketService] send-payload-no-socket', messageSummary);
       return { accepted: false, queued: false };
     }
   }

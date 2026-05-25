@@ -25,9 +25,10 @@ class MessageStore(
     val messages: StateFlow<List<MessageItem>> = _messages.asStateFlow()
 
     fun uniqueKeyOf(msg: MessageItem): String = when {
+        msg.id > 0L -> "M:${msg.id}"
         msg.seqId != 0L -> "S:${msg.seqId}"
         msg.clientMsgId.isNotBlank() -> "C:${msg.clientMsgId}"
-        else -> "T:${kotlin.random.Random.nextLong()}"
+        else -> "F:${msg.conversationId}:${msg.userInfo.userId}:${msg.type.name}:${msg.content}:${msg.clientTime ?: msg.time}"
     }
 
     private fun emit() {
@@ -56,8 +57,20 @@ class MessageStore(
         emit()
     }
 
+    suspend fun loadHistoryBefore(conversationId: Long, beforeSeqId: Long) {
+        val msgs = messageSyncRepository.getMessagesWithStrategy(conversationId, beforeSeqId, true)
+        msgs.forEach { cache[uniqueKeyOf(it)] = it }
+        emit()
+    }
+
     fun saveOrUpdate(message: MessageItem): MessageItem {
         chatMessageRepository.insertOrUpdateMessage(message)
+        if (message.id > 0L) {
+            cache.remove("M:${message.id}")
+        }
+        if (message.seqId != 0L) {
+            cache.remove("S:${message.seqId}")
+        }
         if (message.seqId != 0L && message.clientMsgId.isNotBlank()) {
             cache.remove("C:${message.clientMsgId}")
         }

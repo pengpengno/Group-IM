@@ -65,6 +65,7 @@ import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.distinctUntilChanged
 import org.koin.compose.viewmodel.koinViewModel
 
 
@@ -111,6 +112,7 @@ fun ChatRoomScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var lastMarkedReadSeq by remember { mutableStateOf(0L) }
+    var lastRequestedHistorySeq by remember(conversationId) { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(chatRoom) {
         chatRoomViewModel.initChatRoom(chatRoom)
@@ -128,17 +130,28 @@ fun ChatRoomScreen(
         }
     }
 
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex }
-            .collect { firstVisibleIndex ->
-                if (firstVisibleIndex == 0 && chatUiState.messages.isNotEmpty()) {
-                    val oldestMessage = chatUiState.messages.lastOrNull()
-                    oldestMessage?.seqId?.let { sequenceId ->
-                        conversationId?.let { id ->
-                            chatRoomViewModel.loadLatestMessages(id, sequenceId)
-                        }
-                    }
+    LaunchedEffect(listState, conversationId, chatUiState.messages.size, chatUiState.loading) {
+        snapshotFlow {
+            val totalItems = chatUiState.messages.size
+            val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.maxOfOrNull { it.index } ?: -1
+            val shouldLoadMore = totalItems > 0 &&
+                !chatUiState.loading &&
+                lastVisibleIndex >= totalItems - 2
+
+            Triple(shouldLoadMore, totalItems, lastVisibleIndex)
+        }
+            .distinctUntilChanged()
+            .collect { (shouldLoadMore, _, _) ->
+                if (!shouldLoadMore) return@collect
+
+                val oldestSequenceId = chatUiState.messages.lastOrNull()?.seqId ?: 0L
+                val currentConversationId = conversationId ?: return@collect
+                if (oldestSequenceId <= 0L || lastRequestedHistorySeq == oldestSequenceId) {
+                    return@collect
                 }
+
+                lastRequestedHistorySeq = oldestSequenceId
+                chatRoomViewModel.loadOlderMessages(currentConversationId, oldestSequenceId)
             }
     }
 
@@ -221,9 +234,17 @@ fun ChatRoomScreen(
                     contentPadding = PaddingValues(bottom = 100.dp, top = 20.dp, start = 12.dp, end = 12.dp),
                     verticalArrangement = Arrangement.Top
                 ) {
-                    items(chatUiState.messages, key = { message ->
-                        if (message.seqId != 0L) "seq_${message.seqId}" else "client_${message.clientMsgId}"
-                    }) { message ->
+                    items(
+                        items = chatUiState.messages,
+                        key = { message ->
+                            when {
+                                message.id > 0L -> "msg_${message.id}"
+                                message.seqId != 0L -> "seq_${message.seqId}"
+                                message.clientMsgId.isNotBlank() -> "client_${message.clientMsgId}"
+                                else -> "fallback_${message.conversationId}_${message.userInfo.userId}_${message.content}_${message.time}"
+                            }
+                        }
+                    ) { message ->
                         val isMyMessage = message.userInfo.userId == userInfo?.userId
                         MessageBubble(
                             isOwnMessage = isMyMessage,

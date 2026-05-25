@@ -20,7 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -150,7 +150,7 @@ fun ContactsUI(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.CloudOff, null, tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.CloudSync, null, tint = Color.Blue, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
                             Text("收取数据中...", style = MaterialTheme.typography.labelSmall, color = Color(0xFFB91C1C))
                         }

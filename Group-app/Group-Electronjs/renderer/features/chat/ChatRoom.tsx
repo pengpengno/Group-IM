@@ -351,6 +351,17 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     phoneNumber: user.phoneNumber || ''
   } : undefined;
 
+  const logChatRoom = (scope: string, details?: Record<string, unknown>) => {
+    console.log('[ChatRoom]', {
+      scope,
+      conversationId: conversation.conversationId,
+      currentUserId,
+      socketConnectionState,
+      isElectron: isElectronEnvironment(),
+      ...(details || {})
+    });
+  };
+
   // 获取会话名称
   const getRoomName = () => {
     return getConversationDisplayName(conversation, user?.userId);
@@ -468,6 +479,11 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       : Math.random().toString(36).substring(2) + Date.now().toString(36);
 
     try {
+      logChatRoom('send-message-dispatch', {
+        clientMsgId,
+        contentLength: content.length,
+        preview: content.slice(0, 80)
+      });
       // Async dispatch, don't await unwrap if we want immediate UI
       dispatch(sendMessageViaSocket({
         conversationId: conversation.conversationId,
@@ -484,6 +500,11 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   };
 
   const handleResendMessage = (message: MessageDTO) => {
+    logChatRoom('resend-message-dispatch', {
+      clientMsgId: message.clientMsgId,
+      msgId: message.msgId,
+      type: message.type
+    });
     dispatch(sendMessageViaSocket({
       conversationId: message.conversationId,
       content: message.content,
@@ -765,6 +786,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   useEffect(() => {
     setSocketConnectionState(socketService.getConnectionState());
     return socketService.onConnectionStateChange((state) => {
+      logChatRoom('socket-state-change', { nextState: state });
       setSocketConnectionState(state);
     });
   }, []);
@@ -778,6 +800,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       const lastOtherMsg = [...messages].reverse().find(m => m.fromAccountId.toString() !== user?.userId);
       if (lastOtherMsg && lastOtherMsg.msgId > 0) {
         import('../../services/socketService').then(({ socketService }) => {
+          logChatRoom('mark-read-dispatch', { lastMsgId: lastOtherMsg.msgId });
           socketService.markAsRead(conversation.conversationId, lastOtherMsg.msgId);
         });
       }
