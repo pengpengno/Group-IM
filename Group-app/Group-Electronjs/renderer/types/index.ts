@@ -110,6 +110,37 @@ export interface ApiResponse<T = any> {
   error?: string;
 }
 
+export type PushPlatform = 'ANDROID' | 'IOS' | 'WEB';
+export type PushProvider = 'FCM' | 'APNS' | 'WEB_PUSH';
+
+export interface PushEndpointUpsertRequest {
+  endpointId?: string | null;
+  platform: PushPlatform;
+  provider: PushProvider;
+  deviceId?: string | null;
+  token?: string | null;
+  endpointUrl?: string | null;
+  p256dh?: string | null;
+  auth?: string | null;
+  locale?: string | null;
+  appVersion?: string | null;
+  sandbox?: boolean;
+  enabled?: boolean;
+}
+
+export interface PushEndpointDTO {
+  endpointId: string;
+  platform: PushPlatform;
+  provider: PushProvider;
+  deviceId?: string | null;
+  locale?: string | null;
+  appVersion?: string | null;
+  sandbox: boolean;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export const MessageType = {
   TEXT: 'TEXT',
   IMAGE: 'IMAGE',

@@ -13,8 +13,9 @@ import MeetingList from '../chat/MeetingList';
 import ContactsList from '../contacts/ContactsList';
 import ContactsScreen from '../contacts/ContactsScreen';
 import AdminPanel from '../admin/AdminPanel';
-import { createPrivateChat } from '../chat/chatSlice';
+import { createPrivateChat, setActiveConversation } from '../chat/chatSlice';
 import { authAPI } from '../../services/api/apiClient';
+import { requestAndSyncBrowserNotifications } from '../../services/notificationEndpointService';
 import './Dashboard.css';
 import { useVideoCall } from '../video-call/useVideoCall';
 import { meetingAPI } from '../../services/api/apiClient';
@@ -30,6 +31,7 @@ const Dashboard: React.FC = () => {
     const [isSearching, setIsSearching] = useState(false);
     const [isSwitchingCompany, setIsSwitchingCompany] = useState(false);
     const [showWorkspacePopover, setShowWorkspacePopover] = useState(false);
+    const [highlightedMeetingRoomId, setHighlightedMeetingRoomId] = useState<string | null>(null);
 
     // DEBUG: Monitor Auth State
     useEffect(() => {
@@ -80,6 +82,21 @@ const Dashboard: React.FC = () => {
 
     const handleLogout = () => {
         dispatch(logout());
+    };
+
+    const handleEnableNotifications = async () => {
+        try {
+            const endpoint = await requestAndSyncBrowserNotifications();
+            if (!endpoint) {
+                console.warn('Notification permission not granted or unsupported.');
+                return;
+            }
+
+            electronAPI.showNotification('Notifications enabled', 'Message and meeting alerts are now ready on this device.');
+            console.log('Push endpoint synced:', endpoint);
+        } catch (error) {
+            console.error('Failed to enable notifications:', error);
+        }
     };
 
     const handleSearch = async (query: string) => {
@@ -136,6 +153,7 @@ const Dashboard: React.FC = () => {
 
     const handleJoinMeeting = async (roomId: string) => {
         setActiveTab('meetings');
+        setHighlightedMeetingRoomId(roomId);
         joinMeeting(roomId);
 
         try {
@@ -266,6 +284,33 @@ const Dashboard: React.FC = () => {
         }, 300);
         return () => clearTimeout(timer);
     }, [searchQuery]);
+
+    useEffect(() => {
+        const handler = (event: Event) => {
+            const detail = (event as CustomEvent<{ type: 'chat' | 'meeting'; conversationId?: number; roomId?: string; autoJoin?: boolean }>).detail;
+            if (!detail) {
+                return;
+            }
+
+            if (detail.type === 'chat' && detail.conversationId) {
+                setHighlightedMeetingRoomId(null);
+                dispatch(setActiveConversation(detail.conversationId));
+                setActiveTab('chats');
+                return;
+            }
+
+            if (detail.type === 'meeting' && detail.roomId) {
+                setActiveTab('meetings');
+                setHighlightedMeetingRoomId(detail.roomId);
+                if (detail.autoJoin) {
+                    handleJoinMeeting(detail.roomId);
+                }
+            }
+        };
+
+        window.addEventListener('group:navigate', handler as EventListener);
+        return () => window.removeEventListener('group:navigate', handler as EventListener);
+    }, [dispatch]);
 
     return (
         <div className="dashboard-container">
@@ -468,7 +513,7 @@ const Dashboard: React.FC = () => {
                             <h1>Group IM Workspace</h1>
                         </div>
                         <div className="header-actions">
-                            <button className="action-btn" title="Notifications">
+                            <button className="action-btn" title="Notifications" onClick={handleEnableNotifications}>
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                                     <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -594,7 +639,7 @@ const Dashboard: React.FC = () => {
 
                     {activeTab === 'meetings' && (
                         <div className="meetings-view-container" style={{ height: '100%', background: '#f9fafb' }}>
-                            <MeetingList onJoin={handleJoinMeeting} />
+                            <MeetingList onJoin={handleJoinMeeting} highlightedRoomId={highlightedMeetingRoomId} />
                         </div>
                     )}
 

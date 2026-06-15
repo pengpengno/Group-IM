@@ -5,9 +5,22 @@ export interface IceCandidateData {
 }
 
 export interface WebrtcMessage {
-    type: 'call/request' | 'call/accept' | 'call/end' | 'call/failed' | 'offer' | 'answer' | 'candidate';
+    type:
+        | 'meeting/request'
+        | 'meeting/join'
+        | 'meeting/participants'
+        | 'meeting/participant-joined'
+        | 'meeting/participant-left'
+        | 'meeting/reject'
+        | 'meeting/leave'
+        | 'meeting/end'
+        | 'offer'
+        | 'answer'
+        | 'candidate';
     fromUser: string;
-    toUser: string;
+    toUser?: string;
+    roomId?: string;
+    participants?: Array<Record<string, any>>;
     sdp?: string;
     sdpType?: 'offer' | 'answer';
     candidate?: IceCandidateData;

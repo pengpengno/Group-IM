@@ -64,7 +64,6 @@ import com.github.im.group.ui.chat.GlobalAudioBar
 import com.github.im.group.ui.contacts.ContactsUI
 import com.github.im.group.ui.profile.ProfileUI
 import com.github.im.group.ui.video.DraggableVideoWindow
-import com.github.im.group.ui.video.VideoCallIncomingNotification
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.LoginState
 import com.github.im.group.viewmodel.UserViewModel
@@ -194,24 +193,6 @@ fun ChatMainScreen(
         }
         1 -> "联系人"
         else -> "个人中心"
-    }
-    
-    val webRTCManager = koinInject<com.github.im.group.sdk.WebRTCManager>()
-    val videoCallState by webRTCManager.videoCallState.collectAsState()
-    
-    if (videoCallState.callStatus == com.github.im.group.ui.video.VideoCallStatus.INCOMING) {
-        videoCallState.caller?.let { caller ->
-            VideoCallIncomingNotification(
-                caller = caller,
-                onAccept = {
-                    webRTCManager.acceptCall("")
-                    isVideoCallMinimized = false
-                },
-                onReject = {
-                    webRTCManager.rejectCall("")
-                }
-            )
-        }
     }
     
     ModalNavigationDrawer(

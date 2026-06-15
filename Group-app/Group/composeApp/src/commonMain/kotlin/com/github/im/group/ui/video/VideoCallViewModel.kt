@@ -162,6 +162,41 @@ class VideoCallViewModel(
         }
     }
 
+    fun handleNotificationOpen(caller: UserInfo, callId: String) {
+        if (_videoCallState.value.callStatus == VideoCallStatus.INCOMING &&
+            _videoCallState.value.callId == callId
+        ) {
+            return
+        }
+        receiveCall(caller, callId)
+    }
+
+    fun handleNotificationAccept(caller: UserInfo, callId: String) {
+        if (_videoCallState.value.callStatus != VideoCallStatus.INCOMING ||
+            _videoCallState.value.callId != callId
+        ) {
+            receiveCall(caller, callId)
+        }
+        acceptCall()
+    }
+
+    fun handleNotificationReject(caller: UserInfo, callId: String) {
+        if (_videoCallState.value.callStatus == VideoCallStatus.INCOMING &&
+            _videoCallState.value.callId == callId
+        ) {
+            rejectCall()
+            return
+        }
+
+        currentCallId = callId
+        _videoCallState.value = _videoCallState.value.copy(
+            caller = caller,
+            callId = callId
+        )
+        webRTCManager?.rejectCall(callId)
+        finishCall(VideoCallStatus.ENDED)
+    }
+
     fun endCall() {
         if (isEndingCall || _videoCallState.value.callStatus == VideoCallStatus.ENDED) return
 

@@ -3,6 +3,7 @@ import { RootState } from '../store';
 import { getElectronAPI } from './api/electronAPI';
 import { addMessage, fetchConversations, fetchMessages } from '../features/chat/chatSlice';
 import { BaseMessagePkg, UserInfo, Heartbeat, AckMessage } from './protoDefinitions';
+import { notificationRuntimeService } from './notificationRuntimeService';
 import Long from 'long';
 import { EventEmitter } from 'events';
 
@@ -86,6 +87,9 @@ class SocketService extends EventEmitter {
   }
 
   private handleWebRTCMessage(message: any) {
+    if (message?.type === 'meeting/request') {
+      notificationRuntimeService.handleMeetingInvite(message);
+    }
     this.emit('webrtc-message', message);
   }
 
@@ -449,7 +453,7 @@ class SocketService extends EventEmitter {
         if (typeof event.data === 'string') {
           try {
             const message = JSON.parse(event.data);
-            if (message.type && ['offer', 'answer', 'candidate', 'meeting/request', 'meeting/participants', 'participant/joined', 'participant/left', 'meeting/rejected', 'meeting/join', 'heartbeat'].includes(message.type)) {
+            if (message.type && ['offer', 'answer', 'candidate', 'meeting/request', 'meeting/participants', 'meeting/participant-joined', 'meeting/participant-left', 'meeting/reject', 'meeting/join', 'meeting/leave', 'meeting/end', 'heartbeat'].includes(message.type)) {
               this.handleWebRTCMessage(message);
             } else {
               console.log('Unknown JSON message:', message);
@@ -687,6 +691,7 @@ class SocketService extends EventEmitter {
 
         if (payload.notification && this.store && this.userId) {
           console.log('Received realtime notification package:', payload.notification);
+          notificationRuntimeService.handleRealtimeNotification(payload.notification, this.store);
           // 当前 web 端还没有完整的通知状态树，先刷新会话列表兜底，避免实时变更丢失。
           (this.store.dispatch as any)(fetchConversations(this.userId));
         }

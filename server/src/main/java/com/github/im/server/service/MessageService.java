@@ -18,6 +18,7 @@ import com.github.im.common.connect.connection.server.BindAttr;
 import com.github.im.common.connect.model.proto.BaseMessage;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.server.service.RedisMessageRouter;
+import com.github.im.server.service.notification.ClientEventPublisher;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Predicate;
@@ -59,6 +60,7 @@ public class MessageService {
     
     private final RedisMessageRouter redisMessageRouter;
     private final ObjectMapper objectMapper;
+    private final ClientEventPublisher clientEventPublisher;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -275,7 +277,9 @@ public class MessageService {
                 .build();
 
         // 3. 异步推送到在线客户端
-        pushToMembers(chatMessage.getConversationId(), chatMessage.getFromUser().getUserId(), newBaseMessage);
+        List<User> members = conversationService.getMembersByGroupId(conversationId);
+        pushToMembers(members, chatMessage.getFromUser().getUserId(), newBaseMessage);
+        clientEventPublisher.publishChatMessageCreated(savedMessage, savedMessage.getFromAccountId(), members);
 
         return convertMessage(savedMessage);
     }
@@ -284,16 +288,21 @@ public class MessageService {
      * 推送消息给会话中的所有成员
      */
     public void pushToMembers(Long conversationId, Long fromUserId, BaseMessage.BaseMessagePkg pushPkg) {
-        var membersByGroupId = conversationService.getMembersByGroupId(conversationId);
-        if (membersByGroupId != null) {
-            membersByGroupId.parallelStream().forEach(member -> {
-                try {
-                    redisMessageRouter.send(fromUserId, member.getUserId(), pushPkg);
-                } catch (Exception e) {
-                    log.error("Failed to route message to {}: {}", member.getUserId(), e.getMessage());
-                }
-            });
+        pushToMembers(conversationService.getMembersByGroupId(conversationId), fromUserId, pushPkg);
+    }
+
+    private void pushToMembers(List<User> members, Long fromUserId, BaseMessage.BaseMessagePkg pushPkg) {
+        if (members == null) {
+            return;
         }
+
+        members.parallelStream().forEach(member -> {
+            try {
+                redisMessageRouter.send(fromUserId, member.getUserId(), pushPkg);
+            } catch (Exception e) {
+                log.error("Failed to route message to {}: {}", member.getUserId(), e.getMessage());
+            }
+        });
     }
 
     /**

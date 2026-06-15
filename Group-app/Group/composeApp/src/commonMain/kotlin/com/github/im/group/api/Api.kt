@@ -471,6 +471,30 @@ object MeetingApi {
     }
 }
 
+object PushApi {
+    suspend fun listEndpoints(): List<PushEndpointDTO> {
+        return ProxyApi.request<Unit, ApiResponse<List<PushEndpointDTO>>>(
+            hmethod = HttpMethod.Get,
+            path = "/api/push/endpoints"
+        ).data ?: emptyList()
+    }
+
+    suspend fun upsertEndpoint(request: PushEndpointUpsertRequest): PushEndpointDTO {
+        return ProxyApi.request<PushEndpointUpsertRequest, ApiResponse<PushEndpointDTO>>(
+            hmethod = HttpMethod.Post,
+            path = "/api/push/endpoints",
+            body = request
+        ).data ?: throw IllegalStateException("Push endpoint response is empty")
+    }
+
+    suspend fun deleteEndpoint(endpointId: String) {
+        ProxyApi.request<Unit, ApiResponse<Unit>>(
+            hmethod = HttpMethod.Delete,
+            path = "/api/push/endpoints/$endpointId"
+        )
+    }
+}
+
 /**
  * 好友 API
  */
@@ -595,6 +619,36 @@ data class MeetingRes(
     val startedAt: LocalDateTime? = null,
     val endedAt: LocalDateTime? = null,
     val participants: List<MeetingParticipantRes> = emptyList()
+)
+
+@Serializable
+data class PushEndpointUpsertRequest(
+    val endpointId: String? = null,
+    val platform: String,
+    val provider: String,
+    val deviceId: String? = null,
+    val token: String? = null,
+    val endpointUrl: String? = null,
+    val p256dh: String? = null,
+    val auth: String? = null,
+    val locale: String? = null,
+    val appVersion: String? = null,
+    val sandbox: Boolean = false,
+    val enabled: Boolean = true
+)
+
+@Serializable
+data class PushEndpointDTO(
+    val endpointId: String,
+    val platform: String,
+    val provider: String,
+    val deviceId: String? = null,
+    val locale: String? = null,
+    val appVersion: String? = null,
+    val sandbox: Boolean = false,
+    val enabled: Boolean = true,
+    val createdAt: Long = 0,
+    val updatedAt: Long = 0
 )
 
 

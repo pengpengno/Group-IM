@@ -208,16 +208,16 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
         try {
             val msg = json.decodeFromString<WebrtcMessage>(text)
             when (msg.type) {
-                "meeting/request", "call/request" -> handleCallRequest(msg)
+                "meeting/request" -> handleCallRequest(msg)
                 "meeting/join" -> handleMeetingJoin(msg)
                 "meeting/participants" -> handleMeetingParticipants(msg)
                 "meeting/participant-joined" -> handleParticipantJoined(msg)
                 "meeting/participant-left" -> handleParticipantLeft(msg)
-                "meeting/reject", "call/failed" -> handleCallFailed(msg)
+                "meeting/reject" -> handleCallFailed(msg)
                 "offer" -> handleOffer(msg)
                 "answer" -> handleAnswer(msg)
                 "candidate" -> handleIceCandidate(msg)
-                "meeting/leave", "call/end" -> handleHangup(msg)
+                "meeting/leave" -> handleHangup(msg)
                 "meeting/end" -> cleanup()
                 else -> Log.d("WebRTC", "Unknown type: ${msg.type}")
             }
@@ -432,7 +432,7 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
         
         participantIds.forEach { targetId ->
             sendWebSocketMessage(WebrtcMessage(
-                type = "call/request", fromUser = userId, toUser = targetId,
+                type = "meeting/request", fromUser = userId, toUser = targetId,
                 roomId = roomId, participants = participants
             ))
         }
@@ -452,7 +452,15 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
 
     override fun acceptCall(callId: String) { joinMeeting(callId) }
     override fun rejectCall(callId: String) {
-        sendWebSocketMessage(WebrtcMessage(type = "call/end", fromUser = userId, roomId = callId))
+        sendWebSocketMessage(
+            WebrtcMessage(
+                type = "meeting/reject",
+                fromUser = userId,
+                toUser = _connectionState.value.caller?.userId?.toString(),
+                roomId = callId,
+                reason = "Call rejected"
+            )
+        )
         cleanup()
     }
     override fun endCall() { leaveMeeting() }

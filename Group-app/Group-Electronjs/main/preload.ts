@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Notification related
   showNotification: (options: any) => ipcRenderer.invoke('show-notification', options),
   requestNotificationPermission: () => ipcRenderer.invoke('request-notification-permission'),
+  onNotificationClick: (handler: (data: any) => void) => {
+    ipcRenderer.on('notification:click', (_, data) => handler(data));
+  },
 
   // Socket related
   socketConnect: (config: any) => ipcRenderer.invoke('socket:connect', config),

@@ -75,38 +75,36 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
             SignalMessage msg = mapper.readValue(message.getPayload(), SignalMessage.class);
             String from = msg.getFromUser();
             String to = msg.getToUser();
-            String type = msg.getType().toLowerCase();
+            String type = normalizeSignalType(msg.getType());
             cacheSignalProfile(msg);
             log.info("Received Text Signal: type={}, from={}, to={}", type, from, to);
 
             switch (type) {
-                case "call/request":
-                    forward(to, message);
-                    break;
-                case "call/accept":
-                    inCall.put(from, to);
-                    inCall.put(to, from);
-                    forward(to, message);
-                    break;
-                case "call/end":
-                    String peer = inCall.get(from);
-                    if (peer != null) inCall.remove(peer);
-                    forward(peer, message);
-                    break;
                 case "offer":
                 case "answer":
                 case "candidate":
-                    forward(to, message);
+                    forward(to, msg, type);
                     break;
                 case "meeting/request":
                 case "meeting/reject":
-                    forward(to, message);
+                    forward(to, msg, type);
                     break;
                 case "meeting/join":
+                    if (to != null && !to.isBlank()) {
+                        inCall.put(from, to);
+                        inCall.put(to, from);
+                    }
                     handleMeetingJoin(msg);
                     break;
                 case "meeting/leave":
+                    String peer = inCall.remove(from);
+                    if (peer != null) {
+                        inCall.remove(peer);
+                    }
                     handleMeetingLeave(msg.getRoomId(), from);
+                    break;
+                case "ping":
+                case "pong":
                     break;
                 default:
                     log.warn("Unknown text message type: " + type);
@@ -233,7 +231,7 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
             removeUserFromMeetings(userIdString);
             String peer = inCall.remove(userIdString);
             if (peer != null) inCall.remove(peer);
-            send(peer, "{\"type\":\"call/end\",\"fromUser\":\"" + userIdString + "\"}");
+            send(peer, "{\"type\":\"meeting/leave\",\"fromUser\":\"" + userIdString + "\"}");
         } else {
             String userIdString = extractUserId(session.getUri());
             if (userIdString != null) {
@@ -241,9 +239,25 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
                 removeUserFromMeetings(userIdString);
                 String peer = inCall.remove(userIdString);
                 if (peer != null) inCall.remove(peer);
-                send(peer, "{\"type\":\"call/end\",\"fromUser\":\"" + userIdString + "\"}");
+                send(peer, "{\"type\":\"meeting/leave\",\"fromUser\":\"" + userIdString + "\"}");
             }
         }
+    }
+
+    private String normalizeSignalType(String type) {
+        if (type == null || type.isBlank()) {
+            return "";
+        }
+
+        return switch (type.toLowerCase()) {
+            case "call/request" -> "meeting/request";
+            case "call/accept" -> "meeting/join";
+            case "call/end" -> "meeting/leave";
+            case "call/failed", "meeting/rejected" -> "meeting/reject";
+            case "participant/joined" -> "meeting/participant-joined";
+            case "participant/left" -> "meeting/participant-left";
+            default -> type.toLowerCase();
+        };
     }
 
     private void cacheSignalProfile(SignalMessage msg) {
@@ -363,7 +377,7 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
         }
 
         Map<String, Object> payload = new HashMap<>();
-        payload.put("type", type);
+        payload.put("type", normalizeSignalType(type));
         payload.put("roomId", roomId);
         if (extraData != null) {
             payload.putAll(extraData);
@@ -380,7 +394,7 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
      */
     public void sendToUser(String userId, String type, Map<String, Object> extraData) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("type", type);
+        payload.put("type", normalizeSignalType(type));
         if (extraData != null) {
             payload.putAll(extraData);
         }
@@ -412,11 +426,30 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
-    private void forward(String toUser, TextMessage msg) {
-        WebSocketSession target = sessions.get(toUser);
-        if (target != null && target.isOpen()) {
-            send(target, msg.getPayload());
+    private void forward(String toUser, SignalMessage msg, String normalizedType) {
+        if (toUser == null || toUser.isBlank()) {
+            return;
         }
+
+        WebSocketSession target = sessions.get(toUser);
+        if (target == null || !target.isOpen()) {
+            return;
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("type", normalizedType);
+        if (msg.getFromUser() != null) payload.put("fromUser", msg.getFromUser());
+        if (msg.getFromUserName() != null) payload.put("fromUserName", msg.getFromUserName());
+        if (msg.getFromAvatar() != null) payload.put("fromAvatar", msg.getFromAvatar());
+        if (msg.getToUser() != null) payload.put("toUser", msg.getToUser());
+        if (msg.getRoomId() != null) payload.put("roomId", msg.getRoomId());
+        if (msg.getSdp() != null) payload.put("sdp", msg.getSdp());
+        if (msg.getSdpType() != null) payload.put("sdpType", msg.getSdpType());
+        if (msg.getReason() != null) payload.put("reason", msg.getReason());
+        if (msg.getParticipants() != null) payload.put("participants", msg.getParticipants());
+        if (msg.getCandidate() != null) payload.put("candidate", msg.getCandidate());
+
+        send(target, toJson(payload));
     }
 
     private void send(String toUser, String payload) {

@@ -12,6 +12,10 @@ ipcMain.handle('show-notification', async (_, options) => {
         silent,
         ...otherOptions
       });
+
+      notification.on('click', () => {
+        _.sender.send('notification:click', options?.data || null);
+      });
       
       notification.show();
       

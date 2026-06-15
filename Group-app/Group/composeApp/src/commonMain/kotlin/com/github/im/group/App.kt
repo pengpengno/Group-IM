@@ -1,10 +1,13 @@
 package com.github.im.group
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.github.im.group.sdk.VideoPlayerManager
 import com.github.im.group.ui.AppStartScreen
+import com.github.im.group.ui.video.CallNotificationAction
+import com.github.im.group.ui.video.CallNotificationCenter
 import com.github.im.group.ui.video.VideoCallLauncher
 import com.github.im.group.ui.video.VideoCallViewModel
 import com.github.im.group.ui.video.VideoCallStatus
@@ -29,7 +32,18 @@ fun App() {
 fun GlobalVideoCallOverlay() {
     val videoCallViewModel: VideoCallViewModel = koinViewModel()
     val videoCallState by videoCallViewModel.videoCallState.collectAsState()
+    val callNotificationEvent by CallNotificationCenter.event.collectAsState()
     val remoteUser = videoCallState.callee ?: videoCallState.caller 
+
+    LaunchedEffect(callNotificationEvent) {
+        val event = callNotificationEvent ?: return@LaunchedEffect
+        when (event.action) {
+            CallNotificationAction.OPEN -> videoCallViewModel.handleNotificationOpen(event.caller, event.roomId)
+            CallNotificationAction.ACCEPT -> videoCallViewModel.handleNotificationAccept(event.caller, event.roomId)
+            CallNotificationAction.REJECT -> videoCallViewModel.handleNotificationReject(event.caller, event.roomId)
+        }
+        CallNotificationCenter.clear()
+    }
     
     if (videoCallState.callStatus != VideoCallStatus.IDLE && remoteUser != null) {
         VideoCallLauncher(remoteUser)

@@ -378,7 +378,6 @@ export class WebRTCService extends EventEmitter {
 
     switch (message.type) {
       case 'meeting/request':
-      case 'call/request':
         this.handleMeetingRequest(message);
         break;
       case 'meeting/participants':
@@ -391,7 +390,6 @@ export class WebRTCService extends EventEmitter {
         this.handleParticipantLeft(message);
         break;
       case 'meeting/reject':
-      case 'call/failed':
         this.handleMeetingRejected(message);
         break;
       case 'offer':
@@ -404,7 +402,6 @@ export class WebRTCService extends EventEmitter {
         this.handleIceCandidate(message);
         break;
       case 'meeting/leave':
-      case 'call/end':
         this.handleRemoteHangup(message.fromUser);
         break;
       case 'meeting/end':

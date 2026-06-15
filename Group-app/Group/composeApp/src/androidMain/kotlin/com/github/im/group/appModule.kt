@@ -6,6 +6,7 @@ import com.github.im.group.config.SocketClient
 import com.github.im.group.connect.AndroidSocketClient
 import com.github.im.group.db.AndroidDatabaseDriverFactory
 import com.github.im.group.listener.ConnectionLoginListener
+import com.github.im.group.listener.PushEndpointLoginListener
 import com.github.im.group.listener.WebRTCLoginListener
 import com.github.im.group.manager.ChatSessionManager
 import com.github.im.group.manager.FileStorageManager
@@ -15,6 +16,7 @@ import com.github.im.group.manager.LoginStateManager
 import com.github.im.group.manager.MessageRouter
 import com.github.im.group.manager.UserDataSyncListener
 import com.github.im.group.manager.VoiceFileManager
+import com.github.im.group.notification.AndroidPushEndpointRegistrar
 import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.ConversationRepository
 import com.github.im.group.repository.FilesRepository
@@ -61,6 +63,7 @@ val appmodule = module {
     single<FilePicker> { AndroidFilePicker(androidContext()) }
     single<AudioPlayer> { AndroidAudioPlayer(androidContext()) }
     single<WebRTCManager> { AndroidWebRTCManager(androidContext()) }
+    single { AndroidPushEndpointRegistrar(androidContext()) }
     single { UserRepository(get()) }
     single { ConversationRepository(get(),get()) }
     single { ChatMessageRepository(get(),get()) }
@@ -152,7 +155,8 @@ val appmodule = module {
         listOf(
             UserDataSyncListener(get()),
             ConnectionLoginListener(get()),
-            WebRTCLoginListener(get())
+            WebRTCLoginListener(get()),
+            PushEndpointLoginListener(get())
         )
     }
     single {

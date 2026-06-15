@@ -7,6 +7,7 @@ import './MeetingList.css';
 
 interface MeetingListProps {
   onJoin: (roomId: string) => void;
+  highlightedRoomId?: string | null;
 }
 
 type ComposerMode = 'instant' | 'scheduled';
@@ -208,7 +209,7 @@ const MeetingComposerDialog: React.FC<ComposerDialogProps> = ({
   );
 };
 
-const MeetingList: React.FC<MeetingListProps> = ({ onJoin }) => {
+const MeetingList: React.FC<MeetingListProps> = ({ onJoin, highlightedRoomId }) => {
   const { conversations } = useSelector((state: RootState) => state.chat);
   const currentUserId = useSelector((state: RootState) => state.auth.user?.userId);
 
@@ -462,8 +463,12 @@ const MeetingList: React.FC<MeetingListProps> = ({ onJoin }) => {
         <div className="meetings-grid">
           {visibleMeetings.map((meeting) => {
             const status = getMeetingStatus(meeting.status);
+            const isHighlighted = !!highlightedRoomId && meeting.roomId === highlightedRoomId;
             return (
-              <div key={meeting.meetingId} className={`meeting-card meeting-card-${status.tone}`}>
+              <div
+                key={meeting.meetingId}
+                className={`meeting-card meeting-card-${status.tone} ${isHighlighted ? 'meeting-card-highlighted' : ''}`}
+              >
                 <div className="meeting-card-top">
                   <span className={`meeting-status-badge ${status.tone}`}>{status.text}</span>
                   <span className="meeting-time">{formatDateTime(meeting.scheduledAt || meeting.startedAt)}</span>

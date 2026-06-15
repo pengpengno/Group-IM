@@ -174,6 +174,33 @@ export const meetingAPI = {
   }
 };
 
+export const pushAPI = {
+  listEndpoints: async () => {
+    return http.get('/api/push/endpoints');
+  },
+
+  upsertEndpoint: async (payload: {
+    endpointId?: string | null;
+    platform: 'ANDROID' | 'IOS' | 'WEB';
+    provider: 'FCM' | 'APNS' | 'WEB_PUSH';
+    deviceId?: string | null;
+    token?: string | null;
+    endpointUrl?: string | null;
+    p256dh?: string | null;
+    auth?: string | null;
+    locale?: string | null;
+    appVersion?: string | null;
+    sandbox?: boolean;
+    enabled?: boolean;
+  }) => {
+    return http.post('/api/push/endpoints', payload);
+  },
+
+  deleteEndpoint: async (endpointId: string) => {
+    return http.delete(`/api/push/endpoints/${endpointId}`);
+  }
+};
+
 export const fileAPI = {
   // POST /api/files/uploadId
   getUploadId: async (request: { size: number; fileName: string; duration?: number }) => {

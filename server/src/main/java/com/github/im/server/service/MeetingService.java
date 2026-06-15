@@ -19,6 +19,7 @@ import com.github.im.server.model.enums.MeetingStatus;
 import com.github.im.server.handler.SignalWebSocketHandler;
 import com.github.im.server.repository.MeetingParticipantRepository;
 import com.github.im.server.repository.MeetingRepository;
+import com.github.im.server.service.notification.ClientEventPublisher;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +43,7 @@ public class MeetingService {
     private final MessageService messageService;
     private final ObjectMapper objectMapper;
     private final SignalWebSocketHandler signalHandler;
+    private final ClientEventPublisher clientEventPublisher;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -267,10 +269,17 @@ public class MeetingService {
                 .collect(Collectors.toList());
         data.put("participants", others);
 
+        List<User> recipients = participantIds.stream()
+                .filter(id -> !id.equals(host.getUserId()))
+                .map(id -> entityManager.getReference(User.class, id))
+                .collect(Collectors.toList());
+
         for (Long userId : participantIds) {
             if (userId.equals(host.getUserId())) continue;
             signalHandler.sendToUser(userId.toString(), "meeting/request", data);
         }
+
+        clientEventPublisher.publishMeetingInviteCreated(meeting, host, recipients);
     }
 
     private MeetingDTO mapMeeting(Meeting meeting) {

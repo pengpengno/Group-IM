@@ -165,6 +165,7 @@ kotlin {
 
     val androidMain by getting {
         dependencies {
+            implementation(libs.androidx.core.ktx)
 
             //             图片文件预览
             implementation("io.coil-kt.coil3:coil-compose:3.3.0")
@@ -200,6 +201,7 @@ kotlin {
 
             // WebRTC support - Only for Android
             implementation("com.shepeliev:webrtc-kmp:0.125.11")
+            implementation("com.google.firebase:firebase-messaging-ktx:24.1.0")
         }
     }
 
@@ -270,4 +272,3 @@ sqldelight {
 //        }
 //    }
 //}
-

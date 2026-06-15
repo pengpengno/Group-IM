@@ -67,7 +67,9 @@ export interface ElectronAPI {
   queryUsers: (query: string, token?: string) => Promise<ApiSearchResults>;
 
   // 通知相关
-  showNotification: (title: string, body: string) => void;
+  showNotification: (title: string, body: string, data?: any) => void;
+  requestNotificationPermission?: () => Promise<NotificationPermission | 'granted' | 'denied' | 'default'>;
+  onNotificationClick?: (handler: (data: any) => void) => void;
 
   // Socket相关
   socketConnect: (config: { host: string; port: number; userId: string; token: string; username: string }) => Promise<any>;
@@ -225,6 +227,12 @@ const webAPI: ElectronAPI = {
       new Notification(title, { body });
     }
   },
+  requestNotificationPermission: async () => {
+    if (!('Notification' in window)) {
+      return 'denied';
+    }
+    return Notification.requestPermission();
+  },
 
   // Socket相关 - Web环境下的实现为空或返回错误
   socketConnect: async (config: { host: string; port: number; userId: string; token: string; username: string }) => {
@@ -265,6 +273,27 @@ export function getElectronAPI(): ElectronAPI {
     // Wrap methods to automatically include token from localStorage
     return {
       ...electron,
+      showNotification: (title: string, body: string, data?: any) => {
+        if (electron.showNotification) {
+          return electron.showNotification({ title, body, data });
+        }
+        return webAPI.showNotification(title, body);
+      },
+      requestNotificationPermission: async () => {
+        if (electron.requestNotificationPermission) {
+          const result = await electron.requestNotificationPermission();
+          if (typeof result === 'string') {
+            return result;
+          }
+          return result?.granted ? 'granted' : 'denied';
+        }
+        return webAPI.requestNotificationPermission?.() ?? 'denied';
+      },
+      onNotificationClick: (handler: (data: any) => void) => {
+        if (electron.onNotificationClick) {
+          electron.onNotificationClick(handler);
+        }
+      },
       socketMarkRead: async (data: any) => {
         if (electron.socketMarkRead) {
           return electron.socketMarkRead(data);

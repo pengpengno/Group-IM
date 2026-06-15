@@ -7,6 +7,8 @@ import Notification from './components/common/Notification';
 import { webRTCService } from './services/WebRTCService';
 import { socketService } from './services/socketService';
 import { isElectronEnvironment } from './services/api/electronAPI';
+import { syncCurrentPushEndpoint, disableCurrentPushEndpoint } from './services/notificationEndpointService';
+import { notificationRuntimeService } from './services/notificationRuntimeService';
 import { store } from './store';
 
 const App: React.FC = () => {
@@ -26,10 +28,17 @@ const App: React.FC = () => {
       // Desktop uses Electron IPC + TCP for chat realtime sync.
       // Web uses the same socketService, but it degrades to browser WebSocket on /ws.
       socketService.initialize(store, user.userId, __TCP_HOST__, Number(__TCP_PORT__), token, user.username);
+      notificationRuntimeService.bindElectronNotificationClicks();
+      syncCurrentPushEndpoint().catch((error) => {
+        console.warn('Failed to sync browser push endpoint:', error);
+      });
 
       return () => {
         webRTCService.destroy();
         socketService.disconnect();
+        disableCurrentPushEndpoint().catch((error) => {
+          console.warn('Failed to disable browser push endpoint:', error);
+        });
       };
     }
   }, [isAuthenticated, user]);
