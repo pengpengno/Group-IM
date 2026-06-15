@@ -236,4 +236,21 @@ public class ConversationService {
         // 如果没有找到群组，则返回空列表
         return Collections.emptyList();
     }
+
+    public List<User> getMembersByGroupId0(Long groupId) {
+
+        // 尝试通过群组ID查找群组信息
+        Optional<Conversation> group = conversationRepository.findById(groupId);
+
+        // 检查是否找到了对应的群组
+        if (group.isPresent()) {
+            // 如果群组存在，则将群组成员转换为 UserInfo 对象列表并返回
+            var conversation = group.get();
+            var members = conversation.getMembers();
+
+            return groupMemberMapper.toUserList(members);
+        }
+        // 如果没有找到群组，则返回空列表
+        return Collections.emptyList();
+    }
 }

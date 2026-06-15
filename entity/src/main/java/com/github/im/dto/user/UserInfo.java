@@ -10,14 +10,7 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserInfo extends UserBasicInfo implements Serializable {
-//    private Long userId;
 
-//    private String username;
-//
-//    @JsonInclude(JsonInclude.Include.NON_NULL)
-//    private String avatar;
-//
-//    private String email;  // 邮箱
 //
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String token ;  // token

@@ -3,6 +3,7 @@ package com.github.im.server.mapstruct;
 import com.github.im.dto.GroupMemberDTO;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.server.model.ConversationMember;
+import com.github.im.server.model.User;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
@@ -26,5 +27,14 @@ public interface GroupMemberMapper {
 
     List<UserInfo> toUserInfoList(List<ConversationMember> members);
 
+
+
+    @Mapping(source = "user.userId", target = "userId")
+    @Mapping(source = "user.username", target = "username")
+    @Mapping(source = "user.email", target = "email")
+    User toUser(ConversationMember conversationMember);
+
+
+    List<User> toUserList(List<ConversationMember> members);
 
 }

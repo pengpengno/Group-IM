@@ -32,6 +32,7 @@ class SocketService extends EventEmitter {
   private browserCoordinationReady = false;
   private connectionState: 'disconnected' | 'connecting' | 'reconnecting' | 'connected' = 'disconnected';
   private pendingPayloads: any[] = [];
+  private pendingSignalingMessages: any[] = [];
   private readonly onStorage = (event: StorageEvent) => {
     if (!this.isBrowserEnvironment() || event.key !== this.getLeaderStorageKey()) {
       return;
@@ -66,6 +67,24 @@ class SocketService extends EventEmitter {
 
   public getWebSocket(): WebSocket | null {
     return this.signalingWS;
+  }
+
+  public sendSignalingMessage(message: any): { accepted: boolean; queued: boolean } {
+    const socket = this.getActiveSignalingSocket();
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(message));
+      this.log('signaling-send-success', { type: message?.type, roomId: message?.roomId, toUser: message?.toUser });
+      return { accepted: true, queued: false };
+    }
+
+    if (!this.intentionToClose && this.enqueueSignalingMessage(message)) {
+      this.setConnectionState('reconnecting');
+      this.log('signaling-send-queued', { type: message?.type, roomId: message?.roomId, toUser: message?.toUser });
+      return { accepted: true, queued: true };
+    }
+
+    console.error('[SocketService] signaling-send-failed', message);
+    return { accepted: false, queued: false };
   }
 
   public getConnectionState(): 'disconnected' | 'connecting' | 'reconnecting' | 'connected' {
@@ -240,6 +259,7 @@ class SocketService extends EventEmitter {
     this.signalingWS = new WebSocket(url);
     this.signalingWS.onopen = () => {
       this.log('signaling-ws-open');
+      this.flushPendingSignalingMessages();
     };
     this.signalingWS.onmessage = (event) => {
       if (typeof event.data === 'string') {
@@ -447,6 +467,7 @@ class SocketService extends EventEmitter {
         this.registerToRemoteWS();
         this.startHeartbeat();
         this.flushPendingPayloads();
+        this.flushPendingSignalingMessages();
       };
 
       this.socket.onmessage = (event) => {
@@ -565,6 +586,43 @@ class SocketService extends EventEmitter {
     } catch (err) {
       console.error('[SocketService] ws-binary-decode-failed', err);
     }
+  }
+
+  private getActiveSignalingSocket(): WebSocket | null {
+    if (this.signalingWS?.readyState === WebSocket.OPEN) {
+      return this.signalingWS;
+    }
+
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      return this.socket;
+    }
+
+    return null;
+  }
+
+  private enqueueSignalingMessage(message: any): boolean {
+    if (this.pendingSignalingMessages.length >= SocketService.MAX_PENDING_PAYLOADS) {
+      console.error('Pending signaling message queue is full');
+      return false;
+    }
+
+    this.pendingSignalingMessages.push(message);
+    return true;
+  }
+
+  private flushPendingSignalingMessages() {
+    const socket = this.getActiveSignalingSocket();
+    if (!socket || this.pendingSignalingMessages.length === 0) {
+      return;
+    }
+
+    const queuedMessages = [...this.pendingSignalingMessages];
+    this.pendingSignalingMessages = [];
+    this.log('flush-pending-signaling-messages', { count: queuedMessages.length });
+
+    queuedMessages.forEach((message) => {
+      socket.send(JSON.stringify(message));
+    });
   }
 
   private enqueuePayload(payload: any): boolean {
@@ -850,6 +908,7 @@ class SocketService extends EventEmitter {
     this.isInitializing = false;
     this.setConnectionState('disconnected');
     this.pendingPayloads = [];
+    this.pendingSignalingMessages = [];
 
     if (this.pollingTimer) {
       clearInterval(this.pollingTimer);

@@ -3,6 +3,7 @@ import { LocalUser as User } from '../../types';
 
 export enum VideoCallStatus {
     IDLE = 'IDLE',
+    PRE_JOIN = 'PRE_JOIN',
     OUTGOING = 'OUTGOING',
     INCOMING = 'INCOMING',
     CONNECTING = 'CONNECTING',

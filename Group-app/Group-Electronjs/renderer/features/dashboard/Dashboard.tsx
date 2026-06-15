@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { logout, setCompanies, loginSuccess, loginFailure, loginStart, setCurrentCompany } from '../auth/authSlice';
-import { getElectronAPI, isElectronEnvironment } from '../../services/api/electronAPI';
+import { logout, setCompanies, loginSuccess, loginFailure, setCurrentCompany } from '../auth/authSlice';
+import { getElectronAPI } from '../../services/api/electronAPI';
 import type { User, ApiUser, ActiveTab } from '../../types';
 import { RootState, AppDispatch } from '../../store';
 import { webRTCService } from '../../services/WebRTCService';
@@ -10,7 +10,6 @@ import VideoCallScreen from '../video-call/VideoCallScreen';
 import ChatList from '../chat/ChatList';
 import ChatRoom from '../chat/ChatRoom';
 import MeetingList from '../chat/MeetingList';
-import ContactsList from '../contacts/ContactsList';
 import ContactsScreen from '../contacts/ContactsScreen';
 import AdminPanel from '../admin/AdminPanel';
 import { createPrivateChat, setActiveConversation } from '../chat/chatSlice';
@@ -50,35 +49,6 @@ const Dashboard: React.FC = () => {
     const activeConversation = conversations.find(c => c.conversation.conversationId === activeConversationId)?.conversation;
 
     const electronAPI = getElectronAPI();
-
-    const getSignalingConfig = () => {
-        const fallbackHost = window.location.hostname || 'localhost';
-        const fallbackPort = window.location.port
-            ? Number(window.location.port)
-            : (window.location.protocol === 'https:' ? 443 : 80);
-        const fallbackProtocol = window.location.protocol || 'http:';
-
-        if (!isElectronEnvironment()) {
-            return { host: fallbackHost, port: fallbackPort, protocol: fallbackProtocol };
-        }
-
-        if (!__SIGNAL_BASE__) {
-            return { host: fallbackHost, port: fallbackPort, protocol: fallbackProtocol };
-        }
-
-        try {
-            const url = new URL(__SIGNAL_BASE__);
-            const isHttps = url.protocol === 'https:';
-            return {
-                host: url.host,
-                port: url.port ? Number(url.port) : (isHttps ? 443 : 80),
-                protocol: url.protocol
-            };
-        } catch (error) {
-            console.warn('Invalid __SIGNAL_BASE__, falling back to window.location:', __SIGNAL_BASE__, error);
-            return { host: fallbackHost, port: fallbackPort, protocol: fallbackProtocol };
-        }
-    };
 
     const handleLogout = () => {
         dispatch(logout());
@@ -214,15 +184,6 @@ const Dashboard: React.FC = () => {
         }
     };
 
-    // Connect to signaling on mount
-    useEffect(() => {
-        if (user?.userId) {
-            const { host, port, protocol } = getSignalingConfig();
-            const token = localStorage.getItem('token') || '';
-            webRTCService.connectSignaling(host, port, user.userId, token, protocol);
-        }
-    }, [user?.userId]);
-
     // Fetch companies if missing and handle current company initialization
     useEffect(() => {
         const fetchCompanies = async () => {
@@ -287,7 +248,7 @@ const Dashboard: React.FC = () => {
 
     useEffect(() => {
         const handler = (event: Event) => {
-            const detail = (event as CustomEvent<{ type: 'chat' | 'meeting'; conversationId?: number; roomId?: string; autoJoin?: boolean }>).detail;
+            const detail = (event as CustomEvent<{ type: 'chat' | 'meeting'; conversationId?: number; roomId?: string; autoJoin?: boolean; senderId?: string; senderName?: string; senderAvatar?: string }>).detail;
             if (!detail) {
                 return;
             }
@@ -302,6 +263,14 @@ const Dashboard: React.FC = () => {
             if (detail.type === 'meeting' && detail.roomId) {
                 setActiveTab('meetings');
                 setHighlightedMeetingRoomId(detail.roomId);
+                if (!detail.autoJoin) {
+                    webRTCService.presentIncomingInvite({
+                        roomId: detail.roomId,
+                        remoteUserId: detail.senderId,
+                        remoteUserName: detail.senderName,
+                        remoteAvatar: detail.senderAvatar
+                    });
+                }
                 if (detail.autoJoin) {
                     handleJoinMeeting(detail.roomId);
                 }

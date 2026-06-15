@@ -6,6 +6,7 @@ import com.github.im.group.sdk.VideoTrack
 
 enum class VideoCallStatus {
     IDLE,
+    PRE_JOIN,
     OUTGOING,
     INCOMING,
     CONNECTING,

@@ -16,6 +16,8 @@ const getStatusLabel = (status: VideoCallStatus, isMeeting: boolean) => {
   switch (status) {
     case VideoCallStatus.OUTGOING:
       return isMeeting ? 'Inviting participants...' : 'Calling...';
+    case VideoCallStatus.PRE_JOIN:
+      return 'Ready to join meeting';
     case VideoCallStatus.CONNECTING:
       return isMeeting ? 'Joining meeting room...' : 'Connecting...';
     case VideoCallStatus.INCOMING:
@@ -493,7 +495,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
         )}
       </div>
 
-      {callState.callStatus === VideoCallStatus.INCOMING && (
+      {(callState.callStatus === VideoCallStatus.INCOMING || callState.callStatus === VideoCallStatus.PRE_JOIN) && (
         <div className="incoming-modal-backdrop">
           <div className="incoming-card">
             <div className="caller-profile">
@@ -501,7 +503,11 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                 {displayAvatar ? <img src={displayAvatar} alt="" /> : displayName.charAt(0).toUpperCase()}
               </div>
               <h3>{displayName}</h3>
-              <p>{isMeetingMode ? 'Incoming meeting invitation...' : 'Incoming video call...'}</p>
+              <p>
+                {callState.callStatus === VideoCallStatus.PRE_JOIN
+                  ? 'Meeting invite opened from notification. Join when you are ready.'
+                  : isMeetingMode ? 'Incoming meeting invitation...' : 'Incoming video call...'}
+              </p>
             </div>
             <div className="modal-actions">
               <button className="modal-btn accept" onClick={handleAccept}>
@@ -510,7 +516,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                     <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .3l-2.2 2.2c-2.8-1.4-5.1-3.8-6.6-6.6l2.2-2.2c.3-.3.4-.7.2-1-.3-1.1-.5-2.3-.5-3.5 0-.5-.4-.9-.9-.9H4c-.5 0-1 .4-1 .9 0 9.4 7.6 17 17 17 .5 0 .9-.4.9-.9v-3.5c0-.5-.4-.9-.9-.9z"></path>
                   </svg>
                 </div>
-                <span>{isMeetingMode ? 'Join' : 'Accept'}</span>
+                <span>{callState.callStatus === VideoCallStatus.PRE_JOIN || isMeetingMode ? 'Join' : 'Accept'}</span>
               </button>
               <button className="modal-btn reject" onClick={() => rejectCall()}>
                 <div className="icon-circle">
@@ -518,7 +524,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                     <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.58.9-.98.45-1.87 1.05-2.65 1.76-.17.16-.34.22-.52.22-.17 0-.35-.07-.48-.2l-3.37-3.37c-.13-.13-.2-.3-.2-.48s.07-.35.2-.48C3.36 8.35 7.42 6 12 6s8.64 2.35 12.19 5.39c.13.13.2.3.2.48s-.07.35-.2.48l-3.37 3.37c-.13.13-.3.2-.48.2s-.35-.07-.48-.2c-.78-.71-1.67-1.31-2.65-1.76-.35-.16-.58-.51-.58-.9v-3.1c-1.45-.47-3-.72-4.6-.72z"></path>
                   </svg>
                 </div>
-                <span>Decline</span>
+                <span>{callState.callStatus === VideoCallStatus.PRE_JOIN ? 'Dismiss' : 'Decline'}</span>
               </button>
             </div>
           </div>

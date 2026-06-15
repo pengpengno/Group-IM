@@ -6,7 +6,6 @@ import Dashboard from './features/dashboard/Dashboard';
 import Notification from './components/common/Notification';
 import { webRTCService } from './services/WebRTCService';
 import { socketService } from './services/socketService';
-import { isElectronEnvironment } from './services/api/electronAPI';
 import { syncCurrentPushEndpoint, disableCurrentPushEndpoint } from './services/notificationEndpointService';
 import { notificationRuntimeService } from './services/notificationRuntimeService';
 import { store } from './store';
@@ -22,7 +21,6 @@ const App: React.FC = () => {
       // Initialize unified WebRTC service
       webRTCService.initialize(store, user.userId);
 
-      const isElectron = isElectronEnvironment();
       const token = localStorage.getItem('token') || '';
 
       // Desktop uses Electron IPC + TCP for chat realtime sync.

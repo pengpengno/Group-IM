@@ -125,7 +125,9 @@ class VideoCallViewModel(
     }
 
     fun acceptCall() {
-        if (_videoCallState.value.callStatus != VideoCallStatus.INCOMING) return
+        if (_videoCallState.value.callStatus != VideoCallStatus.INCOMING &&
+            _videoCallState.value.callStatus != VideoCallStatus.PRE_JOIN
+        ) return
 
         viewModelScope.launch {
             try {
@@ -148,7 +150,9 @@ class VideoCallViewModel(
     }
 
     fun rejectCall() {
-        if (_videoCallState.value.callStatus != VideoCallStatus.INCOMING) return
+        if (_videoCallState.value.callStatus != VideoCallStatus.INCOMING &&
+            _videoCallState.value.callStatus != VideoCallStatus.PRE_JOIN
+        ) return
 
         viewModelScope.launch {
             try {
@@ -163,25 +167,37 @@ class VideoCallViewModel(
     }
 
     fun handleNotificationOpen(caller: UserInfo, callId: String) {
-        if (_videoCallState.value.callStatus == VideoCallStatus.INCOMING &&
+        if ((_videoCallState.value.callStatus == VideoCallStatus.INCOMING ||
+            _videoCallState.value.callStatus == VideoCallStatus.PRE_JOIN) &&
             _videoCallState.value.callId == callId
         ) {
             return
         }
-        receiveCall(caller, callId)
+        currentCallId = callId
+        _videoCallState.value = _videoCallState.value.copy(
+            callStatus = VideoCallStatus.PRE_JOIN,
+            caller = caller,
+            participants = listOf(caller),
+            callId = callId,
+            callStartTime = Clock.System.now().toEpochMilliseconds(),
+            isMinimized = false,
+            errorMessage = null
+        )
     }
 
     fun handleNotificationAccept(caller: UserInfo, callId: String) {
-        if (_videoCallState.value.callStatus != VideoCallStatus.INCOMING ||
+        if ((_videoCallState.value.callStatus != VideoCallStatus.INCOMING &&
+            _videoCallState.value.callStatus != VideoCallStatus.PRE_JOIN) ||
             _videoCallState.value.callId != callId
         ) {
-            receiveCall(caller, callId)
+            handleNotificationOpen(caller, callId)
         }
         acceptCall()
     }
 
     fun handleNotificationReject(caller: UserInfo, callId: String) {
-        if (_videoCallState.value.callStatus == VideoCallStatus.INCOMING &&
+        if ((_videoCallState.value.callStatus == VideoCallStatus.INCOMING ||
+            _videoCallState.value.callStatus == VideoCallStatus.PRE_JOIN) &&
             _videoCallState.value.callId == callId
         ) {
             rejectCall()
@@ -452,6 +468,7 @@ fun VideoCallStatus.isActiveCall(): Boolean {
     return this in listOf(
         VideoCallStatus.OUTGOING,
         VideoCallStatus.INCOMING,
+        VideoCallStatus.PRE_JOIN,
         VideoCallStatus.CONNECTING,
         VideoCallStatus.ACTIVE,
         VideoCallStatus.MINIMIZED

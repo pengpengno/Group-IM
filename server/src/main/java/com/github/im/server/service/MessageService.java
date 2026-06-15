@@ -277,7 +277,7 @@ public class MessageService {
                 .build();
 
         // 3. 异步推送到在线客户端
-        List<User> members = conversationService.getMembersByGroupId(conversationId);
+        List<User> members = conversationService.getMembersByGroupId0(conversationId);
         pushToMembers(members, chatMessage.getFromUser().getUserId(), newBaseMessage);
         clientEventPublisher.publishChatMessageCreated(savedMessage, savedMessage.getFromAccountId(), members);
 
@@ -288,9 +288,24 @@ public class MessageService {
      * 推送消息给会话中的所有成员
      */
     public void pushToMembers(Long conversationId, Long fromUserId, BaseMessage.BaseMessagePkg pushPkg) {
-        pushToMembers(conversationService.getMembersByGroupId(conversationId), fromUserId, pushPkg);
+        pushToMembers(conversationService.getMembersByGroupId0(conversationId), fromUserId, pushPkg);
     }
 
+
+
+    private void pushToMembers0(List<UserInfo> members, Long fromUserId, BaseMessage.BaseMessagePkg pushPkg) {
+        if (members == null) {
+            return;
+        }
+
+        members.parallelStream().forEach(member -> {
+            try {
+                redisMessageRouter.send(fromUserId, member.getUserId(), pushPkg);
+            } catch (Exception e) {
+                log.error("Failed to route message to {}: {}", member.getUserId(), e.getMessage());
+            }
+        });
+    }
     private void pushToMembers(List<User> members, Long fromUserId, BaseMessage.BaseMessagePkg pushPkg) {
         if (members == null) {
             return;

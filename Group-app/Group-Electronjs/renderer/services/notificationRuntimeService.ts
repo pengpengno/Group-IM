@@ -5,7 +5,7 @@ import { setActiveConversation } from '../features/chat/chatSlice';
 
 type NavigationDetail =
   | { type: 'chat'; conversationId: number }
-  | { type: 'meeting'; roomId: string; autoJoin?: boolean };
+  | { type: 'meeting'; roomId: string; autoJoin?: boolean; senderId?: string; senderName?: string; senderAvatar?: string };
 
 type NotificationPayload = {
   eventId?: string;
@@ -38,7 +38,13 @@ function parseNavigation(payload: NotificationPayload): NavigationDetail | null 
   }
 
   if (payload.clickAction === 'open_meeting' && payload.roomId) {
-    return { type: 'meeting', roomId: payload.roomId, autoJoin: false };
+    return {
+      type: 'meeting',
+      roomId: payload.roomId,
+      autoJoin: false,
+      senderId: payload.senderId != null ? String(payload.senderId) : undefined,
+      senderName: payload.senderName
+    };
   }
 
   if (payload.conversationId != null) {
@@ -49,7 +55,13 @@ function parseNavigation(payload: NotificationPayload): NavigationDetail | null 
   }
 
   if (payload.roomId) {
-    return { type: 'meeting', roomId: payload.roomId, autoJoin: false };
+    return {
+      type: 'meeting',
+      roomId: payload.roomId,
+      autoJoin: false,
+      senderId: payload.senderId != null ? String(payload.senderId) : undefined,
+      senderName: payload.senderName
+    };
   }
 
   if (payload.deepLink?.startsWith('group://chat/')) {
@@ -62,7 +74,13 @@ function parseNavigation(payload: NotificationPayload): NavigationDetail | null 
   if (payload.deepLink?.startsWith('group://meeting/')) {
     const roomId = payload.deepLink.split('/').pop();
     if (roomId) {
-      return { type: 'meeting', roomId, autoJoin: false };
+      return {
+        type: 'meeting',
+        roomId,
+        autoJoin: false,
+        senderId: payload.senderId != null ? String(payload.senderId) : undefined,
+        senderName: payload.senderName
+      };
     }
   }
 

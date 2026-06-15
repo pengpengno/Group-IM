@@ -127,6 +127,19 @@ private fun RenderCallSurface(
 ) {
     when (videoCallState.callStatus) {
         VideoCallStatus.IDLE, VideoCallStatus.ENDED -> Unit
+        VideoCallStatus.PRE_JOIN -> {
+            VideoCallIncomingNotification(
+                caller = videoCallState.caller ?: fallbackUser,
+                subtitle = "Meeting invite opened from notification. Join when you are ready.",
+                acceptLabel = "Join",
+                rejectLabel = "Dismiss",
+                onAccept = { videoCallViewModel.acceptCall() },
+                onReject = {
+                    videoCallViewModel.rejectCall()
+                    onCallEnded()
+                }
+            )
+        }
         VideoCallStatus.INCOMING -> {
             VideoCallIncomingNotification(
                 caller = videoCallState.caller ?: fallbackUser,
@@ -228,6 +241,7 @@ private fun CallFullscreenDialog(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = when (videoCallState.callStatus) {
+                            VideoCallStatus.PRE_JOIN -> "Ready to join"
                             VideoCallStatus.OUTGOING -> "Calling"
                             VideoCallStatus.CONNECTING -> "Connecting"
                             VideoCallStatus.ENDING -> "Ending"

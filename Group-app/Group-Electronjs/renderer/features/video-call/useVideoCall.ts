@@ -19,7 +19,6 @@ interface UseVideoCallReturn {
   toggleCamera: (enabled: boolean) => void;
   toggleMicrophone: (enabled: boolean) => void;
   toggleSpeaker: (enabled: boolean) => void;
-  connectSignaling: (host: string, port: number, userId: string, token: string, pageProtocol?: string) => void;
 
   // Events
   onIncomingCall: (callback: (callerId: string) => void) => void;
@@ -104,10 +103,6 @@ export const useVideoCall = (): UseVideoCallReturn => {
     // Real speaker toggle would use audio output device selection
   }, []);
 
-  const connectSignaling = useCallback((host: string, port: number, userId: string, token: string, pageProtocol?: string) => {
-    webRTCService.connectSignaling(host, port, userId, token, pageProtocol);
-  }, []);
-
   // Event attachment helpers
   const onIncomingCall = useCallback((callback: (callerId: string) => void) => {
     webRTCService.on('incoming-call', ({ callerId }) => callback(callerId));
@@ -144,7 +139,6 @@ export const useVideoCall = (): UseVideoCallReturn => {
     toggleCamera,
     toggleMicrophone,
     toggleSpeaker,
-    connectSignaling,
     onIncomingCall,
     onCallAccepted,
     onCallRejected,

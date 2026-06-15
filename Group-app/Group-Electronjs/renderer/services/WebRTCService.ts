@@ -81,7 +81,6 @@ const DEFAULT_ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:193
 
 export class WebRTCService extends EventEmitter {
   private localStream: MediaStream | null = null;
-  private websocket: WebSocket | null = null;
   private store: Store<RootState> | null = null;
   private userId = '';
   private iceServers: RTCIceServer[];
@@ -90,14 +89,8 @@ export class WebRTCService extends EventEmitter {
   private peerConnections = new Map<string, RTCPeerConnection>();
   private remoteStreams = new Map<string, MediaStream>();
   private pendingIceCandidates = new Map<string, RTCIceCandidateInit[]>();
-  private reconnectAttempts = 0;
-  private readonly MAX_RECONNECT_ATTEMPTS = 5;
   private durationInterval: ReturnType<typeof setInterval> | null = null;
-  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private isConnecting = false;
   private signalingConfig: SignalingConnectionConfig | null = null;
-  private pendingSignalingMessages: WebrtcMessage[] = [];
 
   private state: CallInternalState = {
     callStatus: VideoCallStatus.IDLE,
@@ -274,103 +267,8 @@ export class WebRTCService extends EventEmitter {
 
   public connectSignaling(host: string, port: number, userId: string, token: string, pageProtocol: string = 'http:'): void {
     this.signalingConfig = { host, port, userId, token, pageProtocol };
-    const protocol = pageProtocol === 'https:' || pageProtocol === 'wss:' ? 'wss' : 'ws';
-    const cleanHost = host.replace(/^https?:\/\//, '');
-    const url = `${protocol}://${cleanHost}:${port}/ws?userId=${userId}&token=${token}`;
-
-    const sharedWS = socketService.getWebSocket();
-    if (sharedWS && sharedWS.readyState === WebSocket.OPEN) {
-      this.websocket = sharedWS;
-      console.log('Using shared WebSocket for signaling');
-      return;
-    }
-
-    if (this.websocket && (this.websocket.readyState === WebSocket.OPEN || this.websocket.readyState === WebSocket.CONNECTING) && this.websocket.url === url) {
-      console.log('Already connected or connecting to signaling server:', url);
-      return;
-    }
-
-    if (this.isConnecting) {
-      console.log('Signaling connection already in progress...');
-      return;
-    }
-
     this.userId = userId;
-    console.log('Connecting to signaling server:', url);
-
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-
-    if (this.websocket) {
-      this.websocket.onopen = null;
-      this.websocket.onmessage = null;
-      this.websocket.onclose = null;
-      this.websocket.onerror = null;
-      this.websocket.close();
-      this.websocket = null;
-    }
-
-    this.isConnecting = true;
-    this.websocket = new WebSocket(url);
-
-    this.websocket.onopen = () => {
-      const wasReconnecting = this.reconnectAttempts > 0;
-      console.log('Signaling WebSocket connected');
-      this.reconnectAttempts = 0;
-      this.isConnecting = false;
-      this.startHeartbeat();
-      this.flushPendingSignalingMessages();
-
-      if (wasReconnecting && this.state.roomId && this.state.callStatus !== VideoCallStatus.IDLE) {
-        this.sendMeetingJoin(this.state.roomId);
-      }
-    };
-
-    this.websocket.onmessage = (event) => {
-      try {
-        const message: WebrtcMessage = JSON.parse(event.data);
-        this.handleSignalingMessage(message);
-      } catch (error) {
-        console.error('Failed to parse signaling message:', error);
-      }
-    };
-
-    this.websocket.onclose = (event) => {
-      console.log('Signaling WebSocket closed:', event.code, 'Reason:', event.reason);
-      this.isConnecting = false;
-      this.stopHeartbeat();
-
-      if (this.state.callStatus !== VideoCallStatus.IDLE && this.state.callStatus !== VideoCallStatus.ENDED && this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
-        this.reconnectAttempts++;
-        this.reconnectTimer = setTimeout(() => {
-          this.reconnectTimer = null;
-          this.connectSignaling(host, port, userId, token, pageProtocol);
-        }, 5000);
-      }
-    };
-
-    this.websocket.onerror = (error) => {
-      console.error('Signaling WebSocket error:', error);
-      this.isConnecting = false;
-    };
-  }
-
-  private startHeartbeat(): void {
-    this.stopHeartbeat();
-    this.heartbeatInterval = setInterval(() => {
-      if (this.websocket?.readyState === WebSocket.OPEN) {
-        this.websocket.send(JSON.stringify({ type: 'ping', fromUser: this.userId }));
-      }
-    }, 30000);
-  }
-
-  private stopHeartbeat(): void {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
-    }
+    console.log('WebRTC signaling transport delegated to socketService', { host, port, pageProtocol });
   }
 
   private handleSignalingMessage(message: WebrtcMessage): void {
@@ -443,6 +341,34 @@ export class WebRTCService extends EventEmitter {
     }
 
     this.emit('incoming-call', { callerId: message.fromUser, roomId });
+  }
+
+  public presentIncomingInvite(invite: {
+    roomId: string;
+    remoteUserId?: string;
+    remoteUserName?: string;
+    remoteAvatar?: string;
+  }): void {
+    if (this.state.callStatus !== VideoCallStatus.IDLE && this.state.roomId !== invite.roomId) {
+      return;
+    }
+
+    if (invite.remoteUserId) {
+      this.upsertParticipant({
+        userId: invite.remoteUserId,
+        userName: invite.remoteUserName,
+        avatar: invite.remoteAvatar
+      });
+    }
+
+    this.updateState({
+      callStatus: VideoCallStatus.PRE_JOIN,
+      roomId: invite.roomId,
+      remoteUserId: invite.remoteUserId,
+      remoteUserName: invite.remoteUserName,
+      remoteAvatar: invite.remoteAvatar,
+      isMeeting: true
+    });
   }
 
   private handleMeetingParticipants(message: WebrtcMessage): void {
@@ -821,6 +747,10 @@ export class WebRTCService extends EventEmitter {
   }
 
   public rejectCall(): void {
+    if (this.state.callStatus !== VideoCallStatus.INCOMING && this.state.callStatus !== VideoCallStatus.PRE_JOIN) {
+      return;
+    }
+
     if (this.state.remoteUserId) {
       this.sendSignalingMessage({
         type: 'meeting/reject',
@@ -854,58 +784,11 @@ export class WebRTCService extends EventEmitter {
     this.emit('call-ended', { remoteId: remoteUserId || this.state.remoteUserId });
   }
 
-  private getActiveSignalingSocket(): WebSocket | null {
-    const sharedWS = socketService.getWebSocket();
-    if (sharedWS?.readyState === WebSocket.OPEN) {
-      return sharedWS;
-    }
-
-    if (this.websocket?.readyState === WebSocket.OPEN) {
-      return this.websocket;
-    }
-
-    return null;
-  }
-
-  private flushPendingSignalingMessages(): void {
-    if (!this.pendingSignalingMessages.length) {
-      return;
-    }
-
-    const socket = this.getActiveSignalingSocket();
-    if (!socket) {
-      return;
-    }
-
-    const queuedMessages = [...this.pendingSignalingMessages];
-    this.pendingSignalingMessages = [];
-
-    queuedMessages.forEach((message) => {
-      socket.send(JSON.stringify(message));
-    });
-  }
-
   private sendSignalingMessage(message: WebrtcMessage): void {
-    const socket = this.getActiveSignalingSocket();
-    if (socket) {
-      socket.send(JSON.stringify(message));
-      return;
+    const result = socketService.sendSignalingMessage(message);
+    if (!result.accepted) {
+      console.warn('Failed to hand signaling message to socketService:', message.type);
     }
-
-    this.pendingSignalingMessages.push(message);
-
-    if (this.signalingConfig && !this.isConnecting) {
-      const sharedWS = socketService.getWebSocket();
-      const isSharedConnecting = sharedWS?.readyState === WebSocket.CONNECTING;
-      const isLocalConnecting = this.websocket?.readyState === WebSocket.CONNECTING;
-
-      if (!isSharedConnecting && !isLocalConnecting) {
-        const { host, port, userId, token, pageProtocol } = this.signalingConfig;
-        this.connectSignaling(host, port, userId, token, pageProtocol);
-      }
-    }
-
-    console.warn('Queued signaling message until WebSocket is ready:', message.type);
   }
 
   private createRoomId(): string {
@@ -1045,18 +928,6 @@ export class WebRTCService extends EventEmitter {
 
   public destroy(): void {
     this.cleanupCallState(true);
-    this.stopHeartbeat();
-
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-
-    if (this.websocket) {
-      this.websocket.close();
-      this.websocket = null;
-    }
-
     this.removeAllListeners();
   }
 
