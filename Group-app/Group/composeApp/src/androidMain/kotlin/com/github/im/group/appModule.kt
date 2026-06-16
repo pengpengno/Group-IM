@@ -26,6 +26,7 @@ import com.github.im.group.repository.OrganizationRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.AndroidAudioPlayer
 import com.github.im.group.sdk.AndroidFilePicker
+import com.github.im.group.sdk.AndroidMeetingSignalingClient
 import com.github.im.group.sdk.AndroidVoiceRecorder
 import com.github.im.group.sdk.AndroidWebRTCManager
 import com.github.im.group.sdk.AudioPlayer
@@ -62,7 +63,8 @@ val appmodule = module {
 
     single<FilePicker> { AndroidFilePicker(androidContext()) }
     single<AudioPlayer> { AndroidAudioPlayer(androidContext()) }
-    single<WebRTCManager> { AndroidWebRTCManager(androidContext()) }
+    single { AndroidMeetingSignalingClient() }
+    single<WebRTCManager> { AndroidWebRTCManager(androidContext(), get()) }
     single { AndroidPushEndpointRegistrar(androidContext()) }
     single { UserRepository(get()) }
     single { ConversationRepository(get(),get()) }

@@ -11,13 +11,13 @@ import {
 } from '../features/video-call/videoCallSlice';
 import { RootState } from '../store';
 import { webrtcAPI } from './api/apiClient';
-import { socketService } from './socketService';
-
-export interface IceCandidateData {
-  candidate: string;
-  sdpMid: string;
-  sdpMLineIndex: number;
-}
+import { meetingSignalingService } from './meetingSignalingService';
+import {
+  SIGNALING_MESSAGE_TYPES,
+  SIGNALING_SDP_TYPES,
+  type IceCandidateData,
+  type WebrtcMessage
+} from '../types/webrtc';
 
 export interface MeetingParticipantState {
   userId: string;
@@ -26,23 +26,6 @@ export interface MeetingParticipantState {
   streamId?: string;
   isLocal?: boolean;
   connectionState?: RTCPeerConnectionState | 'idle';
-}
-
-export interface WebrtcMessage {
-  type: string;
-  fromUser?: string;
-  fromUserName?: string;
-  fromAvatar?: string;
-  toUser?: string;
-  roomId?: string;
-  sdp?: string;
-  sdpType?: string;
-  candidate?: IceCandidateData;
-  reason?: string;
-  participants?: Array<Record<string, any>>;
-  userId?: string;
-  userName?: string;
-  avatar?: string;
 }
 
 export interface RemoteParticipantStream {
@@ -91,6 +74,7 @@ export class WebRTCService extends EventEmitter {
   private pendingIceCandidates = new Map<string, RTCIceCandidateInit[]>();
   private durationInterval: ReturnType<typeof setInterval> | null = null;
   private signalingConfig: SignalingConnectionConfig | null = null;
+  private signalingUnsubscribe: (() => void) | null = null;
 
   private state: CallInternalState = {
     callStatus: VideoCallStatus.IDLE,
@@ -194,7 +178,8 @@ export class WebRTCService extends EventEmitter {
       return;
     }
 
-    socketService.on('webrtc-message', (message) => this.handleSignalingMessage(message));
+    meetingSignalingService.initialize();
+    this.signalingUnsubscribe = meetingSignalingService.onMessage((message) => this.handleSignalingMessage(message));
 
     console.log('Fetching ICE servers from backend...');
     try {
@@ -275,34 +260,34 @@ export class WebRTCService extends EventEmitter {
     console.log('Signaling Received:', message.type, 'from:', message.fromUser);
 
     switch (message.type) {
-      case 'meeting/request':
+      case SIGNALING_MESSAGE_TYPES.MEETING_REQUEST:
         this.handleMeetingRequest(message);
         break;
-      case 'meeting/participants':
+      case SIGNALING_MESSAGE_TYPES.MEETING_PARTICIPANTS:
         this.handleMeetingParticipants(message);
         break;
-      case 'meeting/participant-joined':
+      case SIGNALING_MESSAGE_TYPES.MEETING_PARTICIPANT_JOINED:
         this.handleParticipantJoined(message);
         break;
-      case 'meeting/participant-left':
+      case SIGNALING_MESSAGE_TYPES.MEETING_PARTICIPANT_LEFT:
         this.handleParticipantLeft(message);
         break;
-      case 'meeting/reject':
+      case SIGNALING_MESSAGE_TYPES.MEETING_REJECT:
         this.handleMeetingRejected(message);
         break;
-      case 'offer':
+      case SIGNALING_MESSAGE_TYPES.OFFER:
         void this.handleOffer(message);
         break;
-      case 'answer':
+      case SIGNALING_MESSAGE_TYPES.ANSWER:
         void this.handleAnswer(message);
         break;
-      case 'candidate':
+      case SIGNALING_MESSAGE_TYPES.CANDIDATE:
         this.handleIceCandidate(message);
         break;
-      case 'meeting/leave':
+      case SIGNALING_MESSAGE_TYPES.MEETING_LEAVE:
         this.handleRemoteHangup(message.fromUser);
         break;
-      case 'meeting/end':
+      case SIGNALING_MESSAGE_TYPES.MEETING_END:
         this.cleanupCallState(true);
         break;
       default:
@@ -448,12 +433,12 @@ export class WebRTCService extends EventEmitter {
       await peerConnection.setLocalDescription(offer);
 
       this.sendSignalingMessage({
-        type: 'offer',
+        type: SIGNALING_MESSAGE_TYPES.OFFER,
         fromUser: this.userId,
         toUser: remoteUserId,
         roomId: this.state.roomId,
         sdp: offer.sdp || '',
-        sdpType: 'offer'
+        sdpType: SIGNALING_SDP_TYPES.OFFER
       });
 
       this.updateState({ callStatus: VideoCallStatus.CONNECTING });
@@ -475,7 +460,7 @@ export class WebRTCService extends EventEmitter {
 
       const peerConnection = await this.ensurePeerConnection(remoteUserId);
       await peerConnection.setRemoteDescription(new RTCSessionDescription({
-        type: 'offer',
+        type: SIGNALING_SDP_TYPES.OFFER,
         sdp: message.sdp
       }));
 
@@ -489,12 +474,12 @@ export class WebRTCService extends EventEmitter {
       await peerConnection.setLocalDescription(answer);
 
       this.sendSignalingMessage({
-        type: 'answer',
+        type: SIGNALING_MESSAGE_TYPES.ANSWER,
         fromUser: this.userId,
         toUser: remoteUserId,
         roomId: this.state.roomId || message.roomId,
         sdp: answer.sdp || '',
-        sdpType: 'answer'
+        sdpType: SIGNALING_SDP_TYPES.ANSWER
       });
 
       this.updateState({ callStatus: VideoCallStatus.CONNECTING });
@@ -512,7 +497,7 @@ export class WebRTCService extends EventEmitter {
       }
 
       await peerConnection.setRemoteDescription(new RTCSessionDescription({
-        type: 'answer',
+        type: SIGNALING_SDP_TYPES.ANSWER,
         sdp: message.sdp
       }));
 
@@ -571,7 +556,7 @@ export class WebRTCService extends EventEmitter {
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
         this.sendSignalingMessage({
-          type: 'candidate',
+          type: SIGNALING_MESSAGE_TYPES.CANDIDATE,
           fromUser: this.userId,
           toUser: remoteUserId,
           roomId: this.state.roomId,
@@ -696,7 +681,7 @@ export class WebRTCService extends EventEmitter {
 
       for (const target of targets) {
         this.sendSignalingMessage({
-          type: 'meeting/request',
+          type: SIGNALING_MESSAGE_TYPES.MEETING_REQUEST,
           fromUser: this.userId,
           fromUserName: this.store?.getState().auth.user?.username,
           fromAvatar: this.store?.getState().auth.user?.avatar,
@@ -716,7 +701,7 @@ export class WebRTCService extends EventEmitter {
 
   private sendMeetingJoin(roomId: string): void {
     this.sendSignalingMessage({
-      type: 'meeting/join',
+      type: SIGNALING_MESSAGE_TYPES.MEETING_JOIN,
       fromUser: this.userId,
       fromUserName: this.store?.getState().auth.user?.username,
       fromAvatar: this.store?.getState().auth.user?.avatar,
@@ -753,7 +738,7 @@ export class WebRTCService extends EventEmitter {
 
     if (this.state.remoteUserId) {
       this.sendSignalingMessage({
-        type: 'meeting/reject',
+        type: SIGNALING_MESSAGE_TYPES.MEETING_REJECT,
         fromUser: this.userId,
         toUser: this.state.remoteUserId,
         roomId: this.state.roomId,
@@ -766,7 +751,7 @@ export class WebRTCService extends EventEmitter {
   public endCall(): void {
     if (this.state.roomId) {
       this.sendSignalingMessage({
-        type: 'meeting/leave',
+        type: SIGNALING_MESSAGE_TYPES.MEETING_LEAVE,
         fromUser: this.userId,
         roomId: this.state.roomId
       });
@@ -785,9 +770,9 @@ export class WebRTCService extends EventEmitter {
   }
 
   private sendSignalingMessage(message: WebrtcMessage): void {
-    const result = socketService.sendSignalingMessage(message);
+    const result = meetingSignalingService.sendMessage(message);
     if (!result.accepted) {
-      console.warn('Failed to hand signaling message to socketService:', message.type);
+      console.warn('Failed to hand signaling message to meetingSignalingService:', message.type);
     }
   }
 
@@ -927,6 +912,11 @@ export class WebRTCService extends EventEmitter {
   }
 
   public destroy(): void {
+    if (this.signalingUnsubscribe) {
+      this.signalingUnsubscribe();
+      this.signalingUnsubscribe = null;
+    }
+    this.initialized = false;
     this.cleanupCallState(true);
     this.removeAllListeners();
   }

@@ -1,13 +1,19 @@
 import { Store } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { getElectronAPI } from './api/electronAPI';
+import { electronSocketBridge } from './electronSocketBridge';
 import { addMessage, fetchConversations, fetchMessages } from '../features/chat/chatSlice';
 import { BaseMessagePkg, UserInfo, Heartbeat, AckMessage } from './protoDefinitions';
 import { notificationRuntimeService } from './notificationRuntimeService';
 import Long from 'long';
 import { EventEmitter } from 'events';
+import { SIGNALING_HEARTBEAT_TYPE, SIGNALING_MESSAGE_TYPES, type WebrtcMessage } from '../types/webrtc';
 
 class SocketService extends EventEmitter {
+  private static readonly SIGNALING_RUNTIME_TYPES = new Set<string>([
+    ...Object.values(SIGNALING_MESSAGE_TYPES),
+    SIGNALING_HEARTBEAT_TYPE
+  ]);
   private static readonly WEB_LEADER_LEASE_MS = 10000;
   private static readonly WEB_LEADER_HEARTBEAT_MS = 4000;
   private static readonly MAX_PENDING_PAYLOADS = 200;
@@ -69,7 +75,7 @@ class SocketService extends EventEmitter {
     return this.signalingWS;
   }
 
-  public sendSignalingMessage(message: any): { accepted: boolean; queued: boolean } {
+  public sendSignalingMessage(message: WebrtcMessage): { accepted: boolean; queued: boolean } {
     const socket = this.getActiveSignalingSocket();
     if (socket?.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify(message));
@@ -105,11 +111,8 @@ class SocketService extends EventEmitter {
     this.emit('connection-state', state);
   }
 
-  private handleWebRTCMessage(message: any) {
-    if (message?.type === 'meeting/request') {
-      notificationRuntimeService.handleMeetingInvite(message);
-    }
-    this.emit('webrtc-message', message);
+  private handleSignalingRuntimeMessage(message: WebrtcMessage) {
+    this.emit('signaling-message', message);
   }
 
   initialize(store: Store<RootState>, userId: string, host: string = 'localhost', port: number = 8088, token: string = '', username: string = '') {
@@ -147,7 +150,7 @@ class SocketService extends EventEmitter {
 
     try {
       this.log('connect-electron-ipc', { host: this.host, port: this.port });
-      const result = await electronAPI.socketConnect({
+      const result = await electronSocketBridge.connect({
         host: this.host,
         port: this.port,
         userId: this.userId,
@@ -264,8 +267,8 @@ class SocketService extends EventEmitter {
     this.signalingWS.onmessage = (event) => {
       if (typeof event.data === 'string') {
         try {
-          const message = JSON.parse(event.data);
-          this.handleWebRTCMessage(message);
+          const message = JSON.parse(event.data) as WebrtcMessage;
+          this.handleSignalingRuntimeMessage(message);
         } catch (e) {
           console.error('Failed to parse signaling message:', e);
         }
@@ -473,9 +476,9 @@ class SocketService extends EventEmitter {
       this.socket.onmessage = (event) => {
         if (typeof event.data === 'string') {
           try {
-            const message = JSON.parse(event.data);
-            if (message.type && ['offer', 'answer', 'candidate', 'meeting/request', 'meeting/participants', 'meeting/participant-joined', 'meeting/participant-left', 'meeting/reject', 'meeting/join', 'meeting/leave', 'meeting/end', 'heartbeat'].includes(message.type)) {
-              this.handleWebRTCMessage(message);
+            const message = JSON.parse(event.data) as WebrtcMessage;
+            if (message.type && SocketService.SIGNALING_RUNTIME_TYPES.has(message.type)) {
+              this.handleSignalingRuntimeMessage(message);
             } else {
               console.log('Unknown JSON message:', message);
             }
@@ -663,16 +666,18 @@ class SocketService extends EventEmitter {
     if (!electronAPI) return;
 
     // 监听来自主进程的消息
-    if (electronAPI.onSocketMessage) {
-      electronAPI.onSocketMessage((data: any) => {
+    // Support both the new namespaced socket bridge and older flat preload APIs
+    // so renderer services can migrate without requiring lockstep upgrades.
+    if (electronAPI.onSocketMessage || electronAPI.socket?.onMessage) {
+      electronSocketBridge.onMessage((data: any) => {
         console.log('Received socket message:', data);
         this.handleMessage(data);
       });
     }
 
     // 监听连接事件
-    if (electronAPI.onSocketConnected) {
-      electronAPI.onSocketConnected(() => {
+    if (electronAPI.onSocketConnected || electronAPI.socket?.onConnected) {
+      electronSocketBridge.onConnected(() => {
         console.log('Socket connected/reconnected, triggering sync...');
         this.isConnected = true;
         this.isInitializing = false;
@@ -686,8 +691,8 @@ class SocketService extends EventEmitter {
     }
 
     // 监听断开事件
-    if (electronAPI.onSocketDisconnected) {
-      electronAPI.onSocketDisconnected(() => {
+    if (electronAPI.onSocketDisconnected || electronAPI.socket?.onDisconnected) {
+      electronSocketBridge.onDisconnected(() => {
         console.log('Socket disconnected');
         this.isConnected = false;
         this.setConnectionState('reconnecting');
@@ -695,16 +700,16 @@ class SocketService extends EventEmitter {
     }
 
     // 监听错误事件
-    if (electronAPI.onSocketError) {
-      electronAPI.onSocketError((error: any) => {
+    if (electronAPI.onSocketError || electronAPI.socket?.onError) {
+      electronSocketBridge.onError((error: any) => {
         console.error('Socket error:', error);
         this.setConnectionState('reconnecting');
       });
     }
 
     // 监听重连事件
-    if (electronAPI.onSocketReconnecting) {
-      electronAPI.onSocketReconnecting((data: any) => {
+    if (electronAPI.onSocketReconnecting || electronAPI.socket?.onReconnecting) {
+      electronSocketBridge.onReconnecting((data: any) => {
         console.log('Socket reconnecting:', data);
         this.setConnectionState('reconnecting');
       });
@@ -751,6 +756,8 @@ class SocketService extends EventEmitter {
           console.log('Received realtime notification package:', payload.notification);
           notificationRuntimeService.handleRealtimeNotification(payload.notification, this.store);
           // 当前 web 端还没有完整的通知状态树，先刷新会话列表兜底，避免实时变更丢失。
+          // Re-sync conversations after reconnect so unread counters and ordering
+          // recover even if we missed updates during the reconnect window.
           (this.store.dispatch as any)(fetchConversations(this.userId));
         }
       } else if (message.type === 'raw') {
@@ -777,7 +784,7 @@ class SocketService extends EventEmitter {
     };
     if (this.isElectron) {
       try {
-        const result = await (window as any).electronAPI.socketSendMessage(payload);
+        const result = await electronSocketBridge.sendMessage(payload);
         if (result.success) {
           this.log('send-payload-electron-success', messageSummary);
           return { accepted: true, queued: false };
@@ -826,7 +833,7 @@ class SocketService extends EventEmitter {
    */
   async markAsRead(conversationId: number, lastMsgId: number): Promise<boolean> {
     if (this.isElectron) {
-      const result = await (window as any).electronAPI.socketMarkRead({
+      const result = await electronSocketBridge.markRead({
         conversationId,
         lastMsgId,
         status: 4 // READ
@@ -866,7 +873,7 @@ class SocketService extends EventEmitter {
     try {
       // 将Buffer转换为base64字符串通过IPC传输
       const dataBase64 = messageData.toString('base64');
-      const result = await electronAPI.socketSend(dataBase64);
+      const result = await electronSocketBridge.send(dataBase64);
 
       if (result.success) {
         console.log('Message sent successfully');
@@ -891,7 +898,7 @@ class SocketService extends EventEmitter {
     }
 
     try {
-      const result = await electronAPI.socketIsActive();
+      const result = await electronSocketBridge.isActive();
       return result.active || false;
     } catch (error) {
       console.error('Error checking socket status:', error);
@@ -947,7 +954,7 @@ class SocketService extends EventEmitter {
     const electronAPI = getElectronAPI();
     if (electronAPI && (window as any).electronAPI) {
       try {
-        await electronAPI.socketDisconnect();
+        await electronSocketBridge.disconnect();
       } catch (error) {
         console.error('Error disconnecting socket:', error);
       }

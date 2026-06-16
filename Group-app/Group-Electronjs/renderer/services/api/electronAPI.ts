@@ -9,6 +9,12 @@ import type {
   ApiUser
 } from '../../types/index';
 import { authAPI, fileAPI } from './apiClient';
+import type {
+  SocketActiveResult,
+  SocketConnectConfig,
+  SocketInvokeResult,
+  SocketMarkReadPayload
+} from '../../../shared/socketBridge';
 
 // 定义搜索结果接口
 export interface SearchResults {
@@ -72,12 +78,25 @@ export interface ElectronAPI {
   onNotificationClick?: (handler: (data: any) => void) => void;
 
   // Socket相关
-  socketConnect: (config: { host: string; port: number; userId: string; token: string; username: string }) => Promise<any>;
-  socketSend: (dataBase64: string) => Promise<any>;
-  socketDisconnect: () => Promise<any>;
-  socketIsActive: () => Promise<any>;
-  socketSendMessage: (payload: any) => Promise<any>;
-  socketMarkRead: (data: { conversationId: number; lastMsgId: number; status?: number }) => Promise<any>;
+  socket?: {
+    connect: (config: SocketConnectConfig) => Promise<SocketInvokeResult>;
+    send: (dataBase64: string) => Promise<SocketInvokeResult>;
+    disconnect: () => Promise<SocketInvokeResult>;
+    isActive: () => Promise<SocketActiveResult>;
+    sendMessage: (payload: any) => Promise<SocketInvokeResult>;
+    markRead: (data: SocketMarkReadPayload) => Promise<SocketInvokeResult>;
+    onMessage?: (handler: (data: any) => void) => void;
+    onConnected?: (handler: () => void) => void;
+    onDisconnected?: (handler: () => void) => void;
+    onError?: (handler: (error: any) => void) => void;
+    onReconnecting?: (handler: (data: any) => void) => void;
+  };
+  socketConnect: (config: SocketConnectConfig) => Promise<SocketInvokeResult>;
+  socketSend: (dataBase64: string) => Promise<SocketInvokeResult>;
+  socketDisconnect: () => Promise<SocketInvokeResult>;
+  socketIsActive: () => Promise<SocketActiveResult>;
+  socketSendMessage: (payload: any) => Promise<SocketInvokeResult>;
+  socketMarkRead: (data: SocketMarkReadPayload) => Promise<SocketInvokeResult>;
 
   // Socket事件监听
   onSocketMessage?: (handler: (data: any) => void) => void;
@@ -270,7 +289,9 @@ export function getElectronAPI(): ElectronAPI {
   if (isElectron) {
     const electron = (window as any).electronAPI;
 
-    // Wrap methods to automatically include token from localStorage
+    // Centralize renderer-side compatibility here so upper layers can depend on
+    // one stable API shape even while preload transitions from flat methods to
+    // the namespaced socket bridge.
     return {
       ...electron,
       showNotification: (title: string, body: string, data?: any) => {
@@ -295,6 +316,9 @@ export function getElectronAPI(): ElectronAPI {
         }
       },
       socketMarkRead: async (data: any) => {
+        if (electron.socket?.markRead) {
+          return electron.socket.markRead(data);
+        }
         if (electron.socketMarkRead) {
           return electron.socketMarkRead(data);
         }

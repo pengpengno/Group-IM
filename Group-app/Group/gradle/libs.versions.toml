@@ -27,7 +27,8 @@ wire = "4.8.1"
 lifecycleViewmodelCompose = "2.8.7"
 material3 = "1.2.1"
 voyagerVersion = "1.1.0-beta02"  # Use stable version instead of beta
-kotlinx-serialization = "1.9.0"  # Appropriate version for Kotlin 2.x
+kotlinx-serialization = "1.9.0"
+firebaseMessagingKtx = "25.0.2"  # Appropriate version for Kotlin 2.x
 #kotlinpoet = "1.18.1"
 
 [libraries]
@@ -83,6 +84,7 @@ voyager-tab-navigator = { module = "cafe.adriel.voyager:voyager-tab-navigator", 
 voyager-transitions = { module = "cafe.adriel.voyager:voyager-transitions", version.ref = "voyagerVersion" }
 voyager-koin = { module = "cafe.adriel.voyager:voyager-koin", version.ref = "voyagerVersion" }
 androidx-navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "androidx-navigation" }
+firebase-messaging-ktx = { group = "com.google.firebase", name = "firebase-messaging-ktx", version.ref = "firebaseMessagingKtx" }
 
 
 [plugins]

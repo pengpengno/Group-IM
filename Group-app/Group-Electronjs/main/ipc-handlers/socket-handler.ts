@@ -2,6 +2,13 @@ import { ipcMain, BrowserWindow } from 'electron';
 import * as net from 'net';
 import { protobufService, IBaseMessagePkg, proto } from '../services/protobuf-service';
 import Long from 'long';
+import {
+  SOCKET_IPC_CHANNELS,
+  type SocketActiveResult,
+  type SocketConnectConfig,
+  type SocketInvokeResult,
+  type SocketMarkReadPayload
+} from '../../shared/socketBridge';
 
 // Socket Client 配置
 interface SocketConfig {
@@ -183,7 +190,7 @@ class ElectronSocketClient {
 
           this.startHeartbeat();
           this.startReceiving();
-          this.notifyRenderer('socket:connected', { host, port });
+          this.notifyRenderer(SOCKET_IPC_CHANNELS.CONNECTED, { host, port });
           this.connectionPromise = null;
           resolve();
         } catch (error: any) {
@@ -194,14 +201,14 @@ class ElectronSocketClient {
           this.reconnectAttempts = this.maxReconnectAttempts; // 设为最大，防止后续自动重连
           this.socket?.destroy();
           this.socket = null;
-          this.notifyRenderer('socket:error', { message: `Auth/Registration failed: ${error.message}` });
+          this.notifyRenderer(SOCKET_IPC_CHANNELS.ERROR, { message: `Auth/Registration failed: ${error.message}` });
           reject(error);
         }
       });
 
       socket.on('error', (error) => {
         console.error('[ElectronSocketClient] socket-error', error);
-        this.notifyRenderer('socket:error', { message: error.message });
+        this.notifyRenderer(SOCKET_IPC_CHANNELS.ERROR, { message: error.message });
         if (this.connectionPromise) {
           this.connectionPromise = null;
           reject(error);
@@ -211,7 +218,7 @@ class ElectronSocketClient {
       socket.on('close', (hadError) => {
         this.log('tcp-close', { hadError, intentionToClose: !this.config });
         this.clearHeartbeat();
-        this.notifyRenderer('socket:disconnected', {});
+        this.notifyRenderer(SOCKET_IPC_CHANNELS.DISCONNECTED, {});
         this.connectionPromise = null;
         this.socket = null;
 
@@ -361,14 +368,14 @@ class ElectronSocketClient {
       const messageObj = protobufService.toObject(decodedMessage);
 
       // 通知渲染进程有新消息
-      this.notifyRenderer('socket:message', {
+      this.notifyRenderer(SOCKET_IPC_CHANNELS.MESSAGE, {
         type: 'message',
         payload: messageObj
       });
     } catch (error) {
       console.error('[ElectronSocketClient] handle-message-failed', error, { payloadBytes: data.length });
       // 如果解码失败，至少通知渲染进程原始数据
-      this.notifyRenderer('socket:message', {
+      this.notifyRenderer(SOCKET_IPC_CHANNELS.MESSAGE, {
         type: 'raw',
         data: data.toString('base64')
       });
@@ -383,7 +390,7 @@ class ElectronSocketClient {
     if (this.isReconnecting || this.reconnectAttempts >= this.maxReconnectAttempts || !this.config) {
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         console.error('[ElectronSocketClient] reconnect-max-attempts-reached');
-        this.notifyRenderer('socket:reconnect-failed', {});
+        this.notifyRenderer(SOCKET_IPC_CHANNELS.RECONNECT_FAILED, {});
       }
       return;
     }
@@ -394,7 +401,7 @@ class ElectronSocketClient {
     // 指数退避延迟，基础2秒，最大30秒
     const delay = Math.min(30000, 2000 * Math.pow(1.5, this.reconnectAttempts - 1));
     this.log('reconnect-scheduled', { delayMs: Math.round(delay), maxReconnectAttempts: this.maxReconnectAttempts });
-    this.notifyRenderer('socket:reconnecting', { attempt: this.reconnectAttempts });
+    this.notifyRenderer(SOCKET_IPC_CHANNELS.RECONNECTING, { attempt: this.reconnectAttempts });
 
     setTimeout(async () => {
       // 检查执行时配置是否还在 (防止 setTimeout 期间用户登出)
@@ -476,7 +483,7 @@ export async function initializeSocketHandler(mainWindow: BrowserWindow): Promis
   await protobufService.initialize();
 
   // Socket 连接
-  ipcMain.handle('socket:connect', async (_, { host, port, userId, token, username }) => {
+  ipcMain.handle(SOCKET_IPC_CHANNELS.CONNECT, async (_, { host, port, userId, token, username }: SocketConnectConfig): Promise<SocketInvokeResult> => {
     try {
       if (!socketClient) {
         throw new Error('Socket client not initialized');
@@ -494,7 +501,7 @@ export async function initializeSocketHandler(mainWindow: BrowserWindow): Promis
   });
 
   // Socket 发送数据
-  ipcMain.handle('socket:send', async (_, dataBase64: string) => {
+  ipcMain.handle(SOCKET_IPC_CHANNELS.SEND, async (_, dataBase64: string): Promise<SocketInvokeResult> => {
     try {
       if (!socketClient) {
         throw new Error('Socket client not initialized');
@@ -512,7 +519,7 @@ export async function initializeSocketHandler(mainWindow: BrowserWindow): Promis
   });
 
   // Socket 断开连接
-  ipcMain.handle('socket:disconnect', async () => {
+  ipcMain.handle(SOCKET_IPC_CHANNELS.DISCONNECT, async (): Promise<SocketInvokeResult> => {
     try {
       if (socketClient) {
         socketClient.disconnect();
@@ -528,7 +535,7 @@ export async function initializeSocketHandler(mainWindow: BrowserWindow): Promis
   });
 
   // Socket 检查连接状态
-  ipcMain.handle('socket:is-active', async () => {
+  ipcMain.handle(SOCKET_IPC_CHANNELS.IS_ACTIVE, async (): Promise<SocketActiveResult> => {
     try {
       if (!socketClient) {
         return { active: false };
@@ -540,7 +547,7 @@ export async function initializeSocketHandler(mainWindow: BrowserWindow): Promis
   });
 
   // 发送结构化消息
-  ipcMain.handle('socket:send-message', async (_, payload: any) => {
+  ipcMain.handle(SOCKET_IPC_CHANNELS.SEND_MESSAGE, async (_, payload: any): Promise<SocketInvokeResult> => {
     try {
       if (!socketClient) {
         throw new Error('Socket client not initialized');
@@ -559,7 +566,7 @@ export async function initializeSocketHandler(mainWindow: BrowserWindow): Promis
   });
 
   // 标为已读
-  ipcMain.handle('socket:mark-read', async (_, { conversationId, lastMsgId, status }) => {
+  ipcMain.handle(SOCKET_IPC_CHANNELS.MARK_READ, async (_, { conversationId, lastMsgId, status }: SocketMarkReadPayload): Promise<SocketInvokeResult> => {
     try {
       if (!socketClient || !socketClient.isActive()) {
         return { success: false, error: 'Socket not active' };

@@ -150,6 +150,25 @@ interface WebRTCManager {
     fun release()
 }
 
+object SignalingMessageType {
+    const val MEETING_REQUEST = "meeting/request"
+    const val MEETING_JOIN = "meeting/join"
+    const val MEETING_PARTICIPANTS = "meeting/participants"
+    const val MEETING_PARTICIPANT_JOINED = "meeting/participant-joined"
+    const val MEETING_PARTICIPANT_LEFT = "meeting/participant-left"
+    const val MEETING_REJECT = "meeting/reject"
+    const val MEETING_LEAVE = "meeting/leave"
+    const val MEETING_END = "meeting/end"
+    const val OFFER = "offer"
+    const val ANSWER = "answer"
+    const val CANDIDATE = "candidate"
+}
+
+object SignalingSdpType {
+    const val OFFER = "offer"
+    const val ANSWER = "answer"
+}
+
 /**
  * WebRTC消息对象
  */

@@ -1,7 +1,7 @@
 package com.github.im.group
 
-import android.os.Bundle
 import android.content.Intent
+import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -11,10 +11,11 @@ import com.github.im.group.notification.AndroidCallNotificationContract
 import com.github.im.group.notification.AndroidNotificationPermissionHelper
 import com.github.im.group.notification.AndroidPushEndpointRegistrar
 import com.github.im.group.notification.AndroidPushNotificationManager
-import com.google.firebase.messaging.FirebaseMessaging
+import com.github.im.group.notification.FirebaseBootstrap
 import com.github.im.group.ui.video.CallNotificationAction
 import com.github.im.group.ui.video.CallNotificationCenter
 import com.github.im.group.ui.video.CallNotificationEvent
+import com.google.firebase.messaging.FirebaseMessaging
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -58,16 +59,19 @@ class MainActivity : ComponentActivity() {
 
         val endpointRegistrar = AndroidPushEndpointRegistrar(applicationContext)
         endpointRegistrar.syncStoredTokenIfAvailable()
-        FirebaseMessaging.getInstance().token
-            .addOnSuccessListener { token ->
-                if (token.isNullOrBlank()) {
-                    return@addOnSuccessListener
+        val firebaseApp = FirebaseBootstrap.ensureInitialized(applicationContext)
+        if (firebaseApp != null) {
+            FirebaseMessaging.getInstance().token
+                .addOnSuccessListener { token ->
+                    if (token.isNullOrBlank()) {
+                        return@addOnSuccessListener
+                    }
+                    endpointRegistrar.syncTokenAsync(token)
                 }
-                endpointRegistrar.syncTokenAsync(token)
-            }
-            .addOnFailureListener { error ->
-                Napier.e("Failed to fetch FCM token on startup", error)
-            }
+                .addOnFailureListener { error ->
+                    Napier.e("Failed to fetch FCM token on startup", error)
+                }
+        }
 
         handleCallNotificationIntent(intent)
         

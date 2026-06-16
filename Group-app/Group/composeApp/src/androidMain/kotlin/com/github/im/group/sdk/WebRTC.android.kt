@@ -12,8 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.github.im.group.GlobalCredentialProvider
-import com.github.im.group.config.ProxyConfig
 import com.github.im.group.ui.video.VideoCallState
 import com.github.im.group.ui.video.VideoCallStatus
 import com.shepeliev.webrtckmp.AudioTrack
@@ -42,18 +40,8 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
-import okhttp3.Authenticator
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
-import okhttp3.logging.HttpLoggingInterceptor
 import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer
-import org.webrtc.VideoSink
-import java.util.concurrent.TimeUnit
 
 // Android平台的WebRTC Track和Stream实现
 class AndroidVideoTrack(val webrtcVideoTrack: VideoTrack) : com.github.im.group.sdk.VideoTrack() {
@@ -102,7 +90,10 @@ class AndroidMediaStream(private val webrtcMediaStream: MediaStream) : com.githu
 /**
  * Android WebRTC管理器实现 (Mesh多人架构)
  */
-class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
+class AndroidWebRTCManager(
+    private val context: Context,
+    private val signalingClient: AndroidMeetingSignalingClient
+) : WebRTCManager {
     private var localMediaStream: AndroidMediaStream? = null
 
     private val _connectionState = MutableStateFlow(VideoCallState())
@@ -121,7 +112,6 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     private val _remoteAudioTrack = MutableStateFlow<AndroidAudioTrack?>(null)
     override val remoteAudioTrack: StateFlow<AndroidAudioTrack?> = _remoteAudioTrack
 
-    private var webSocket: WebSocket? = null
     private var userId: String = ""
     private var roomId: String? = null
     
@@ -129,26 +119,27 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     private val peerConnections = mutableMapOf<String, PeerConnection>()
     private val pendingIceCandidates = mutableMapOf<String, MutableList<IceCandidate>>()
     
-    private var reconnectAttempts = 0
-    private val maxReconnectAttempts = 5
-    private val reconnectDelayMillis = 5000L
-    
     private val json = Json { ignoreUnknownKeys = true }
-    
-    private val client = OkHttpClient.Builder().authenticator(
-            Authenticator { _, response ->
-                response.request.newBuilder()
-                    .header("Authorization", GlobalCredentialProvider.currentToken)
-                    .build()
+
+    init {
+        signalingClient.setListener(object : AndroidMeetingSignalingClient.Listener {
+            override fun onConnected() {
+                Log.d("WebRTC", "Signaling connected")
             }
-        )
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+
+            override fun onMessage(text: String) {
+                handleWebSocketMessage(text)
+            }
+
+            override fun onDisconnected(code: Int, reason: String) {
+                Log.d("WebRTC", "Signaling closed: $code, $reason")
+            }
+
+            override fun onFailure(error: Throwable) {
+                Log.e("WebRTC", "Signaling failure", error)
+            }
         })
-        .build()
+    }
     
     override suspend fun initialize() {
         Napier.d("AndroidWebRTCManager initialized")
@@ -163,62 +154,24 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     
     override fun connectToSignalingServer(serverUrl: String, userId: String) {
         this.userId = userId
-        establishWebSocketConnection()
-    }
-    
-    private fun establishWebSocketConnection() {
-        val request = Request.Builder()
-            .url("${ProxyConfig.getWsBaseUrl()}?userId=$userId&token=${GlobalCredentialProvider.currentToken}")
-            .header("Authorization", GlobalCredentialProvider.currentToken)
-            .build()
-        Napier.d("WebRTC Establishing WebSocket: $request")
-
-        webSocket = client.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                Log.d("WebRTC", "WebSocket Open")
-                reconnectAttempts = 0
-            }
-            
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                handleWebSocketMessage(text)
-            }
-            
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                Log.e("WebRTC", "WebSocket Failure", t)
-                attemptReconnect()
-            }
-            
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                if (code != 1000) attemptReconnect()
-            }
-        })
-    }
-    
-    private fun attemptReconnect() {
-        if (reconnectAttempts < maxReconnectAttempts) {
-            reconnectAttempts++
-            CoroutineScope(Dispatchers.Main).launch {
-                kotlinx.coroutines.delay(reconnectDelayMillis)
-                establishWebSocketConnection()
-            }
-        }
+        signalingClient.connect(userId)
     }
 
     private fun handleWebSocketMessage(text: String) {
         try {
             val msg = json.decodeFromString<WebrtcMessage>(text)
             when (msg.type) {
-                "meeting/request" -> handleCallRequest(msg)
-                "meeting/join" -> handleMeetingJoin(msg)
-                "meeting/participants" -> handleMeetingParticipants(msg)
-                "meeting/participant-joined" -> handleParticipantJoined(msg)
-                "meeting/participant-left" -> handleParticipantLeft(msg)
-                "meeting/reject" -> handleCallFailed(msg)
-                "offer" -> handleOffer(msg)
-                "answer" -> handleAnswer(msg)
-                "candidate" -> handleIceCandidate(msg)
-                "meeting/leave" -> handleHangup(msg)
-                "meeting/end" -> cleanup()
+                SignalingMessageType.MEETING_REQUEST -> handleCallRequest(msg)
+                SignalingMessageType.MEETING_JOIN -> handleMeetingJoin(msg)
+                SignalingMessageType.MEETING_PARTICIPANTS -> handleMeetingParticipants(msg)
+                SignalingMessageType.MEETING_PARTICIPANT_JOINED -> handleParticipantJoined(msg)
+                SignalingMessageType.MEETING_PARTICIPANT_LEFT -> handleParticipantLeft(msg)
+                SignalingMessageType.MEETING_REJECT -> handleCallFailed(msg)
+                SignalingMessageType.OFFER -> handleOffer(msg)
+                SignalingMessageType.ANSWER -> handleAnswer(msg)
+                SignalingMessageType.CANDIDATE -> handleIceCandidate(msg)
+                SignalingMessageType.MEETING_LEAVE -> handleHangup(msg)
+                SignalingMessageType.MEETING_END -> cleanup()
                 else -> Log.d("WebRTC", "Unknown type: ${msg.type}")
             }
         } catch (e: Exception) {
@@ -293,8 +246,8 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
             val offer = pc.createOffer(OfferAnswerOptions(offerToReceiveVideo = true, offerToReceiveAudio = true))
             pc.setLocalDescription(offer)
             sendWebSocketMessage(WebrtcMessage(
-                type = "offer", fromUser = userId, toUser = remoteUserId,
-                roomId = roomId, sdp = offer.sdp, sdpType = "offer"
+                type = SignalingMessageType.OFFER, fromUser = userId, toUser = remoteUserId,
+                roomId = roomId, sdp = offer.sdp, sdpType = SignalingSdpType.OFFER
             ))
         } catch (e: Exception) {
             Log.e("WebRTC", "Create Offer Failed: $remoteUserId", e)
@@ -314,8 +267,8 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
                 val answer = pc.createAnswer(OfferAnswerOptions(offerToReceiveAudio = true, offerToReceiveVideo = true))
                 pc.setLocalDescription(answer)
                 sendWebSocketMessage(WebrtcMessage(
-                    type = "answer", fromUser = userId, toUser = remoteId,
-                    roomId = roomId, sdp = answer.sdp, sdpType = "answer"
+                    type = SignalingMessageType.ANSWER, fromUser = userId, toUser = remoteId,
+                    roomId = roomId, sdp = answer.sdp, sdpType = SignalingSdpType.ANSWER
                 ))
             } catch (e: Exception) {
                 Log.e("WebRTC", "Handle Offer Failed: $remoteId", e)
@@ -432,7 +385,7 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
         
         participantIds.forEach { targetId ->
             sendWebSocketMessage(WebrtcMessage(
-                type = "meeting/request", fromUser = userId, toUser = targetId,
+                type = SignalingMessageType.MEETING_REQUEST, fromUser = userId, toUser = targetId,
                 roomId = roomId, participants = participants
             ))
         }
@@ -441,12 +394,12 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     
     override fun joinMeeting(roomId: String) {
         this.roomId = roomId
-        sendWebSocketMessage(WebrtcMessage(type = "meeting/join", fromUser = userId, roomId = roomId))
+        sendWebSocketMessage(WebrtcMessage(type = SignalingMessageType.MEETING_JOIN, fromUser = userId, roomId = roomId))
         _connectionState.value = _connectionState.value.copy(callStatus = VideoCallStatus.CONNECTING, callId = roomId)
     }
 
     override fun leaveMeeting() {
-        sendWebSocketMessage(WebrtcMessage(type = "meeting/leave", fromUser = userId, roomId = roomId))
+        sendWebSocketMessage(WebrtcMessage(type = SignalingMessageType.MEETING_LEAVE, fromUser = userId, roomId = roomId))
         cleanup()
     }
 
@@ -454,7 +407,7 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     override fun rejectCall(callId: String) {
         sendWebSocketMessage(
             WebrtcMessage(
-                type = "meeting/reject",
+                type = SignalingMessageType.MEETING_REJECT,
                 fromUser = userId,
                 toUser = _connectionState.value.caller?.userId?.toString(),
                 roomId = callId,
@@ -475,16 +428,13 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
     }
     override fun sendIceCandidate(candidate: com.github.im.group.sdk.IceCandidate, toUser: String?) {
         sendWebSocketMessage(WebrtcMessage(
-            type = "candidate", fromUser = userId, toUser = toUser, roomId = roomId,
+            type = SignalingMessageType.CANDIDATE, fromUser = userId, toUser = toUser, roomId = roomId,
             candidate = IceCandidateData(candidate.candidate, candidate.sdpMid, candidate.sdpMLineIndex)
         ))
     }
     
-    override fun release() { cleanup() }
-    
     private fun sendWebSocketMessage(msg: WebrtcMessage) {
-        val text = json.encodeToString(msg)
-        webSocket?.send(text)
+        signalingClient.send(msg)
     }
     
     private fun cleanup() {
@@ -498,6 +448,11 @@ class AndroidWebRTCManager(private val context: Context) : WebRTCManager {
         _remoteAudioTrack.value = null
         _remoteVideoTrack.value = null
         _connectionState.value = VideoCallState()
+    }
+
+    override fun release() {
+        signalingClient.disconnect()
+        cleanup()
     }
 }
 

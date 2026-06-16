@@ -48,11 +48,9 @@ class SenderSdk(
      * 发送消息
      * @param chatMessage 消息体
      */
-    fun sendMessage(chatMessage: ChatMessage){
+    suspend fun sendMessage(chatMessage: ChatMessage){
         val baseMessage = BaseMessagePkg(message = chatMessage)
-        scope.launch {
-            send(BaseMessagePkg.ADAPTER.encode(baseMessage))
-        }
+        send(BaseMessagePkg.ADAPTER.encode(baseMessage))
     }
 
     /**
@@ -145,7 +143,13 @@ class SenderSdk(
             delay(100) // 等待100毫秒再检查
         }
         _connected.value = true
-        tcpClient.send(data)
+        try {
+            tcpClient.send(data)
+        } catch (e: Exception) {
+            _connected.value = false
+            startAutoReconnect()
+            throw e
+        }
     }
 
     /**

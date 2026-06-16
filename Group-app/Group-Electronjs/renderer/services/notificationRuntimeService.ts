@@ -173,6 +173,17 @@ class NotificationRuntimeService {
     this.bindElectronNotificationClicks();
 
     if (isDocumentVisible()) {
+      // Foreground web sessions do not show system notifications. Route the
+      // invite into the same in-app navigation flow used by notification clicks
+      // so the receiver still lands on the pre-join/invite surface immediately.
+      emitNavigation({
+        type: 'meeting',
+        roomId: message.roomId,
+        autoJoin: false,
+        senderId: message.fromUser != null ? String(message.fromUser) : undefined,
+        senderName: message.fromUserName,
+        senderAvatar: message.fromAvatar
+      });
       return;
     }
 

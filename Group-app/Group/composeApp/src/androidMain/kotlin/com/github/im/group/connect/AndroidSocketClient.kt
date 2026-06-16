@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.Socket
@@ -83,11 +84,20 @@ class AndroidSocketClient(
     }
 
     override suspend fun send(data: ByteArray) {
-        withContext(Dispatchers.IO) {
-            val lengthPrefix = encodeVarint32(data.size)
-            output?.write(lengthPrefix)
-            output?.write(data)
-            output?.flush()
+        try {
+            withContext(Dispatchers.IO) {
+                val currentOutput = output ?: throw SocketException("Socket output stream is unavailable")
+                val lengthPrefix = encodeVarint32(data.size)
+                currentOutput.write(lengthPrefix)
+                currentOutput.write(data)
+                currentOutput.flush()
+            }
+        } catch (error: IOException) {
+            // Treat write failures as a broken transport, trigger reconnect, and
+            // rethrow so upper layers can mark the message as failed/retryable.
+            Napier.e("Socket send failed, scheduling reconnect", error)
+            startAutoReconnect()
+            throw error
         }
     }
 
