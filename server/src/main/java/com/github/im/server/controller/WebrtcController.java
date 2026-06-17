@@ -7,45 +7,98 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
-/**
- * WebRTC 配置控制器
- * 用于向客户端提供 ICE 服务器（STUN/TURN）配置
- */
 @RestController
 @RequestMapping("/api/webrtc")
 @RequiredArgsConstructor
 public class WebrtcController {
 
+    private static final String FALLBACK_STUN_URL = "stun:stun.l.google.com:19302";
+
     private final WebrtcConfig webrtcConfig;
 
-    /**
-     * 获取 ICE 服务器配置列表
-     * @return ICE 服务器配置列表
-     */
     @GetMapping("/ice-servers")
     public List<WebrtcConfig.IceServerConfig> getIceServers() {
         List<WebrtcConfig.IceServerConfig> servers = new ArrayList<>();
-        
-        // 1. 添加基础 STUN 服务器
-        if (webrtcConfig.getIceServers() != null) {
-            for (WebrtcConfig.IceServerConfig config : webrtcConfig.getIceServers()) {
-                servers.add(config);
-            }
+
+        addConfiguredIceServers(servers);
+        addTurnServers(servers);
+
+        if (servers.isEmpty()) {
+            servers.add(new WebrtcConfig.IceServerConfig(FALLBACK_STUN_URL, null, null));
         }
-        
-        // 2. 如果启用了 TURN，添加 TURN 服务器配置
-        if (webrtcConfig.isTurnEnabled() && webrtcConfig.getTurnServer() != null) {
-            WebrtcConfig.TurnServerConfig turn = webrtcConfig.getTurnServer();
-            // 将 TURN 配置也作为 IceServer 返回给客户端
+
+        return servers;
+    }
+
+    private void addConfiguredIceServers(List<WebrtcConfig.IceServerConfig> servers) {
+        if (webrtcConfig.getIceServers() == null) {
+            return;
+        }
+
+        for (WebrtcConfig.IceServerConfig config : webrtcConfig.getIceServers()) {
+            String url = trimToNull(config.getUrl());
+            if (url == null) {
+                continue;
+            }
+
             servers.add(new WebrtcConfig.IceServerConfig(
-                turn.getUrl(),
-                turn.getUsername(),
-                turn.getCredential()
+                url,
+                trimToNull(config.getUsername()),
+                trimToNull(config.getCredential())
             ));
         }
-        
-        return servers;
+    }
+
+    private void addTurnServers(List<WebrtcConfig.IceServerConfig> servers) {
+        if (!webrtcConfig.isTurnEnabled() || webrtcConfig.getTurnServer() == null) {
+            return;
+        }
+
+        WebrtcConfig.TurnServerConfig turn = webrtcConfig.getTurnServer();
+        String baseUrl = trimToNull(turn.getUrl());
+        if (baseUrl == null) {
+            return;
+        }
+
+        String username = trimToNull(turn.getUsername());
+        String credential = trimToNull(turn.getCredential());
+        String[] protocols = turn.getProtocols();
+
+        Set<String> urls = new LinkedHashSet<>();
+        if (protocols != null && protocols.length > 0) {
+            for (String protocol : protocols) {
+                String normalizedProtocol = trimToNull(protocol);
+                if (normalizedProtocol == null) {
+                    continue;
+                }
+
+                if (baseUrl.contains("?transport=")) {
+                    urls.add(baseUrl);
+                } else {
+                    urls.add(baseUrl + "?transport=" + normalizedProtocol.toLowerCase());
+                }
+            }
+        }
+
+        if (urls.isEmpty()) {
+            urls.add(baseUrl);
+        }
+
+        for (String url : urls) {
+            servers.add(new WebrtcConfig.IceServerConfig(url, username, credential));
+        }
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

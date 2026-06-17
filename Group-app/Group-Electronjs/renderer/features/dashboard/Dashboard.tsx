@@ -253,6 +253,8 @@ const Dashboard: React.FC = () => {
                 return;
             }
 
+            console.log('[Dashboard] group:navigate', detail);
+
             if (detail.type === 'chat' && detail.conversationId) {
                 setHighlightedMeetingRoomId(null);
                 dispatch(setActiveConversation(detail.conversationId));
@@ -264,6 +266,11 @@ const Dashboard: React.FC = () => {
                 setActiveTab('meetings');
                 setHighlightedMeetingRoomId(detail.roomId);
                 if (!detail.autoJoin) {
+                    console.log('[Dashboard] presentIncomingInvite', {
+                        roomId: detail.roomId,
+                        senderId: detail.senderId,
+                        senderName: detail.senderName
+                    });
                     webRTCService.presentIncomingInvite({
                         roomId: detail.roomId,
                         remoteUserId: detail.senderId,

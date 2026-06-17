@@ -135,6 +135,10 @@ function showSystemNotification(payload: NotificationPayload) {
 class NotificationRuntimeService {
   private notificationClickRegistered = false;
 
+  private log(scope: string, details?: Record<string, unknown>) {
+    console.log('[NotificationRuntimeService]', details ? { scope, ...details } : { scope });
+  }
+
   bindElectronNotificationClicks() {
     if (this.notificationClickRegistered || !isElectronEnvironment()) {
       return;
@@ -171,11 +175,21 @@ class NotificationRuntimeService {
 
   handleMeetingInvite(message: any) {
     this.bindElectronNotificationClicks();
+    this.log('handle-meeting-invite', {
+      roomId: message.roomId,
+      fromUser: message.fromUser,
+      fromUserName: message.fromUserName,
+      visible: isDocumentVisible()
+    });
 
     if (isDocumentVisible()) {
       // Foreground web sessions do not show system notifications. Route the
       // invite into the same in-app navigation flow used by notification clicks
       // so the receiver still lands on the pre-join/invite surface immediately.
+      this.log('meeting-invite-foreground-route', {
+        roomId: message.roomId,
+        fromUser: message.fromUser
+      });
       emitNavigation({
         type: 'meeting',
         roomId: message.roomId,
@@ -187,6 +201,10 @@ class NotificationRuntimeService {
       return;
     }
 
+    this.log('meeting-invite-system-notification', {
+      roomId: message.roomId,
+      fromUser: message.fromUser
+    });
     showSystemNotification({
       eventType: 'MEETING_INVITE_CREATED',
       notificationKind: 'meeting_invite',

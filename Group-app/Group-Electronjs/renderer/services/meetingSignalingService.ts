@@ -7,7 +7,19 @@ type ConnectionState = 'disconnected' | 'connecting' | 'reconnecting' | 'connect
 
 class MeetingSignalingService extends EventEmitter {
   private initialized = false;
+
+  private log(scope: string, details?: Record<string, unknown>): void {
+    console.log('[MeetingSignalingService]', details ? { scope, ...details } : { scope });
+  }
+
   private readonly forwardSocketMessage = (message: WebrtcMessage) => {
+    this.log('forward-socket-message', {
+      type: message.type,
+      roomId: message.roomId,
+      fromUser: message.fromUser,
+      toUser: message.toUser
+    });
+
     // Notification side effects belong to the meeting signaling domain,
     // not to the generic socket transport layer.
     if (message.type === SIGNALING_MESSAGE_TYPES.MEETING_REQUEST) {
@@ -19,6 +31,7 @@ class MeetingSignalingService extends EventEmitter {
 
   public initialize(): void {
     if (this.initialized) {
+      this.log('initialize-skipped');
       return;
     }
 
@@ -26,6 +39,7 @@ class MeetingSignalingService extends EventEmitter {
     // re-emits room signaling so WebRTC/UI code can depend on a narrower API.
     socketService.on('signaling-message', this.forwardSocketMessage);
     this.initialized = true;
+    this.log('initialized');
   }
 
   public destroy(): void {
@@ -36,6 +50,7 @@ class MeetingSignalingService extends EventEmitter {
     socketService.off('signaling-message', this.forwardSocketMessage);
     this.initialized = false;
     this.removeAllListeners();
+    this.log('destroyed');
   }
 
   public sendMessage(message: WebrtcMessage): { accepted: boolean; queued: boolean } {

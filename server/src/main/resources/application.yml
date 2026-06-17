@@ -128,12 +128,12 @@ group:
   webrtc:
     session-timeout: ${WEBRTC_SESSION_TIMEOUT:300000}
     ice-servers:
-      - url: ${WEBRTC_STUN_SERVER_URL:stun:stun.l.google.com:19302}
+      - url: ${WEBRTC_STUN_SERVER_URL:}
     turn-enabled: ${WEBRTC_TURN_ENABLED:false}
     turn-server:
-      url: ${WEBRTC_TURN_SERVER_URL:turn:localhost:3478}
-      username: ${WEBRTC_TURN_SERVER_USERNAME:username}
-      credential: ${WEBRTC_TURN_SERVER_CREDENTIAL:credential}
+      url: ${WEBRTC_TURN_SERVER_URL:}
+      username: ${WEBRTC_TURN_SERVER_USERNAME:}
+      credential: ${WEBRTC_TURN_SERVER_CREDENTIAL:}
 
 # JWT 配置
 jwt:

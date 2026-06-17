@@ -17,6 +17,7 @@ class SocketService extends EventEmitter {
   private static readonly WEB_LEADER_LEASE_MS = 10000;
   private static readonly WEB_LEADER_HEARTBEAT_MS = 4000;
   private static readonly MAX_PENDING_PAYLOADS = 200;
+  private static readonly BROWSER_REALTIME_CHANNEL_PREFIX = 'groupim:realtime';
   private store: Store<RootState> | null = null;
   private userId: string | null = null;
   private host: string = 'localhost';
@@ -31,9 +32,11 @@ class SocketService extends EventEmitter {
   private heartbeatTimer: NodeJS.Timeout | null = null;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private connectionCheckInterval: NodeJS.Timeout | null = null;
+  private activeBrowserWsUrl: string | null = null;
   private readonly browserTabId = `tab-${Math.random().toString(36).slice(2)}-${Date.now()}`;
   private browserLeaderHeartbeatTimer: NodeJS.Timeout | null = null;
   private browserLeaderElectionTimer: NodeJS.Timeout | null = null;
+  private browserRealtimeChannel: BroadcastChannel | null = null;
   private browserLeader = false;
   private browserCoordinationReady = false;
   private connectionState: 'disconnected' | 'connecting' | 'reconnecting' | 'connected' = 'disconnected';
@@ -56,6 +59,30 @@ class SocketService extends EventEmitter {
   };
   private readonly onBeforeUnload = () => {
     this.releaseBrowserLeadership();
+  };
+  private readonly onBrowserRealtimeMessage = (event: MessageEvent<any>) => {
+    if (!this.isBrowserEnvironment()) {
+      return;
+    }
+
+    const payload = event.data;
+    if (!payload || payload.tabId === this.browserTabId) {
+      return;
+    }
+
+    if (payload.kind === 'socket-payload') {
+      this.applyRealtimePayload(payload.payload, { source: 'broadcast' });
+      return;
+    }
+
+    if (payload.kind === 'sync-conversations' && this.store && this.userId) {
+      (this.store.dispatch as any)(fetchConversations(this.userId));
+      return;
+    }
+
+    if (payload.kind === 'connection-state' && typeof payload.state === 'string' && !this.browserLeader) {
+      this.setConnectionState(payload.state);
+    }
   };
 
   private log(scope: string, details?: Record<string, unknown>) {
@@ -109,9 +136,21 @@ class SocketService extends EventEmitter {
 
     this.connectionState = state;
     this.emit('connection-state', state);
+    if (this.isBrowserEnvironment() && this.browserLeader) {
+      this.publishBrowserRealtimeEvent({
+        kind: 'connection-state',
+        state
+      });
+    }
   }
 
   private handleSignalingRuntimeMessage(message: WebrtcMessage) {
+    this.log('signaling-runtime-message', {
+      type: message.type,
+      roomId: message.roomId,
+      fromUser: message.fromUser,
+      toUser: message.toUser
+    });
     this.emit('signaling-message', message);
   }
 
@@ -237,9 +276,21 @@ class SocketService extends EventEmitter {
       return;
     }
 
+    if (this.browserRealtimeChannel) {
+      this.log('browser-follower-broadcast');
+      this.isInitializing = false;
+      this.setConnectionState('connected');
+      return;
+    }
+
     this.log('browser-follower-polling');
     this.isInitializing = false;
     this.setConnectionState('reconnecting');
+    if (this.browserRealtimeChannel) {
+      this.setConnectionState('connected');
+      return;
+    }
+
     this.startPollingFallback();
   }
 
@@ -250,7 +301,30 @@ class SocketService extends EventEmitter {
 
     window.addEventListener('storage', this.onStorage);
     window.addEventListener('beforeunload', this.onBeforeUnload);
+    if (!this.browserRealtimeChannel && this.supportsBrowserBroadcast()) {
+      this.browserRealtimeChannel = new BroadcastChannel(this.getBrowserRealtimeChannelName());
+      this.browserRealtimeChannel.onmessage = this.onBrowserRealtimeMessage;
+    }
     this.browserCoordinationReady = true;
+  }
+
+  private supportsBrowserBroadcast(): boolean {
+    return typeof BroadcastChannel !== 'undefined';
+  }
+
+  private getBrowserRealtimeChannelName(): string {
+    return `${SocketService.BROWSER_REALTIME_CHANNEL_PREFIX}:${this.userId || 'anonymous'}`;
+  }
+
+  private publishBrowserRealtimeEvent(payload: any) {
+    if (!this.isBrowserEnvironment() || !this.browserRealtimeChannel) {
+      return;
+    }
+
+    this.browserRealtimeChannel.postMessage({
+      ...payload,
+      tabId: this.browserTabId
+    });
   }
 
   private connectSignalingWS() {
@@ -268,6 +342,12 @@ class SocketService extends EventEmitter {
       if (typeof event.data === 'string') {
         try {
           const message = JSON.parse(event.data) as WebrtcMessage;
+          this.log('signaling-ws-message', {
+            type: message.type,
+            roomId: message.roomId,
+            fromUser: message.fromUser,
+            toUser: message.toUser
+          });
           this.handleSignalingRuntimeMessage(message);
         } catch (e) {
           console.error('Failed to parse signaling message:', e);
@@ -426,20 +506,81 @@ class SocketService extends EventEmitter {
     }
   }
 
+  private ensureConversationState(conversationId?: number) {
+    if (!this.store || !this.userId || !conversationId) {
+      return;
+    }
+
+    const exists = this.store
+      .getState()
+      .chat
+      .conversations
+      .some((item) => item.conversation.conversationId === conversationId);
+
+    if (!exists) {
+      (this.store.dispatch as any)(fetchConversations(this.userId));
+    }
+  }
+
+  private applyRealtimePayload(payload: any, options?: { source?: 'socket' | 'broadcast' }) {
+    console.log('Processed socket message:', payload, options);
+
+    if (payload.message && this.store) {
+      const chatMsg = payload.message;
+      const messageDto: any = {
+        msgId: chatMsg.msgId,
+        fromAccountId: chatMsg.fromUser?.userId,
+        content: chatMsg.content,
+        timestamp: Number(chatMsg.serverTimeStamp || chatMsg.clientTimeStamp || Date.now()),
+        conversationId: chatMsg.conversationId,
+        type: chatMsg.type === 'TEXT' ? 'TEXT' : chatMsg.type,
+        clientMsgId: chatMsg.clientMsgId,
+        sequenceId: chatMsg.sequenceId
+      };
+      this.store.dispatch(addMessage(messageDto));
+      this.ensureConversationState(chatMsg.conversationId);
+    }
+
+    if (payload.ack && this.store) {
+      const ackMsg = payload.ack;
+      if (ackMsg.status === 4 || ackMsg.status === 'READ') {
+        console.log('Received READ receipt:', ackMsg);
+      }
+    }
+
+    if (payload.notification && this.store && this.userId) {
+      console.log('Received realtime notification package:', payload.notification);
+      notificationRuntimeService.handleRealtimeNotification(payload.notification, this.store);
+      (this.store.dispatch as any)(fetchConversations(this.userId));
+      if (options?.source === 'socket' && this.browserLeader) {
+        this.publishBrowserRealtimeEvent({
+          kind: 'sync-conversations'
+        });
+      }
+    }
+
+    if (options?.source === 'socket' && this.browserLeader) {
+      this.publishBrowserRealtimeEvent({
+        kind: 'socket-payload',
+        payload
+      });
+    }
+  }
+
   /**
    * 浏览器环境下的原生 WebSocket 连接实现
    */
   private connectNativeWS() {
     if (this.isBrowserEnvironment() && !this.browserLeader) {
       this.isInitializing = false;
-      this.setConnectionState('reconnecting');
       this.log('connect-native-skipped-not-leader');
+      if (this.browserRealtimeChannel) {
+        this.setConnectionState('connected');
+        return;
+      }
+      this.setConnectionState('reconnecting');
       this.startPollingFallback();
       return;
-    }
-
-    if (this.socket) {
-      this.socket.close();
     }
 
     try {
@@ -448,18 +589,55 @@ class SocketService extends EventEmitter {
       const currentHost = typeof window !== 'undefined' ? window.location.host : `${this.host}:${this.port}`;
       // Web 端统一走当前页面同源 /ws，由 devServer/nginx 负责转发
       const wsUrl = `${wsProtocol}://${currentHost}/ws?userId=${this.userId}&token=${this.token}`;
+      if (
+        this.socket &&
+        this.activeBrowserWsUrl === wsUrl &&
+        (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)
+      ) {
+        this.log('connect-native-ws-skipped-existing-socket', {
+          wsUrl,
+          readyState: this.socket.readyState
+        });
+        return;
+      }
+
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+
+      if (this.socket && this.socket.readyState !== WebSocket.CLOSED) {
+        this.log('connect-native-ws-replacing-stale-socket', {
+          previousReadyState: this.socket.readyState
+        });
+        this.socket.close();
+      }
+
       this.log('connect-native-ws', { wsUrl });
 
-      this.socket = new WebSocket(wsUrl);
-      this.socket.binaryType = 'arraybuffer';
-      this.signalingWS = this.socket;
+      const nextSocket = new WebSocket(wsUrl);
+      this.socket = nextSocket;
+      this.signalingWS = nextSocket;
+      this.activeBrowserWsUrl = wsUrl;
+      nextSocket.binaryType = 'arraybuffer';
 
-      this.socket.onopen = () => {
+      nextSocket.onopen = () => {
+        if (this.socket !== nextSocket) {
+          this.log('native-ws-open-stale-socket-ignored', { wsUrl });
+          nextSocket.close();
+          return;
+        }
+
         this.log('native-ws-open');
         this.isConnected = true;
         this.isInitializing = false;
         this.setConnectionState('connected');
         this.stopBrowserElectionWatch();
+
+        if (this.reconnectTimer) {
+          clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = null;
+        }
 
         // 停止掉轮询降级
         if (this.pollingTimer) {
@@ -473,11 +651,21 @@ class SocketService extends EventEmitter {
         this.flushPendingSignalingMessages();
       };
 
-      this.socket.onmessage = (event) => {
+      nextSocket.onmessage = (event) => {
+        if (this.socket !== nextSocket) {
+          return;
+        }
+
         if (typeof event.data === 'string') {
           try {
             const message = JSON.parse(event.data) as WebrtcMessage;
             if (message.type && SocketService.SIGNALING_RUNTIME_TYPES.has(message.type)) {
+              this.log('native-ws-signaling-message', {
+                type: message.type,
+                roomId: message.roomId,
+                fromUser: message.fromUser,
+                toUser: message.toUser
+              });
               this.handleSignalingRuntimeMessage(message);
             } else {
               console.log('Unknown JSON message:', message);
@@ -490,10 +678,18 @@ class SocketService extends EventEmitter {
         }
       };
 
-      this.socket.onclose = (event) => {
-        this.log('native-ws-close', { code: event.code, reason: event.reason });
+      nextSocket.onclose = (event) => {
+        const isCurrentSocket = this.socket === nextSocket;
+        this.log('native-ws-close', { code: event.code, reason: event.reason, wasCurrentSocket: isCurrentSocket });
+        if (!isCurrentSocket) {
+          return;
+        }
+
         this.isConnected = false;
         this.isInitializing = false;
+        this.socket = null;
+        this.signalingWS = null;
+        this.activeBrowserWsUrl = null;
         this.setConnectionState(this.intentionToClose ? 'disconnected' : 'reconnecting');
         this.stopHeartbeat();
 
@@ -513,7 +709,11 @@ class SocketService extends EventEmitter {
         }
       };
 
-      this.socket.onerror = (error) => {
+      nextSocket.onerror = (error) => {
+        if (this.socket !== nextSocket) {
+          return;
+        }
+
         console.error('[SocketService] native-ws-error', error);
         this.isInitializing = false;
         this.setConnectionState('reconnecting');
@@ -722,6 +922,10 @@ class SocketService extends EventEmitter {
   private handleMessage(message: any) {
     try {
       if (message.type === 'message') {
+        this.applyRealtimePayload(message.payload, { source: 'socket' });
+        return;
+        /*
+
         const payload = message.payload;
         console.log('Processed socket message:', payload);
 
@@ -760,6 +964,7 @@ class SocketService extends EventEmitter {
           // recover even if we missed updates during the reconnect window.
           (this.store.dispatch as any)(fetchConversations(this.userId));
         }
+        */
       } else if (message.type === 'raw') {
         console.log('Received raw socket data:', message.data);
       }
@@ -933,6 +1138,7 @@ class SocketService extends EventEmitter {
       this.socket.close();
       this.socket = null;
     }
+    this.activeBrowserWsUrl = null;
 
     if (this.signalingWS && this.signalingWS !== this.socket) {
       this.signalingWS.close();
@@ -945,6 +1151,10 @@ class SocketService extends EventEmitter {
         window.removeEventListener('storage', this.onStorage);
         window.removeEventListener('beforeunload', this.onBeforeUnload);
         this.browserCoordinationReady = false;
+      }
+      if (this.browserRealtimeChannel) {
+        this.browserRealtimeChannel.close();
+        this.browserRealtimeChannel = null;
       }
     }
 

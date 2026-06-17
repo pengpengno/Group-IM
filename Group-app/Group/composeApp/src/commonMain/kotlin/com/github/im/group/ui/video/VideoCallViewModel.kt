@@ -59,6 +59,24 @@ class VideoCallViewModel(
     private var currentCallId: String? = null
     private var isIncomingCallProcessing = false
     private var isEndingCall = false
+    // We intentionally stage call setup in two phases:
+    // 1) move UI into an outgoing/connecting state immediately
+    // 2) ask for permission + build media/signaling after the call page is visible
+    // This keeps the transition smooth on all clients and gives callees a stable
+    // accept surface before camera/mic initialization starts.
+    private var pendingCallSetup: PendingCallSetup? = null
+    private var isPreparingCallSession = false
+
+    private sealed interface PendingCallSetup {
+        data class OutgoingMeeting(
+            val roomId: String,
+            val participantIds: List<String>
+        ) : PendingCallSetup
+
+        data class AcceptIncoming(
+            val callId: String
+        ) : PendingCallSetup
+    }
 
     fun startCall(callee: UserInfo) {
         startMeeting(
@@ -89,13 +107,13 @@ class VideoCallViewModel(
                     errorMessage = null
                 )
 
-                createLocalMediaStream()
-
-                if (participantIds.isEmpty()) {
-                    webRTCManager?.joinMeeting(roomId)
-                } else {
-                    webRTCManager?.initiateMeeting(roomId, participantIds)
-                }
+                // Render the outgoing screen first. Media permission and session
+                // setup continue from the call surface so the transition feels
+                // immediate and the user always sees a call UI before heavy work.
+                pendingCallSetup = PendingCallSetup.OutgoingMeeting(
+                    roomId = roomId,
+                    participantIds = participantIds
+                )
             } catch (e: Exception) {
                 handleError("Failed to start meeting", e)
             }
@@ -135,17 +153,58 @@ class VideoCallViewModel(
                     callStatus = VideoCallStatus.CONNECTING,
                     isMinimized = false
                 )
-                createLocalMediaStream()
-                webRTCManager?.acceptCall(currentCallId.orEmpty())
-                _videoCallState.value = _videoCallState.value.copy(
-                    callStatus = VideoCallStatus.ACTIVE,
-                    isMinimized = false
-                )
+                pendingCallSetup = PendingCallSetup.AcceptIncoming(currentCallId.orEmpty())
             } catch (e: Exception) {
                 handleError("Failed to accept call", e)
             } finally {
                 isIncomingCallProcessing = false
             }
+        }
+    }
+
+    fun preparePendingCallSession() {
+        if (isPreparingCallSession) return
+        val pendingSetup = pendingCallSetup ?: return
+
+        viewModelScope.launch {
+            isPreparingCallSession = true
+            try {
+                createLocalMediaStream()
+                when (pendingSetup) {
+                    is PendingCallSetup.OutgoingMeeting -> {
+                        if (pendingSetup.participantIds.isEmpty()) {
+                            webRTCManager?.joinMeeting(pendingSetup.roomId)
+                        } else {
+                            webRTCManager?.initiateMeeting(pendingSetup.roomId, pendingSetup.participantIds)
+                        }
+                    }
+
+                    is PendingCallSetup.AcceptIncoming -> {
+                        webRTCManager?.acceptCall(pendingSetup.callId)
+                        _videoCallState.value = _videoCallState.value.copy(
+                            callStatus = VideoCallStatus.ACTIVE,
+                            isMinimized = false
+                        )
+                    }
+                }
+                pendingCallSetup = null
+            } catch (e: Exception) {
+                handleError("Failed to prepare call session", e)
+            } finally {
+                isPreparingCallSession = false
+            }
+        }
+    }
+
+    fun handlePendingCallPermissionDenied() {
+        val pendingSetup = pendingCallSetup
+        pendingCallSetup = null
+        isPreparingCallSession = false
+
+        when (pendingSetup) {
+            is PendingCallSetup.AcceptIncoming -> rejectCall()
+            is PendingCallSetup.OutgoingMeeting -> finishCall(VideoCallStatus.ENDED, "Camera and microphone permission denied")
+            null -> Unit
         }
     }
 
@@ -308,12 +367,26 @@ class VideoCallViewModel(
                     receiveMeetingRequest(state)
                 } else {
                     val current = _videoCallState.value
+                    val shouldHoldUiFirstStatus =
+                        pendingCallSetup != null &&
+                            state.callStatus == VideoCallStatus.IDLE &&
+                            current.callStatus in listOf(
+                                VideoCallStatus.OUTGOING,
+                                VideoCallStatus.CONNECTING,
+                                VideoCallStatus.PRE_JOIN
+                            )
+
+                    val mergedCallStatus = when {
+                        shouldHoldUiFirstStatus -> current.callStatus
+                        current.isMinimized && state.callStatus == VideoCallStatus.ACTIVE -> VideoCallStatus.MINIMIZED
+                        else -> state.callStatus
+                    }
+
                     _videoCallState.value = current.copy(
-                        callStatus = if (current.isMinimized && state.callStatus == VideoCallStatus.ACTIVE) {
-                            VideoCallStatus.MINIMIZED
-                        } else {
-                            state.callStatus
-                        },
+                        // Until the deferred setup actually starts, keep the optimistic
+                        // UI-first status instead of letting an idle manager snapshot
+                        // collapse the call screen back to the chat page.
+                        callStatus = mergedCallStatus,
                         caller = state.caller ?: current.caller,
                         callee = state.callee ?: current.callee,
                         participants = if (state.participants.isNotEmpty()) state.participants else current.participants,
@@ -442,6 +515,8 @@ class VideoCallViewModel(
         currentCallId = null
         isIncomingCallProcessing = false
         isEndingCall = false
+        pendingCallSetup = null
+        isPreparingCallSession = false
         _videoCallState.value = VideoCallState()
     }
 

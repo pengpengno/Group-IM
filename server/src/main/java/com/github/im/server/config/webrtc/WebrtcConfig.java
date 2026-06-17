@@ -17,9 +17,7 @@ public class WebrtcConfig {
     /**
      * ICE服务器配置
      */
-    private IceServerConfig[] iceServers = {
-        new IceServerConfig("stun:stun.l.google.com:19302", null, null)
-    };
+    private IceServerConfig[] iceServers = new IceServerConfig[0];
     
     /**
      * 是否启用TURN服务器
@@ -48,9 +46,9 @@ public class WebrtcConfig {
     
     @Data
     public static class TurnServerConfig {
-        private String url = "turn:localhost:3478";
-        private String username = "username";
-        private String credential = "credential";
+        private String url = "";
+        private String username = "";
+        private String credential = "";
         private String[] protocols = {"udp", "tcp"};
     }
 }

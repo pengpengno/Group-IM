@@ -71,11 +71,10 @@ fun VideoCallLauncher(remoteUser: UserInfo, onCallEnded: () -> Unit = {}) {
     val videoCallViewModel: VideoCallViewModel = koinViewModel()
     val videoCallState by videoCallViewModel.videoCallState.collectAsState()
 
-    if (videoCallState.callStatus == VideoCallStatus.IDLE) {
-        TryGetVideoCallPermissions(
-            onAllGranted = { videoCallViewModel.startCall(remoteUser) },
-            onAnyDenied = onCallEnded
-        )
+    LaunchedEffect(remoteUser.userId, videoCallState.callStatus) {
+        if (videoCallState.callStatus == VideoCallStatus.IDLE) {
+            videoCallViewModel.startCall(remoteUser)
+        }
     }
 
     HandleCallEnded(videoCallState.callStatus, onCallEnded)
@@ -92,11 +91,10 @@ fun MeetingLauncher(roomId: String, participantIds: List<String>, onCallEnded: (
     val videoCallViewModel: VideoCallViewModel = koinViewModel()
     val videoCallState by videoCallViewModel.videoCallState.collectAsState()
 
-    if (videoCallState.callStatus == VideoCallStatus.IDLE) {
-        TryGetVideoCallPermissions(
-            onAllGranted = { videoCallViewModel.startMeeting(roomId, participantIds) },
-            onAnyDenied = onCallEnded
-        )
+    LaunchedEffect(roomId, videoCallState.callStatus) {
+        if (videoCallState.callStatus == VideoCallStatus.IDLE) {
+            videoCallViewModel.startMeeting(roomId, participantIds)
+        }
     }
 
     HandleCallEnded(videoCallState.callStatus, onCallEnded)
@@ -125,6 +123,23 @@ private fun RenderCallSurface(
     videoCallViewModel: VideoCallViewModel,
     onCallEnded: () -> Unit
 ) {
+    val localMediaStream by videoCallViewModel.localMediaStream.collectAsState()
+
+    if ((videoCallState.callStatus == VideoCallStatus.OUTGOING || videoCallState.callStatus == VideoCallStatus.CONNECTING) &&
+        localMediaStream == null
+    ) {
+        // Mount the call UI first, then request camera/mic permission and continue
+        // session setup from inside the call surface. This keeps the callee/
+        // caller experience aligned with web: page first, device activation second.
+        TryGetVideoCallPermissions(
+            onAllGranted = { videoCallViewModel.preparePendingCallSession() },
+            onAnyDenied = {
+                videoCallViewModel.handlePendingCallPermissionDenied()
+                onCallEnded()
+            }
+        )
+    }
+
     when (videoCallState.callStatus) {
         VideoCallStatus.IDLE, VideoCallStatus.ENDED -> Unit
         VideoCallStatus.PRE_JOIN -> {

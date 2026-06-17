@@ -62,6 +62,18 @@ interface SignalingConnectionConfig {
 
 const DEFAULT_ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 
+function nextUiFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    // Let React commit the call screen before camera/mic permission or WebRTC
+    // initialization work starts. This keeps outbound/inbound transitions snappy.
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => resolve());
+      return;
+    }
+    setTimeout(resolve, 0);
+  });
+}
+
 export class WebRTCService extends EventEmitter {
   private localStream: MediaStream | null = null;
   private store: Store<RootState> | null = null;
@@ -178,7 +190,9 @@ export class WebRTCService extends EventEmitter {
       return;
     }
 
-    meetingSignalingService.initialize();
+    // Signaling lifecycle is owned by App boot so invites can be received even
+    // before the user opens any call surface. WebRTCService only consumes that
+    // signaling stream to manage call/session state.
     this.signalingUnsubscribe = meetingSignalingService.onMessage((message) => this.handleSignalingMessage(message));
 
     console.log('Fetching ICE servers from backend...');
@@ -630,16 +644,18 @@ export class WebRTCService extends EventEmitter {
 
   private async joinMeetingFlow(roomId: string): Promise<void> {
     try {
-      await this.initialize();
-      if (!this.localStream) {
-        await this.acquireLocalMedia();
-      }
-
       this.updateState({
         callStatus: VideoCallStatus.CONNECTING,
         roomId,
         isMeeting: true
       });
+
+      // Render the pre-join / connecting surface first, then start media setup.
+      await nextUiFrame();
+      await this.initialize();
+      if (!this.localStream) {
+        await this.acquireLocalMedia();
+      }
 
       this.sendMeetingJoin(roomId);
     } catch (error) {
@@ -651,11 +667,6 @@ export class WebRTCService extends EventEmitter {
     try {
       if (!targets.length) {
         throw new Error('No participants provided for meeting');
-      }
-
-      await this.initialize();
-      if (!this.localStream) {
-        await this.acquireLocalMedia();
       }
 
       const finalRoomId = roomId || this.createRoomId();
@@ -676,6 +687,14 @@ export class WebRTCService extends EventEmitter {
         remoteAvatar: firstTarget.avatar,
         isMeeting: targets.length > 1
       });
+
+      // Show the outgoing call page before camera/mic work starts so the
+      // transition feels immediate on web and Electron.
+      await nextUiFrame();
+      await this.initialize();
+      if (!this.localStream) {
+        await this.acquireLocalMedia();
+      }
 
       this.sendMeetingJoin(finalRoomId);
 
@@ -719,12 +738,14 @@ export class WebRTCService extends EventEmitter {
         return;
       }
 
+      // Mirror mobile behavior: move into the visible connecting state first so
+      // the callee sees a stable accept/join surface before media setup begins.
+      this.updateState({ callStatus: VideoCallStatus.CONNECTING });
+      await nextUiFrame();
       await this.initialize();
       if (!this.localStream) {
         await this.acquireLocalMedia();
       }
-
-      this.updateState({ callStatus: VideoCallStatus.CONNECTING });
       this.sendMeetingJoin(this.state.roomId);
     } catch (error) {
       this.handleError(error as Error);

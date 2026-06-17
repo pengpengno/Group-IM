@@ -58,9 +58,12 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
 
   useEffect(() => {
     if (user?.userId) {
+      // Avoid re-fetching the full conversation list when unrelated auth fields
+      // such as company metadata are updated. Those auth updates should not
+      // behave like a fresh login from the chat list's perspective.
       dispatch(fetchConversations(user.userId));
     }
-  }, [dispatch, user]);
+  }, [dispatch, user?.userId]);
 
   useEffect(() => {
     let cancelled = false;

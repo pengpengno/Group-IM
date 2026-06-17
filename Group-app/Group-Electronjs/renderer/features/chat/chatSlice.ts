@@ -342,6 +342,14 @@ const chatSlice = createSlice({
                 ) {
                     conv.unreadCount += 1;
                 }
+
+                const currentIndex = state.conversations.findIndex(
+                    (item) => item.conversation.conversationId === conversationId
+                );
+                if (currentIndex > 0) {
+                    const [updated] = state.conversations.splice(currentIndex, 1);
+                    state.conversations.unshift(updated);
+                }
             }
         }
     },
