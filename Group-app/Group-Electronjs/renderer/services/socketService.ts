@@ -2,8 +2,8 @@ import { Store } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { getElectronAPI } from './api/electronAPI';
 import { electronSocketBridge } from './electronSocketBridge';
-import { addMessage, fetchConversations, fetchMessages } from '../features/chat/chatSlice';
-import { BaseMessagePkg, UserInfo, Heartbeat, AckMessage } from './protoDefinitions';
+import { addMessage, confirmMessageDelivery, fetchConversations, fetchMessages } from '../features/chat/chatSlice';
+import { BaseMessagePkg, UserInfo, Heartbeat, AckMessage, MessageType, MessagesStatus } from './protoDefinitions';
 import { notificationRuntimeService } from './notificationRuntimeService';
 import Long from 'long';
 import { EventEmitter } from 'events';
@@ -17,6 +17,7 @@ class SocketService extends EventEmitter {
   private static readonly WEB_LEADER_LEASE_MS = 10000;
   private static readonly WEB_LEADER_HEARTBEAT_MS = 4000;
   private static readonly MAX_PENDING_PAYLOADS = 200;
+  private static readonly CONNECTION_CHECK_MS = 15000;
   private static readonly BROWSER_REALTIME_CHANNEL_PREFIX = 'groupim:realtime';
   private store: Store<RootState> | null = null;
   private userId: string | null = null;
@@ -60,6 +61,17 @@ class SocketService extends EventEmitter {
   private readonly onBeforeUnload = () => {
     this.releaseBrowserLeadership();
   };
+  private readonly onBrowserWindowOnline = () => {
+    this.activate('online');
+  };
+  private readonly onBrowserWindowFocus = () => {
+    this.activate('focus');
+  };
+  private readonly onBrowserVisibilityChange = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      this.activate('visibility');
+    }
+  };
   private readonly onBrowserRealtimeMessage = (event: MessageEvent<any>) => {
     if (!this.isBrowserEnvironment()) {
       return;
@@ -77,6 +89,21 @@ class SocketService extends EventEmitter {
 
     if (payload.kind === 'sync-conversations' && this.store && this.userId) {
       (this.store.dispatch as any)(fetchConversations(this.userId));
+      return;
+    }
+
+    if (payload.kind === 'send-payload' && this.browserLeader) {
+      void this.sendPayload(payload.payload);
+      return;
+    }
+
+    if (payload.kind === 'send-signaling' && this.browserLeader) {
+      this.sendSignalingMessage(payload.payload);
+      return;
+    }
+
+    if (payload.kind === 'mark-read' && this.browserLeader) {
+      void this.markAsRead(payload.conversationId, payload.lastMsgId);
       return;
     }
 
@@ -98,6 +125,44 @@ class SocketService extends EventEmitter {
     console.log('[SocketService]', details ? { ...base, ...details } : base);
   }
 
+  private toNumber(value: any): number {
+    if (typeof value === 'number') {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    }
+    if (value && typeof value.toNumber === 'function') {
+      return value.toNumber();
+    }
+    return 0;
+  }
+
+  private normalizeMessageType(type: any): string {
+    if (typeof type === 'string') {
+      return type.toUpperCase();
+    }
+
+    if (typeof type === 'number' && (MessageType as any)[type] !== undefined) {
+      return String((MessageType as any)[type]);
+    }
+
+    return 'TEXT';
+  }
+
+  private normalizeAckStatus(status: any): string {
+    if (typeof status === 'string') {
+      return status.toUpperCase();
+    }
+
+    if (typeof status === 'number' && (MessagesStatus as any)[status] !== undefined) {
+      return String((MessagesStatus as any)[status]);
+    }
+
+    return '';
+  }
+
   public getWebSocket(): WebSocket | null {
     return this.signalingWS;
   }
@@ -108,6 +173,15 @@ class SocketService extends EventEmitter {
       socket.send(JSON.stringify(message));
       this.log('signaling-send-success', { type: message?.type, roomId: message?.roomId, toUser: message?.toUser });
       return { accepted: true, queued: false };
+    }
+
+    if (this.canProxyViaBrowserLeader()) {
+      this.publishBrowserRealtimeEvent({
+        kind: 'send-signaling',
+        payload: message
+      });
+      this.log('signaling-send-proxied', { type: message?.type, roomId: message?.roomId, toUser: message?.toUser });
+      return { accepted: true, queued: true };
     }
 
     if (!this.intentionToClose && this.enqueueSignalingMessage(message)) {
@@ -127,6 +201,46 @@ class SocketService extends EventEmitter {
   public onConnectionStateChange(handler: (state: 'disconnected' | 'connecting' | 'reconnecting' | 'connected') => void): () => void {
     this.on('connection-state', handler);
     return () => this.off('connection-state', handler);
+  }
+
+  public activate(reason: 'initialize' | 'focus' | 'visibility' | 'online' | 'health-check' | 'manual' = 'manual') {
+    if (this.intentionToClose || !this.userId) {
+      return;
+    }
+
+    this.log('activate', { reason });
+
+    if (this.isElectron) {
+      if (!this.isConnected && !this.isInitializing) {
+        this.isInitializing = true;
+        this.setConnectionState('connecting');
+        void this.connect();
+      }
+      return;
+    }
+
+    this.setupBrowserCoordination();
+    this.tryAcquireBrowserLeadership();
+
+    if (this.browserLeader) {
+      const socketReady = this.socket?.readyState === WebSocket.OPEN || this.socket?.readyState === WebSocket.CONNECTING;
+      if (!socketReady && !this.isInitializing) {
+        this.isInitializing = true;
+        this.setConnectionState('connecting');
+        this.connectNativeWS();
+      }
+      return;
+    }
+
+    if (this.browserRealtimeChannel) {
+      this.setConnectionState('connected');
+      return;
+    }
+
+    if (!this.pollingTimer) {
+      this.setConnectionState('reconnecting');
+      this.startPollingFallback();
+    }
   }
 
   private setConnectionState(state: 'disconnected' | 'connecting' | 'reconnecting' | 'connected') {
@@ -170,6 +284,7 @@ class SocketService extends EventEmitter {
     this.isInitializing = true;
     this.setConnectionState('connecting');
     this.log('initialize', { host, port, username });
+    this.startConnectionMonitor();
     this.connect();
   }
 
@@ -301,6 +416,9 @@ class SocketService extends EventEmitter {
 
     window.addEventListener('storage', this.onStorage);
     window.addEventListener('beforeunload', this.onBeforeUnload);
+    window.addEventListener('online', this.onBrowserWindowOnline);
+    window.addEventListener('focus', this.onBrowserWindowFocus);
+    document.addEventListener('visibilitychange', this.onBrowserVisibilityChange);
     if (!this.browserRealtimeChannel && this.supportsBrowserBroadcast()) {
       this.browserRealtimeChannel = new BroadcastChannel(this.getBrowserRealtimeChannelName());
       this.browserRealtimeChannel.onmessage = this.onBrowserRealtimeMessage;
@@ -325,6 +443,20 @@ class SocketService extends EventEmitter {
       ...payload,
       tabId: this.browserTabId
     });
+  }
+
+  private canProxyViaBrowserLeader(): boolean {
+    return this.isBrowserEnvironment() && !this.browserLeader && !!this.browserRealtimeChannel;
+  }
+
+  private startConnectionMonitor() {
+    if (this.connectionCheckInterval) {
+      clearInterval(this.connectionCheckInterval);
+    }
+
+    this.connectionCheckInterval = setInterval(() => {
+      this.activate('health-check');
+    }, SocketService.CONNECTION_CHECK_MS);
   }
 
   private connectSignalingWS() {
@@ -528,22 +660,33 @@ class SocketService extends EventEmitter {
     if (payload.message && this.store) {
       const chatMsg = payload.message;
       const messageDto: any = {
-        msgId: chatMsg.msgId,
-        fromAccountId: chatMsg.fromUser?.userId,
+        msgId: this.toNumber(chatMsg.msgId),
+        fromAccountId: this.toNumber(chatMsg.fromUser?.userId),
         content: chatMsg.content,
-        timestamp: Number(chatMsg.serverTimeStamp || chatMsg.clientTimeStamp || Date.now()),
-        conversationId: chatMsg.conversationId,
-        type: chatMsg.type === 'TEXT' ? 'TEXT' : chatMsg.type,
+        timestamp: this.toNumber(chatMsg.serverTimeStamp || chatMsg.clientTimeStamp || Date.now()),
+        conversationId: this.toNumber(chatMsg.conversationId),
+        type: this.normalizeMessageType(chatMsg.type),
         clientMsgId: chatMsg.clientMsgId,
-        sequenceId: chatMsg.sequenceId
+        sequenceId: this.toNumber(chatMsg.sequenceId)
       };
       this.store.dispatch(addMessage(messageDto));
-      this.ensureConversationState(chatMsg.conversationId);
+      this.ensureConversationState(this.toNumber(chatMsg.conversationId));
     }
 
     if (payload.ack && this.store) {
       const ackMsg = payload.ack;
-      if (ackMsg.status === 4 || ackMsg.status === 'READ') {
+      const normalizedStatus = this.normalizeAckStatus(ackMsg.status);
+      if (ackMsg.clientMsgId && this.toNumber(ackMsg.conversationId) > 0) {
+        this.store.dispatch(confirmMessageDelivery({
+          conversationId: this.toNumber(ackMsg.conversationId),
+          clientMsgId: ackMsg.clientMsgId,
+          msgId: this.toNumber(ackMsg.serverMsgId),
+          timestamp: this.toNumber(ackMsg.ackTimestamp) || Date.now(),
+          status: normalizedStatus === 'FAILED' ? 'failed' : 'success'
+        }));
+      }
+
+      if (ackMsg.status === 4 || normalizedStatus === 'READ') {
         console.log('Received READ receipt:', ackMsg);
       }
     }
@@ -1022,9 +1165,18 @@ class SocketService extends EventEmitter {
         }
         return { accepted: false, queued: false };
       }
+    } else if (this.canProxyViaBrowserLeader()) {
+      this.publishBrowserRealtimeEvent({
+        kind: 'send-payload',
+        payload
+      });
+      this.activate('manual');
+      this.log('send-payload-browser-proxied', messageSummary);
+      return { accepted: true, queued: true };
     } else {
       if (!skipQueue && !this.intentionToClose && this.enqueuePayload(payload)) {
         this.setConnectionState('reconnecting');
+        this.activate('manual');
         this.log('send-payload-queued-no-socket', messageSummary);
         return { accepted: true, queued: true };
       }
@@ -1049,8 +1201,8 @@ class SocketService extends EventEmitter {
         const pkg = BaseMessagePkg.create({
           ack: {
             conversationId: conversationId,
-            msgId: lastMsgId,
-            status: 'READ'
+            serverMsgId: lastMsgId,
+            status: MessagesStatus.READ
           }
         });
         const buffer = BaseMessagePkg.encode(pkg).finish();
@@ -1060,7 +1212,16 @@ class SocketService extends EventEmitter {
         console.error('Failed to send ACK over WebSocket:', err);
         return false;
       }
+    } else if (this.canProxyViaBrowserLeader()) {
+      this.publishBrowserRealtimeEvent({
+        kind: 'mark-read',
+        conversationId,
+        lastMsgId
+      });
+      this.activate('manual');
+      return true;
     } else {
+      this.activate('manual');
       return false;
     }
   }
@@ -1127,6 +1288,11 @@ class SocketService extends EventEmitter {
       this.pollingTimer = null;
     }
 
+    if (this.connectionCheckInterval) {
+      clearInterval(this.connectionCheckInterval);
+      this.connectionCheckInterval = null;
+    }
+
     this.stopHeartbeat();
 
     if (this.reconnectTimer) {
@@ -1150,6 +1316,9 @@ class SocketService extends EventEmitter {
       if (this.browserCoordinationReady) {
         window.removeEventListener('storage', this.onStorage);
         window.removeEventListener('beforeunload', this.onBeforeUnload);
+        window.removeEventListener('online', this.onBrowserWindowOnline);
+        window.removeEventListener('focus', this.onBrowserWindowFocus);
+        document.removeEventListener('visibilitychange', this.onBrowserVisibilityChange);
         this.browserCoordinationReady = false;
       }
       if (this.browserRealtimeChannel) {

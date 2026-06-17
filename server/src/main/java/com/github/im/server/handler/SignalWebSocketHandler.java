@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.im.common.connect.connection.ReactiveConnectionManager;
 import com.github.im.common.connect.connection.server.BindAttr;
 import com.github.im.common.connect.model.proto.BaseMessage;
+import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.server.model.User;
 import com.github.im.server.service.MessageService;
 import com.github.im.server.service.OnlineService;
@@ -132,7 +133,7 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
                     handleHeartbeat(session, pkg);
                     break;
                 case ACK:
-                    log.debug("Received ACK from WebSocket: {}", pkg.getAck());
+                    handleAckMessage(session, pkg);
                     break;
                 default:
                     log.warn("Unsupported binary payload case: {}", pkg.getPayloadCase());
@@ -192,8 +193,55 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
 
         String schemaName = user.getCurrentSchema();
         SchemaSwitcher.executeInSchema(schemaName, () -> {
-            return messageService.handleMessage(chatMessage);
+            var savedMessage = messageService.handleMessage(chatMessage);
+            sendDeliveryAck(session, chatMessage, savedMessage.getMsgId());
+            return savedMessage;
         });
+    }
+
+    private void handleAckMessage(WebSocketSession session, BaseMessage.BaseMessagePkg pkg) {
+        var ackMessage = pkg.getAck();
+        log.debug("Received ACK from WebSocket: {}", ackMessage);
+
+        User user = (User) session.getAttributes().get("USER");
+        if (user == null) {
+            log.warn("Received ACK from unauthenticated WebSocket session: {}", session.getId());
+            return;
+        }
+
+        if (ackMessage.getStatus() == Chat.MessagesStatus.READ) {
+            String schemaName = user.getCurrentSchema();
+            SchemaSwitcher.executeInSchema(schemaName, () -> {
+                messageService.markConversationAsRead(
+                        ackMessage.getConversationId(),
+                        user.getUserId(),
+                        ackMessage.getServerMsgId()
+                );
+                return null;
+            });
+        }
+    }
+
+    private void sendDeliveryAck(WebSocketSession session, Chat.ChatMessage chatMessage, Long serverMsgId) {
+        if (session == null || !session.isOpen()) {
+            return;
+        }
+
+        BaseMessage.BaseMessagePkg ackPkg = BaseMessage.BaseMessagePkg.newBuilder()
+                .setAck(Chat.AckMessage.newBuilder()
+                        .setClientMsgId(chatMessage.getClientMsgId())
+                        .setServerMsgId(serverMsgId == null ? 0L : serverMsgId)
+                        .setConversationId(chatMessage.getConversationId())
+                        .setAckTimestamp(System.currentTimeMillis())
+                        .setStatus(Chat.MessagesStatus.SENT)
+                        .build())
+                .build();
+
+        try {
+            session.sendMessage(new BinaryMessage(ackPkg.toByteArray()));
+        } catch (IOException e) {
+            log.error("Failed to send delivery ACK via WebSocket", e);
+        }
     }
 
     private void handleHeartbeat(WebSocketSession session, BaseMessage.BaseMessagePkg pkg) {

@@ -33,6 +33,14 @@ function normalizeMessage(message: MessageDTO): MessageDTO {
     };
 }
 
+interface DeliveryAckPayload {
+    conversationId: number;
+    clientMsgId?: string;
+    msgId?: number;
+    timestamp?: number;
+    status?: 'sending' | 'success' | 'failed';
+}
+
 function findMessageIndex(messages: MessageDTO[], target: MessageDTO): number {
     return messages.findIndex((message) =>
         (target.msgId > 0 && message.msgId > 0 && message.msgId === target.msgId) ||
@@ -253,7 +261,7 @@ export const sendMessageViaSocket = createAsyncThunk(
                     type: (type as any) || 'TEXT',
                     timestamp: Date.now(),
                     clientMsgId: finalClientMsgId,
-                    sendingStatus: sendResult.queued ? 'sending' : 'success'
+                    sendingStatus: 'sending'
                 } as MessageDTO;
             }
 
@@ -351,6 +359,32 @@ const chatSlice = createSlice({
                     state.conversations.unshift(updated);
                 }
             }
+        },
+        confirmMessageDelivery(state, action: PayloadAction<DeliveryAckPayload>) {
+            const { conversationId, clientMsgId, msgId, timestamp, status } = action.payload;
+            const list = state.messages[conversationId];
+            if (!list?.length) {
+                return;
+            }
+
+            const target = list.find((message) =>
+                (!!clientMsgId && !!message.clientMsgId && message.clientMsgId === clientMsgId) ||
+                (!!msgId && message.msgId === msgId)
+            );
+
+            if (!target) {
+                return;
+            }
+
+            if (msgId && (!target.msgId || target.msgId <= 0)) {
+                target.msgId = msgId;
+            }
+
+            if (timestamp) {
+                target.timestamp = timestamp;
+            }
+
+            target.sendingStatus = status || 'success';
         }
     },
     extraReducers: (builder) => {
@@ -453,7 +487,7 @@ const chatSlice = createSlice({
 
                 upsertMessage(state.messages[conversationId], {
                     ...action.payload,
-                    sendingStatus: action.payload.sendingStatus || 'success'
+                    sendingStatus: action.payload.sendingStatus || 'sending'
                 });
             })
             .addCase(sendMessageViaSocket.rejected, (state, action) => {
@@ -485,7 +519,7 @@ const chatSlice = createSlice({
     },
 });
 
-export const { setActiveConversation, addMessage } = chatSlice.actions;
+export const { setActiveConversation, addMessage, confirmMessageDelivery } = chatSlice.actions;
 export default chatSlice.reducer;
 
 
