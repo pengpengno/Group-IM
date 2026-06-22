@@ -241,17 +241,25 @@ public class UserService {
         log.info("查询用户：{}",queryString);
 
         return userRepository.findAll((root, query, cb)-> {
-            List<Predicate> predicates = new ArrayList<>();
-            // 查询 用户名   或者email 相似的
-
-            predicates.add(cb.like(root.get("username"), "%" + queryString + "%"));
-            predicates.add(cb.like(root.get("email"), "%" + queryString + "%"));
-
-            // 排除当前用户
+//            List<Predicate> predicates = new ArrayList<>();
+//            // 查询 用户名   或者email 相似的
+//
+//            predicates.add(cb.like(root.get("username"), "%" + queryString + "%"));
+//            predicates.add(cb.like(root.get("email"), "%" + queryString + "%"));
+//
+//            // 排除当前用户
+//            Predicate notCurrentUser = cb.notEqual(root.get("username"), user.getUsername());
+//            predicates.add(notCurrentUser);
+//            return cb.or(predicates.toArray(new Predicate[0]))
+//                    ;
+            Predicate usernameLike = cb.like(root.get("username"), "%" + queryString + "%");
+            Predicate emailLike = cb.like(root.get("email"), "%" + queryString + "%");
             Predicate notCurrentUser = cb.notEqual(root.get("username"), user.getUsername());
-            predicates.add(notCurrentUser);
-            return cb.or(predicates.toArray(new Predicate[0]))
-                    ;
+
+            return cb.and(
+                    cb.or(usernameLike, emailLike),
+                    notCurrentUser
+            );
         },Pageable.ofSize(100)).map(UserMapper.INSTANCE::userToUserInfo);
 
     }

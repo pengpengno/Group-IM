@@ -2,6 +2,11 @@ package com.github.im.server.config;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
@@ -13,8 +18,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * 应用存活健康检查测试
  */
-@SpringBootTest
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.MOCK,
+        properties = {
+                "management.endpoint.health.probes.enabled=true",
+                "management.endpoints.web.exposure.include=health"
+        }
+)
 @AutoConfigureMockMvc
+@EnableAutoConfiguration(exclude = {
+        DataSourceAutoConfiguration.class,
+        HibernateJpaAutoConfiguration.class,
+        JpaRepositoriesAutoConfiguration.class,
+        RedisAutoConfiguration.class,
+})
+
 public class HealthCheckTest {
 
     @Autowired

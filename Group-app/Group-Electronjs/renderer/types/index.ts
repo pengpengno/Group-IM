@@ -196,10 +196,15 @@ export interface MeetingMessagePayload {
   roomId?: string;
   title?: string;
   action?: string;
+  category?: 'MEETING' | 'VIDEO_CALL' | 'VOICE_CALL' | string;
+  status?: string;
+  summary?: string;
   hostId?: number;
+  actorId?: number;
   scheduledAt?: string;
   participantIds?: number[];
   participantCount?: number;
+  durationSeconds?: number;
 }
 
 export interface Message {

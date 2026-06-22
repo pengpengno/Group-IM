@@ -22,11 +22,11 @@ interface UseVideoCallReturn {
   toggleSpeaker: (enabled: boolean) => void;
 
   // Events
-  onIncomingCall: (callback: (callerId: string) => void) => void;
-  onCallAccepted: (callback: (calleeId: string) => void) => void;
-  onCallRejected: (callback: (callerId: string) => void) => void;
-  onCallEnded: (callback: (remoteId: string) => void) => void;
-  onError: (callback: (error: Error) => void) => void;
+  onIncomingCall: (callback: (callerId: string) => void) => () => void;
+  onCallAccepted: (callback: (calleeId: string) => void) => () => void;
+  onCallRejected: (callback: (callerId: string) => void) => () => void;
+  onCallEnded: (callback: (remoteId: string) => void) => () => void;
+  onError: (callback: (error: Error) => void) => () => void;
 }
 
 export const useVideoCall = (): UseVideoCallReturn => {
@@ -110,23 +110,32 @@ export const useVideoCall = (): UseVideoCallReturn => {
 
   // Event attachment helpers
   const onIncomingCall = useCallback((callback: (callerId: string) => void) => {
-    webRTCService.on('incoming-call', ({ callerId }) => callback(callerId));
+    const handler = ({ callerId }: { callerId: string }) => callback(callerId);
+    webRTCService.on('incoming-call', handler);
+    return () => webRTCService.off('incoming-call', handler);
   }, []);
 
   const onCallAccepted = useCallback((callback: (calleeId: string) => void) => {
-    webRTCService.on('call-accepted', ({ calleeId }) => callback(calleeId));
+    const handler = ({ calleeId }: { calleeId: string }) => callback(calleeId);
+    webRTCService.on('call-accepted', handler);
+    return () => webRTCService.off('call-accepted', handler);
   }, []);
 
   const onCallRejected = useCallback((callback: (callerId: string) => void) => {
-    webRTCService.on('call-rejected', ({ callerId }) => callback(callerId));
+    const handler = ({ callerId }: { callerId: string }) => callback(callerId);
+    webRTCService.on('call-rejected', handler);
+    return () => webRTCService.off('call-rejected', handler);
   }, []);
 
   const onCallEnded = useCallback((callback: (remoteId: string) => void) => {
-    webRTCService.on('call-ended', ({ remoteId }) => callback(remoteId));
+    const handler = ({ remoteId }: { remoteId: string }) => callback(remoteId);
+    webRTCService.on('call-ended', handler);
+    return () => webRTCService.off('call-ended', handler);
   }, []);
 
   const onError = useCallback((callback: (error: Error) => void) => {
     webRTCService.on('error', callback);
+    return () => webRTCService.off('error', callback);
   }, []);
 
   return {

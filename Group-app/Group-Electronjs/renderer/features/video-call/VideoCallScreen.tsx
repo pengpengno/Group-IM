@@ -56,6 +56,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
     toggleCamera,
     toggleMicrophone,
     toggleSpeaker,
+    onCallEnded,
     onError
   } = useVideoCall();
 
@@ -95,10 +96,17 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   }, [remoteParticipants, isMinimized]);
 
   useEffect(() => {
-    onError((error) => {
+    const offEnded = onCallEnded(() => {
+      // keep summary panel on screen; no immediate close
+    });
+    const offError = onError((error) => {
       console.error('Video call error:', error);
     });
-  }, [onError, onCallEnd]);
+    return () => {
+      offEnded();
+      offError();
+    };
+  }, [onCallEnded, onError, onCallEnd]);
 
   const displayName = callState.remoteUserName || remoteUserName || callState.remoteUserId || remoteUserId || 'Unknown User';
   const displayAvatar = callState.remoteAvatar || remoteAvatar;

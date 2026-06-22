@@ -38,6 +38,8 @@ export interface WebrtcMessage {
     fromAvatar?: string;
     toUser?: string;
     roomId?: string;
+    conversationId?: number;
+    callKind?: 'MEETING' | 'VIDEO_CALL' | 'VOICE_CALL';
     participants?: Array<Record<string, any>>;
     sdp?: string;
     sdpType?: SignalingSdpType;

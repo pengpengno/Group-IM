@@ -140,7 +140,6 @@ private fun RenderCallSurface(
             onAllGranted = { videoCallViewModel.preparePendingCallSession() },
             onAnyDenied = {
                 videoCallViewModel.handlePendingCallPermissionDenied()
-                onCallEnded()
             }
         )
     }
@@ -154,20 +153,14 @@ private fun RenderCallSurface(
                 acceptLabel = "Join",
                 rejectLabel = "Dismiss",
                 onAccept = { videoCallViewModel.acceptCall() },
-                onReject = {
-                    videoCallViewModel.rejectCall()
-                    onCallEnded()
-                }
+                onReject = { videoCallViewModel.rejectCall() }
             )
         }
         VideoCallStatus.INCOMING -> {
             VideoCallIncomingNotification(
                 caller = videoCallState.caller ?: fallbackUser,
                 onAccept = { videoCallViewModel.acceptCall() },
-                onReject = {
-                    videoCallViewModel.rejectCall()
-                    onCallEnded()
-                }
+                onReject = { videoCallViewModel.rejectCall() }
             )
         }
         VideoCallStatus.OUTGOING, VideoCallStatus.CONNECTING -> {
@@ -175,20 +168,14 @@ private fun RenderCallSurface(
                 remoteUser = videoCallState.caller ?: fallbackUser,
                 videoCallState = videoCallState,
                 videoCallViewModel = videoCallViewModel,
-                onEndCall = {
-                    videoCallViewModel.endCall()
-                    onCallEnded()
-                }
+                onEndCall = { videoCallViewModel.endCall() }
             )
         }
         VideoCallStatus.MINIMIZED -> {
             MinimizedCallOverlay(
                 remoteUser = videoCallState.caller ?: fallbackUser,
                 videoCallViewModel = videoCallViewModel,
-                onEndCall = {
-                    videoCallViewModel.endCall()
-                    onCallEnded()
-                }
+                onEndCall = { videoCallViewModel.endCall() }
             )
         }
         VideoCallStatus.ENDED -> {
@@ -206,10 +193,7 @@ private fun RenderCallSurface(
                 remoteUser = videoCallState.caller ?: fallbackUser,
                 videoCallState = videoCallState,
                 videoCallViewModel = videoCallViewModel,
-                onEndCall = {
-                    videoCallViewModel.endCall()
-                    onCallEnded()
-                }
+                onEndCall = { videoCallViewModel.endCall() }
             )
         }
     }

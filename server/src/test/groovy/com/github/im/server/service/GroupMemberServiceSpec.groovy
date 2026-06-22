@@ -7,6 +7,8 @@ import com.github.im.server.repository.ConversationRepository
 import com.github.im.server.repository.GroupMemberRepository
 import spock.lang.Specification
 
+import java.time.LocalDateTime
+
 class GroupMemberServiceSpec extends Specification {
 
     def groupMemberRepository = Mock(GroupMemberRepository)
@@ -92,7 +94,7 @@ class GroupMemberServiceSpec extends Specification {
                 joinedAt: LocalDateTime.now()
         )
 
-        groupMemberRepository.save(_) >> member
+        groupMemberRepository.save(_ as ConversationMember) >> member
 
         when:
         def result = groupMemberService.addMemberToGroup(groupId, userId)
@@ -109,8 +111,8 @@ class GroupMemberServiceSpec extends Specification {
         def conversationId = 1L
         def userIds = [1L, 2L, 3L]
         def conversation = new Conversation(conversationId: conversationId)
-        
         conversationRepository.findById(conversationId) >> Optional.of(conversation)
+        groupMemberRepository.findByConversationId(conversationId) >> List.of()
 
         when:
         def result = groupMemberService.addMembersToGroup(conversationId, userIds)

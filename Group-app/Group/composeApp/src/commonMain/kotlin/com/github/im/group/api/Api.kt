@@ -689,10 +689,15 @@ data class MeetingMessagePayLoad(
     val roomId: String? = null,
     val title: String? = null,
     val action: String? = null,
+    val category: String? = null,
+    val status: String? = null,
+    val summary: String? = null,
     val hostId: Long? = null,
+    val actorId: Long? = null,
     val participantIds: List<Long> = emptyList(),
     val participantCount: Int? = null,
-    val scheduledAt: String? = null
+    val scheduledAt: String? = null,
+    val durationSeconds: Int? = null
 ) : MessagePayLoad
 
 @Serializable

@@ -27,7 +27,7 @@ declare global {
 
 interface ChatRoomProps {
   conversation: ConversationRes;
-  onVideoCall?: (userId: string) => void;
+  onVideoCall?: (userId: string, conversationId?: number, callKind?: 'VIDEO_CALL' | 'VOICE_CALL') => void;
   onStartMeeting?: (participants: Array<{ userId: string; userName?: string }>, roomId?: string) => void;
   onJoinMeeting?: (roomId: string) => void;
 }
@@ -249,11 +249,25 @@ const MessageBubble: React.FC<{
       }
       case MessageType.MEETING: {
         const payload = parseMeetingPayload(message);
-        const title = payload?.title || '会议';
+        const category = payload?.category || 'MEETING';
+        const title = payload?.title || (category === 'VIDEO_CALL' ? '视频通话' : category === 'VOICE_CALL' ? '语音通话' : '会议');
         const count = payload?.participantCount ?? payload?.participantIds?.length ?? 0;
         const roomId = payload?.roomId;
         const isScheduled = payload?.action === 'SCHEDULE';
+        const isCallSummary = payload?.action === 'CALL_SUMMARY';
         const scheduledTime = payload?.scheduledAt ? new Date(payload.scheduledAt).toLocaleString() : '';
+
+        if (isCallSummary) {
+          return (
+            <div className="msg-meeting-card">
+              <div className="meeting-title">{title}</div>
+              <div className="meeting-meta">{payload?.summary || '通话已结束'}</div>
+              {typeof payload?.durationSeconds === 'number' && (
+                <div className="meeting-meta">时长: {Math.floor(payload.durationSeconds / 60).toString().padStart(2, '0')}:{(payload.durationSeconds % 60).toString().padStart(2, '0')}</div>
+              )}
+            </div>
+          );
+        }
 
         return (
           <div className={`msg-meeting-card ${isScheduled ? 'scheduled' : ''}`}>
@@ -877,7 +891,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
             <>
               <button
                 className="action-icon-btn"
-                onClick={() => onVideoCall(getOtherUserId()!)}
+                onClick={() => onVideoCall(getOtherUserId()!, conversation.conversationId, 'VOICE_CALL')}
                 title="语音通话"
               >
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
@@ -886,7 +900,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
               </button>
               <button
                 className="action-icon-btn"
-                onClick={() => onVideoCall(getOtherUserId()!)}
+                onClick={() => onVideoCall(getOtherUserId()!, conversation.conversationId, 'VIDEO_CALL')}
                 title="视频通话"
               >
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">

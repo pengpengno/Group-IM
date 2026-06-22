@@ -8,7 +8,7 @@ import { ConversationDisplayState, ApiUser, OrgTreeNode, ConversationRes } from 
 import './ChatList.css';
 
 interface ChatListProps {
-  onVideoCallStart?: (userId: string, userName?: string) => void;
+  onVideoCallStart?: (userId: string, userName?: string, conversationId?: number, callKind?: 'VIDEO_CALL' | 'VOICE_CALL') => void;
 }
 
 type GroupModalMode = 'create' | 'add-members' | null;
@@ -68,36 +68,45 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setInterval> | null = null;
+    let syncing = false;
 
     const syncOnlineStatuses = async () => {
-      const privateConversations = conversations
-        .map((item) => item.conversation)
-        .filter((conversation) => conversation.conversationType !== 'GROUP');
-
-      if (!privateConversations.length) {
-        if (!cancelled) {
-          setOnlineStatuses({});
-        }
+      if (syncing) {
         return;
       }
+      syncing = true;
+      try {
+        const privateConversations = conversations
+          .map((item) => item.conversation)
+          .filter((conversation) => conversation.conversationType !== 'GROUP');
 
-      const entries = await Promise.all(privateConversations.map(async (conversation) => {
-        const peer = getConversationPeer(conversation, user?.userId);
-        if (!peer) {
-          return [conversation.conversationId, false] as const;
+        if (!privateConversations.length) {
+          if (!cancelled) {
+            setOnlineStatuses({});
+          }
+          return;
         }
 
-        try {
-          const response = await authAPI.isUserOnline(peer.userId);
-          return [conversation.conversationId, response.data?.data === true] as const;
-        } catch (error) {
-          console.warn('Failed to sync online status for conversation', conversation.conversationId, error);
-          return [conversation.conversationId, false] as const;
-        }
-      }));
+        const entries = await Promise.all(privateConversations.map(async (conversation) => {
+          const peer = getConversationPeer(conversation, user?.userId);
+          if (!peer) {
+            return [conversation.conversationId, false] as const;
+          }
 
-      if (!cancelled) {
-        setOnlineStatuses(Object.fromEntries(entries));
+          try {
+            const response = await authAPI.isUserOnline(peer.userId);
+            return [conversation.conversationId, response.data?.data === true] as const;
+          } catch (error) {
+            console.warn('Failed to sync online status for conversation', conversation.conversationId, error);
+            return [conversation.conversationId, false] as const;
+          }
+        }));
+
+        if (!cancelled) {
+          setOnlineStatuses(Object.fromEntries(entries));
+        }
+      } finally {
+        syncing = false;
       }
     };
 
@@ -314,7 +323,7 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
                         e.stopPropagation();
                         if (!isGroup && onVideoCallStart) {
                           const target = (Array.isArray(item.conversation.members) ? item.conversation.members : []).find((m: ApiUser) => m.userId.toString() !== user?.userId);
-                          if (target) onVideoCallStart(target.userId.toString(), target.username);
+                          if (target) onVideoCallStart(target.userId.toString(), target.username, item.conversation.conversationId, 'VIDEO_CALL');
                         }
                       }}
                     >

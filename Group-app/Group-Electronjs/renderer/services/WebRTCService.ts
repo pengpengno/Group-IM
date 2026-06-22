@@ -55,6 +55,8 @@ export interface CallSessionSummary {
 export interface CallInternalState {
   callStatus: VideoCallStatus;
   roomId?: string;
+  conversationId?: number;
+  callKind?: 'MEETING' | 'VIDEO_CALL' | 'VOICE_CALL';
   remoteUserId?: string;
   remoteUserName?: string;
   remoteAvatar?: string;
@@ -69,6 +71,7 @@ export interface CallInternalState {
   errorMessage?: string;
   activityLog: CallActivityItem[];
   sessionSummary?: CallSessionSummary;
+  isInitiator: boolean;
 }
 
 interface SignalingConnectionConfig {
@@ -116,7 +119,8 @@ export class WebRTCService extends EventEmitter {
     isMicrophoneEnabled: true,
     isSpeakerEnabled: true,
     isMeeting: false,
-    activityLog: []
+    activityLog: [],
+    isInitiator: false
   };
 
   constructor(iceServers: RTCIceServer[] = DEFAULT_ICE_SERVERS) {
@@ -340,6 +344,8 @@ export class WebRTCService extends EventEmitter {
     this.updateState({
       callStatus: VideoCallStatus.INCOMING,
       roomId,
+      conversationId: message.conversationId,
+      callKind: message.callKind || ((message.participants?.length || 0) > 1 ? 'MEETING' : 'VIDEO_CALL'),
       remoteUserId: message.fromUser,
       remoteUserName: message.fromUserName,
       remoteAvatar: message.fromAvatar,
@@ -365,6 +371,8 @@ export class WebRTCService extends EventEmitter {
 
   public presentIncomingInvite(invite: {
     roomId: string;
+    conversationId?: number;
+    callKind?: 'MEETING' | 'VIDEO_CALL' | 'VOICE_CALL';
     remoteUserId?: string;
     remoteUserName?: string;
     remoteAvatar?: string;
@@ -384,6 +392,8 @@ export class WebRTCService extends EventEmitter {
     this.updateState({
       callStatus: VideoCallStatus.PRE_JOIN,
       roomId: invite.roomId,
+      conversationId: invite.conversationId,
+      callKind: invite.callKind || 'MEETING',
       remoteUserId: invite.remoteUserId,
       remoteUserName: invite.remoteUserName,
       remoteAvatar: invite.remoteAvatar,
@@ -669,13 +679,28 @@ export class WebRTCService extends EventEmitter {
     return peerConnection;
   }
 
-  public initiateCall(remoteUserId: string, remoteUserName?: string): void {
-    this.initiateMeeting([{ userId: remoteUserId, userName: remoteUserName }]);
+  public initiateCall(
+    remoteUserId: string,
+    remoteUserName?: string,
+    options?: { conversationId?: number; callKind?: 'VIDEO_CALL' | 'VOICE_CALL' }
+  ): void {
+    this.initiateMeeting(
+      [{ userId: remoteUserId, userName: remoteUserName }],
+      undefined,
+      {
+        conversationId: options?.conversationId,
+        callKind: options?.callKind || 'VIDEO_CALL'
+      }
+    );
   }
 
-  public initiateMeeting(targets: Array<{ userId: string; userName?: string; avatar?: string }>, roomId?: string): void {
+  public initiateMeeting(
+    targets: Array<{ userId: string; userName?: string; avatar?: string }>,
+    roomId?: string,
+    options?: { conversationId?: number; callKind?: 'MEETING' | 'VIDEO_CALL' | 'VOICE_CALL' }
+  ): void {
     this.prepareFreshSession();
-    void this.startMeetingFlow(targets, roomId);
+    void this.startMeetingFlow(targets, roomId, options);
   }
 
   public joinMeeting(roomId: string): void {
@@ -688,6 +713,8 @@ export class WebRTCService extends EventEmitter {
       this.updateState({
         callStatus: VideoCallStatus.CONNECTING,
         roomId,
+        conversationId: this.state.conversationId,
+        callKind: this.state.callKind,
         isMeeting: true,
         sessionSummary: undefined,
         errorMessage: undefined
@@ -707,7 +734,11 @@ export class WebRTCService extends EventEmitter {
     }
   }
 
-  private async startMeetingFlow(targets: Array<{ userId: string; userName?: string; avatar?: string }>, roomId?: string): Promise<void> {
+  private async startMeetingFlow(
+    targets: Array<{ userId: string; userName?: string; avatar?: string }>,
+    roomId?: string,
+    options?: { conversationId?: number; callKind?: 'MEETING' | 'VIDEO_CALL' | 'VOICE_CALL' }
+  ): Promise<void> {
     try {
       if (!targets.length) {
         throw new Error('No participants provided for meeting');
@@ -726,12 +757,15 @@ export class WebRTCService extends EventEmitter {
       this.updateState({
         callStatus: VideoCallStatus.OUTGOING,
         roomId: finalRoomId,
+        conversationId: options?.conversationId,
+        callKind: options?.callKind || (targets.length > 1 ? 'MEETING' : 'VIDEO_CALL'),
         remoteUserId: firstTarget.userId,
         remoteUserName: firstTarget.userName,
         remoteAvatar: firstTarget.avatar,
         isMeeting: targets.length > 1,
         sessionSummary: undefined,
-        errorMessage: undefined
+        errorMessage: undefined,
+        isInitiator: true
       });
       this.pushActivity(
         'info',
@@ -757,6 +791,8 @@ export class WebRTCService extends EventEmitter {
           fromAvatar: this.store?.getState().auth.user?.avatar,
           toUser: target.userId,
           roomId: finalRoomId,
+          conversationId: options?.conversationId,
+          callKind: options?.callKind || (targets.length > 1 ? 'MEETING' : 'VIDEO_CALL'),
           participants: targets.map((participant) => ({
             userId: participant.userId,
             userName: participant.userName,
@@ -776,7 +812,9 @@ export class WebRTCService extends EventEmitter {
       fromUser: this.userId,
       fromUserName: this.store?.getState().auth.user?.username,
       fromAvatar: this.store?.getState().auth.user?.avatar,
-      roomId
+      roomId,
+      conversationId: this.state.conversationId,
+      callKind: this.state.callKind
     });
   }
 
@@ -931,7 +969,8 @@ export class WebRTCService extends EventEmitter {
         sessionSummary: undefined,
         errorMessage: undefined,
         duration: 0,
-        callStartTime: undefined
+        callStartTime: undefined,
+        isInitiator: false
       });
     }
   }
@@ -1001,6 +1040,8 @@ export class WebRTCService extends EventEmitter {
     this.updateState({
       callStatus: VideoCallStatus.IDLE,
       roomId: undefined,
+      conversationId: undefined,
+      callKind: undefined,
       remoteUserId: undefined,
       remoteUserName: undefined,
       remoteAvatar: undefined,
@@ -1011,7 +1052,8 @@ export class WebRTCService extends EventEmitter {
       isMeeting: false,
       activityLog: resetError ? [] : this.state.activityLog,
       sessionSummary: resetError ? undefined : this.state.sessionSummary,
-      errorMessage: resetError ? undefined : this.state.errorMessage
+      errorMessage: resetError ? undefined : this.state.errorMessage,
+      isInitiator: resetError ? false : this.state.isInitiator
     });
 
     if (this.store) {
@@ -1093,6 +1135,8 @@ export class WebRTCService extends EventEmitter {
     this.updateState({
       callStatus: VideoCallStatus.ENDED,
       roomId: undefined,
+      conversationId: undefined,
+      callKind: undefined,
       participants: [],
       callStartTime: undefined,
       isRemoteVideoEnabled: false,

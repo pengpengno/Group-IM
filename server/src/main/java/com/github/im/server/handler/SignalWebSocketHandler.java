@@ -11,6 +11,8 @@ import com.github.im.server.service.OnlineService;
 import com.github.im.server.service.RedisMessageRouter;
 import com.github.im.server.util.SchemaSwitcher;
 import com.github.im.server.utils.UserTokenManager;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -23,6 +25,7 @@ import reactor.core.Disposable;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,6 +44,9 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
     private final OnlineService onlineService;
     private final RedisMessageRouter redisMessageRouter;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private final Map<String, String> inCall = new ConcurrentHashMap<>();
     private final Map<String, Disposable> pushSubscriptions = new ConcurrentHashMap<>();
@@ -48,8 +54,18 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
     private final Map<String, Set<String>> meetingRooms = new ConcurrentHashMap<>();
     private final Map<String, Set<String>> userMeetings = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Object>> userSignalProfiles = new ConcurrentHashMap<>();
+    private final Map<String, RoomSignalContext> roomContexts = new ConcurrentHashMap<>();
 
     private static SignalWebSocketHandler instance;
+
+    private static final class RoomSignalContext {
+        private Long conversationId;
+        private String callKind;
+        private String title;
+        private String initiatorUserId;
+        private LocalDateTime startedAt;
+        private boolean summaryPublished;
+    }
 
     public static SignalWebSocketHandler getInstance() {
         return instance;
@@ -94,6 +110,18 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
                 case "candidate":
                 case "meeting/request":
                 case "meeting/reject":
+                    if ("meeting/request".equals(type)) {
+                        cacheRoomContext(msg);
+                    }
+                    if ("meeting/reject".equals(type)) {
+                        publishCallSummaryIfNeeded(
+                                msg.getRoomId(),
+                                msg.getFromUser(),
+                                "DECLINED",
+                                msg.getReason(),
+                                0
+                        );
+                    }
                     forward(to, msg, type);
                     break;
                 case "meeting/join":
@@ -348,11 +376,16 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
         }
 
         cacheSignalProfile(msg);
+        cacheRoomContext(msg);
 
         Set<String> roomMembers = meetingRooms.computeIfAbsent(roomId, ignored -> ConcurrentHashMap.newKeySet());
         List<String> existingMembers = new ArrayList<>(roomMembers);
         roomMembers.add(from);
         userMeetings.computeIfAbsent(from, ignored -> ConcurrentHashMap.newKeySet()).add(roomId);
+        RoomSignalContext context = roomContexts.computeIfAbsent(roomId, ignored -> new RoomSignalContext());
+        if (context.startedAt == null && roomMembers.size() >= 2) {
+            context.startedAt = LocalDateTime.now();
+        }
 
         sendMeetingParticipants(from, roomId, existingMembers);
         notifyParticipantsJoined(roomId, from, existingMembers);
@@ -388,8 +421,24 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
             send(memberId, json);
         }
 
+        RoomSignalContext context = roomContexts.get(roomId);
+        if (context != null && roomMembers.size() < 2) {
+            int durationSeconds = 0;
+            if (context.startedAt != null) {
+                durationSeconds = (int) java.time.Duration.between(context.startedAt, LocalDateTime.now()).getSeconds();
+            }
+            publishCallSummaryIfNeeded(
+                    roomId,
+                    userId,
+                    context.startedAt != null ? "ENDED" : "MISSED",
+                    null,
+                    Math.max(durationSeconds, 0)
+            );
+        }
+
         if (roomMembers.isEmpty()) {
             meetingRooms.remove(roomId);
+            roomContexts.remove(roomId);
         }
     }
 
@@ -511,6 +560,12 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
         if (msg.getRoomId() != null) {
             payload.put("roomId", msg.getRoomId());
         }
+        if (msg.getConversationId() != null) {
+            payload.put("conversationId", msg.getConversationId());
+        }
+        if (msg.getCallKind() != null) {
+            payload.put("callKind", msg.getCallKind());
+        }
         if (msg.getSdp() != null) {
             payload.put("sdp", msg.getSdp());
         }
@@ -590,5 +645,102 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
             log.debug("Unable to extract fromUser from signal payload", e);
         }
         return 0L;
+    }
+
+    private void cacheRoomContext(SignalMessage msg) {
+        String roomId = msg.getRoomId();
+        if (roomId == null || roomId.isBlank()) {
+            return;
+        }
+
+        RoomSignalContext context = roomContexts.computeIfAbsent(roomId, ignored -> new RoomSignalContext());
+        if (msg.getConversationId() != null) {
+            context.conversationId = msg.getConversationId();
+        }
+        if (msg.getCallKind() != null && !msg.getCallKind().isBlank()) {
+            context.callKind = msg.getCallKind();
+        }
+        if (msg.getFromUser() != null && !msg.getFromUser().isBlank() && context.initiatorUserId == null) {
+            context.initiatorUserId = msg.getFromUser();
+        }
+        if (context.title == null) {
+            context.title = switch ((context.callKind == null ? "" : context.callKind).toUpperCase()) {
+                case "VOICE_CALL" -> "Voice call";
+                case "VIDEO_CALL" -> "Video call";
+                default -> "Meeting";
+            };
+        }
+    }
+
+    private void publishCallSummaryIfNeeded(String roomId, String actorUserId, String status, String reason, int durationSeconds) {
+        if (roomId == null || roomId.isBlank()) {
+            return;
+        }
+
+        RoomSignalContext context = roomContexts.get(roomId);
+        if (context == null || context.summaryPublished || context.conversationId == null) {
+            return;
+        }
+
+        context.summaryPublished = true;
+        try {
+            User actor = null;
+            if (actorUserId != null && !actorUserId.isBlank()) {
+                actor = entityManager.find(User.class, Long.valueOf(actorUserId));
+            }
+            if (actor == null && context.initiatorUserId != null) {
+                actor = entityManager.find(User.class, Long.valueOf(context.initiatorUserId));
+            }
+            if (actor == null) {
+                return;
+            }
+
+            var payload = new com.github.im.dto.message.MeetingMessagePayLoad();
+            payload.setRoomId(roomId);
+            payload.setTitle(context.title);
+            payload.setAction("CALL_SUMMARY");
+            payload.setCategory(context.callKind == null ? "MEETING" : context.callKind);
+            payload.setStatus(status);
+            payload.setHostId(context.initiatorUserId == null ? null : Long.valueOf(context.initiatorUserId));
+            payload.setActorId(actor.getUserId());
+            payload.setDurationSeconds(durationSeconds);
+            payload.setSummary(buildCallSummaryText(context.callKind, status, reason, durationSeconds));
+
+            Chat.ChatMessage chatMessage = Chat.ChatMessage.newBuilder()
+                    .setConversationId(context.conversationId)
+                    .setContent(mapper.writeValueAsString(payload))
+                    .setType(Chat.MessageType.MEETING)
+                    .setClientMsgId(java.util.UUID.randomUUID().toString())
+                    .setFromUser(com.github.im.common.connect.model.proto.User.UserInfo.newBuilder()
+                            .setUserId(actor.getUserId())
+                            .setUsername(actor.getUsername())
+                            .build())
+                    .setClientTimeStamp(System.currentTimeMillis())
+                    .build();
+            messageService.handleMessage(chatMessage);
+        } catch (Exception e) {
+            log.warn("Failed to publish call summary for room {}", roomId, e);
+        }
+    }
+
+    private String buildCallSummaryText(String callKind, String status, String reason, int durationSeconds) {
+        String label = switch ((callKind == null ? "" : callKind).toUpperCase()) {
+            case "VOICE_CALL" -> "Voice call";
+            case "VIDEO_CALL" -> "Video call";
+            default -> "Meeting";
+        };
+
+        return switch (status) {
+            case "DECLINED" -> label + " was declined.";
+            case "MISSED" -> label + " was not answered.";
+            case "ENDED" -> label + " ended after " + formatDuration(durationSeconds) + ".";
+            default -> reason != null && !reason.isBlank() ? reason : label + " ended.";
+        };
+    }
+
+    private String formatDuration(int durationSeconds) {
+        int minutes = durationSeconds / 60;
+        int seconds = durationSeconds % 60;
+        return String.format("%02d:%02d", minutes, seconds);
     }
 }

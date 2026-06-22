@@ -13,6 +13,8 @@ public class SignalMessage {
     private String fromAvatar;
     private String toUser;
     private String roomId;
+    private Long conversationId;
+    private String callKind;
     private String sdp;
     private String sdpType;
     private String reason;
@@ -25,6 +27,8 @@ public class SignalMessage {
     public String getFromAvatar() { return fromAvatar; }
     public String getToUser() { return toUser; }
     public String getRoomId() { return roomId; }
+    public Long getConversationId() { return conversationId; }
+    public String getCallKind() { return callKind; }
     public String getSdp() { return sdp; }
     public String getSdpType() { return sdpType; }
     public String getReason() { return reason; }

@@ -109,9 +109,21 @@ const Dashboard: React.FC = () => {
         }
     };
 
-    const handleCall = (targetUserId: string, targetUserName?: string) => {
+    const handleCall = (
+        targetUserId: string,
+        arg2?: string | number,
+        arg3?: number | 'VIDEO_CALL' | 'VOICE_CALL',
+        arg4?: 'VIDEO_CALL' | 'VOICE_CALL'
+    ) => {
+        const targetUserName = typeof arg2 === 'string' ? arg2 : undefined;
+        const conversationId = typeof arg2 === 'number'
+            ? arg2
+            : typeof arg3 === 'number'
+                ? arg3
+                : undefined;
+        const callKind = (typeof arg3 === 'string' ? arg3 : arg4) || 'VIDEO_CALL';
         console.log('Initiating call to:', targetUserId);
-        webRTCService.initiateCall(targetUserId, targetUserName);
+        webRTCService.initiateCall(targetUserId, targetUserName, { conversationId, callKind });
     };
 
     const handleStartMeeting = (participants: Array<{ userId: string; userName?: string }>, roomId?: string) => {

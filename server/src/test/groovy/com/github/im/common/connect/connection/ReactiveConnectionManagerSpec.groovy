@@ -3,6 +3,8 @@ package com.github.im.common.connect.connection
 import com.github.im.common.connect.connection.server.BindAttr
 import com.github.im.common.connect.enums.PlatformType
 import com.github.im.common.connect.model.proto.BaseMessage
+import com.github.im.common.connect.model.proto.Chat
+import com.github.im.common.connect.model.proto.User
 import spock.lang.Specification
 
 class ReactiveConnectionManagerSpec extends Specification {
@@ -13,6 +15,10 @@ class ReactiveConnectionManagerSpec extends Specification {
         }
     }
 
+    /**
+     * If a sink is terminated, registerSinkFlow should reuse it
+     * @return
+     */
     def "registerSinkFlow should reuse active sink and replace terminated one"() {
         given:
         def attr = BindAttr.getBindAttr("6", PlatformType.DESKTOP)
@@ -65,12 +71,12 @@ class ReactiveConnectionManagerSpec extends Specification {
 
     private static BaseMessage.BaseMessagePkg sampleMessage(String content) {
         BaseMessage.BaseMessagePkg.newBuilder()
-                .setMessage(com.github.im.common.connect.model.proto.Chat.ChatMessage.newBuilder()
+                .setMessage(Chat.ChatMessage.newBuilder()
                         .setConversationId(1L)
                         .setClientMsgId("client-${content}")
                         .setContent(content)
-                        .setType(com.github.im.common.connect.model.proto.Chat.MessageType.TEXT)
-                        .setFromUser(com.github.im.common.connect.model.proto.User.UserInfo.newBuilder().setUserId(7L).build())
+                        .setType(Chat.MessageType.TEXT)
+                        .setFromUser(User.UserInfo.newBuilder().setUserId(7L).build())
                         .build())
                 .build()
     }

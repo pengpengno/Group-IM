@@ -65,7 +65,7 @@ class LdapUserServiceSpec extends Specification {
                 .email(email)
                 .phoneNumber("123456789")
                 .passwordHash("somehash")
-                .status(true)
+//                .status(true)
                 .forcePasswordChange(false)
                 .build()
         userRepository.findByUsernameOrEmail(username) >> Optional.of(existingUser)

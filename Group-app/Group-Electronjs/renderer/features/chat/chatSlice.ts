@@ -100,7 +100,18 @@ function getMessageDisplayText(content: string, type?: string): string {
         case 'FILE': return '[File]';
         case 'VOICE': return '[Voice]';
         case 'VIDEO': return '[Video]';
-        case 'MEETING': return '[Meeting]';
+        case 'MEETING': {
+            if (typeof content === 'string' && content.trim().startsWith('{')) {
+                try {
+                    const payload = JSON.parse(content) as { category?: string };
+                    if (payload.category === 'VIDEO_CALL') return '[Video Call]';
+                    if (payload.category === 'VOICE_CALL') return '[Voice Call]';
+                } catch {
+                    // ignore parse failure and fall back to meeting label
+                }
+            }
+            return '[Meeting]';
+        }
         default: return content || '';
     }
 }

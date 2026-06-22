@@ -315,7 +315,7 @@ class VideoCallViewModel(
                     isMinimized = false
                 )
                 webRTCManager?.endCall()
-                releaseMediaResources()
+                releaseMediaResources(stopTracks = false)
                 finishCall(
                     status = VideoCallStatus.ENDED,
                     summary = buildSummary(
@@ -531,21 +531,25 @@ class VideoCallViewModel(
         mediaStream?.audioTracks?.forEach { it.setEnabled(_isMicrophoneEnabled.value) }
     }
 
-    private fun releaseMediaResources() {
-        releaseLocalMediaStream()
-        releaseRemoteMediaTracks()
+    private fun releaseMediaResources(stopTracks: Boolean = true) {
+        releaseLocalMediaStream(stopTracks)
+        releaseRemoteMediaTracks(stopTracks)
         resetControlStates()
     }
 
-    private fun releaseLocalMediaStream() {
-        _localMediaStream.value?.videoTracks?.forEach { it.setEnabled(false) }
-        _localMediaStream.value?.audioTracks?.forEach { it.setEnabled(false) }
+    private fun releaseLocalMediaStream(stopTracks: Boolean) {
+        if (stopTracks) {
+            _localMediaStream.value?.videoTracks?.forEach { it.setEnabled(false) }
+            _localMediaStream.value?.audioTracks?.forEach { it.setEnabled(false) }
+        }
         _localMediaStream.value = null
     }
 
-    private fun releaseRemoteMediaTracks() {
-        _remoteVideoTracks.value.values.forEach { it.setEnabled(false) }
-        _remoteAudioTracks.value.values.forEach { it.setEnabled(false) }
+    private fun releaseRemoteMediaTracks(stopTracks: Boolean) {
+        if (stopTracks) {
+            _remoteVideoTracks.value.values.forEach { it.setEnabled(false) }
+            _remoteAudioTracks.value.values.forEach { it.setEnabled(false) }
+        }
         _remoteVideoTracks.value = emptyMap()
         _remoteAudioTracks.value = emptyMap()
     }
@@ -596,7 +600,7 @@ class VideoCallViewModel(
     }
 
     private fun finalizeRemoteEndedSession(current: VideoCallState, reason: String?) {
-        releaseMediaResources()
+        releaseMediaResources(stopTracks = false)
         val connected = current.duration > 0
         val detail = when {
             !reason.isNullOrBlank() -> reason
@@ -639,7 +643,7 @@ class VideoCallViewModel(
     }
 
     private fun forceResetState() {
-        releaseMediaResources()
+        releaseMediaResources(stopTracks = false)
         currentCallId = null
         isIncomingCallProcessing = false
         isEndingCall = false
@@ -664,7 +668,7 @@ class VideoCallViewModel(
         remoteVideoTracksJob?.cancel()
         remoteAudioTracksJob?.cancel()
         webRTCManager?.release()
-        releaseMediaResources()
+        releaseMediaResources(stopTracks = false)
     }
 }
 

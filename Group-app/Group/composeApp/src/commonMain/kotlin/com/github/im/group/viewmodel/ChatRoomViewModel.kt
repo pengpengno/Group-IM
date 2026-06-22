@@ -199,15 +199,21 @@ class ChatRoomViewModel(
             val currentConversationId = uiState.value.conversation?.conversationId
             val friendId = uiState.value.friend?.userId
 
-            val targetConversationId = if (currentConversationId == null && friendId != null) {
-                getOrCreatePrivateChat(currentUser.userId, friendId).conversationId
+            val targetConversation = if (currentConversationId == null && friendId != null) {
+                getOrCreatePrivateChat(currentUser.userId, friendId)
             } else {
-                currentConversationId ?: return@launch
-            }
+                uiState.value.conversation
+            } ?: return@launch
+
+            val targetConversationId = targetConversation.conversationId
 
             if (currentConversationId == null) {
-                activeConversationId = targetConversationId
-                messageStore.clear()
+                bindConversation(
+                    conversationId = targetConversationId,
+                    sessionId = initSessionId,
+                    initialConversation = targetConversation
+                )
+                lastHistoryBoundarySeqId = null
             }
 
             if (pickedFile != null) {

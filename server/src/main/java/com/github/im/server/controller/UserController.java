@@ -15,6 +15,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
@@ -41,15 +42,13 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/users")
 @Valid
+@RequiredArgsConstructor
 public class UserController {
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
     
-    @Autowired
-    private CompanyUserService companyUserService;
+    private final CompanyUserService companyUserService;
 
-    @Autowired
-    private OnlineService onlineService;
+    private final OnlineService onlineService;
 
     @PostMapping("/register")
     public ResponseEntity<UserInfo> registerUser(@RequestBody @Valid RegistrationRequest registrationRequest) {
