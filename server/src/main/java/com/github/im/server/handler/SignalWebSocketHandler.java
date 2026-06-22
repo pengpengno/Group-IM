@@ -8,12 +8,16 @@ import com.github.im.common.connect.model.proto.Chat;
 import com.github.im.server.model.User;
 import com.github.im.server.service.MessageService;
 import com.github.im.server.service.OnlineService;
+import com.github.im.server.service.RedisMessageRouter;
 import com.github.im.server.util.SchemaSwitcher;
 import com.github.im.server.utils.UserTokenManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.*;
+import org.springframework.web.socket.BinaryMessage;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 import reactor.core.Disposable;
 
@@ -27,10 +31,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * 统一 WebSocket 处理器
- * 处理 WebRTC 信令消息 (JSON) 和 IM 协议消息 (Protobuf Binary)
- */
 @Component
 public class SignalWebSocketHandler extends AbstractWebSocketHandler {
 
@@ -39,10 +39,12 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
     private final MessageService messageService;
     private final UserTokenManager userTokenManager;
     private final OnlineService onlineService;
+    private final RedisMessageRouter redisMessageRouter;
 
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private final Map<String, String> inCall = new ConcurrentHashMap<>();
     private final Map<String, Disposable> pushSubscriptions = new ConcurrentHashMap<>();
+    private final Map<String, BindAttr<String>> sessionBindAttrs = new ConcurrentHashMap<>();
     private final Map<String, Set<String>> meetingRooms = new ConcurrentHashMap<>();
     private final Map<String, Set<String>> userMeetings = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Object>> userSignalProfiles = new ConcurrentHashMap<>();
@@ -53,11 +55,17 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
         return instance;
     }
 
-    public SignalWebSocketHandler(MessageService messageService, UserTokenManager userTokenManager, OnlineService onlineService) {
+    public SignalWebSocketHandler(
+            MessageService messageService,
+            UserTokenManager userTokenManager,
+            OnlineService onlineService,
+            RedisMessageRouter redisMessageRouter
+    ) {
         this.mapper = new ObjectMapper();
         this.messageService = messageService;
         this.userTokenManager = userTokenManager;
         this.onlineService = onlineService;
+        this.redisMessageRouter = redisMessageRouter;
         instance = this;
     }
 
@@ -84,8 +92,6 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
                 case "offer":
                 case "answer":
                 case "candidate":
-                    forward(to, msg, type);
-                    break;
                 case "meeting/request":
                 case "meeting/reject":
                     forward(to, msg, type);
@@ -108,7 +114,7 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
                 case "pong":
                     break;
                 default:
-                    log.warn("Unknown text message type: " + type);
+                    log.warn("Unknown text message type: {}", type);
             }
         } catch (Exception e) {
             log.error("Failed to handle text message", e);
@@ -118,7 +124,6 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
     @Override
     protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) {
         try {
-            // Protobuf message
             BaseMessage.BaseMessagePkg pkg = BaseMessage.BaseMessagePkg.parseFrom(message.getPayload().array());
             log.debug("Received Binary IM Message: payloadCase={}", pkg.getPayloadCase());
 
@@ -150,8 +155,7 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
             User user = userTokenManager.jwt2User(accessToken);
             Long userId = user.getUserId();
             String username = user.getAccount();
-            
-            // 绑定用户到会话
+
             session.getAttributes().put("USER", user);
             session.getAttributes().put("USER_INFO", userInfo);
             sessions.put(userId.toString(), session);
@@ -159,10 +163,9 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
             onlineService.online(userId);
             log.info("IM User Online (WS): {} (ID: {})", username, userId);
 
-            // 注册推送流
             var bindAttr = BindAttr.getBindAttr(userInfo);
             var sinkFlow = ReactiveConnectionManager.registerSinkFlow(bindAttr).asFlux();
-            
+
             Disposable subscription = sinkFlow.subscribe(pushPkg -> {
                 try {
                     if (session.isOpen()) {
@@ -172,9 +175,9 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
                     log.error("Failed to push message to user {} via WebSocket", username, e);
                 }
             });
-            
-            pushSubscriptions.put(session.getId(), subscription);
 
+            pushSubscriptions.put(session.getId(), subscription);
+            sessionBindAttrs.put(session.getId(), bindAttr);
         } catch (Exception e) {
             log.error("Authentication failed for WebSocket IM registration", e);
             closeQuietly(session);
@@ -256,7 +259,7 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
                 log.error("Failed to send PONG via WebSocket", e);
             }
         }
-        
+
         User user = (User) session.getAttributes().get("USER");
         if (user != null) {
             onlineService.heartbeat(user.getUserId());
@@ -266,9 +269,15 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         User user = (User) session.getAttributes().get("USER");
-        
+
         Disposable sub = pushSubscriptions.remove(session.getId());
-        if (sub != null) sub.dispose();
+        if (sub != null) {
+            sub.dispose();
+        }
+        BindAttr<String> bindAttr = sessionBindAttrs.remove(session.getId());
+        if (bindAttr != null) {
+            ReactiveConnectionManager.unSubscribe(bindAttr);
+        }
 
         if (user != null) {
             Long uid = user.getUserId();
@@ -278,17 +287,22 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
             sessions.remove(userIdString);
             removeUserFromMeetings(userIdString);
             String peer = inCall.remove(userIdString);
-            if (peer != null) inCall.remove(peer);
-            send(peer, "{\"type\":\"meeting/leave\",\"fromUser\":\"" + userIdString + "\"}");
-        } else {
-            String userIdString = extractUserId(session.getUri());
-            if (userIdString != null) {
-                sessions.remove(userIdString);
-                removeUserFromMeetings(userIdString);
-                String peer = inCall.remove(userIdString);
-                if (peer != null) inCall.remove(peer);
-                send(peer, "{\"type\":\"meeting/leave\",\"fromUser\":\"" + userIdString + "\"}");
+            if (peer != null) {
+                inCall.remove(peer);
             }
+            send(peer, "{\"type\":\"meeting/leave\",\"fromUser\":\"" + userIdString + "\"}");
+            return;
+        }
+
+        String userIdString = extractUserId(session.getUri());
+        if (userIdString != null) {
+            sessions.remove(userIdString);
+            removeUserFromMeetings(userIdString);
+            String peer = inCall.remove(userIdString);
+            if (peer != null) {
+                inCall.remove(peer);
+            }
+            send(peer, "{\"type\":\"meeting/leave\",\"fromUser\":\"" + userIdString + "\"}");
         }
     }
 
@@ -313,7 +327,10 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
             return;
         }
 
-        Map<String, Object> profile = userSignalProfiles.computeIfAbsent(msg.getFromUser(), ignored -> new ConcurrentHashMap<>());
+        Map<String, Object> profile = userSignalProfiles.computeIfAbsent(
+                msg.getFromUser(),
+                ignored -> new ConcurrentHashMap<>()
+        );
         if (msg.getFromUserName() != null && !msg.getFromUserName().isBlank()) {
             profile.put("userName", msg.getFromUserName());
         }
@@ -415,9 +432,6 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
-    /**
-     * 向指定会议的所有当前参与者广播信令消息
-     */
     public void broadcastToMeeting(String roomId, String type, Map<String, Object> extraData) {
         Set<String> members = meetingRooms.get(roomId);
         if (members == null || members.isEmpty()) {
@@ -437,9 +451,6 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
-    /**
-     * 向指定用户发送信令消息
-     */
     public void sendToUser(String userId, String type, Map<String, Object> extraData) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("type", normalizeSignalType(type));
@@ -448,6 +459,10 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
         }
 
         send(userId, toJson(payload));
+    }
+
+    public boolean sendClusterSignal(String toUser, String payload) {
+        return send(sessions.get(toUser), payload);
     }
 
     private Map<String, Object> buildParticipantInfo(String userId) {
@@ -479,46 +494,83 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
             return;
         }
 
-        WebSocketSession target = sessions.get(toUser);
-        if (target == null || !target.isOpen()) {
-            return;
-        }
-
         Map<String, Object> payload = new HashMap<>();
         payload.put("type", normalizedType);
-        if (msg.getFromUser() != null) payload.put("fromUser", msg.getFromUser());
-        if (msg.getFromUserName() != null) payload.put("fromUserName", msg.getFromUserName());
-        if (msg.getFromAvatar() != null) payload.put("fromAvatar", msg.getFromAvatar());
-        if (msg.getToUser() != null) payload.put("toUser", msg.getToUser());
-        if (msg.getRoomId() != null) payload.put("roomId", msg.getRoomId());
-        if (msg.getSdp() != null) payload.put("sdp", msg.getSdp());
-        if (msg.getSdpType() != null) payload.put("sdpType", msg.getSdpType());
-        if (msg.getReason() != null) payload.put("reason", msg.getReason());
-        if (msg.getParticipants() != null) payload.put("participants", msg.getParticipants());
-        if (msg.getCandidate() != null) payload.put("candidate", msg.getCandidate());
+        if (msg.getFromUser() != null) {
+            payload.put("fromUser", msg.getFromUser());
+        }
+        if (msg.getFromUserName() != null) {
+            payload.put("fromUserName", msg.getFromUserName());
+        }
+        if (msg.getFromAvatar() != null) {
+            payload.put("fromAvatar", msg.getFromAvatar());
+        }
+        if (msg.getToUser() != null) {
+            payload.put("toUser", msg.getToUser());
+        }
+        if (msg.getRoomId() != null) {
+            payload.put("roomId", msg.getRoomId());
+        }
+        if (msg.getSdp() != null) {
+            payload.put("sdp", msg.getSdp());
+        }
+        if (msg.getSdpType() != null) {
+            payload.put("sdpType", msg.getSdpType());
+        }
+        if (msg.getReason() != null) {
+            payload.put("reason", msg.getReason());
+        }
+        if (msg.getParticipants() != null) {
+            payload.put("participants", msg.getParticipants());
+        }
+        if (msg.getCandidate() != null) {
+            payload.put("candidate", msg.getCandidate());
+        }
 
-        send(target, toJson(payload));
+        send(toUser, toJson(payload));
     }
 
     private void send(String toUser, String payload) {
-        if (toUser == null) return;
-        send(sessions.get(toUser), payload);
+        if (toUser == null) {
+            return;
+        }
+
+        if (send(sessions.get(toUser), payload)) {
+            return;
+        }
+
+        try {
+            redisMessageRouter.sendSignal(extractFromUserId(payload), Long.valueOf(toUser), payload);
+        } catch (NumberFormatException e) {
+            log.warn("Skipping clustered signal routing because user id is not numeric: {}", toUser);
+        } catch (Exception e) {
+            log.error("Failed to route signal payload to user {}", toUser, e);
+        }
     }
 
-    private void send(WebSocketSession session, String payload) {
+    private boolean send(WebSocketSession session, String payload) {
         try {
             if (session != null && session.isOpen()) {
                 session.sendMessage(new TextMessage(payload));
+                return true;
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
+        return false;
     }
 
     private void closeQuietly(WebSocketSession session) {
-        try { session.close(); } catch (Exception ignored) {}
+        try {
+            session.close();
+        } catch (Exception ignored) {
+        }
     }
 
     private String extractUserId(URI uri) {
-        if (uri == null || uri.getQuery() == null) return null;
+        if (uri == null || uri.getQuery() == null) {
+            return null;
+        }
+
         for (String kv : uri.getQuery().split("&")) {
             String[] arr = kv.split("=");
             if (arr.length == 2 && "userId".equals(arr[0])) {
@@ -526,5 +578,17 @@ public class SignalWebSocketHandler extends AbstractWebSocketHandler {
             }
         }
         return null;
+    }
+
+    private Long extractFromUserId(String payload) {
+        try {
+            var node = mapper.readTree(payload);
+            if (node.hasNonNull("fromUser")) {
+                return node.get("fromUser").asLong(0L);
+            }
+        } catch (Exception e) {
+            log.debug("Unable to extract fromUser from signal payload", e);
+        }
+        return 0L;
     }
 }

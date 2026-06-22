@@ -138,12 +138,12 @@
 
 
 <!--        单元测试-->
-<!--        <dependency>-->
-<!--            <groupId>org.codehaus.groovy</groupId>-->
-<!--            <artifactId>groovy</artifactId>-->
-<!--            <version>3.0.17</version>-->
-<!--            <scope>test</scope>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>org.codehaus.groovy</groupId>
+            <artifactId>groovy</artifactId>
+            <version>3.0.17</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.spockframework</groupId>
             <artifactId>spock-core</artifactId>
@@ -277,6 +277,21 @@
                         <include>**/*Spec.groovy</include> <!-- Spock 测试类 -->
                     </includes>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.gmavenplus</groupId>
+                <artifactId>gmavenplus-plugin</artifactId>
+                <version>3.0.2</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compileTests</goal>
+                        </goals>
+                        <configuration>
+                            <targetBytecode>17</targetBytecode>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>
