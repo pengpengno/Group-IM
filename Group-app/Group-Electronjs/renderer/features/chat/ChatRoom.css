@@ -229,12 +229,12 @@
 
 .messages-list-desktop {
   width: 100%;
-  max-width: 800px;
+  max-width: none;
   display: flex;
   flex-direction: column;
-  align-self: flex-start;
+  align-self: stretch;
   margin-top: auto;
-  margin-right: auto;
+  margin-right: 0;
   margin-left: 0;
   min-height: min-content;
 }

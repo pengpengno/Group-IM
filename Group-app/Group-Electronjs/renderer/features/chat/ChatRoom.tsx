@@ -179,20 +179,16 @@ const MessageBubble: React.FC<{
 
   const handleDownload = async (fileId: string, fileName: string) => {
     const api = getElectronAPI();
-    if (isElectronEnvironment() && (api as any).downloadFile) {
-      const url = `${BASE_URL}/api/files/download/${fileId}`;
-      try {
-        const result = await (api as any).downloadFile(url, fileName, token);
-        if (result.success) {
-          console.log('File downloaded to:', result.filePath);
-        } else if (!result.canceled) {
-          alert('Download failed: ' + result.error);
-        }
-      } catch (err) {
-        console.error('Download error:', err);
+    const url = `${BASE_URL}/api/files/download/${fileId}`;
+    try {
+      const result = await api.downloadFile(url, fileName, token);
+      if (result.success) {
+        console.log('File downloaded to:', result.filePath || fileName);
+      } else if (!result.canceled) {
+        alert('Download failed: ' + result.error);
       }
-    } else {
-      window.open(`${BASE_URL}/api/files/download/${fileId}`);
+    } catch (err) {
+      console.error('Download error:', err);
     }
   };
 

@@ -67,6 +67,7 @@ export interface ElectronAPI {
   selectFiles: (options: SelectFileOptions) => Promise<Array<SelectFileResult & { file?: File }>>;
   uploadFile: (fileOrPath: string | File, fileId: string, duration?: number) => Promise<FileUploadResponse>;
   getUploadId: (request: UploadFileRequest) => Promise<FileUploadResponse>;
+  downloadFile: (url: string, fileName: string, token?: string) => Promise<{ success?: boolean; canceled?: boolean; error?: string; filePath?: string }>;
 
   // 用户搜索相关
   searchUsers: (query: string, token?: string) => Promise<ApiSearchResults>;
@@ -205,6 +206,40 @@ const webAPI: ElectronAPI = {
     } catch (error: any) {
       console.error('Web get upload ID error:', error);
       throw error;
+    }
+  },
+
+  downloadFile: async (url: string, fileName: string, token?: string) => {
+    try {
+      const authToken = token || localStorage.getItem('token') || '';
+      const response = await fetch(url, {
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+      });
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: `HTTP ${response.status} ${response.statusText}`.trim()
+        };
+      }
+
+      const blob = await response.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      window.URL.revokeObjectURL(objectUrl);
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Web file download error:', error);
+      return {
+        success: false,
+        error: error.message || 'File download failed'
+      };
     }
   },
 
@@ -350,6 +385,13 @@ export function getElectronAPI(): ElectronAPI {
           return res.success !== undefined ? res.data : res;
         }
         return webAPI.uploadFile(filePath, fileId, duration);
+      },
+      downloadFile: async (url: string, fileName: string, token?: string) => {
+        const authToken = token || localStorage.getItem('token') || '';
+        if (electron.downloadFile) {
+          return electron.downloadFile(url, fileName, authToken);
+        }
+        return webAPI.downloadFile(url, fileName, authToken);
       }
     };
   }

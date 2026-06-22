@@ -394,6 +394,7 @@ class SocketService extends EventEmitter {
     if (this.browserRealtimeChannel) {
       this.log('browser-follower-broadcast');
       this.isInitializing = false;
+      this.stopPollingFallback();
       this.setConnectionState('connected');
       return;
     }
@@ -402,6 +403,7 @@ class SocketService extends EventEmitter {
     this.isInitializing = false;
     this.setConnectionState('reconnecting');
     if (this.browserRealtimeChannel) {
+      this.stopPollingFallback();
       this.setConnectionState('connected');
       return;
     }
@@ -606,10 +608,15 @@ class SocketService extends EventEmitter {
    * 由于现代浏览器无法直接开启 TCP 长连接，使用 HTTP 增量拉取作为实时更新的保底逻辑
    */
   private pollingTimer: NodeJS.Timeout | null = null;
-  private startPollingFallback() {
+  private stopPollingFallback() {
     if (this.pollingTimer) {
       clearInterval(this.pollingTimer);
+      this.pollingTimer = null;
     }
+  }
+
+  private startPollingFallback() {
+    this.stopPollingFallback();
 
     this.log('polling-fallback-start');
 
@@ -718,6 +725,7 @@ class SocketService extends EventEmitter {
       this.isInitializing = false;
       this.log('connect-native-skipped-not-leader');
       if (this.browserRealtimeChannel) {
+        this.stopPollingFallback();
         this.setConnectionState('connected');
         return;
       }
@@ -783,10 +791,7 @@ class SocketService extends EventEmitter {
         }
 
         // 停止掉轮询降级
-        if (this.pollingTimer) {
-          clearInterval(this.pollingTimer);
-          this.pollingTimer = null;
-        }
+        this.stopPollingFallback();
 
         this.registerToRemoteWS();
         this.startHeartbeat();
