@@ -35,6 +35,9 @@ const formatDuration = (seconds: number): string => {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
+const formatClockTime = (timestamp: number): string =>
+  new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
 const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   onCallEnd,
   remoteUserId,
@@ -49,10 +52,10 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
     acceptCall,
     rejectCall,
     endCall,
+    dismissCallSummary,
     toggleCamera,
     toggleMicrophone,
     toggleSpeaker,
-    onCallEnded,
     onError
   } = useVideoCall();
 
@@ -92,15 +95,10 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   }, [remoteParticipants, isMinimized]);
 
   useEffect(() => {
-    onCallEnded(() => {
-      onCallEnd();
-    });
-
     onError((error) => {
       console.error('Video call error:', error);
-      onCallEnd();
     });
-  }, [onCallEnded, onError, onCallEnd]);
+  }, [onError, onCallEnd]);
 
   const displayName = callState.remoteUserName || remoteUserName || callState.remoteUserId || remoteUserId || 'Unknown User';
   const displayAvatar = callState.remoteAvatar || remoteAvatar;
@@ -108,6 +106,8 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   const isMeetingMode = callState.isMeeting || activeRemoteParticipants.length > 1 || callState.participants.filter((participant) => !participant.isLocal).length > 1;
   const statusLabel = getStatusLabel(callState.callStatus, isMeetingMode);
   const participantCount = Math.max(callState.participants.length, activeRemoteParticipants.length + (localStream ? 1 : 0));
+  const sessionSummary = callState.sessionSummary;
+  const endedOrFailed = callState.callStatus === VideoCallStatus.ENDED || callState.callStatus === VideoCallStatus.ERROR;
 
   const rosterParticipants = useMemo(() => {
     const participants = [...callState.participants];
@@ -120,6 +120,11 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
 
   const handleAccept = () => {
     acceptCall();
+  };
+
+  const handleDismissSummary = () => {
+    dismissCallSummary();
+    onCallEnd();
   };
 
   const handleMouseDown = (event: React.MouseEvent) => {
@@ -189,8 +194,10 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
             </div>
           )}
           <div className="floating-info">
-            <span className="dot active"></span>
-            <span className="timer">{formatDuration(callState.duration)}</span>
+            <span className={`dot ${callState.callStatus === VideoCallStatus.ACTIVE ? 'active' : 'idle'}`}></span>
+            <span className="timer">
+              {callState.callStatus === VideoCallStatus.ACTIVE ? formatDuration(callState.duration) : statusLabel}
+            </span>
           </div>
         </div>
         <div className="floating-controls-overlay">
@@ -251,6 +258,51 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
       </div>
 
       <div className="call-ui-overlay">
+        {endedOrFailed && (
+          <div className="call-summary-panel">
+            <div className="call-summary-card">
+              <div className="call-summary-header">
+                <div>
+                  <div className="call-summary-eyebrow">Call recap</div>
+                  <h2>{sessionSummary?.title || 'Call finished'}</h2>
+                  <p>{sessionSummary?.detail || callState.errorMessage || 'The call has ended.'}</p>
+                </div>
+                <button className="summary-close-btn" onClick={handleDismissSummary}>Close</button>
+              </div>
+
+              <div className="call-summary-stats">
+                <div className="summary-stat">
+                  <span className="summary-stat-label">Duration</span>
+                  <strong>{formatDuration(sessionSummary?.durationSeconds || callState.duration)}</strong>
+                </div>
+                <div className="summary-stat">
+                  <span className="summary-stat-label">Result</span>
+                  <strong>{sessionSummary?.connected ? 'Connected' : 'Not connected'}</strong>
+                </div>
+                <div className="summary-stat">
+                  <span className="summary-stat-label">Ended by</span>
+                  <strong>{sessionSummary?.endedBy || 'system'}</strong>
+                </div>
+              </div>
+
+              <div className="activity-timeline">
+                {callState.activityLog.map((item) => (
+                  <div key={item.id} className={`activity-row tone-${item.tone}`}>
+                    <div className="activity-marker"></div>
+                    <div className="activity-copy">
+                      <div className="activity-main">
+                        <span>{item.label}</span>
+                        <time>{formatClockTime(item.timestamp)}</time>
+                      </div>
+                      {item.detail ? <div className="activity-detail">{item.detail}</div> : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {isMeetingMode ? (
           <div className="meeting-session-shell">
             <div className="meeting-session-main">
@@ -302,7 +354,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                 </div>
               )}
 
-              <div className={`local-preview-card ${callState.callStatus === VideoCallStatus.ACTIVE ? 'pip' : 'init'}`}>
+              <div className={`local-preview-card ${callState.callStatus === VideoCallStatus.ACTIVE ? 'pip' : 'init'} ${endedOrFailed ? 'hidden-preview' : ''}`}>
                 <video
                   ref={localVideoRef}
                   autoPlay
@@ -321,7 +373,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                 )}
               </div>
 
-              <div className="call-action-bar">
+              {!endedOrFailed && <div className="call-action-bar">
                 <div className="actions-wrapper">
                   <button
                     className={`action-fab ${!callState.isMicrophoneEnabled ? 'off' : ''}`}
@@ -363,7 +415,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                     </svg>
                   </button>
                 </div>
-              </div>
+              </div>}
             </div>
 
             <aside className="meeting-side-panel">
@@ -435,7 +487,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
               </div>
             )}
 
-            <div className={`local-preview-card ${callState.callStatus === VideoCallStatus.ACTIVE ? 'pip' : 'init'}`}>
+            <div className={`local-preview-card ${callState.callStatus === VideoCallStatus.ACTIVE ? 'pip' : 'init'} ${endedOrFailed ? 'hidden-preview' : ''}`}>
               <video
                 ref={localVideoRef}
                 autoPlay
@@ -454,7 +506,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
               )}
             </div>
 
-            <div className="call-action-bar compact">
+            {!endedOrFailed && <div className="call-action-bar compact">
               <div className="actions-wrapper compact">
                 <button
                   className={`action-fab ${!callState.isMicrophoneEnabled ? 'off' : ''}`}
@@ -490,7 +542,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                   </svg>
                 </button>
               </div>
-            </div>
+            </div>}
           </>
         )}
       </div>

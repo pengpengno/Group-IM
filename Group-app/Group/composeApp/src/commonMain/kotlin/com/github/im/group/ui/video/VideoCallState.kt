@@ -17,6 +17,29 @@ enum class VideoCallStatus {
     ERROR
 }
 
+enum class CallActivityTone {
+    INFO,
+    SUCCESS,
+    WARNING
+}
+
+data class CallActivity(
+    val id: String,
+    val label: String,
+    val detail: String? = null,
+    val tone: CallActivityTone = CallActivityTone.INFO,
+    val timestamp: Long
+)
+
+data class CallSessionSummary(
+    val title: String,
+    val detail: String,
+    val durationSeconds: Long,
+    val connected: Boolean,
+    val endedBy: String,
+    val endedAt: Long
+)
+
 data class VideoCallState(
     val callStatus: VideoCallStatus = VideoCallStatus.IDLE,
     val caller: UserInfo? = null,
@@ -32,5 +55,7 @@ data class VideoCallState(
     val isSpeakerEnabled: Boolean = true,
     val errorMessage: String? = null,
     val isMinimized: Boolean = false,
-    val callId: String? = null
+    val callId: String? = null,
+    val activityLog: List<CallActivity> = emptyList(),
+    val sessionSummary: CallSessionSummary? = null
 )

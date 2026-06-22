@@ -32,10 +32,13 @@ import com.shepeliev.webrtckmp.videoTracks
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
@@ -120,6 +123,8 @@ class AndroidWebRTCManager(
     private val pendingIceCandidates = mutableMapOf<String, MutableList<IceCandidate>>()
     
     private val json = Json { ignoreUnknownKeys = true }
+    private val managerScope = CoroutineScope(Dispatchers.Default)
+    private var durationJob: Job? = null
 
     init {
         signalingClient.setListener(object : AndroidMeetingSignalingClient.Listener {
@@ -359,6 +364,14 @@ class AndroidWebRTCManager(
                 _remoteVideoTrack.value = videoTrack
             }
         }
+        if (_connectionState.value.callStatus != VideoCallStatus.ACTIVE) {
+            val connectedAt = Clock.System.now().toEpochMilliseconds()
+            _connectionState.value = _connectionState.value.copy(
+                callStatus = VideoCallStatus.ACTIVE,
+                callStartTime = connectedAt
+            )
+            startDurationTicker(connectedAt)
+        }
     }
 
     private fun removePeerConnection(remoteUserId: String) {
@@ -438,6 +451,8 @@ class AndroidWebRTCManager(
     }
     
     private fun cleanup() {
+        durationJob?.cancel()
+        durationJob = null
         peerConnections.forEach { (_, pc) -> pc.close() }
         peerConnections.clear()
         pendingIceCandidates.clear()
@@ -448,6 +463,17 @@ class AndroidWebRTCManager(
         _remoteAudioTrack.value = null
         _remoteVideoTrack.value = null
         _connectionState.value = VideoCallState()
+    }
+
+    private fun startDurationTicker(startAt: Long) {
+        durationJob?.cancel()
+        durationJob = managerScope.launch {
+            while (isActive) {
+                val elapsedSeconds = ((Clock.System.now().toEpochMilliseconds() - startAt) / 1000).coerceAtLeast(0)
+                _connectionState.value = _connectionState.value.copy(duration = elapsedSeconds)
+                delay(1_000)
+            }
+        }
     }
 
     override fun release() {

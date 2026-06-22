@@ -37,6 +37,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -108,8 +109,12 @@ fun MeetingLauncher(roomId: String, participantIds: List<String>, onCallEnded: (
 
 @Composable
 private fun HandleCallEnded(callStatus: VideoCallStatus, onCallEnded: () -> Unit) {
+    var hasShownCallUi by remember { mutableStateOf(false) }
+
     LaunchedEffect(callStatus) {
-        if (callStatus == VideoCallStatus.ENDED) {
+        if (callStatus != VideoCallStatus.IDLE) {
+            hasShownCallUi = true
+        } else if (hasShownCallUi) {
             delay(600)
             onCallEnded()
         }
@@ -141,7 +146,7 @@ private fun RenderCallSurface(
     }
 
     when (videoCallState.callStatus) {
-        VideoCallStatus.IDLE, VideoCallStatus.ENDED -> Unit
+        VideoCallStatus.IDLE -> Unit
         VideoCallStatus.PRE_JOIN -> {
             VideoCallIncomingNotification(
                 caller = videoCallState.caller ?: fallbackUser,
@@ -182,6 +187,16 @@ private fun RenderCallSurface(
                 videoCallViewModel = videoCallViewModel,
                 onEndCall = {
                     videoCallViewModel.endCall()
+                    onCallEnded()
+                }
+            )
+        }
+        VideoCallStatus.ENDED -> {
+            CallEndedDialog(
+                remoteUser = videoCallState.caller ?: fallbackUser,
+                videoCallState = videoCallState,
+                onDismiss = {
+                    videoCallViewModel.dismissEndedSession()
                     onCallEnded()
                 }
             )
@@ -299,6 +314,110 @@ private fun CallFullscreenDialog(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 28.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CallEndedDialog(
+    remoteUser: UserInfo,
+    videoCallState: VideoCallState,
+    onDismiss: () -> Unit
+) {
+    val summary = videoCallState.sessionSummary
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            shape = RoundedCornerShape(28.dp),
+            color = Color(0xFF0B1220)
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = "Call recap",
+                    color = Color(0xFF93C5FD),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = summary?.title ?: "Call finished",
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = summary?.detail ?: "The call has ended.",
+                    color = Color.White.copy(alpha = 0.72f),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(18.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SummaryChip("Duration", formatDuration(summary?.durationSeconds ?: videoCallState.duration))
+                    SummaryChip("Result", if ((summary?.connected ?: false)) "Connected" else "Not connected")
+                    SummaryChip("Peer", remoteUser.username.ifBlank { "Call" })
+                }
+                Spacer(modifier = Modifier.height(18.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    videoCallState.activityLog.forEach { item ->
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color.White.copy(alpha = 0.06f)
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(
+                                    text = item.label,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                item.detail?.let {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = it,
+                                        color = Color.White.copy(alpha = 0.68f),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Close")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryChip(label: String, value: String) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White.copy(alpha = 0.08f)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+            Text(
+                text = label,
+                color = Color.White.copy(alpha = 0.56f),
+                fontSize = 11.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = value,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold
             )
         }
     }

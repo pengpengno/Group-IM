@@ -35,6 +35,23 @@ export interface RemoteParticipantStream {
   stream: MediaStream | null;
 }
 
+export interface CallActivityItem {
+  id: string;
+  tone: 'info' | 'success' | 'warning';
+  label: string;
+  detail?: string;
+  timestamp: number;
+}
+
+export interface CallSessionSummary {
+  title: string;
+  detail: string;
+  durationSeconds: number;
+  connected: boolean;
+  endedBy: 'local' | 'remote' | 'system';
+  endedAt: number;
+}
+
 export interface CallInternalState {
   callStatus: VideoCallStatus;
   roomId?: string;
@@ -50,6 +67,8 @@ export interface CallInternalState {
   isSpeakerEnabled: boolean;
   isMeeting: boolean;
   errorMessage?: string;
+  activityLog: CallActivityItem[];
+  sessionSummary?: CallSessionSummary;
 }
 
 interface SignalingConnectionConfig {
@@ -96,7 +115,8 @@ export class WebRTCService extends EventEmitter {
     isRemoteVideoEnabled: false,
     isMicrophoneEnabled: true,
     isSpeakerEnabled: true,
-    isMeeting: false
+    isMeeting: false,
+    activityLog: []
   };
 
   constructor(iceServers: RTCIceServer[] = DEFAULT_ICE_SERVERS) {
@@ -325,6 +345,7 @@ export class WebRTCService extends EventEmitter {
       remoteAvatar: message.fromAvatar,
       isMeeting: (message.participants?.length || 0) > 1
     });
+    this.pushActivity('info', 'Incoming call', `${message.fromUserName || message.fromUser || 'Unknown user'} is calling.`);
 
     if (this.store && message.fromUser) {
       this.store.dispatch(incomingCall({
@@ -368,6 +389,7 @@ export class WebRTCService extends EventEmitter {
       remoteAvatar: invite.remoteAvatar,
       isMeeting: true
     });
+    this.pushActivity('info', 'Meeting invite opened', `Room ${invite.roomId}`);
   }
 
   private handleMeetingParticipants(message: WebrtcMessage): void {
@@ -390,6 +412,7 @@ export class WebRTCService extends EventEmitter {
       callStatus: VideoCallStatus.CONNECTING,
       isMeeting: participants.length > 1
     });
+    this.pushActivity('info', 'Participants synced', `${participants.length} participant(s) in room`);
   }
 
   private handleParticipantJoined(message: WebrtcMessage): void {
@@ -403,6 +426,7 @@ export class WebRTCService extends EventEmitter {
       userName: message.userName || message.fromUserName,
       avatar: message.avatar || message.fromAvatar
     });
+    this.pushActivity('info', `${message.userName || message.fromUserName || participantId} joined`, 'Connecting media stream.');
 
     if (this.state.callStatus !== VideoCallStatus.INCOMING) {
       void this.createOfferForParticipant(participantId);
@@ -415,11 +439,19 @@ export class WebRTCService extends EventEmitter {
       return;
     }
 
+    const participantName = this.getParticipantLabel(participantId);
     this.removeParticipantConnection(participantId);
 
     if (this.getRemoteParticipantStreams().length === 0 && this.state.callStatus === VideoCallStatus.ACTIVE) {
-      this.cleanupCallState(false);
+      this.finishCall({
+        endedBy: 'remote',
+        title: 'Call ended by other side',
+        detail: `${participantName} left the call after ${this.formatDuration(this.state.duration)}.`
+      });
+      return;
     }
+
+    this.pushActivity('warning', `${participantName} left`, 'The participant left the room.');
   }
 
   private handleMeetingRejected(message: WebrtcMessage): void {
@@ -429,7 +461,11 @@ export class WebRTCService extends EventEmitter {
     }
 
     if (this.getRemoteParticipantStreams().length === 0 && this.state.callStatus === VideoCallStatus.OUTGOING) {
-      this.handleError(new Error(message.reason || 'Call was rejected'));
+      this.finishCall({
+        endedBy: 'remote',
+        title: 'Call declined',
+        detail: message.reason || `${this.getParticipantLabel(rejectedUserId)} declined the call.`
+      });
     }
   }
 
@@ -456,6 +492,7 @@ export class WebRTCService extends EventEmitter {
       });
 
       this.updateState({ callStatus: VideoCallStatus.CONNECTING });
+      this.pushActivity('info', 'Offer sent', `Waiting for ${this.getParticipantLabel(remoteUserId)} to connect.`);
     } catch (error) {
       this.handleError(error as Error);
     }
@@ -497,6 +534,7 @@ export class WebRTCService extends EventEmitter {
       });
 
       this.updateState({ callStatus: VideoCallStatus.CONNECTING });
+      this.pushActivity('info', 'Answer sent', `Accepted ${this.getParticipantLabel(remoteUserId)}.`);
     } catch (error) {
       this.handleError(error as Error);
     }
@@ -613,6 +651,7 @@ export class WebRTCService extends EventEmitter {
             callStatus: VideoCallStatus.ACTIVE,
             callStartTime: Date.now()
           });
+          this.pushActivity('success', 'Call connected', `Live with ${this.getParticipantLabel(remoteUserId)}.`);
           this.startDurationTimer();
           if (this.store) {
             this.store.dispatch(callConnected());
@@ -635,10 +674,12 @@ export class WebRTCService extends EventEmitter {
   }
 
   public initiateMeeting(targets: Array<{ userId: string; userName?: string; avatar?: string }>, roomId?: string): void {
+    this.prepareFreshSession();
     void this.startMeetingFlow(targets, roomId);
   }
 
   public joinMeeting(roomId: string): void {
+    this.prepareFreshSession();
     void this.joinMeetingFlow(roomId);
   }
 
@@ -647,8 +688,11 @@ export class WebRTCService extends EventEmitter {
       this.updateState({
         callStatus: VideoCallStatus.CONNECTING,
         roomId,
-        isMeeting: true
+        isMeeting: true,
+        sessionSummary: undefined,
+        errorMessage: undefined
       });
+      this.pushActivity('info', 'Joining call', `Room ${roomId}`);
 
       // Render the pre-join / connecting surface first, then start media setup.
       await nextUiFrame();
@@ -685,8 +729,15 @@ export class WebRTCService extends EventEmitter {
         remoteUserId: firstTarget.userId,
         remoteUserName: firstTarget.userName,
         remoteAvatar: firstTarget.avatar,
-        isMeeting: targets.length > 1
+        isMeeting: targets.length > 1,
+        sessionSummary: undefined,
+        errorMessage: undefined
       });
+      this.pushActivity(
+        'info',
+        targets.length > 1 ? 'Meeting invite sent' : 'Calling started',
+        targets.map((target) => target.userName || target.userId).join(', ')
+      );
 
       // Show the outgoing call page before camera/mic work starts so the
       // transition feels immediate on web and Electron.
@@ -719,6 +770,7 @@ export class WebRTCService extends EventEmitter {
   }
 
   private sendMeetingJoin(roomId: string): void {
+    this.pushActivity('info', 'Joined signaling room', roomId);
     this.sendSignalingMessage({
       type: SIGNALING_MESSAGE_TYPES.MEETING_JOIN,
       fromUser: this.userId,
@@ -758,6 +810,7 @@ export class WebRTCService extends EventEmitter {
     }
 
     if (this.state.remoteUserId) {
+      this.pushActivity('warning', 'Call declined', 'You declined the incoming call.');
       this.sendSignalingMessage({
         type: SIGNALING_MESSAGE_TYPES.MEETING_REJECT,
         fromUser: this.userId,
@@ -766,7 +819,11 @@ export class WebRTCService extends EventEmitter {
         reason: 'Call rejected'
       });
     }
-    this.cleanupCallState(false);
+    this.finishCall({
+      endedBy: 'local',
+      title: 'Call declined',
+      detail: 'You declined the incoming call.'
+    });
   }
 
   public endCall(): void {
@@ -777,15 +834,32 @@ export class WebRTCService extends EventEmitter {
         roomId: this.state.roomId
       });
     }
-    this.cleanupCallState(false);
+    const connected = Boolean(this.state.callStartTime);
+    this.finishCall({
+      endedBy: 'local',
+      title: connected ? 'Call ended' : 'Call cancelled',
+      detail: connected ? `You ended the call after ${this.formatDuration(this.state.duration)}.` : 'You ended the call before it connected.'
+    });
   }
 
   private handleRemoteHangup(remoteUserId?: string): void {
+    const connected = Boolean(this.state.callStartTime);
+    const remoteName = this.getParticipantLabel(remoteUserId || this.state.remoteUserId);
     if (remoteUserId) {
       this.removeParticipantConnection(remoteUserId);
-    } else {
-      this.cleanupCallState(false);
+      if (this.getRemoteParticipantStreams().length > 0) {
+        this.pushActivity('warning', `${remoteName} left`, connected ? `Call duration ${this.formatDuration(this.state.duration)}` : 'Left before the call connected.');
+        return;
+      }
     }
+
+    this.finishCall({
+      endedBy: 'remote',
+      title: connected ? 'Call ended by other side' : 'Call not answered',
+      detail: connected
+        ? `${remoteName} ended the call after ${this.formatDuration(this.state.duration)}.`
+        : `${remoteName} ended the call before it connected.`
+    });
 
     this.emit('call-ended', { remoteId: remoteUserId || this.state.remoteUserId });
   }
@@ -850,6 +924,18 @@ export class WebRTCService extends EventEmitter {
     });
   }
 
+  private prepareFreshSession(): void {
+    if (this.state.callStatus === VideoCallStatus.ENDED || this.state.callStatus === VideoCallStatus.ERROR) {
+      this.updateState({
+        activityLog: [],
+        sessionSummary: undefined,
+        errorMessage: undefined,
+        duration: 0,
+        callStartTime: undefined
+      });
+    }
+  }
+
   private updateState(updates: Partial<CallInternalState>): void {
     this.state = {
       ...this.state,
@@ -861,6 +947,7 @@ export class WebRTCService extends EventEmitter {
 
   private handleError(error: Error): void {
     console.error('WebRTCService Error:', error);
+    this.pushActivity('warning', 'Call error', error.message);
     this.updateState({
       callStatus: VideoCallStatus.ERROR,
       errorMessage: error.message
@@ -922,6 +1009,8 @@ export class WebRTCService extends EventEmitter {
       duration: 0,
       isRemoteVideoEnabled: false,
       isMeeting: false,
+      activityLog: resetError ? [] : this.state.activityLog,
+      sessionSummary: resetError ? undefined : this.state.sessionSummary,
       errorMessage: resetError ? undefined : this.state.errorMessage
     });
 
@@ -964,6 +1053,90 @@ export class WebRTCService extends EventEmitter {
 
   public toggleSpeaker(enabled: boolean): void {
     this.updateState({ isSpeakerEnabled: enabled });
+  }
+
+  public dismissCallSummary(): void {
+    this.cleanupCallState(true);
+  }
+
+  private finishCall(summary: {
+    endedBy: 'local' | 'remote' | 'system';
+    title: string;
+    detail: string;
+  }): void {
+    const durationSeconds = this.state.duration;
+    this.pushActivity(
+      summary.endedBy === 'system' ? 'warning' : 'success',
+      summary.title,
+      durationSeconds > 0 ? `${summary.detail} Duration ${this.formatDuration(durationSeconds)}.` : summary.detail
+    );
+
+    this.stopDurationTimer();
+    this.peerConnections.forEach((peerConnection) => {
+      peerConnection.onicecandidate = null;
+      peerConnection.ontrack = null;
+      peerConnection.onconnectionstatechange = null;
+      peerConnection.close();
+    });
+    this.peerConnections.clear();
+    this.pendingIceCandidates.clear();
+    this.remoteStreams.clear();
+
+    if (this.localStream) {
+      this.localStream.getTracks().forEach((track) => track.stop());
+      this.localStream = null;
+    }
+
+    this.participantDirectory.clear();
+    this.emit('remote-streams-change', []);
+
+    this.updateState({
+      callStatus: VideoCallStatus.ENDED,
+      roomId: undefined,
+      participants: [],
+      callStartTime: undefined,
+      isRemoteVideoEnabled: false,
+      sessionSummary: {
+        title: summary.title,
+        detail: summary.detail,
+        durationSeconds,
+        connected: durationSeconds > 0,
+        endedBy: summary.endedBy,
+        endedAt: Date.now()
+      }
+    });
+
+    if (this.store) {
+      this.store.dispatch(setLocalStreamId(null));
+      this.store.dispatch(setRemoteStreamId(null));
+      this.store.dispatch(callEnded());
+    }
+  }
+
+  private pushActivity(tone: 'info' | 'success' | 'warning', label: string, detail?: string): void {
+    const nextItem: CallActivityItem = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      tone,
+      label,
+      detail,
+      timestamp: Date.now()
+    };
+    this.updateState({
+      activityLog: [...this.state.activityLog, nextItem].slice(-8)
+    });
+  }
+
+  private getParticipantLabel(userId?: string): string {
+    if (!userId) {
+      return 'The other side';
+    }
+    return this.participantDirectory.get(userId)?.userName || this.state.remoteUserName || userId;
+  }
+
+  private formatDuration(seconds: number): string {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
 }
 

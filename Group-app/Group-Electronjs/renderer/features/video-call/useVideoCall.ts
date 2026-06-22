@@ -16,6 +16,7 @@ interface UseVideoCallReturn {
   acceptCall: () => void;
   rejectCall: () => void;
   endCall: () => void;
+  dismissCallSummary: () => void;
   toggleCamera: (enabled: boolean) => void;
   toggleMicrophone: (enabled: boolean) => void;
   toggleSpeaker: (enabled: boolean) => void;
@@ -90,6 +91,10 @@ export const useVideoCall = (): UseVideoCallReturn => {
     webRTCService.endCall();
   }, []);
 
+  const dismissCallSummary = useCallback(() => {
+    webRTCService.dismissCallSummary();
+  }, []);
+
   const toggleCamera = useCallback((enabled: boolean) => {
     webRTCService.toggleCamera(enabled);
   }, []);
@@ -136,6 +141,7 @@ export const useVideoCall = (): UseVideoCallReturn => {
     acceptCall,
     rejectCall,
     endCall,
+    dismissCallSummary,
     toggleCamera,
     toggleMicrophone,
     toggleSpeaker,

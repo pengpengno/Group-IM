@@ -24,7 +24,6 @@ class VideoCallViewModel(
 ) : ViewModel() {
     companion object {
         private const val INCOMING_CALL_TIMEOUT_MILLIS = 30_000L
-        private const val STATE_RESET_DELAY_MILLIS = 500L
     }
 
     private val _videoCallState = MutableStateFlow(VideoCallState())
@@ -92,6 +91,7 @@ class VideoCallViewModel(
             return
         }
 
+        resetSessionArtifacts()
         viewModelScope.launch {
             try {
                 currentCallId = roomId
@@ -104,7 +104,12 @@ class VideoCallViewModel(
                     isLocalVideoEnabled = _isCameraEnabled.value,
                     isMicrophoneEnabled = _isMicrophoneEnabled.value,
                     isSpeakerEnabled = _isSpeakerEnabled.value,
-                    errorMessage = null
+                    errorMessage = null,
+                    sessionSummary = null
+                )
+                addActivity(
+                    label = if (participantIds.size > 1) "Meeting invite sent" else "Calling started",
+                    detail = displayUser?.username ?: participantIds.joinToString(", ")
                 )
 
                 // Render the outgoing screen first. Media permission and session
@@ -137,8 +142,10 @@ class VideoCallViewModel(
             callId = currentCallId,
             callStartTime = Clock.System.now().toEpochMilliseconds(),
             isMinimized = false,
-            errorMessage = null
+            errorMessage = null,
+            sessionSummary = null
         )
+        addActivity("Incoming call", "${caller.username} is calling.")
         startIncomingCallTimeout()
     }
 
@@ -153,6 +160,7 @@ class VideoCallViewModel(
                     callStatus = VideoCallStatus.CONNECTING,
                     isMinimized = false
                 )
+                addActivity("Joining call", "Preparing camera and microphone.")
                 pendingCallSetup = PendingCallSetup.AcceptIncoming(currentCallId.orEmpty())
             } catch (e: Exception) {
                 handleError("Failed to accept call", e)
@@ -185,6 +193,7 @@ class VideoCallViewModel(
                             callStatus = VideoCallStatus.ACTIVE,
                             isMinimized = false
                         )
+                        addActivity("Call connected", "You joined the call.", CallActivityTone.SUCCESS)
                     }
                 }
                 pendingCallSetup = null
@@ -203,7 +212,15 @@ class VideoCallViewModel(
 
         when (pendingSetup) {
             is PendingCallSetup.AcceptIncoming -> rejectCall()
-            is PendingCallSetup.OutgoingMeeting -> finishCall(VideoCallStatus.ENDED, "Camera and microphone permission denied")
+            is PendingCallSetup.OutgoingMeeting -> finishCall(
+                status = VideoCallStatus.ENDED,
+                errorMessage = "Camera and microphone permission denied",
+                summary = buildSummary(
+                    title = "Call cancelled",
+                    detail = "Camera and microphone permission denied.",
+                    endedBy = "system"
+                )
+            )
             null -> Unit
         }
     }
@@ -216,7 +233,15 @@ class VideoCallViewModel(
         viewModelScope.launch {
             try {
                 webRTCManager?.rejectCall(currentCallId.orEmpty())
-                finishCall(VideoCallStatus.ENDED)
+                addActivity("Call declined", "You declined the incoming call.", CallActivityTone.WARNING)
+                finishCall(
+                    status = VideoCallStatus.ENDED,
+                    summary = buildSummary(
+                        title = "Call declined",
+                        detail = "You declined the incoming call.",
+                        endedBy = "local"
+                    )
+                )
             } catch (e: Exception) {
                 handleError("Failed to reject call", e)
             } finally {
@@ -269,7 +294,14 @@ class VideoCallViewModel(
             callId = callId
         )
         webRTCManager?.rejectCall(callId)
-        finishCall(VideoCallStatus.ENDED)
+        finishCall(
+            status = VideoCallStatus.ENDED,
+            summary = buildSummary(
+                title = "Call declined",
+                detail = "You declined the incoming call.",
+                endedBy = "local"
+            )
+        )
     }
 
     fun endCall() {
@@ -284,7 +316,18 @@ class VideoCallViewModel(
                 )
                 webRTCManager?.endCall()
                 releaseMediaResources()
-                finishCall(VideoCallStatus.ENDED)
+                finishCall(
+                    status = VideoCallStatus.ENDED,
+                    summary = buildSummary(
+                        title = if ((_videoCallState.value.duration) > 0) "Call ended" else "Call cancelled",
+                        detail = if ((_videoCallState.value.duration) > 0) {
+                            "You ended the call after ${formatDuration(_videoCallState.value.duration)}."
+                        } else {
+                            "You ended the call before it connected."
+                        },
+                        endedBy = "local"
+                    )
+                )
             } catch (e: Exception) {
                 handleError("Failed to end call", e)
                 forceResetState()
@@ -382,6 +425,19 @@ class VideoCallViewModel(
                         else -> state.callStatus
                     }
 
+                    if (pendingCallSetup == null &&
+                        state.callStatus == VideoCallStatus.IDLE &&
+                        current.callStatus in listOf(
+                            VideoCallStatus.OUTGOING,
+                            VideoCallStatus.CONNECTING,
+                            VideoCallStatus.ACTIVE,
+                            VideoCallStatus.MINIMIZED
+                        )
+                    ) {
+                        finalizeRemoteEndedSession(current, state.errorMessage)
+                        return@collect
+                    }
+
                     _videoCallState.value = current.copy(
                         // Until the deferred setup actually starts, keep the optimistic
                         // UI-first status instead of letting an idle manager snapshot
@@ -450,7 +506,15 @@ class VideoCallViewModel(
         viewModelScope.launch {
             try {
                 webRTCManager?.rejectCall(currentCallId.orEmpty())
-                finishCall(VideoCallStatus.ENDED, reason)
+                finishCall(
+                    status = VideoCallStatus.ENDED,
+                    errorMessage = reason,
+                    summary = buildSummary(
+                        title = "Missed call",
+                        detail = reason,
+                        endedBy = "system"
+                    )
+                )
             } catch (e: Exception) {
                 Napier.e("Auto reject call failed", e)
                 forceResetState()
@@ -493,21 +557,85 @@ class VideoCallViewModel(
         _isSpeakerEnabled.value = true
     }
 
-    private fun finishCall(status: VideoCallStatus, errorMessage: String? = null) {
+    private fun resetSessionArtifacts() {
+        _videoCallState.value = _videoCallState.value.copy(
+            activityLog = emptyList(),
+            sessionSummary = null,
+            errorMessage = null
+        )
+    }
+
+    private fun addActivity(
+        label: String,
+        detail: String? = null,
+        tone: CallActivityTone = CallActivityTone.INFO
+    ) {
+        val now = Clock.System.now().toEpochMilliseconds()
+        val item = CallActivity(
+            id = "$now-${(0..9999).random()}",
+            label = label,
+            detail = detail,
+            tone = tone,
+            timestamp = now
+        )
+        _videoCallState.value = _videoCallState.value.copy(
+            activityLog = (_videoCallState.value.activityLog + item).takeLast(8)
+        )
+    }
+
+    private fun buildSummary(title: String, detail: String, endedBy: String): CallSessionSummary {
+        val duration = _videoCallState.value.duration
+        return CallSessionSummary(
+            title = title,
+            detail = detail,
+            durationSeconds = duration,
+            connected = duration > 0,
+            endedBy = endedBy,
+            endedAt = Clock.System.now().toEpochMilliseconds()
+        )
+    }
+
+    private fun finalizeRemoteEndedSession(current: VideoCallState, reason: String?) {
+        releaseMediaResources()
+        val connected = current.duration > 0
+        val detail = when {
+            !reason.isNullOrBlank() -> reason
+            connected -> "${current.caller?.username ?: "The other side"} ended the call after ${formatDuration(current.duration)}."
+            else -> "${current.caller?.username ?: "The other side"} ended the call before it connected."
+        }
+        addActivity(
+            label = if (connected) "Call ended by other side" else "Call not answered",
+            detail = detail,
+            tone = if (connected) CallActivityTone.SUCCESS else CallActivityTone.WARNING
+        )
+        finishCall(
+            status = VideoCallStatus.ENDED,
+            errorMessage = reason,
+            summary = buildSummary(
+                title = if (connected) "Call ended by other side" else "Call not answered",
+                detail = detail,
+                endedBy = "remote"
+            )
+        )
+    }
+
+    fun dismissEndedSession() {
+        forceResetState()
+    }
+
+    private fun finishCall(
+        status: VideoCallStatus,
+        errorMessage: String? = null,
+        summary: CallSessionSummary? = null
+    ) {
         _videoCallState.value = _videoCallState.value.copy(
             callStatus = status,
             errorMessage = errorMessage,
-            isMinimized = false
+            isMinimized = false,
+            sessionSummary = summary ?: _videoCallState.value.sessionSummary
         )
         currentCallId = null
         isIncomingCallProcessing = false
-
-        viewModelScope.launch {
-            delay(STATE_RESET_DELAY_MILLIS)
-            if (_videoCallState.value.callStatus == status) {
-                _videoCallState.value = VideoCallState()
-            }
-        }
     }
 
     private fun forceResetState() {
@@ -527,6 +655,7 @@ class VideoCallViewModel(
             errorMessage = "$message: ${error.message}",
             isMinimized = false
         )
+        addActivity("Call error", error.message ?: message, CallActivityTone.WARNING)
     }
 
     override fun onCleared() {
@@ -548,4 +677,10 @@ fun VideoCallStatus.isActiveCall(): Boolean {
         VideoCallStatus.ACTIVE,
         VideoCallStatus.MINIMIZED
     )
+}
+
+private fun formatDuration(seconds: Long): String {
+    val minutes = seconds / 60
+    val remainingSeconds = seconds % 60
+    return "${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}"
 }
