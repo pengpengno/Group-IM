@@ -84,10 +84,23 @@ class MessageStore(
     }
 
     private fun getSortedMessages(): List<MessageItem> {
-        return cache.values.sortedWith(
-            compareByDescending<MessageItem> { if (it.seqId != 0L) it.seqId else Long.MIN_VALUE }
-                .thenByDescending { it.clientTime ?: it.time }
-        )
+        return cache.values.sortedWith { left, right ->
+            when {
+                left.seqId > 0L && right.seqId > 0L -> right.seqId.compareTo(left.seqId)
+                else -> {
+                    val timeCompare = (right.clientTime ?: right.time).compareTo(left.clientTime ?: left.time)
+                    if (timeCompare != 0) {
+                        timeCompare
+                    } else {
+                        when {
+                            left.seqId == 0L && right.seqId > 0L -> -1
+                            left.seqId > 0L && right.seqId == 0L -> 1
+                            else -> right.clientMsgId.compareTo(left.clientMsgId)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fun markConversationRead(conversationId: Long, currentUserId: Long) {

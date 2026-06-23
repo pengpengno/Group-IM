@@ -68,6 +68,7 @@ export interface ElectronAPI {
   uploadFile: (fileOrPath: string | File, fileId: string, duration?: number) => Promise<FileUploadResponse>;
   getUploadId: (request: UploadFileRequest) => Promise<FileUploadResponse>;
   downloadFile: (url: string, fileName: string, token?: string) => Promise<{ success?: boolean; canceled?: boolean; error?: string; filePath?: string }>;
+  readFileAsDataURL: (filePath: string) => Promise<string | null>;
 
   // 用户搜索相关
   searchUsers: (query: string, token?: string) => Promise<ApiSearchResults>;
@@ -243,11 +244,13 @@ const webAPI: ElectronAPI = {
     }
   },
 
+  readFileAsDataURL: async (filePath: string): Promise<string | null> => {
+    return null;
+  },
+
   // 用户搜索相关
   searchUsers: async (query: string, token?: string): Promise<ApiSearchResults> => {
     try {
-      // If token is provided, it's already handled by apiClient's interceptor if we use authAPI.
-      // But we pass it here for clarity or if we want to override.
       const response = await authAPI.queryUsers(query);
       const content = response.data?.content || [];
       const users: User[] = content.map((u: ApiUser) => ({
@@ -392,6 +395,12 @@ export function getElectronAPI(): ElectronAPI {
           return electron.downloadFile(url, fileName, authToken);
         }
         return webAPI.downloadFile(url, fileName, authToken);
+      },
+      readFileAsDataURL: async (filePath: string) => {
+        if (electron.readFileAsDataURL) {
+          return electron.readFileAsDataURL(filePath);
+        }
+        return null;
       }
     };
   }

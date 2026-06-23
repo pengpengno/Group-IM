@@ -85,6 +85,17 @@ data class MessageWrapper(
         )
     }
 
+    /**
+     * 文件消息在“本地占位 fileId -> 服务端真实 fileId”切换时，
+     * 需要保持同一条消息，只更新 content。
+     */
+    fun withContent(newContent: String): MessageWrapper {
+        return copy(
+            messageDto = messageDto?.copy(content = newContent),
+            message = message?.copy(content = newContent)
+        )
+    }
+
 
     override val clientTime: LocalDateTime?
         get() = when {

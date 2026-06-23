@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.github.im.group.api.FileMeta
 import com.github.im.group.api.MeetingMessagePayLoad
+import com.github.im.group.db.entities.FileStatus
 import com.github.im.group.manager.AudioPlaybackManager
 import com.github.im.group.manager.FileStorageManager
 import com.github.im.group.manager.getFile
@@ -436,7 +437,11 @@ fun MeetingMessageBubble(
  * 文件类型气泡
  */
 @Composable
-fun FileMessageBubble(meta: FileMeta, onDownloadFile: ((String) -> Unit)? = null) {
+fun FileMessageBubble(
+    meta: FileMeta,
+    isOwnMessage: Boolean,
+    onDownloadFile: ((String) -> Unit)? = null
+) {
     var showDialog by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
 
@@ -454,6 +459,14 @@ fun FileMessageBubble(meta: FileMeta, onDownloadFile: ((String) -> Unit)? = null
         "${meta.size / 1024}KB"
     } else {
         "${meta.size}B"
+    }
+    val actionEnabled = meta.fileStatus == FileStatus.NORMAL
+    val statusLabel = when (meta.fileStatus) {
+        FileStatus.UPLOADING, FileStatus.CHUNK_UPLOADING -> "文件处理中"
+        FileStatus.FAILED -> "文件未准备好"
+        FileStatus.EXPIRED -> "文件已过期"
+        FileStatus.DELETED -> "文件已删除"
+        else -> null
     }
 
     Column(
@@ -482,12 +495,22 @@ fun FileMessageBubble(meta: FileMeta, onDownloadFile: ((String) -> Unit)? = null
                 color = Color.Gray,
                 style = MaterialTheme.typography.labelSmall
             )
+            statusLabel?.let {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Button(
-            onClick = { showDialog = true },
+            // 普通大文件在附件未就绪时没有预览价值，
+            // 所以这里直接禁用查看入口，只保留状态文案提示即可。
+            onClick = { if (actionEnabled) showDialog = true },
+            enabled = actionEnabled,
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary

@@ -2,10 +2,12 @@ package com.github.im.group.ui.chat
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -43,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.im.group.api.FileMeta
 import com.github.im.group.api.MeetingMessagePayLoad
+import com.github.im.group.db.entities.FileStatus
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.manager.toFile
@@ -140,7 +144,11 @@ fun MessageBubble(
                                     )
                                 }
                                 MessageType.IMAGE, MessageType.VIDEO, MessageType.FILE ->
-                                    FileMessageContent(message = msg, messageViewModel = messageViewModel)
+                                    FileMessageContent(
+                                        message = msg,
+                                        messageViewModel = messageViewModel,
+                                        isOwnMessage = isOwnMessage
+                                    )
                                 else -> TextMessage(MessageContent.Text(msg.content), isOwnMessage)
                             }
                         }
@@ -203,8 +211,17 @@ fun MessageBubble(
                     Icon(
                         imageVector = statusIcon,
                         contentDescription = null,
-                        modifier = Modifier.size(12.dp),
-                        tint = if (msg.status == MessageStatus.READ) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        modifier = Modifier
+                            .size(12.dp)
+                            .clickable(enabled = msg.status == MessageStatus.FAILED) {
+                                // 澶辫触娑堟伅鍦ㄦ皵娉′笂鐩存帴鎻愪緵閲嶈瘯鍏ュ彛锛岄伩鍏嶇敤鎴峰啀鍘绘壘鍏朵粬鍏ュ彛銆?
+                                messageViewModel.retryMessage(msg)
+                            },
+                        tint = when (msg.status) {
+                            MessageStatus.FAILED -> MaterialTheme.colorScheme.error
+                            MessageStatus.READ -> MaterialTheme.colorScheme.primary
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        }
                     )
                 }
             }
@@ -226,26 +243,42 @@ private fun VoiceMessageContent(
     messageViewModel: ChatRoomViewModel,
     isOwnMessage: Boolean
 ) {
-    val meta by produceState<FileMeta?>(initialValue = msg.fileMeta, key1 = msg.content) {
-        value = msg.fileMeta ?: messageViewModel.getFileMessageMetaAsync(msg)
+    // 优先读本地缓存的附件元信息，只有本地没有时才回源远端。
+    // 这样能覆盖“消息先到，文件还在上传”的短时间窗口。
+    val cachedMeta = remember(msg.content) {
+        msg.fileMeta ?: messageViewModel.getCachedFileMeta(msg.content)
+    }
+    val meta by produceState<FileMeta?>(initialValue = cachedMeta, key1 = msg.content) {
+        value = cachedMeta ?: messageViewModel.getFileMessageMetaAsync(msg)
     }
     val resolvedFile = remember(meta) {
         meta?.let { fileMeta ->
             messageViewModel.getFile(fileMeta.fileId)
                 ?: messageViewModel.getLocalFilePath(fileMeta.fileId)?.let(fileMeta::toFile)
-                ?: fileMeta.toFile()
+                ?: fileMeta.takeIf { it.fileStatus == FileStatus.NORMAL }?.toFile()
         }
     }
 
-    if (meta == null || resolvedFile == null) {
-        CircularProgressIndicator(modifier = Modifier.size(16.dp))
+    if (meta == null) {
+        AttachmentStatusPlaceholder(text = "语音信息加载中")
+        return
+    }
+    val resolvedMeta = meta ?: return
+    if (resolvedMeta.fileStatus != FileStatus.NORMAL || resolvedFile == null) {
+        // 语音消息也遵守附件状态机：未就绪时不展示播放器，避免点进去就是失败。
+        AttachmentStatusPlaceholder(
+            text = when (resolvedMeta.fileStatus) {
+                FileStatus.FAILED -> if (isOwnMessage) "语音上传失败" else "语音暂不可播放"
+                else -> if (isOwnMessage) "语音上传中" else "语音准备中"
+            }
+        )
         return
     }
 
     VoiceMessage(
         content = MessageContent.Voice(
-            audioPath = resolvedFile.path.ifBlank { meta?.getFileUrl().orEmpty() },
-            duration = meta?.duration ?: 0
+            audioPath = resolvedFile.path.ifBlank { resolvedMeta.getFileUrl().orEmpty() },
+            duration = resolvedMeta.duration
         ),
         senderName = msg.userInfo.username,
         isOwnMessage = isOwnMessage,
@@ -256,43 +289,140 @@ private fun VoiceMessageContent(
 @Composable
 private fun FileMessageContent(
     message: MessageItem,
-    messageViewModel: ChatRoomViewModel
+    messageViewModel: ChatRoomViewModel,
+    isOwnMessage: Boolean
 ) {
-    val meta by produceState<FileMeta?>(initialValue = message.fileMeta, key1 = message.content) {
-        value = message.fileMeta ?: messageViewModel.getFileMessageMetaAsync(message)
+    // 文件渲染先判状态，再判类型。
+    // 先知道附件是不是 normal / uploading / failed，才能决定展示真实气泡还是占位态。
+    val cachedMeta = remember(message.content) {
+        message.fileMeta ?: messageViewModel.getCachedFileMeta(message.content)
+    }
+    val meta by produceState<FileMeta?>(initialValue = cachedMeta, key1 = message.content) {
+        value = cachedMeta ?: messageViewModel.getFileMessageMetaAsync(message)
     }
 
     if (meta == null) {
-        CircularProgressIndicator(modifier = Modifier.size(16.dp))
+        AttachmentStatusPlaceholder(
+            text = if (isOwnMessage) "文件准备中" else "文件信息加载中"
+        )
         return
     }
+    val resolvedMeta = meta ?: return
 
     when (message.type) {
         MessageType.IMAGE, MessageType.VIDEO -> {
-            val resolvedFile = remember(meta) {
-                meta?.let { fileMeta ->
+            val resolvedFile = remember(resolvedMeta) {
+                resolvedMeta.let { fileMeta ->
                     messageViewModel.getFile(fileMeta.fileId)
                         ?: messageViewModel.getLocalFilePath(fileMeta.fileId)?.let(fileMeta::toFile)
-                        ?: fileMeta.toFile()
+                        ?: fileMeta.takeIf { it.fileStatus == FileStatus.NORMAL }?.toFile()
                 }
             }
 
             if (resolvedFile == null) {
-                CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                PendingMediaPlaceholder(
+                    text = when (resolvedMeta.fileStatus) {
+                        FileStatus.FAILED -> if (isOwnMessage) "媒体上传失败" else "媒体暂不可用"
+                        else -> if (isOwnMessage) "媒体上传中" else "媒体准备中"
+                    }
+                )
                 return
             }
 
-            MediaMessage(
-                file = resolvedFile,
-                onDownloadFile = messageViewModel::downloadFileMessage
-            )
+            if (resolvedMeta.fileStatus == FileStatus.NORMAL) {
+                MediaMessage(
+                    file = resolvedFile,
+                    onDownloadFile = messageViewModel::downloadFileMessage
+                )
+            } else {
+                // 图片/视频优先走“模糊预览 + 状态覆盖层”，
+                // 让用户知道消息已到，只是资源仍在准备。
+                UploadingMediaBubble(
+                    file = resolvedFile,
+                    text = when (meta?.fileStatus) {
+                        FileStatus.FAILED -> if (isOwnMessage) "上传失败" else "暂不可查看"
+                        else -> if (isOwnMessage) "上传中" else "对方正在上传"
+                    },
+                    failed = resolvedMeta.fileStatus == FileStatus.FAILED,
+                    onDownloadFile = messageViewModel::downloadFileMessage
+                )
+            }
         }
 
         MessageType.FILE -> FileMessageBubble(
-            meta = meta!!,
+            meta = resolvedMeta,
+            isOwnMessage = isOwnMessage,
             onDownloadFile = messageViewModel::downloadFileMessage
         )
 
         else -> TextMessage(MessageContent.Text(message.content), isOwnMessage = false)
+    }
+}
+
+@Composable
+private fun AttachmentStatusPlaceholder(text: String) {
+    // 通用的轻量占位块，避免每种附件状态都散落一套重复 UI。
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 1.5.dp)
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = text, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun PendingMediaPlaceholder(text: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Box(
+            modifier = Modifier.size(width = 160.dp, height = 120.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            AttachmentStatusPlaceholder(text = text)
+        }
+    }
+}
+
+@Composable
+private fun UploadingMediaBubble(
+    file: com.github.im.group.sdk.File,
+    text: String,
+    failed: Boolean,
+    onDownloadFile: ((String) -> Unit)? = null
+) {
+    // 这里只处理“媒体消息已展示，但附件未就绪”的特殊状态。
+    // 和普通大文件不同，媒体类值得先给用户一个弱预览。
+    Box {
+        MediaMessage(
+            file = file,
+            modifier = Modifier.blur(8.dp),
+            onDownloadFile = onDownloadFile
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.28f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (failed) {
+                    Icon(
+                        imageVector = Icons.Default.Error,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                } else {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 1.5.dp,
+                        color = Color.White
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = text, color = Color.White, style = MaterialTheme.typography.bodySmall)
+            }
+        }
     }
 }

@@ -86,3 +86,8 @@ SET
   thumbnail = ?,
   duration = ?
 WHERE serverId = ?;
+
+updateFileServerId:
+UPDATE FileResource
+SET serverId = ?
+WHERE serverId = ?;

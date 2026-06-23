@@ -126,10 +126,14 @@ LIMIT ? ;
 
 -- 根据 msgId 更新消息
 updateMessageByMsgId:
-UPDATE Message SET status = ?, server_timestamp = ?, sequence_id = ? WHERE msg_id = ?;
+UPDATE Message
+SET content = ?, type = ?, status = ?, server_timestamp = ?, sequence_id = ?
+WHERE msg_id = ?;
 
 updateMessageByClientMsgId:
-UPDATE Message SET status = ? , server_timestamp = ? , sequence_id = ? ,msg_id = ? WHERE client_msg_id = ?;
+UPDATE Message
+SET content = ?, type = ?, status = ?, server_timestamp = ?, sequence_id = ?, msg_id = ?
+WHERE client_msg_id = ?;
 
 -- 获取指定会话中某个用户的未读消息数量（即不是自己发的且status为SENT的消息）
 selectUnreadCountByConversation:

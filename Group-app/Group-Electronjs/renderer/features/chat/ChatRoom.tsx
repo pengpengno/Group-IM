@@ -33,6 +33,9 @@ interface ChatRoomProps {
 }
 
 // 消息项组件
+// Define a local media cache to store local previews for uploaded media to prevent downloading them again
+const localMediaCache = new Map<string, string>();
+
 /**
  * Authenticated Media Hook to handle blob URLs with token
  */
@@ -43,6 +46,16 @@ const useAuthenticatedMedia = (url: string, token?: string) => {
 
   useEffect(() => {
     let objectUrl = '';
+
+    // Extract fileId (UUID) from download URL. Format: .../api/files/download/{fileId}
+    const fileId = url ? url.split('/').pop() : '';
+    if (fileId && localMediaCache.has(fileId)) {
+      setMediaSrc(localMediaCache.get(fileId) || '');
+      setLoading(false);
+      setError(false);
+      return;
+    }
+
     const fetchMedia = async () => {
       if (!url) return;
       setLoading(true);
@@ -425,7 +438,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
   const startMeetingFromChat = async (selectedParticipants?: string[]) => {
     if (!onStartMeeting) return;
-    
+
     // If we haven't selected participants yet, show the picker
     if (!selectedParticipants) {
       setShowParticipantPicker(true);
@@ -564,13 +577,30 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
       const fileId = idRes.id;
 
+      // Cache local file preview to avoid redundant download
+      if (result.file) {
+        const localUrl = URL.createObjectURL(result.file);
+        localMediaCache.set(fileId, localUrl);
+      } else if (result.filePaths && result.filePaths.length > 0) {
+        const isImageFile = isImage || /\.(jpg|jpeg|png|gif|webp)$/i.test(result.filePaths[0]);
+        if (isImageFile && api.readFileAsDataURL) {
+          api.readFileAsDataURL(result.filePaths[0]).then(dataUrl => {
+            if (dataUrl) {
+              localMediaCache.set(fileId, dataUrl);
+            }
+          }).catch(err => {
+            console.error('Failed to pre-cache electron file:', err);
+          });
+        }
+      }
+
       // OPTIMISTIC: Send message immediately after getting uploadId
       // The content is the fileId (UUID), the message type is IMAGE/FILE
       // The recipient will see a loading state if they try to fetch a file that is still UPLOADING
       const clientMsgId = window.crypto && window.crypto.randomUUID
         ? window.crypto.randomUUID()
         : Math.random().toString(36).substring(2) + Date.now().toString(36);
-
+      console.log(clientMsgId);
       dispatch(sendMessageViaSocket({
         conversationId: conversation.conversationId,
         content: fileId,
@@ -636,6 +666,10 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
           }
 
           const fileId = idRes.id;
+
+          // Cache local audio preview URL to avoid redundant download
+          const localUrl = URL.createObjectURL(audioBlob);
+          localMediaCache.set(fileId, localUrl);
 
           // OPTIMISTIC: Send voice message immediately
           const clientMsgId = window.crypto && window.crypto.randomUUID

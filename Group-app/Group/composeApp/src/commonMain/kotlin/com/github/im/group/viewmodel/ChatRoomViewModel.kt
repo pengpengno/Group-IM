@@ -318,6 +318,18 @@ class ChatRoomViewModel(
         messageFacade.handleAck(clientMsgId)
     }
 
+    fun retryMessage(message: MessageItem) {
+        viewModelScope.launch {
+            val currentUser = userRepository.getLocalUserInfo() ?: return@launch
+            val friendId = uiState.value.friend?.userId
+            messageFacade.retryMessage(
+                messageItem = message,
+                currentUser = currentUser,
+                toUserId = friendId
+            )
+        }
+    }
+
     fun register(conversationId: Long) {
         chatSessionManager.registerHandler(conversationId, this)
     }
@@ -388,6 +400,8 @@ class ChatRoomViewModel(
     }
 
     fun getLocalFilePath(fileId: String): String? = fileStorageManager.getLocalFilePath(fileId)
+
+    fun getCachedFileMeta(fileId: String): FileMeta? = filesRepository.getFileMeta(fileId)
 
     suspend fun getFileMessageMetaAsync(messageItem: MessageItem): FileMeta? {
         messageItem.fileMeta?.let { return it }

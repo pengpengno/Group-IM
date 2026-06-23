@@ -137,3 +137,21 @@ function getMimeType(filePath: string): string {
       return 'application/octet-stream';
   }
 }
+
+// Read local file as base64 data URL for preview (e.g. for image uploads)
+ipcMain.handle('read-file-as-data-url', async (_, filePath) => {
+  try {
+    const stats = fs.statSync(filePath);
+    // Limit to 20MB to avoid IPC and memory overhead
+    if (stats.size > 20 * 1024 * 1024) {
+      console.warn('File too large for base64 preview:', filePath);
+      return null;
+    }
+    const data = fs.readFileSync(filePath);
+    const mimeType = getMimeType(filePath);
+    return `data:${mimeType};base64,${data.toString('base64')}`;
+  } catch (error) {
+    console.error('Failed to read file as data URL:', error);
+    return null;
+  }
+});

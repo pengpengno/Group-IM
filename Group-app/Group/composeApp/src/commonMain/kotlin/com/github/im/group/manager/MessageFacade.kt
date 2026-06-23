@@ -1,5 +1,7 @@
 package com.github.im.group.manager
 
+import com.github.im.common.connect.model.proto.ChatMessage
+import com.github.im.common.connect.model.proto.MessagesStatus
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.UploadFileRequest
 import com.github.im.group.db.entities.FileStatus
@@ -15,18 +17,16 @@ import com.github.im.group.sdk.File
 import com.github.im.group.sdk.FileData
 import com.github.im.group.sdk.FilePicker
 import com.github.im.group.sdk.SenderSdk
+import db.FileResource
 import db.OfflineMessage
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-/**
- * V8 Architecture: MessageFacade
- * 统一所有消息的发送、重试逻辑、离线消息流、文件上传流。切断与 ViewModel 的耦合。
- */
 class MessageFacade(
     private val store: MessageStore,
     private val offlineMessageRepository: OfflineMessageRepository,
@@ -40,37 +40,98 @@ class MessageFacade(
     private val scope = CoroutineScope(Dispatchers.Default)
 
     fun sendText(conversationId: Long, content: String, currentUser: UserInfo, toUserId: Long?) {
-        // Builder 现在是纯同步调用，userInfo 由 Facade 传入
         val message = MessageWrapper(
             message = chatMessageBuilder.textMessage(conversationId, content, currentUser.toUserInfo())
         )
-        send(currentUser, message, toUserId, null, 0L)
+        enqueuePreparedMessage(
+            currentUser = currentUser,
+            messageItem = message,
+            toUserId = toUserId,
+            pickedFile = null,
+            duration = 0L,
+            saveToStore = true
+        )
     }
 
     @OptIn(ExperimentalUuidApi::class)
     fun sendFile(conversationId: Long, file: File, duration: Long, currentUser: UserInfo, toUserId: Long?) {
-        // 文件消息的 proto 构建职责归属 Facade：
-        // - FileTypeDetector 推断消息类型
-        // - LOCAL_ 占位符由 Facade 生成，在 dispatchSendRequest 阶段换取真实 serverFileId
-        val localFileId = "LOCAL_${Uuid.random()}"
-        val messageType = FileTypeDetector.getMessageType(filename = file.name)
-        val message = MessageWrapper(
-            message = chatMessageBuilder.buildMessage(conversationId, localFileId, messageType, currentUser.toUserInfo())
+        val localMessage = createLocalPendingFileMessage(
+            conversationId = conversationId,
+            file = file,
+            duration = duration,
+            currentUser = currentUser
         )
-        send(currentUser, message, toUserId, file, duration)
+        store.saveOrUpdate(localMessage)
+
+        scope.launch {
+            prepareAndDispatchFileMessage(
+                currentUser = currentUser,
+                localMessage = localMessage,
+                toUserId = toUserId,
+                file = file,
+                duration = duration
+            )
+        }
     }
 
-    private fun send(
+    fun retryMessage(messageItem: MessageItem, currentUser: UserInfo, toUserId: Long?) {
+        val retryMessage = (messageItem as? MessageWrapper)?.withStatus(MessageStatus.SENDING)
+            ?: MessageWrapper(message = buildResendMessage(messageItem, currentUser))
+        store.saveOrUpdate(retryMessage)
+
+        if (!messageItem.type.isFile()) {
+            enqueuePreparedMessage(
+                currentUser = currentUser,
+                messageItem = retryMessage,
+                toUserId = toUserId,
+                pickedFile = null,
+                duration = 0L,
+                saveToStore = false
+            )
+            return
+        }
+
+        val localFile = resolveRetryFile(messageItem) ?: run {
+            markFailed(messageItem.clientMsgId, messageItem.content)
+            return
+        }
+        val duration = filesRepository.getFileMeta(messageItem.content)?.duration?.toLong() ?: 0L
+
+        scope.launch {
+            if (isLocalPendingFileId(messageItem.content)) {
+                prepareAndDispatchFileMessage(
+                    currentUser = currentUser,
+                    localMessage = retryMessage.withContent(messageItem.content),
+                    toUserId = toUserId,
+                    file = localFile,
+                    duration = duration
+                )
+            } else {
+                enqueuePreparedMessage(
+                    currentUser = currentUser,
+                    messageItem = retryMessage,
+                    toUserId = toUserId,
+                    pickedFile = localFile,
+                    duration = duration,
+                    saveToStore = false
+                )
+            }
+        }
+    }
+
+    private fun enqueuePreparedMessage(
         currentUser: UserInfo,
         messageItem: MessageWrapper,
         toUserId: Long?,
         pickedFile: File?,
-        duration: Long
+        duration: Long,
+        saveToStore: Boolean
     ) {
-        // 1. Initial Store (Save pending states to prevent losing history)
-        store.saveOrUpdate(messageItem)
+        if (saveToStore) {
+            // 文本消息和“已经拿到 serverFileId 的文件消息”都可以直接进入本地消息流。
+            store.saveOrUpdate(messageItem)
+        }
 
-        // 2. Persist to Offline Queue (Crash recovery)
         offlineMessageRepository.saveOfflineMessage(
             clientMsgId = messageItem.clientMsgId,
             conversationId = messageItem.conversationId,
@@ -83,9 +144,46 @@ class MessageFacade(
             fileDuration = duration.toInt()
         )
 
-        // 3. Trigger Async Dispatch
         scope.launch {
             dispatchSendRequest(currentUser, messageItem, pickedFile, duration)
+        }
+    }
+
+    private suspend fun prepareAndDispatchFileMessage(
+        currentUser: UserInfo,
+        localMessage: MessageWrapper,
+        toUserId: Long?,
+        file: File,
+        duration: Long
+    ) {
+        try {
+            val serverFileId = FileApi.createFilePlaceholder(
+                UploadFileRequest(
+                    size = file.size,
+                    fileName = file.name,
+                    duration = duration
+                )
+            ).id
+
+            filesRepository.replaceFileId(
+                oldFileId = localMessage.content,
+                newFileId = serverFileId
+            )
+
+            val preparedMessage = localMessage.withContent(serverFileId)
+            store.saveOrUpdate(preparedMessage)
+
+            enqueuePreparedMessage(
+                currentUser = currentUser,
+                messageItem = preparedMessage,
+                toUserId = toUserId,
+                pickedFile = file,
+                duration = duration,
+                saveToStore = false
+            )
+        } catch (e: Exception) {
+            markFailed(localMessage.clientMsgId, localMessage.content)
+            Napier.e("prepare file message failed: ${file.name}", e)
         }
     }
 
@@ -99,39 +197,22 @@ class MessageFacade(
         offlineMessageRepository.updateOfflineMessageStatus(clientMsgId, MessageStatus.SENDING)
 
         try {
-            // Resolve server fileId if using a LOCAL_ placeholder (offline-safe pattern)
-            val resolvedMessage: MessageWrapper = if (pickedFile != null && messageItem.content.startsWith("LOCAL_")) {
-                val uploadRequest = UploadFileRequest(
-                    size = pickedFile.size,
-                    fileName = pickedFile.name,
-                    duration = duration
-                )
-                val serverFileId = FileApi.createFilePlaceholder(uploadRequest).id
+            if (pickedFile != null && filesRepository.getFile(messageItem.content) == null) {
                 filesRepository.addPendingFileRecord(
-                    fileId = serverFileId,
+                    fileId = messageItem.content,
                     fileName = pickedFile.name,
                     duration = duration,
-                    filePath = pickedFile.path
+                    filePath = pickedFile.path,
+                    contentType = pickedFile.mimeType.orEmpty(),
+                    size = pickedFile.size
                 )
-                // Re-build the proto message with the real server fileId
-                val updatedProto = messageItem.message?.copy(content = serverFileId)
-                MessageWrapper(message = updatedProto).also { store.saveOrUpdate(it) }
-            } else {
-                if (pickedFile != null && filesRepository.getFile(messageItem.content) == null) {
-                    filesRepository.addPendingFileRecord(
-                        fileId = messageItem.content,
-                        fileName = pickedFile.name,
-                        duration = duration,
-                        filePath = pickedFile.path
-                    )
-                }
-                messageItem
             }
 
-            senderSdk.sendMessage(resolvedMessage.message ?: buildResendMessage(resolvedMessage, currentUser))
+            // 先发消息体，再单独上传文件；对端据此显示“消息已到，附件仍在准备”的中间态。
+            senderSdk.sendMessage(messageItem.message ?: buildResendMessage(messageItem, currentUser))
 
             if (pickedFile != null) {
-                uploadAttachment(resolvedMessage, pickedFile, duration)
+                uploadAttachment(messageItem, pickedFile, duration)
             }
         } catch (e: Exception) {
             markFailed(clientMsgId, messageItem.content)
@@ -139,9 +220,6 @@ class MessageFacade(
         }
     }
 
-    /**
-     * 上传附件
-     */
     private suspend fun uploadAttachment(messageItem: MessageWrapper, file: File, duration: Long) {
         try {
             val data = filePicker.readFileBytes(file)
@@ -152,10 +230,8 @@ class MessageFacade(
                 duration = duration
             )
             response.fileMeta?.let { filesRepository.addOrUpdateFile(it) }
-            
-            store.get(messageItem.clientMsgId)?.let { currentMsg ->
-                store.saveOrUpdate(currentMsg) // Auto-emits via StateFlow
-            }
+
+            store.get(messageItem.clientMsgId)?.let(store::saveOrUpdate)
             clearOfflineIfReady(messageItem.clientMsgId)
         } catch (e: Exception) {
             markFailed(messageItem.clientMsgId, messageItem.content)
@@ -165,27 +241,28 @@ class MessageFacade(
 
     private fun markFailed(clientMsgId: String, fileId: String) {
         offlineMessageRepository.updateOfflineMessageStatus(clientMsgId, MessageStatus.FAILED, incrementRetry = true)
-        if (fileId.isNotBlank()) filesRepository.updateFileStatus(fileId, FileStatus.FAILED)
-        val msg = store.get(clientMsgId) as? MessageWrapper
-        if (msg != null) {
-            val failedMsg = msg.withStatus(MessageStatus.FAILED)
-            store.saveOrUpdate(failedMsg)
+        if (fileId.isNotBlank()) {
+            filesRepository.updateFileStatus(fileId, FileStatus.FAILED)
         }
+        val msg = store.get(clientMsgId) as? MessageWrapper ?: return
+        store.saveOrUpdate(msg.withStatus(MessageStatus.FAILED))
     }
 
     fun handleAck(clientMsgId: String) {
         val msg = store.get(clientMsgId) as? MessageWrapper ?: return
-        val sentMsg = msg.withStatus(MessageStatus.SENT)
-        store.saveOrUpdate(sentMsg)
+        store.saveOrUpdate(msg.withStatus(MessageStatus.SENT))
         clearOfflineIfReady(clientMsgId)
     }
 
     private fun clearOfflineIfReady(clientMsgId: String) {
         val message = store.get(clientMsgId) ?: return
-        val delivered = message.status == MessageStatus.SENT || message.status == MessageStatus.READ || message.status == MessageStatus.RECEIVED
+        val delivered = message.status == MessageStatus.SENT ||
+            message.status == MessageStatus.READ ||
+            message.status == MessageStatus.RECEIVED
         if (!delivered) return
 
-        val uploadCompleted = !message.type.isFile() || filesRepository.getFileMeta(message.content)?.fileStatus == FileStatus.NORMAL
+        val uploadCompleted = !message.type.isFile() ||
+            filesRepository.getFileMeta(message.content)?.fileStatus == FileStatus.NORMAL
         if (uploadCompleted) {
             offlineMessageRepository.deleteOfflineMessage(clientMsgId)
         } else {
@@ -206,7 +283,6 @@ class MessageFacade(
 
                 val retryMsg = buildOfflineRetryMessage(offline, currentUser)
                 val retryFile = if (offline.message_type.isFile()) buildOfflineRetryFile(offline) else null
-                
                 if (store.get(offline.client_msg_id) == null) {
                     store.saveOrUpdate(retryMsg)
                 }
@@ -216,30 +292,95 @@ class MessageFacade(
         }
     }
 
-    private fun buildResendMessage(item: MessageItem, user: UserInfo) = com.github.im.common.connect.model.proto.ChatMessage(
-        content = item.content, conversationId = item.conversationId, fromUser = user.toUserInfo(),
+    private fun buildResendMessage(item: MessageItem, user: UserInfo) = ChatMessage(
+        content = item.content,
+        conversationId = item.conversationId,
+        fromUser = user.toUserInfo(),
         type = com.github.im.common.connect.model.proto.MessageType.valueOf(item.type.name),
-        messagesStatus = com.github.im.common.connect.model.proto.MessagesStatus.SENDING,
-        clientTimeStamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(), clientMsgId = item.clientMsgId
+        messagesStatus = MessagesStatus.SENDING,
+        clientTimeStamp = Clock.System.now().toEpochMilliseconds(),
+        clientMsgId = item.clientMsgId
     )
 
     private fun buildOfflineRetryMessage(offline: OfflineMessage, user: UserInfo) = MessageWrapper(
-        message = com.github.im.common.connect.model.proto.ChatMessage(
-            content = offline.content, conversationId = offline.conversation_id ?: 0L, fromUser = user.toUserInfo(),
+        message = ChatMessage(
+            content = offline.content,
+            conversationId = offline.conversation_id ?: 0L,
+            fromUser = user.toUserInfo(),
             type = com.github.im.common.connect.model.proto.MessageType.valueOf(offline.message_type.name),
-            messagesStatus = com.github.im.common.connect.model.proto.MessagesStatus.SENDING,
-            clientTimeStamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(), clientMsgId = offline.client_msg_id
+            messagesStatus = MessagesStatus.SENDING,
+            clientTimeStamp = Clock.System.now().toEpochMilliseconds(),
+            clientMsgId = offline.client_msg_id
         )
     )
 
     private fun buildOfflineRetryFile(offline: OfflineMessage): File? {
         val path = offline.file_path ?: return null
         return File(
-            name = path.substringAfterLast('/').substringAfterLast('\\').ifBlank { offline.content }, 
-            path = path, 
-            mimeType = null, 
-            size = offline.file_size ?: 0L, 
+            name = path.substringAfterLast('/').substringAfterLast('\\').ifBlank { offline.content },
+            path = path,
+            mimeType = null,
+            size = offline.file_size ?: 0L,
             data = FileData.Path(path)
         )
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun createLocalPendingFileMessage(
+        conversationId: Long,
+        file: File,
+        duration: Long,
+        currentUser: UserInfo
+    ): MessageWrapper {
+        val clientMsgId = Uuid.random().toString()
+        val localFileId = buildLocalPendingFileId(clientMsgId)
+        val messageType = FileTypeDetector.getMessageType(
+            mimeType = file.mimeType,
+            filename = file.name
+        )
+
+        filesRepository.addPendingFileRecord(
+            fileId = localFileId,
+            fileName = file.name,
+            duration = duration,
+            filePath = file.path,
+            contentType = file.mimeType.orEmpty(),
+            size = file.size
+        )
+
+        return MessageWrapper(
+            message = ChatMessage(
+                content = localFileId,
+                conversationId = conversationId,
+                fromUser = currentUser.toUserInfo(),
+                type = messageType,
+                messagesStatus = MessagesStatus.SENDING,
+                clientTimeStamp = Clock.System.now().toEpochMilliseconds(),
+                clientMsgId = clientMsgId
+            )
+        )
+    }
+
+    private fun resolveRetryFile(messageItem: MessageItem): File? {
+        val fileRecord = filesRepository.getFile(messageItem.content) ?: return null
+        return buildFileFromRecord(messageItem.content, fileRecord)
+    }
+
+    private fun buildFileFromRecord(fileId: String, fileRecord: FileResource): File {
+        return File(
+            name = fileRecord.originalName,
+            path = fileRecord.storagePath,
+            mimeType = fileRecord.contentType.ifBlank { null },
+            size = fileRecord.size,
+            data = FileData.Path(fileRecord.storagePath.ifBlank { fileId })
+        )
+    }
+
+    private fun buildLocalPendingFileId(clientMsgId: String): String = "$LOCAL_FILE_PREFIX$clientMsgId"
+
+    private fun isLocalPendingFileId(fileId: String): Boolean = fileId.startsWith(LOCAL_FILE_PREFIX)
+
+    companion object {
+        private const val LOCAL_FILE_PREFIX = "local-file:"
     }
 }

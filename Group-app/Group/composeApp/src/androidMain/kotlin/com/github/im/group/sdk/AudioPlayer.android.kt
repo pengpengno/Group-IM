@@ -1,6 +1,7 @@
 package com.github.im.group.sdk
 
 import android.content.Context
+import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -39,7 +40,17 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
     }
     
     override fun getCurrentFilePath(): String? = currentFilePath
-        
+    
+    /**
+     * 杩滅▼ URL銆乧ontent Uri 鍜屾湰鍦版枃浠惰鍒嗗紑澶勭悊锛岄伩鍏嶈缁熶竴鎷兼垚鏃犳晥鐨勬湰鍦拌矾寰勩€?
+     */
+    private fun resolveMediaUri(filePath: String): Uri {
+        return when {
+            filePath.startsWith("content://") -> Uri.parse(filePath)
+            filePath.startsWith("http://") || filePath.startsWith("https://") -> Uri.parse(filePath)
+            else -> Uri.fromFile(java.io.File(filePath))
+        }
+    }
 
     
     override fun play(filePath: String) {
@@ -91,7 +102,7 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
                 }
 
                 // 设置媒体源
-                val mediaItem = MediaItem.fromUri(android.net.Uri.fromFile(java.io.File(filePath)))
+                val mediaItem = MediaItem.fromUri(resolveMediaUri(filePath))
                 exoPlayer.setMediaItem(mediaItem)
                 exoPlayer.prepare()
                 

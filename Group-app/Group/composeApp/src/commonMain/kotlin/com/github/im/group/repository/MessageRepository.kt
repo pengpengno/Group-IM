@@ -211,6 +211,8 @@ class ChatMessageRepository(
     }
 
     private fun mergeIntoExistingMessage(existing: Message, messageItem: MessageItem) {
+        val mergedContent = messageItem.content.ifBlank { existing.content }
+        val mergedType = messageItem.type
         val mergedStatus = resolveMergedStatus(existing.status, messageItem.status)
         val mergedServerTime = messageItem.time.takeUnless { it == EPOCH }
             ?: existing.server_timestamp
@@ -221,6 +223,8 @@ class ChatMessageRepository(
 
         when {
             existing.client_msg_id != null -> db.messageQueries.updateMessageByClientMsgId(
+                content = mergedContent,
+                type = mergedType,
                 status = mergedStatus,
                 server_timestamp = mergedServerTime,
                 sequence_id = mergedSequence,
@@ -229,6 +233,8 @@ class ChatMessageRepository(
             )
 
             existing.msg_id != null -> db.messageQueries.updateMessageByMsgId(
+                content = mergedContent,
+                type = mergedType,
                 status = mergedStatus,
                 server_timestamp = mergedServerTime,
                 sequence_id = mergedSequence,
