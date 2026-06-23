@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.github.im.group.model.OrgTreeNode
 import com.github.im.group.ui.UserItem
+import com.github.im.group.ui.createPrivate
 import com.github.im.group.ui.conversation
 import com.github.im.group.ui.theme.ThemeTokens
 import com.github.im.group.viewmodel.ContactsViewModel
@@ -63,27 +64,12 @@ fun ContactsUI(
     val organizationTree by contactsViewModel.organizationTree.collectAsState()
     val loading by contactsViewModel.loading.collectAsState()
     val expandedDepartments by contactsViewModel.expandedDepartments.collectAsState()
-    val sessionCreationState by contactsViewModel.sessionCreationState.collectAsState()
     val isOfflineData by contactsViewModel.isOfflineData.collectAsState()
 
     var contactSearchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         contactsViewModel.getOrganizationStructure()
-    }
-
-    LaunchedEffect(sessionCreationState) {
-        when (val state = sessionCreationState) {
-            is ContactsViewModel.SessionCreationState.Success -> {
-                Napier.d("Navigate to conversation ${state.conversationId}")
-                navHostController.navigate(conversation(state.conversationId))
-                contactsViewModel.resetSessionCreationState()
-            }
-            is ContactsViewModel.SessionCreationState.Error -> {
-                Napier.e("Session creation failed: ${state.message}")
-            }
-            else -> Unit
-        }
     }
 
     Column(
@@ -175,9 +161,7 @@ fun ContactsUI(
                                 depth = 0,
                                 onToggleExpand = { contactsViewModel.toggleDepartmentExpanded(it) },
                                 onUserClick = { userId ->
-                                    contactsViewModel.preCreateSessionAndNavigate(userId) { conversationId ->
-                                        Napier.d("Conversation ready: $conversationId")
-                                    }
+                                    navHostController.navigate(createPrivate(userId))
                                 }
                             )
                         }
@@ -185,15 +169,6 @@ fun ContactsUI(
                 }
             }
         }
-    }
-
-    when (val state = sessionCreationState) {
-        is ContactsViewModel.SessionCreationState.Creating -> SessionCreationDialog(friendId = state.friendId)
-        is ContactsViewModel.SessionCreationState.Error -> SessionCreationErrorDialog(
-            errorMessage = state.message,
-            onDismiss = { contactsViewModel.resetSessionCreationState() }
-        )
-        else -> Unit
     }
 }
 

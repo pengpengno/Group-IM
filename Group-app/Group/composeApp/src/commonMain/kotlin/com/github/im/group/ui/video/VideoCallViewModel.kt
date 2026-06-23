@@ -419,8 +419,17 @@ class VideoCallViewModel(
                                 VideoCallStatus.PRE_JOIN
                             )
 
+                    val shouldHoldLocalTeardownStatus =
+                        state.callStatus == VideoCallStatus.IDLE &&
+                            current.callStatus in listOf(
+                                VideoCallStatus.ENDING,
+                                VideoCallStatus.ENDED,
+                                VideoCallStatus.ERROR
+                            )
+
                     val mergedCallStatus = when {
                         shouldHoldUiFirstStatus -> current.callStatus
+                        shouldHoldLocalTeardownStatus -> current.callStatus
                         current.isMinimized && state.callStatus == VideoCallStatus.ACTIVE -> VideoCallStatus.MINIMIZED
                         else -> state.callStatus
                     }

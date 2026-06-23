@@ -53,6 +53,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,11 +68,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.github.im.group.api.ConversationRes
+import com.github.im.group.api.MeetingApi
 import com.github.im.group.api.MeetingRes
-import com.github.im.group.ui.conversation
+import com.github.im.group.ui.video.MeetingLauncher
 import com.github.im.group.viewmodel.MeetingsState
 import com.github.im.group.viewmodel.MeetingsViewModel
 import com.github.im.group.viewmodel.UserViewModel
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,8 +88,10 @@ fun MeetingsUI(
     val groupConversations by viewModel.groupConversations.collectAsState()
     val creating by viewModel.creating.collectAsState()
     val currentUser by userViewModel.currentLocalUserInfo.collectAsState()
+    val scope = rememberCoroutineScope()
     var showCreateDialog by remember { mutableStateOf(false) }
     var createError by remember { mutableStateOf<String?>(null) }
+    var activeMeeting by remember { mutableStateOf<MeetingRes?>(null) }
 
     LaunchedEffect(currentUser?.userId) {
         currentUser?.userId?.let(viewModel::fetchMeetings)
@@ -112,7 +117,7 @@ fun MeetingsUI(
                         createError = null
                         showCreateDialog = false
                         viewModel.fetchMeetings(currentUser?.userId)
-                        navHostController.navigate(conversation(conversationId))
+                        activeMeeting = it
                     },
                     onError = { message ->
                         createError = message
@@ -187,7 +192,10 @@ fun MeetingsUI(
                         ) {
                             items(currentState.meetings) { meeting ->
                                 MeetingCard(meeting) {
-                                    navHostController.navigate(conversation(meeting.conversationId))
+                                    scope.launch {
+                                        runCatching { MeetingApi.joinMeeting(meeting.roomId) }
+                                        activeMeeting = meeting
+                                    }
                                 }
                             }
                         }
@@ -196,6 +204,28 @@ fun MeetingsUI(
                 MeetingsState.Idle -> Unit
             }
         }
+    }
+
+    activeMeeting?.let { meeting ->
+        MeetingLauncher(
+            roomId = meeting.roomId,
+            participantIds = meeting.participants
+                .map { it.userId.toString() }
+                .filter { it != currentUser?.userId?.toString() },
+            onCallEnded = {
+                val finalMeeting = activeMeeting
+                activeMeeting = null
+                if (finalMeeting != null) {
+                    scope.launch {
+                        if (finalMeeting.hostId == currentUser?.userId) {
+                            MeetingApi.endMeeting(finalMeeting.roomId)
+                        } else {
+                            MeetingApi.leaveMeeting(finalMeeting.roomId)
+                        }
+                    }
+                }
+            }
+        )
     }
 }
 

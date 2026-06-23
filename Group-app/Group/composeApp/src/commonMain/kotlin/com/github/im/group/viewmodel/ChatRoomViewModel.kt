@@ -15,11 +15,13 @@ import com.github.im.group.manager.MessageFacade
 import com.github.im.group.manager.MessageHandler
 import com.github.im.group.manager.MessageRouter
 import com.github.im.group.manager.MessageStore
+import com.github.im.group.manager.ConversationListCoordinator
 import com.github.im.group.manager.getFile
 import com.github.im.group.manager.getLocalFilePath
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.UserInfo
+import com.github.im.group.repository.ChatScrollPositionRecord
 import com.github.im.group.repository.ConversationRepository
 import com.github.im.group.repository.FilesRepository
 import com.github.im.group.repository.UserRepository
@@ -56,6 +58,7 @@ data class ChatUiState(
     val error: String? = null,
     val friend: UserInfo? = null,
     val scrollToLatestEvent: Long = 0L,
+    val savedScrollPosition: ChatScrollPositionRecord? = null,
 ) {
     fun hasCreateConversation(): Boolean = conversation != null
 
@@ -86,7 +89,8 @@ class ChatRoomViewModel(
     val conversationRepository: ConversationRepository,
     val fileStorageManager: FileStorageManager,
     val filePicker: FilePicker,
-    val filesRepository: FilesRepository
+    val filesRepository: FilesRepository,
+    val conversationListCoordinator: ConversationListCoordinator
 ) : ViewModel(), MessageHandler {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -125,6 +129,11 @@ class ChatRoomViewModel(
             // Not for current room visually immediately if background, but let's store it
         }
         messageStore.saveOrUpdate(message)
+        conversationRepository.markConversationActive(message.conversationId)
+        conversationListCoordinator.notifyConversationChanged(
+            conversationId = message.conversationId,
+            moveToTop = true
+        )
     }
 
     override fun onCleared() {
@@ -146,7 +155,14 @@ class ChatRoomViewModel(
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(chatRoom = room, error = null, loading = false) }
+            _uiState.update {
+                it.copy(
+                    chatRoom = room,
+                    error = null,
+                    loading = false,
+                    sessionCreationState = SessionCreationState.Idle
+                )
+            }
             when (room.type) {
                 ChatRoomType.CONVERSATION -> {
                     bindConversation(room.roomId, sessionId)
@@ -154,6 +170,7 @@ class ChatRoomViewModel(
 
                 ChatRoomType.CREATE_PRIVATE -> {
                     val currentUser = userRepository.getLocalUserInfo() ?: return@launch
+                    launch { loadFriendInfo(room.roomId) }
                     val existingConversation = conversationRepository
                         .getLocalConversationByMembers(currentUser.userId, room.roomId)
 
@@ -166,10 +183,11 @@ class ChatRoomViewModel(
                             it.copy(
                                 conversation = null,
                                 messages = emptyList(),
-                                messageIndex = -1
+                                messageIndex = -1,
+                                sessionCreationState = SessionCreationState.Creating
                             )
                         }
-                        launch { loadFriendInfo(room.roomId) }
+                        ensurePrivateConversation(currentUser.userId, room.roomId, sessionId)
                     }
                 }
             }
@@ -196,32 +214,27 @@ class ChatRoomViewModel(
     ) {
         viewModelScope.launch {
             val currentUser = userRepository.getLocalUserInfo() ?: return@launch
-            val currentConversationId = uiState.value.conversation?.conversationId
-            val friendId = uiState.value.friend?.userId
-
-            val targetConversation = if (currentConversationId == null && friendId != null) {
-                getOrCreatePrivateChat(currentUser.userId, friendId)
-            } else {
-                uiState.value.conversation
-            } ?: return@launch
-
-            val targetConversationId = targetConversation.conversationId
-
-            if (currentConversationId == null) {
-                bindConversation(
-                    conversationId = targetConversationId,
-                    sessionId = initSessionId,
-                    initialConversation = targetConversation
-                )
-                lastHistoryBoundarySeqId = null
+            val currentConversation = uiState.value.conversation ?: run {
+                _uiState.update {
+                    it.copy(error = "Private chat is still being prepared. Please try again in a moment.")
+                }
+                return@launch
             }
+            val friendId = uiState.value.friend?.userId
+            val targetConversationId = currentConversation.conversationId
+            register(targetConversationId)
+            conversationRepository.markConversationActive(targetConversationId)
 
             if (pickedFile != null) {
                 messageFacade.sendFile(targetConversationId, pickedFile, duration, currentUser, friendId)
             } else if (content != null) {
                 messageFacade.sendText(targetConversationId, content, currentUser, friendId)
             }
-            
+
+            conversationListCoordinator.notifyConversationChanged(
+                conversationId = targetConversationId,
+                moveToTop = true
+            )
             triggerScrollToLatest()
         }
     }
@@ -392,18 +405,10 @@ class ChatRoomViewModel(
         _uiState.update { it.copy(sessionCreationState = SessionCreationState.Idle, error = null) }
     }
 
-    private suspend fun getOrCreatePrivateChat(userId: Long, friendId: Long): ConversationRes {
-        conversationRepository.getLocalConversationByMembers(userId, friendId)?.let { local ->
-            _uiState.update { it.copy(conversation = local) }
-            return local
-        }
-
-        val remote = withContext(Dispatchers.Default) {
-            ConversationApi.createOrGetConversation(friendId)
-        }
-        conversationRepository.saveConversation(remote)
-        _uiState.update { it.copy(conversation = remote) }
-        return remote
+    fun retryPreparePrivateChat() {
+        val room = _uiState.value.chatRoom ?: return
+        if (room.type != ChatRoomType.CREATE_PRIVATE) return
+        initChatRoom(room)
     }
 
     fun updateMessageIndex(index: Int) {
@@ -412,6 +417,20 @@ class ChatRoomViewModel(
 
     fun triggerScrollToLatest() {
         _uiState.update { it.copy(scrollToLatestEvent = it.scrollToLatestEvent + 1) }
+    }
+
+    fun saveReadingPosition(
+        conversationId: Long,
+        anchorMessage: MessageItem?,
+        scrollOffset: Int
+    ) {
+        conversationRepository.saveChatScrollPosition(
+            conversationId = conversationId,
+            anchorMsgId = anchorMessage?.id?.takeIf { it > 0L },
+            anchorSeqId = anchorMessage?.seqId ?: 0L,
+            anchorClientMsgId = anchorMessage?.clientMsgId?.takeIf { it.isNotBlank() },
+            scrollOffset = scrollOffset.coerceAtLeast(0)
+        )
     }
 
     fun withdrawMessage(message: MessageItem) {
@@ -437,6 +456,7 @@ class ChatRoomViewModel(
                 messageStore.markConversationRead(conversationId, currentUserId)
 
                 ChatApi.markConversationAsRead(conversationId = conversationId, sequenceId = lastSeq)
+                conversationListCoordinator.notifyConversationChanged(conversationId)
             } catch (e: Exception) {
                 Napier.e("mark conversation as read failed", e)
             }
@@ -450,17 +470,65 @@ class ChatRoomViewModel(
     ) {
         activeConversationId = conversationId
         register(conversationId)
+        conversationRepository.markConversationActive(conversationId)
         initialConversation?.let { conversation ->
-            _uiState.update { it.copy(conversation = conversation) }
+            _uiState.update {
+                it.copy(
+                    conversation = conversation,
+                    sessionCreationState = SessionCreationState.Idle,
+                    error = null
+                )
+            }
         }
         loadLocalMessages(conversationId)
         viewModelScope.launch {
+            val savedPosition = conversationRepository.getChatScrollPosition(conversationId)
+            _uiState.update { it.copy(savedScrollPosition = savedPosition) }
             loadConversationInfo(conversationId, sessionId)
         }
         syncRemoteMessages(conversationId, showLoading = false, sessionId = sessionId)
+        conversationListCoordinator.notifyConversationChanged(
+            conversationId = conversationId,
+            moveToTop = true
+        )
+    }
+
+    private suspend fun ensurePrivateConversation(
+        currentUserId: Long,
+        friendId: Long,
+        sessionId: Long
+    ) {
+        try {
+            _uiState.update { it.copy(sessionCreationState = SessionCreationState.Creating, error = null) }
+            val conversation = conversationRepository.getLocalConversationByMembers(currentUserId, friendId)
+                ?: withContext(Dispatchers.Default) {
+                    ConversationApi.createOrGetConversation(friendId)
+                }.also { remote ->
+                    conversationRepository.saveConversation(remote)
+                }
+
+            if (!isSessionValidForRoom(sessionId, friendId)) return
+            bindConversation(conversation.conversationId, sessionId, conversation)
+        } catch (e: Exception) {
+            Napier.e("prepare private conversation failed", e)
+            if (!isSessionValidForRoom(sessionId, friendId)) return
+            _uiState.update {
+                it.copy(
+                    sessionCreationState = SessionCreationState.Error,
+                    error = "Failed to create private chat: ${e.message ?: "unknown error"}"
+                )
+            }
+        }
     }
 
     private fun isSessionValid(conversationId: Long, sessionId: Long): Boolean {
         return activeConversationId == conversationId && initSessionId == sessionId
+    }
+
+    private fun isSessionValidForRoom(sessionId: Long, friendId: Long): Boolean {
+        val room = _uiState.value.chatRoom
+        return initSessionId == sessionId &&
+            room?.type == ChatRoomType.CREATE_PRIVATE &&
+            room.roomId == friendId
     }
 }

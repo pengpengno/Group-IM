@@ -939,8 +939,8 @@ object CompanyApi {
     /**
      * 获取当前用户所在的所有公司
      */
-    suspend fun getMyCompanies(): List<com.github.im.group.model.CompanyDTO> {
-        return ProxyApi.request<Unit, List<com.github.im.group.model.CompanyDTO>>(
+    suspend fun getMyCompanies(): ApiResponse<List<com.github.im.group.model.CompanyDTO>> {
+        return ProxyApi.request<Unit, ApiResponse<List<com.github.im.group.model.CompanyDTO>>>(
             hmethod = HttpMethod.Get,
             path = "/api/company/my"
         )

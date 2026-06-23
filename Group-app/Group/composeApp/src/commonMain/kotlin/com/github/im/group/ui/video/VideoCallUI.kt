@@ -71,9 +71,11 @@ import org.koin.compose.viewmodel.koinViewModel
 fun VideoCallLauncher(remoteUser: UserInfo, onCallEnded: () -> Unit = {}) {
     val videoCallViewModel: VideoCallViewModel = koinViewModel()
     val videoCallState by videoCallViewModel.videoCallState.collectAsState()
+    var hasStartedCall by remember(remoteUser.userId) { mutableStateOf(false) }
 
-    LaunchedEffect(remoteUser.userId, videoCallState.callStatus) {
-        if (videoCallState.callStatus == VideoCallStatus.IDLE) {
+    LaunchedEffect(remoteUser.userId) {
+        if (!hasStartedCall) {
+            hasStartedCall = true
             videoCallViewModel.startCall(remoteUser)
         }
     }
@@ -91,9 +93,11 @@ fun VideoCallLauncher(remoteUser: UserInfo, onCallEnded: () -> Unit = {}) {
 fun MeetingLauncher(roomId: String, participantIds: List<String>, onCallEnded: () -> Unit = {}) {
     val videoCallViewModel: VideoCallViewModel = koinViewModel()
     val videoCallState by videoCallViewModel.videoCallState.collectAsState()
+    var hasStartedMeeting by remember(roomId) { mutableStateOf(false) }
 
-    LaunchedEffect(roomId, videoCallState.callStatus) {
-        if (videoCallState.callStatus == VideoCallStatus.IDLE) {
+    LaunchedEffect(roomId) {
+        if (!hasStartedMeeting) {
+            hasStartedMeeting = true
             videoCallViewModel.startMeeting(roomId, participantIds)
         }
     }
@@ -448,7 +452,7 @@ private fun RemoteVideoStage(
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier) {
-        if (remoteVideoTracks.size > 1) {
+        if (videoCallState.participants.size > 1 || remoteVideoTracks.size > 1) {
             MultiPartyVideoGrid(
                 videoTracks = remoteVideoTracks,
                 audioTracks = remoteAudioTracks,

@@ -10,6 +10,22 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 
+data class ConversationUiPreference(
+    val conversationId: Long,
+    val isPinned: Boolean = false,
+    val pinRank: Long = 0L,
+    val lastActiveAt: Long = 0L
+)
+
+data class ChatScrollPositionRecord(
+    val conversationId: Long,
+    val anchorMsgId: Long? = null,
+    val anchorSeqId: Long = 0L,
+    val anchorClientMsgId: String? = null,
+    val scrollOffset: Int = 0,
+    val updatedAt: Long = 0L
+)
+
 class ConversationRepository(
     private val db: AppDatabase,
     private val userRepository: UserRepository
@@ -91,6 +107,8 @@ class ConversationRepository(
                         leftAt = null
                     )
                 }
+
+                db.conversationUiPreferenceQueries.insertConversationUiPreferenceIfMissing(conversation.conversationId)
             }
         } catch (e: Exception) {
             Napier.e("Failed to save conversation locally: ${conversation.conversationId}", e)
@@ -120,6 +138,124 @@ class ConversationRepository(
             getLocalConversation(conversationId)
         } catch (e: Exception) {
             Napier.e("Failed to load private conversation by members: $userId/$friendId", e)
+            null
+        }
+    }
+
+    fun getConversationUiPreferences(): Map<Long, ConversationUiPreference> {
+        return try {
+            db.conversationUiPreferenceQueries
+                .selectAllConversationUiPreferences()
+                .executeAsList()
+                .associate { row ->
+                    row.conversation_id to ConversationUiPreference(
+                        conversationId = row.conversation_id,
+                        isPinned = row.is_pinned != 0L,
+                        pinRank = row.pin_rank,
+                        lastActiveAt = row.last_active_at
+                    )
+                }
+        } catch (e: Exception) {
+            Napier.e("Failed to load conversation ui preferences", e)
+            emptyMap()
+        }
+    }
+
+    fun getConversationUiPreference(conversationId: Long): ConversationUiPreference? {
+        return try {
+            db.conversationUiPreferenceQueries.insertConversationUiPreferenceIfMissing(conversationId)
+            db.conversationUiPreferenceQueries
+                .selectConversationUiPreferenceByConversation(conversationId)
+                .executeAsOneOrNull()
+                ?.let { row ->
+                    ConversationUiPreference(
+                        conversationId = row.conversation_id,
+                        isPinned = row.is_pinned != 0L,
+                        pinRank = row.pin_rank,
+                        lastActiveAt = row.last_active_at
+                    )
+                }
+        } catch (e: Exception) {
+            Napier.e("Failed to load conversation ui preference: $conversationId", e)
+            null
+        }
+    }
+
+    fun markConversationActive(conversationId: Long, lastActiveAt: Long = Clock.System.now().toEpochMilliseconds()) {
+        try {
+            db.conversationUiPreferenceQueries.insertConversationUiPreferenceIfMissing(conversationId)
+            db.conversationUiPreferenceQueries.updateConversationLastActiveAt(lastActiveAt, conversationId)
+        } catch (e: Exception) {
+            Napier.e("Failed to mark conversation active: $conversationId", e)
+        }
+    }
+
+    fun pinConversation(conversationId: Long) {
+        try {
+            db.conversationUiPreferenceQueries.insertConversationUiPreferenceIfMissing(conversationId)
+            val nextRank = (db.conversationUiPreferenceQueries.selectMaxPinnedConversationRank().executeAsOneOrNull()?.MAX
+                ?: 0L) + 1L
+            db.conversationUiPreferenceQueries.updateConversationPinState(
+                is_pinned = 1L,
+                pin_rank = nextRank,
+                conversation_id = conversationId
+            )
+        } catch (e: Exception) {
+            Napier.e("Failed to pin conversation: $conversationId", e)
+        }
+    }
+
+    fun unpinConversation(conversationId: Long) {
+        try {
+            db.conversationUiPreferenceQueries.insertConversationUiPreferenceIfMissing(conversationId)
+            db.conversationUiPreferenceQueries.updateConversationPinState(
+                is_pinned = 0L,
+                pin_rank = 0L,
+                conversation_id = conversationId
+            )
+        } catch (e: Exception) {
+            Napier.e("Failed to unpin conversation: $conversationId", e)
+        }
+    }
+
+    fun saveChatScrollPosition(
+        conversationId: Long,
+        anchorMsgId: Long?,
+        anchorSeqId: Long,
+        anchorClientMsgId: String?,
+        scrollOffset: Int
+    ) {
+        try {
+            db.chatScrollPositionQueries.upsertChatScrollPosition(
+                conversation_id = conversationId,
+                anchor_msg_id = anchorMsgId,
+                anchor_seq_id = anchorSeqId.takeIf { it > 0L },
+                anchor_client_msg_id = anchorClientMsgId,
+                scroll_offset = scrollOffset.toLong(),
+                updated_at = Clock.System.now().toEpochMilliseconds()
+            )
+        } catch (e: Exception) {
+            Napier.e("Failed to save chat scroll position: $conversationId", e)
+        }
+    }
+
+    fun getChatScrollPosition(conversationId: Long): ChatScrollPositionRecord? {
+        return try {
+            db.chatScrollPositionQueries
+                .selectChatScrollPositionByConversation(conversationId)
+                .executeAsOneOrNull()
+                ?.let { row ->
+                    ChatScrollPositionRecord(
+                        conversationId = row.conversation_id,
+                        anchorMsgId = row.anchor_msg_id,
+                        anchorSeqId = row.anchor_seq_id ?: 0L,
+                        anchorClientMsgId = row.anchor_client_msg_id,
+                        scrollOffset = row.scroll_offset.toInt(),
+                        updatedAt = row.updated_at
+                    )
+                }
+        } catch (e: Exception) {
+            Napier.e("Failed to load chat scroll position: $conversationId", e)
             null
         }
     }

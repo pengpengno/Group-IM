@@ -88,6 +88,7 @@ private val quickEmoji = listOf(
 
 @Composable
 fun ChatInputArea(
+    enabled: Boolean = true,
     onSendText: (String) -> Unit,
     onRelease: () -> Unit = {},
     onFileSelected: (List<File>) -> Unit
@@ -119,9 +120,11 @@ fun ChatInputArea(
                 icon = Icons.Default.InsertEmoticon,
                 isActive = activePanel == InputPanel.EMOJI,
                 onClick = {
-                    isVoiceMode = false
-                    focusManager.clearFocus()
-                    activePanel = if (activePanel == InputPanel.EMOJI) InputPanel.NONE else InputPanel.EMOJI
+                    if (enabled) {
+                        isVoiceMode = false
+                        focusManager.clearFocus()
+                        activePanel = if (activePanel == InputPanel.EMOJI) InputPanel.NONE else InputPanel.EMOJI
+                    }
                 }
             )
 
@@ -139,6 +142,7 @@ fun ChatInputArea(
             ) {
                 if (isVoiceMode) {
                     VoiceRecordButton(
+                        enabled = enabled,
                         onPress = { voiceViewModel.startRecording() },
                         onRelease = onRelease
                     )
@@ -146,22 +150,25 @@ fun ChatInputArea(
                     BasicTextField(
                         value = messageText,
                         onValueChange = {
-                            messageText = it
-                            if (activePanel == InputPanel.EMOJI) activePanel = InputPanel.NONE
+                            if (enabled) {
+                                messageText = it
+                                if (activePanel == InputPanel.EMOJI) activePanel = InputPanel.NONE
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 22.dp, max = 120.dp),
+                        enabled = enabled,
                         textStyle = TextStyle(
                             fontSize = 15.sp,
                             lineHeight = 20.sp,
-                            color = ThemeTokens.TextMain
+                            color = if (enabled) ThemeTokens.TextMain else ThemeTokens.TextSecondary
                         ),
                         cursorBrush = SolidColor(ThemeTokens.InputFocus),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                         keyboardActions = KeyboardActions(
                             onSend = {
-                                if (messageText.isNotBlank()) {
+                                if (enabled && messageText.isNotBlank()) {
                                     onSendText(messageText.trim())
                                     messageText = ""
                                     focusManager.clearFocus()
@@ -196,9 +203,11 @@ fun ChatInputArea(
                     icon = Icons.Default.AddCircle,
                     isActive = activePanel == InputPanel.MORE,
                     onClick = {
-                        isVoiceMode = false
-                        focusManager.clearFocus()
-                        activePanel = if (activePanel == InputPanel.MORE) InputPanel.NONE else InputPanel.MORE
+                        if (enabled) {
+                            isVoiceMode = false
+                            focusManager.clearFocus()
+                            activePanel = if (activePanel == InputPanel.MORE) InputPanel.NONE else InputPanel.MORE
+                        }
                     }
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -211,11 +220,14 @@ fun ChatInputArea(
             ) { showSend ->
                 if (showSend) {
                     SendButton(
+                        enabled = enabled,
                         onClick = {
-                            onSendText(messageText.trim())
-                            messageText = ""
-                            focusManager.clearFocus()
-                            activePanel = InputPanel.NONE
+                            if (enabled) {
+                                onSendText(messageText.trim())
+                                messageText = ""
+                                focusManager.clearFocus()
+                                activePanel = InputPanel.NONE
+                            }
                         }
                     )
                 } else {
@@ -223,9 +235,11 @@ fun ChatInputArea(
                         icon = if (isVoiceMode) Icons.Default.KeyboardVoice else Icons.Default.Mic,
                         isActive = isVoiceMode,
                         onClick = {
-                            activePanel = InputPanel.NONE
-                            focusManager.clearFocus()
-                            isVoiceMode = !isVoiceMode
+                            if (enabled) {
+                                activePanel = InputPanel.NONE
+                                focusManager.clearFocus()
+                                isVoiceMode = !isVoiceMode
+                            }
                         }
                     )
                 }
@@ -235,14 +249,17 @@ fun ChatInputArea(
         if (voiceRecordingState !is RecorderUiState.Recording) {
             when (activePanel) {
                 InputPanel.EMOJI -> EmojiPanel(
+                    enabled = enabled,
                     onEmojiSelected = { emoji -> messageText += emoji },
                     onDismiss = { activePanel = InputPanel.NONE }
                 )
                 InputPanel.MORE -> MediaPickerScreen(
                     onDismiss = { activePanel = InputPanel.NONE },
                     onMediaSelected = { files ->
-                        onFileSelected(files)
-                        activePanel = InputPanel.NONE
+                        if (enabled) {
+                            onFileSelected(files)
+                            activePanel = InputPanel.NONE
+                        }
                     }
                 )
                 InputPanel.NONE -> Unit
@@ -254,20 +271,29 @@ fun ChatInputArea(
 @Composable
 private fun InputCircleButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    enabled: Boolean = true,
     isActive: Boolean = false,
     onClick: () -> Unit
 ) {
     Surface(
-        onClick = onClick,
+        onClick = { if (enabled) onClick() },
         shape = CircleShape,
-        color = if (isActive) ThemeTokens.PrimaryBlue else Color.White.copy(alpha = 0.12f),
+        color = when {
+            !enabled -> Color.White.copy(alpha = 0.08f)
+            isActive -> ThemeTokens.PrimaryBlue
+            else -> Color.White.copy(alpha = 0.12f)
+        },
         modifier = Modifier.size(42.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isActive) Color.White else Color.White.copy(alpha = 0.92f),
+                tint = when {
+                    !enabled -> Color.White.copy(alpha = 0.42f)
+                    isActive -> Color.White
+                    else -> Color.White.copy(alpha = 0.92f)
+                },
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -275,11 +301,11 @@ private fun InputCircleButton(
 }
 
 @Composable
-private fun SendButton(onClick: () -> Unit) {
+private fun SendButton(enabled: Boolean = true, onClick: () -> Unit) {
     Surface(
-        onClick = onClick,
+        onClick = { if (enabled) onClick() },
         shape = CircleShape,
-        color = ThemeTokens.PrimaryBlue,
+        color = if (enabled) ThemeTokens.PrimaryBlue else ThemeTokens.PrimaryBlue.copy(alpha = 0.35f),
         modifier = Modifier.size(42.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -295,6 +321,7 @@ private fun SendButton(onClick: () -> Unit) {
 
 @Composable
 private fun EmojiPanel(
+    enabled: Boolean = true,
     onEmojiSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -329,7 +356,7 @@ private fun EmojiPanel(
                         modifier = Modifier
                             .padding(4.dp)
                             .clip(RoundedCornerShape(14.dp))
-                            .clickable { onEmojiSelected(emoji) }
+                            .clickable(enabled = enabled) { onEmojiSelected(emoji) }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -449,6 +476,7 @@ fun VoiceControlOverlayWithRipple(amplitude: Int = 50) {
 
 @Composable
 fun VoiceRecordButton(
+    enabled: Boolean = true,
     onPress: () -> Unit,
     onRelease: () -> Unit
 ) {
@@ -492,6 +520,7 @@ fun VoiceRecordButton(
             .clip(RoundedCornerShape(18.dp))
             .background(pillColor)
             .pointerInput(hasPermission) {
+                if (!enabled) return@pointerInput
                 awaitPointerEventScope {
                     while (true) {
                         val down = awaitFirstDown()
@@ -556,7 +585,4 @@ fun VoiceRecordButton(
         Text(text = label, color = textColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
     }
 }
-
-
-
 

@@ -92,12 +92,10 @@ class FileStorageServiceSpec extends Specification {
         fileMeta.setFileId(fileId.toString())
         fileMeta.setFilename("test.mp4")
         fileMeta.setFileSize(1024L)
+        fileMeta.setContentType("video/mp4")
         fileMeta.setDuration(121L) // duration should come from media resource
         fileMeta.setThumbnail("thumbnail-url")
 
-        repository.findById(fileId) >> Optional.of(fileResource)
-        mediaFileResourceRepository.findByFileId(fileId) >> mediaResource
-        fileMapper.toMetaWithMedia(fileResource, mediaResource) >> fileMeta
 
         when:
         def result = fileStorageService.getFileMeta(fileId)
@@ -108,9 +106,10 @@ class FileStorageServiceSpec extends Specification {
         result.getThumbnail() == "thumbnail-url"
         result.getFilename() == "test.mp4"
         result.getFileSize() == 1024L
-        1 * repository.findById(fileId)
-        1 * mediaFileResourceRepository.findByFileId(fileId)
-        1 * fileMapper.toMetaWithMedia(fileResource, mediaResource)
+        result.getContentType() == "video/mp4"
+        1 * repository.findById(fileId)  >> Optional.of(fileResource)
+        1 * mediaFileResourceRepository.findByFileId(fileId) >> mediaResource
+        1 * fileMapper.toMetaWithMedia(fileResource, mediaResource) >> fileMeta
     }
 
     def "getFileMeta should return file meta without media info when media resource does not exist"() {
@@ -195,7 +194,7 @@ class FileStorageServiceSpec extends Specification {
 
         repository.findById(fileId) >> Optional.of(existingResource)
         storageStrategy.store(multipartFile, fileId, duration) >> updatedResource
-        repository.saveAndFlush(_) >> { FileResource fr -> 
+        repository.saveAndFlush(_ as FileResource) >> { FileResource fr ->
             fr.setId(fileId)
             fr.setStatus(FileStatus.NORMAL)
             fr.setStoragePath(storagePath)
@@ -216,7 +215,7 @@ class FileStorageServiceSpec extends Specification {
         then:
         result == fileUploadResponse
         result.getId() == fileId
-        1 * repository.findById(fileId)
+        1 * repository.findById(fileId)  >> Optional.of(existingResource)
         1 * storageStrategy.store(multipartFile, fileId, duration)
         1 * repository.saveAndFlush({ FileResource fr ->
             fr.getId() == fileId &&

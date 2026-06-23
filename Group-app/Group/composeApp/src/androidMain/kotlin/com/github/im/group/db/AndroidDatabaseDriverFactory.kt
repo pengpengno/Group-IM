@@ -37,6 +37,7 @@ class AndroidDatabaseDriverFactory(private val context: Context) : DatabaseDrive
                 userStatusAdapter = EnumColumnAdapter<UserStatus>()
 
             ),
+
             ConversationAdapter = Conversation.Adapter(
                 createdAtAdapter = localDateTimeAdapter,
                 statusAdapter = EnumColumnAdapter<ConversationStatus>(),
@@ -59,6 +60,7 @@ class AndroidDatabaseDriverFactory(private val context: Context) : DatabaseDrive
                 created_atAdapter = localDateTimeAdapter,
                 message_typeAdapter = EnumColumnAdapter<MessageType>()
             ),
+
             OrganizationCacheAdapter = OrganizationCache.Adapter(
                 updated_atAdapter = localDateTimeAdapter
             ),

@@ -26,6 +26,8 @@ public interface FileMapper {
     @Mapping(target = "fileId", source = "id")
     @Mapping(target = "fileStatus", source = "status")
     // duration 字段已从 FileResource 中移除，现在存储在 MediaFileResource 中
+//    @Mapping(target = "contentType", source = "contentType")
+
     FileMeta toMeta(FileResource fileResource);
     
     @Mapping(target = "fileId", source = "fileResource.id")
@@ -33,6 +35,7 @@ public interface FileMapper {
     @Mapping(target = "fileSize", source = "fileResource.size")
     @Mapping(target = "duration", source = "mediaFileResource", qualifiedByName = "mapDurationFromMedia")
     @Mapping(target = "fileStatus", source = "fileResource.status")
+    @Mapping(target = "contentType", source = "fileResource.contentType")
     FileMeta toMetaWithMedia(FileResource fileResource, MediaFileResource mediaFileResource);
     
     @Named("mapDurationFromMedia")

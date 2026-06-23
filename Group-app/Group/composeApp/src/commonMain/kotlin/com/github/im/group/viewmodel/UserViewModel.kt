@@ -108,11 +108,15 @@ class UserViewModel(
     fun loadCompanies() {
         viewModelScope.launch {
             try {
-                val companies = com.github.im.group.api.CompanyApi.getMyCompanies()
+                val companies = com.github.im.group.api.CompanyApi.getMyCompanies().data
                 _currentLocalUserInfo.value?.let { currentUser ->
-                    val updatedUser = currentUser.copy(companies = companies)
-                    _currentLocalUserInfo.value = updatedUser
-                    GlobalCredentialProvider.storage.saveUserInfo(updatedUser)
+
+                    companies?.let {
+                        val updatedUser = currentUser.copy(companies = companies)
+                        _currentLocalUserInfo.value = updatedUser
+                        GlobalCredentialProvider.storage.saveUserInfo(updatedUser)
+                    }
+
                 }
             } catch (e: Exception) {
                 Napier.e("Failed to load companies", e)

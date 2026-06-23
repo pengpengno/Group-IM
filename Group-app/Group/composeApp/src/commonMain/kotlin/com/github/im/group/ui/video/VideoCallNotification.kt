@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -69,7 +70,7 @@ fun VideoCallIncomingNotification(
                 modifier = Modifier
                     .size(300.dp)
                     .align(Alignment.TopStart)
-                    .padding(top = (-100).dp, start = (-100).dp)
+                    .offset(x = (-100).dp, y = (-100).dp)
                     .background(Color(0xFF34C759).copy(alpha = 0.15f), CircleShape)
             )
 
@@ -77,7 +78,7 @@ fun VideoCallIncomingNotification(
                 modifier = Modifier
                     .size(250.dp)
                     .align(Alignment.BottomEnd)
-                    .padding(bottom = (-80).dp, end = (-80).dp)
+                    .offset(x = 80.dp, y = 80.dp)
                     .background(Color(0xFFFF3B30).copy(alpha = 0.15f), CircleShape)
             )
 

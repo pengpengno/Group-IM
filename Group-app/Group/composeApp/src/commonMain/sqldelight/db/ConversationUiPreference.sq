@@ -1,0 +1,36 @@
+CREATE TABLE ConversationUiPreference (
+    conversation_id INTEGER NOT NULL PRIMARY KEY,
+    is_pinned INTEGER NOT NULL DEFAULT 0,
+    pin_rank INTEGER NOT NULL DEFAULT 0,
+    last_active_at INTEGER NOT NULL DEFAULT 0
+);
+
+insertConversationUiPreferenceIfMissing:
+INSERT OR IGNORE INTO ConversationUiPreference(
+    conversation_id,
+    is_pinned,
+    pin_rank,
+    last_active_at
+) VALUES (?, 0, 0, 0);
+
+selectConversationUiPreferenceByConversation:
+SELECT * FROM ConversationUiPreference
+WHERE conversation_id = ?
+LIMIT 1;
+
+selectAllConversationUiPreferences:
+SELECT * FROM ConversationUiPreference;
+
+updateConversationPinState:
+UPDATE ConversationUiPreference
+SET is_pinned = ?, pin_rank = ?
+WHERE conversation_id = ?;
+
+updateConversationLastActiveAt:
+UPDATE ConversationUiPreference
+SET last_active_at = ?
+WHERE conversation_id = ?;
+
+selectMaxPinnedConversationRank:
+SELECT MAX(pin_rank) FROM ConversationUiPreference
+WHERE is_pinned = 1;

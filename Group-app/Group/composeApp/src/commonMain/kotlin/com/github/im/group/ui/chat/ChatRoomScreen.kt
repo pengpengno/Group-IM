@@ -40,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -56,16 +57,18 @@ import com.github.im.group.api.MeetingCreateRequest
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.model.UserInfo
 import com.github.im.group.ui.ChatRoom
+import com.github.im.group.ui.ChatRoomType
 import com.github.im.group.ui.theme.ThemeTokens
 import com.github.im.group.ui.video.MeetingLauncher
 import com.github.im.group.ui.video.VideoCallLauncher
 import com.github.im.group.viewmodel.ChatRoomViewModel
 import com.github.im.group.viewmodel.RecorderUiState
+import com.github.im.group.viewmodel.SessionCreationState
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
 import io.github.aakira.napier.Napier
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 
@@ -94,6 +97,9 @@ fun ChatRoomScreen(
     var showUserSelector by remember { mutableStateOf(false) }
 
     val isGroupConversation = chatUiState.conversation?.conversationType == ConversationType.GROUP
+    val isPreparingPrivateChat = chatRoom.type == ChatRoomType.CREATE_PRIVATE &&
+        chatUiState.sessionCreationState == SessionCreationState.Creating
+    val canSendMessages = chatUiState.conversation != null && !isPreparingPrivateChat
     val roomSubtitle = when {
         isGroupConversation -> "${chatUiState.conversation?.members?.size ?: 0} members"
         remoteUser?.email?.isNotBlank() == true -> remoteUser?.email ?: ""
@@ -113,6 +119,7 @@ fun ChatRoomScreen(
     val scope = rememberCoroutineScope()
     var lastMarkedReadSeq by remember { mutableStateOf(0L) }
     var lastRequestedHistorySeq by remember(conversationId) { mutableStateOf<Long?>(null) }
+    var hasRestoredScrollPosition by remember(conversationId) { mutableStateOf(false) }
 
     LaunchedEffect(chatRoom) {
         chatRoomViewModel.initChatRoom(chatRoom)
@@ -121,13 +128,6 @@ fun ChatRoomScreen(
     LaunchedEffect(chatUiState.conversation?.conversationId, chatUiState.friend) {
         conversationId = chatUiState.conversation?.conversationId
         remoteUser = chatUiState.friend
-    }
-
-    DisposableEffect(conversationId) {
-        onDispose {
-            conversationId?.let { chatRoomViewModel.unregister(it) }
-            voiceViewModel.reset()
-        }
     }
 
     LaunchedEffect(listState, conversationId, chatUiState.messages.size, chatUiState.loading) {
@@ -153,6 +153,50 @@ fun ChatRoomScreen(
                 lastRequestedHistorySeq = oldestSequenceId
                 chatRoomViewModel.loadOlderMessages(currentConversationId, oldestSequenceId)
             }
+    }
+
+    val latestMessages by rememberUpdatedState(chatUiState.messages)
+    val latestConversationId by rememberUpdatedState(conversationId)
+    DisposableEffect(conversationId) {
+        onDispose {
+            latestConversationId?.let { cid ->
+                val anchorMessage = latestMessages.getOrNull(listState.firstVisibleItemIndex)
+                chatRoomViewModel.saveReadingPosition(
+                    conversationId = cid,
+                    anchorMessage = anchorMessage,
+                    scrollOffset = listState.firstVisibleItemScrollOffset
+                )
+            }
+            voiceViewModel.reset()
+        }
+    }
+
+    LaunchedEffect(conversationId, chatUiState.messages, chatUiState.savedScrollPosition) {
+        if (hasRestoredScrollPosition) return@LaunchedEffect
+        val savedPosition = chatUiState.savedScrollPosition
+        if (chatUiState.messages.isEmpty()) return@LaunchedEffect
+
+        if (savedPosition == null) {
+            hasRestoredScrollPosition = true
+            return@LaunchedEffect
+        }
+
+        val restoreIndex = chatUiState.messages.indexOfFirst { message ->
+            when {
+                savedPosition.anchorMsgId != null && message.id == savedPosition.anchorMsgId -> true
+                savedPosition.anchorSeqId > 0L && message.seqId == savedPosition.anchorSeqId -> true
+                !savedPosition.anchorClientMsgId.isNullOrBlank() &&
+                    message.clientMsgId == savedPosition.anchorClientMsgId -> true
+                else -> false
+            }
+        }
+
+        if (restoreIndex >= 0) {
+            listState.scrollToItem(restoreIndex, savedPosition.scrollOffset)
+        } else {
+            listState.scrollToItem(0)
+        }
+        hasRestoredScrollPosition = true
     }
 
     if (showUserSelector) {
@@ -231,7 +275,7 @@ fun ChatRoomScreen(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     reverseLayout = true,
-                    contentPadding = PaddingValues(bottom = 100.dp, top = 20.dp, start = 12.dp, end = 12.dp),
+                    contentPadding = PaddingValues(bottom = 116.dp, top = 20.dp, start = 12.dp, end = 12.dp),
                     verticalArrangement = Arrangement.Top
                 ) {
                     items(
@@ -312,6 +356,7 @@ fun ChatRoomScreen(
             val focusManager = LocalFocusManager.current
             Box(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
                 ChatInputArea(
+                    enabled = canSendMessages,
                     onSendText = { text ->
                         if (text.isNotBlank()) chatRoomViewModel.sendText(text)
                         focusManager.clearFocus()
@@ -324,6 +369,32 @@ fun ChatRoomScreen(
                         focusManager.clearFocus()
                     }
                 )
+            }
+
+            if (isPreparingPrivateChat) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 88.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Text(
+                            text = "Preparing private chat...",
+                            modifier = Modifier.padding(start = 12.dp),
+                            color = ThemeTokens.TextMain
+                        )
+                    }
+                }
             }
 
             val belowCount by remember {
@@ -370,7 +441,15 @@ fun ChatRoomScreen(
                 ) {
                     Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(text = chatUiState.error ?: "", modifier = Modifier.weight(1f))
-                        Button(onClick = { chatRoomViewModel.clearSessionCreationError() }) {
+                        Button(
+                            onClick = {
+                                if (chatRoom.type == ChatRoomType.CREATE_PRIVATE) {
+                                    chatRoomViewModel.retryPreparePrivateChat()
+                                } else {
+                                    chatRoomViewModel.clearSessionCreationError()
+                                }
+                            }
+                        ) {
                             Text("重试")
                         }
                     }

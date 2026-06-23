@@ -7,370 +7,261 @@ import com.github.im.group.api.ConversationRes
 import com.github.im.group.api.GroupInfo
 import com.github.im.group.api.UnauthorizedException
 import com.github.im.group.db.entities.MessageType
+import com.github.im.group.manager.ConversationListCoordinator
 import com.github.im.group.manager.LoginStateManager
 import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.UserInfo
 import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.ConversationRepository
+import com.github.im.group.repository.ConversationUiPreference
 import com.github.im.group.repository.UserRepository
 import io.github.aakira.napier.Napier
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 
-/**
- * 用于聊天页面的会话列表
- */
-data class ConversationUiState(
-    val conversations: List<ConversationDisplayState> = emptyList(),
-)
-
-/**
- * 会话列表的显示状态
- */
 data class ConversationDisplayState(
     val conversation: ConversationRes,
-    /**
-     * 最近的一次消息
-     * 如果是 文件 / 语音 / 图片 / 就展示 文件消息/。。。。
-     * 如果是文本  就展示 文本消息
-     */
     val lastMessage: String = "",
-    /**
-     * 这里需要计算 处理
-     * 如果是今天 那么就展示 时间和分钟
-     * 如果是昨天 那么就展示昨天 时间和分钟
-     * 如果是7天之内的 那么就展示星期几
-     * 如果是更早的,没超过一年 那么就展示日期  格式 mm-dd
-     * 如果超过了 一年那么久展示 年月日  格式 yyyy-mm-dd
-     */
-    val displayDateTime : String = "", // 展示时间日期
-    val unreadCount: Int = 0 // 未读消息数量
+    val displayDateTime: String = "",
+    val unreadCount: Int = 0,
+    val isPinned: Boolean = false,
+    val pinRank: Long = 0L,
+    val lastActiveAt: Long = 0L
 )
-/**
- * Chat 聊天页面的状态管理
- * 包括 Conversation 列表、会话详情、消息列表
- */
-class ChatViewModel (
-    val userRepository: UserRepository,
-    val loginStateManager: LoginStateManager,
-    val messageRepository: ChatMessageRepository,
-    val conversationRepository: ConversationRepository
-): ViewModel() {
 
+class ChatViewModel(
+    private val userRepository: UserRepository,
+    private val loginStateManager: LoginStateManager,
+    private val messageRepository: ChatMessageRepository,
+    private val conversationRepository: ConversationRepository,
+    private val conversationListCoordinator: ConversationListCoordinator
+) : ViewModel() {
 
     private val _conversations = MutableStateFlow(emptyList<ConversationDisplayState>())
-    val conversationState :  StateFlow<List<ConversationDisplayState>> = _conversations.asStateFlow()
+    val conversationState: StateFlow<List<ConversationDisplayState>> = _conversations.asStateFlow()
 
-    // 会话列表加载中状态
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
 
-    /**
-     * 仅刷新未读数（用于从 ChatRoom 返回后，红点立即正确）
-     */
-    fun refreshUnreadCounts(currentUserId: Long) {
-        _conversations.update { currentList ->
-            currentList.map { item ->
-                val unreadCount = messageRepository.getUnreadCount(item.conversation.conversationId, currentUserId)
-                if (unreadCount == item.unreadCount) item else item.copy(unreadCount = unreadCount)
+    init {
+        viewModelScope.launch {
+            conversationListCoordinator.events.collectLatest { event ->
+                refreshConversationItem(event.conversationId, event.moveToTop)
             }
         }
     }
 
+    fun refreshUnreadCounts(currentUserId: Long) {
+        _conversations.update { currentList ->
+            sortConversations(
+                currentList.map { item ->
+                    val unreadCount = messageRepository.getUnreadCount(
+                        item.conversation.conversationId,
+                        currentUserId
+                    )
+                    if (unreadCount == item.unreadCount) {
+                        item
+                    } else {
+                        item.copy(unreadCount = unreadCount)
+                    }
+                }
+            )
+        }
+    }
 
-    /**
-     * 获取会话列表 - 重构版本
-     * 分为两个阶段：
-     * 1. 快速显示本地缓存数据
-     * 2. 在后台异步获取远程数据并更新UI
-     */
-    fun getConversations(uId: Long) {
+    fun refreshConversationList(currentUserId: Long, includeRemote: Boolean = false) {
+        viewModelScope.launch {
+            loadLocalConversations(currentUserId)
+            if (includeRemote) {
+                loadRemoteConversations(currentUserId)
+            }
+        }
+    }
+
+    fun togglePinConversation(conversationId: Long) {
+        val current = _conversations.value.firstOrNull {
+            it.conversation.conversationId == conversationId
+        } ?: return
+
+        if (current.isPinned) {
+            conversationRepository.unpinConversation(conversationId)
+        } else {
+            conversationRepository.pinConversation(conversationId)
+        }
+
+        viewModelScope.launch {
+            refreshConversationItem(conversationId, moveToTop = false)
+        }
+    }
+
+    fun getConversations(userId: Long) {
         viewModelScope.launch {
             _loading.value = true
             try {
-                Napier.d { "开始加载本地会话列表" }
-
-                // 第一步：立即加载本地数据并更新UI
-                loadLocalConversations(uId)
-                Napier.d { "开始加载远程会话列表" }
-                // 第二步：在后台获取远程数据并更新UI
-                loadRemoteConversations(uId)
+                loadLocalConversations(userId)
+                loadRemoteConversations(userId)
             } catch (e: UnauthorizedException) {
                 handleUnauthorizedException(e)
             } catch (e: kotlinx.coroutines.CancellationException) {
-                // 协程被取消，通常是页面跳转导致的正常取消，不记录为错误
-                Napier.d("加载会话列表被取消")
+                Napier.d("Loading conversation list cancelled")
             } catch (e: Exception) {
-                Napier.e("加载会话列表失败", e)
-                handleLoadFailure(uId)
+                Napier.e("Failed to load conversation list", e)
+                handleLoadFailure(userId)
             } finally {
                 _loading.value = false
             }
         }
     }
-    
-    /**
-     * 加载本地会话数据并立即更新UI
-     * @param uId 当前的用户id
-     */
-    private suspend fun loadLocalConversations(uId: Long) {
-        try {
-            _loading.value = true
 
-            val localConversations = conversationRepository.getConversationsByUserId(uId)
-            val localConversationsWithLatestMessages = localConversations.map { conversation ->
-                createConversationDisplayState(conversation, uId)
-            }
-            
-            // 立即将本地数据更新到UI
-            _conversations.value = localConversationsWithLatestMessages
-            Napier.d("已加载本地会话数据: ${localConversations.size} 个会话")
-        } catch (e: Exception) {
-            Napier.e("加载本地会话数据失败", e)
-        }
-    }
-    
-    /**
-     * 从远程加载会话数据并更新UI
-     */
-    private suspend fun loadRemoteConversations(uId: Long) {
+    private suspend fun loadLocalConversations(userId: Long) {
         try {
-            val response = ConversationApi.getActiveConversationsByUserId(uId)
-            
-            // 保存远程获取的会话到本地数据库
-            response.forEach { conversation ->
-                conversationRepository.saveConversation(conversation)
+            val localConversations = conversationRepository.getConversationsByUserId(userId)
+            val preferences = conversationRepository.getConversationUiPreferences()
+            val displayStates = localConversations.map { conversation ->
+                createConversationDisplayState(
+                    conversation = conversation,
+                    currentUserId = userId,
+                    preference = preferences[conversation.conversationId]
+                )
             }
-            
-            // 将远程数据转换为显示状态并更新UI
-            val remoteConversationsWithLatestMessages = response.map { conversation ->
-                createConversationDisplayState(conversation, uId)
-            }
-            
-            // 更新UI为远程获取的最新数据
-            _conversations.value = remoteConversationsWithLatestMessages
-            Napier.d("已加载远程会话数据: ${response.size} 个会话")
+            _conversations.value = sortConversations(displayStates)
         } catch (e: Exception) {
-            Napier.e("加载远程会话数据失败，继续使用本地缓存数据", e)
-            // 远程加载失败时，不更新UI，保持本地缓存数据
+            Napier.e("Failed to load local conversations", e)
         }
     }
-    
-    /**
-     * 创建会话显示状态
-     */
-    suspend  fun createConversationDisplayState(conversation: ConversationRes, currentUserId: Long = 0L): ConversationDisplayState {
-        // 直接从本地获取就行了 ， 至于远程的消息 会有 其他逻辑调用刷新
+
+    private suspend fun loadRemoteConversations(userId: Long) {
+        try {
+            val response = ConversationApi.getActiveConversationsByUserId(userId)
+            response.forEach { conversationRepository.saveConversation(it) }
+
+            val preferences = conversationRepository.getConversationUiPreferences()
+            val displayStates = response.map { conversation ->
+                createConversationDisplayState(
+                    conversation = conversation,
+                    currentUserId = userId,
+                    preference = preferences[conversation.conversationId]
+                )
+            }
+            _conversations.value = sortConversations(displayStates)
+        } catch (e: Exception) {
+            Napier.e("Failed to load remote conversations", e)
+        }
+    }
+
+    suspend fun createConversationDisplayState(
+        conversation: ConversationRes,
+        currentUserId: Long = 0L,
+        preference: ConversationUiPreference? = null
+    ): ConversationDisplayState {
         val latestMessage = messageRepository.getLocalLatestMessage(conversation.conversationId)
-        val lastMessageText = latestMessage?.let { message ->
-            getMessageDesc(message)
-        } ?: ""
-        val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) } ?: ""
-        
-        // 计算未读消息数量
+        val lastMessageText = latestMessage?.let(::getMessageDesc).orEmpty()
+        val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) }.orEmpty()
+        val localPreference = preference ?: conversationRepository.getConversationUiPreference(conversation.conversationId)
         val unreadCount = if (currentUserId > 0L) {
             messageRepository.getUnreadCount(conversation.conversationId, currentUserId)
-        } else 0
-        
+        } else {
+            0
+        }
+        val fallbackActiveAt = runCatching {
+            (latestMessage?.clientTime ?: latestMessage?.time)
+                ?.toInstant(TimeZone.currentSystemDefault())
+                ?.toEpochMilliseconds()
+        }.getOrNull() ?: 0L
+
         return ConversationDisplayState(
             conversation = conversation,
             lastMessage = lastMessageText,
             displayDateTime = displayDateTime,
-            unreadCount = unreadCount
+            unreadCount = unreadCount,
+            isPinned = localPreference?.isPinned == true,
+            pinRank = localPreference?.pinRank ?: 0L,
+            lastActiveAt = localPreference?.lastActiveAt?.takeIf { it > 0L } ?: fallbackActiveAt
         )
     }
-    
-    /**
-     * 获取消息的描述文本
-     *
-     * @param message 消息包装对象
-     * @return 返回对应消息类型的描述文本
-     */
+
     private fun getMessageDesc(message: MessageWrapper): String {
         return when (message.type) {
             MessageType.TEXT -> message.content
-            MessageType.FILE -> "文件消息"
-            MessageType.VOICE -> "语音消息"
-            MessageType.VIDEO -> "视频消息"
-            MessageType.IMAGE -> "图片消息"
-            MessageType.MEETING -> "会议消息"
+            MessageType.FILE -> "File"
+            MessageType.VOICE -> "Voice"
+            MessageType.VIDEO -> "Video"
+            MessageType.IMAGE -> "Image"
+            MessageType.MEETING -> "Meeting"
         }
     }
-    
-    /**
-     * 处理未授权异常
-     */
+
     private fun handleUnauthorizedException(e: UnauthorizedException) {
-        Napier.e("Token失效，需要重新登录", e)
-        // 更新用户仓库状态为登出
+        Napier.e("Token expired, logging out", e)
         userRepository.updateToLoggedOut()
-        // 通知登录状态管理器用户已登出
         loginStateManager.setLoggedOut()
     }
-    
-    /**
-     * 处理加载失败情况
-     */
-    private suspend fun handleLoadFailure(uId: Long) {
-        Napier.w("网络加载失败，切换到离线模式加载本地数据: userId=$uId")
-        
-        // 如果当前没有会话数据，尝试从本地加载
-        if (_conversations.value.isEmpty()) {
-            try {
-                val localConversations = conversationRepository.getConversationsByUserId(uId)
-                val localConversationsWithLatestMessages = localConversations.map { conversation ->
-                    // 使用本地数据创建会话显示状态，避免网络调用
-                    createLocalConversationDisplayState(conversation, uId)
+
+    private suspend fun handleLoadFailure(userId: Long) {
+        if (_conversations.value.isNotEmpty()) {
+            return
+        }
+
+        try {
+            val localConversations = conversationRepository.getConversationsByUserId(userId)
+            val preferences = conversationRepository.getConversationUiPreferences()
+            _conversations.value = sortConversations(
+                localConversations.map { conversation ->
+                    createConversationDisplayState(
+                        conversation = conversation,
+                        currentUserId = userId,
+                        preference = preferences[conversation.conversationId]
+                    )
                 }
-                _conversations.value = localConversationsWithLatestMessages
-                Napier.d("离线模式加载了 ${localConversations.size} 个本地会话")
-            } catch (e: Exception) {
-                Napier.e("加载本地会话数据也失败", e)
-                // 如果连本地数据都无法加载，显示空状态
-                _conversations.value = emptyList()
-            }
-        } else {
-            // 如果已有部分数据，保持现有数据不变
-            Napier.d("保持现有的会话数据，等待网络恢复")
-        }
-    }
-    
-    /**
-     * 创建本地会话显示状态（不调用网络）
-     * 专门用于离线模式下的会话状态创建
-     */
-    private suspend fun createLocalConversationDisplayState(conversation: ConversationRes, currentUserId: Long = 0L): ConversationDisplayState {
-        // 只从本地获取最新消息，避免网络调用
-        val latestMessage = getLocalLatestMessage(conversation.conversationId)
-        val lastMessageText = latestMessage?.let { message ->
-            getMessageDesc(message)
-        } ?: "暂无消息"
-        val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) } ?: ""
-        
-        // 计算未读消息数量
-        val unreadCount = if (currentUserId > 0L) {
-            messageRepository.getUnreadCount(conversation.conversationId, currentUserId)
-        } else 0
-        
-        return ConversationDisplayState(
-            conversation = conversation,
-            lastMessage = lastMessageText,
-            displayDateTime = displayDateTime,
-            unreadCount = unreadCount
-        )
-    }
-    
-    /**
-     * 从本地获取会话的最新消息（纯本地操作）
-     */
-    private suspend fun getLocalLatestMessage(conversationId: Long): MessageWrapper? {
-        return try {
-            messageRepository.getLocalLatestMessage(conversationId)
+            )
         } catch (e: Exception) {
-            Napier.e("获取本地最新消息失败: conversationId=$conversationId", e)
-            null
+            Napier.e("Failed to recover local conversations", e)
+            _conversations.value = emptyList()
         }
     }
-    /**
-     * 获取私聊会话
-     * 只需要
-     * @param friendId 
-     */
-    fun getOrCreatePrivateChat(userId:Long, friendId: Long) {
+
+    fun getOrCreatePrivateChat(userId: Long, friendId: Long) {
         viewModelScope.launch {
-            // 应该先在 本地查一下 是否存在
-            Napier.d("开始获取私聊会话:  好友ID=$friendId")
-            
-            // 先尝试从本地数据库获取会话
             val localConversation = conversationRepository.getLocalConversationByMembers(userId, friendId)
-
-
             val conversation = if (localConversation != null) {
-                Napier.d("从本地数据库找到会话: 会话ID=${localConversation.conversationId}")
                 localConversation
             } else {
-                Napier.d("本地数据库未找到会话，从远程创建: 好友ID=$friendId")
-                // 直接调用 API 并返回结果
                 try {
                     ConversationApi.createOrGetConversation(friendId)
                 } catch (e: UnauthorizedException) {
-                    // Token失效，通知登出
-                    Napier.e("Token失效，需要重新登录", e)
-                    // 更新用户仓库状态为登出
-                    userRepository.updateToLoggedOut()
-                    // 通知登录状态管理器用户已登出
-                    loginStateManager.setLoggedOut()
+                    handleUnauthorizedException(e)
                     throw e
                 }
             }
 
-            Napier.d("成功获取私聊会话: 会话ID=${conversation.conversationId}")
-
-            // 保存到本地数据库
             conversationRepository.saveConversation(conversation)
-
-            // 创建ConversationDisplayState对象
-            val latestMessage = messageRepository.getLatestMessage(conversation.conversationId)
-            val lastMessageText = latestMessage?.let { message ->
-                when (message.type) {
-                    MessageType.TEXT -> message.content
-                    MessageType.FILE -> "文件消息"
-                    MessageType.VOICE -> "语音消息"
-                    MessageType.VIDEO -> "视频消息"
-                    MessageType.IMAGE -> "图片消息"
-                    MessageType.MEETING -> "会议消息"
-                }
-            } ?: ""
-            val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) }?:""
-
-            val conversationDisplayState = ConversationDisplayState(
-                conversation = conversation,
-                lastMessage = lastMessageText,
-                displayDateTime = displayDateTime
-            )
-
-            // 更新会话列表状态
-            _conversations.update {
-                // 根据 conversationId 比对是否存在，不存在则添加
-                // 存在的话则提高其位置，将其放在前面
-                val existingIndex = it.indexOfFirst { conv -> conv.conversation.conversationId == conversation.conversationId }
-                if (existingIndex >= 0) {
-                    // 如果存在，将其移到列表前面
-                    val mutableList = it.toMutableList()
-                    mutableList.removeAt(existingIndex)
-                    mutableList.add(0, conversationDisplayState)
-                    mutableList
-                } else {
-                    // 如果不存在，添加到列表前面
-                    listOf(conversationDisplayState) + it
-                }
+            conversationRepository.markConversationActive(conversation.conversationId)
+            val state = createConversationDisplayState(conversation, userId)
+            _conversations.update { current ->
+                sortConversations(current.filterNot {
+                    it.conversation.conversationId == conversation.conversationId
+                } + state)
             }
-
         }
-
     }
 
-
-    /**
-     * 创建群聊会话
-     * @param members 会话成员
-     * @param groupName 群聊名称
-     * @param desc 群聊描述
-     *
-     * @return 会话ID
-     * 创建成功后，再从远程获取数据并更新UI
-     *
-     */
-    suspend fun createGroupChat(groupName:String , desc:String?,members : List<UserInfo>): ConversationRes {
-
-        // 直接调用 API 并返回结果
+    suspend fun createGroupChat(
+        groupName: String,
+        desc: String?,
+        members: List<UserInfo>
+    ): ConversationRes {
         val conversation = try {
-
             ConversationApi.createGroupConversation(
                 GroupInfo(
                     groupName = groupName,
@@ -379,165 +270,103 @@ class ChatViewModel (
                 )
             )
         } catch (e: UnauthorizedException) {
-            // Token失效，通知登出
-            Napier.e("Token失效，需要重新登录", e)
-            // 更新用户仓库状态为登出
-            userRepository.updateToLoggedOut()
-            // 通知登录状态管理器用户已登出
-            loginStateManager.setLoggedOut()
+            handleUnauthorizedException(e)
             throw e
         }
 
-        Napier.d("成功获取群聊会话: 会话ID=${conversation.conversationId}")
-
-        // 保存到本地数据库
         conversationRepository.saveConversation(conversation)
-
-        // 创建ConversationDisplayState对象
-        val latestMessage = messageRepository.getLatestMessage(conversation.conversationId)
-        val lastMessageText = latestMessage?.let { message ->
-            when (message.type) {
-                MessageType.TEXT -> message.content
-                MessageType.FILE -> "文件消息"
-                MessageType.VOICE -> "语音消息"
-                MessageType.VIDEO -> "视频消息"
-                MessageType.IMAGE -> "图片消息"
-                MessageType.MEETING -> "会议消息"
-            }
-        } ?: ""
-        val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) }?:""
-
-        val conversationDisplayState = ConversationDisplayState(
-            conversation = conversation,
-            lastMessage = lastMessageText,
-            displayDateTime = displayDateTime
-        )
-
-        // 更新会话列表状态
-        _conversations.update {
-            // 根据 conversationId 比对是否存在，不存在则添加
-            // 存在的话则提高其位置，将其放在前面
-            val existingIndex = it.indexOfFirst { conv -> conv.conversation.conversationId == conversation.conversationId }
-            if (existingIndex >= 0) {
-                // 如果存在，将其移到列表前面
-                val mutableList = it.toMutableList()
-                mutableList.removeAt(existingIndex)
-                mutableList.add(0, conversationDisplayState)
-                mutableList
-            } else {
-                // 如果不存在，添加到列表前面
-                listOf(conversationDisplayState) + it
-            }
+        conversationRepository.markConversationActive(conversation.conversationId)
+        val currentUserId = userRepository.getLocalUserInfo()?.userId ?: 0L
+        val state = createConversationDisplayState(conversation, currentUserId)
+        _conversations.update { current ->
+            sortConversations(current.filterNot {
+                it.conversation.conversationId == conversation.conversationId
+            } + state)
         }
-
         return conversation
     }
 
-
-
-
-    /**
-     * 同步会话信息到本地并更新UI
-     * 当在其他页面（如ChatRoom）创建新会话后，可以通过此方法将新会话同步到会话列表
-     * @param conversationId 会话ID
-     */
     suspend fun syncConversationToUI(conversationId: Long) {
         try {
-            // 从远程获取会话信息并保存到本地
             val conversation = conversationRepository.getConversation(conversationId)
-            
-            Napier.d("同步会话信息到UI: 会话ID=${conversation.conversationId}")
-            
-            // 创建ConversationDisplayState对象
-            val latestMessage = messageRepository.getLatestMessage(conversation.conversationId)
-            val lastMessageText = latestMessage?.let { message ->
-                when (message.type) {
-                    MessageType.TEXT -> message.content
-                    MessageType.FILE -> "文件消息"
-                    MessageType.VOICE -> "语音消息"
-                    MessageType.VIDEO -> "视频消息"
-                    MessageType.IMAGE -> "图片消息"
-                    MessageType.MEETING -> "会议消息"
-                }
-            } ?: ""
-
-            val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) }?:""
-
-            val conversationDisplayState = ConversationDisplayState(
-                conversation = conversation,
-                lastMessage = lastMessageText,
-                displayDateTime = displayDateTime
-            )
-
-            // 更新会话列表状态
-            _conversations.update { currentList ->
-                val existingIndex = currentList.indexOfFirst { conv -> conv.conversation.conversationId == conversation.conversationId }
-                if (existingIndex >= 0) {
-                    // 如果存在，将其移到列表前面
-                    val mutableList = currentList.toMutableList()
-                    mutableList.removeAt(existingIndex)
-                    mutableList.add(0, conversationDisplayState)
-                    mutableList
-                } else {
-                    // 如果不存在，添加到列表前面
-                    listOf(conversationDisplayState) + currentList
-                }
+            val currentUserId = userRepository.getLocalUserInfo()?.userId ?: 0L
+            val state = createConversationDisplayState(conversation, currentUserId)
+            _conversations.update { current ->
+                sortConversations(current.filterNot {
+                    it.conversation.conversationId == conversationId
+                } + state)
             }
         } catch (e: Exception) {
-            Napier.e("同步会话信息失败", e)
+            Napier.e("Failed to sync conversation to UI", e)
         }
     }
 
-    /**
-     * 计算显示时间日期
-     * 如果是今天 那么就展示 时间和分钟
-     * 如果是昨天 那么就展示昨天 时间和分钟
-     * 如果是7天之内的 那么就展示星期几
-     * 如果是更早的,没超过一年 那么就展示日期  格式 mm-dd
-     * 如果超过了 一年那么久展示 年月日  格式 yyyy-mm-dd
-     */
+    private suspend fun refreshConversationItem(conversationId: Long, moveToTop: Boolean) {
+        val currentUserId = userRepository.getLocalUserInfo()?.userId ?: 0L
+        val conversation = withContext(Dispatchers.Default) {
+            conversationRepository.getLocalConversation(conversationId)
+                ?: runCatching { conversationRepository.getConversation(conversationId) }.getOrNull()
+        } ?: return
+
+        if (moveToTop) {
+            conversationRepository.markConversationActive(conversationId)
+        }
+
+        val updated = createConversationDisplayState(conversation, currentUserId)
+        _conversations.update { current ->
+            sortConversations(current.filterNot {
+                it.conversation.conversationId == conversationId
+            } + updated)
+        }
+    }
+
+    private fun sortConversations(items: List<ConversationDisplayState>): List<ConversationDisplayState> {
+        return items.sortedWith(
+            compareByDescending<ConversationDisplayState> { it.isPinned }
+                .thenByDescending { if (it.isPinned) it.pinRank else it.lastActiveAt }
+                .thenByDescending { it.unreadCount > 0 }
+                .thenByDescending { it.conversation.conversationId }
+        )
+    }
+
     private fun calculateDisplayDateTime(createAt: kotlinx.datetime.LocalDateTime): String {
         return try {
-            val dateTime = createAt
-            val now = kotlinx.datetime.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
-            
+            val now = kotlinx.datetime.Clock.System.now()
+                .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+
             when {
-                // 今天
-                dateTime.date == now.date -> {
-                    "${dateTime.hour}:${dateTime.minute.toString().padStart(2, '0')}"
+                createAt.date == now.date -> {
+                    "${createAt.hour}:${createAt.minute.toString().padStart(2, '0')}"
                 }
-                // 昨天
-                dateTime.date == now.date.minus(1, kotlinx.datetime.DateTimeUnit.DAY) -> {
-                    "昨天 ${dateTime.hour}:${dateTime.minute.toString().padStart(2, '0')}"
+
+                createAt.date == now.date.minus(1, DateTimeUnit.DAY) -> {
+                    "Yesterday ${createAt.hour}:${createAt.minute.toString().padStart(2, '0')}"
                 }
-                // 7天之内
-                (now.date.toEpochDays() - dateTime.date.toEpochDays()) <= 7 -> {
-                    when (dateTime.dayOfWeek.ordinal) {
-                        1 -> "周一"
-                        2 -> "周二"
-                        3 -> "周三"
-                        4 -> "周四"
-                        5 -> "周五"
-                        6 -> "周六"
-                        7 -> "周日"
-                        else -> "未知"
+
+                (now.date.toEpochDays() - createAt.date.toEpochDays()) <= 7 -> {
+                    when (createAt.dayOfWeek.ordinal) {
+                        0 -> "Mon"
+                        1 -> "Tue"
+                        2 -> "Wed"
+                        3 -> "Thu"
+                        4 -> "Fri"
+                        5 -> "Sat"
+                        6 -> "Sun"
+                        else -> "Recent"
                     }
                 }
 
-                // 更早的
+                now.year > createAt.year -> {
+                    "${createAt.year}-${createAt.monthNumber.toString().padStart(2, '0')}-${createAt.dayOfMonth.toString().padStart(2, '0')}"
+                }
+
                 else -> {
-                    val yearDiff = now.year - dateTime.year
-                    if (yearDiff > 0) {
-                        "${dateTime.year}-${dateTime.monthNumber.toString().padStart(2, '0')}-${dateTime.dayOfMonth.toString().padStart(2, '0')}"
-                    } else {
-                        "${dateTime.monthNumber.toString().padStart(2, '0')}-${dateTime.dayOfMonth.toString().padStart(2, '0')}"
-                    }
+                    "${createAt.monthNumber.toString().padStart(2, '0')}-${createAt.dayOfMonth.toString().padStart(2, '0')}"
                 }
             }
         } catch (e: Exception) {
-            Napier.e("解析时间失败", e)
-            createAt.toString() // 返回原始时间字符串
+            Napier.e("Failed to format conversation time", e)
+            createAt.toString()
         }
     }
-
 }

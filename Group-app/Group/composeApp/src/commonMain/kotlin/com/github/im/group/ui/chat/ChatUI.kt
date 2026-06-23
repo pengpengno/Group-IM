@@ -1,7 +1,8 @@
 package com.github.im.group.ui.chat
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
@@ -31,6 +33,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -60,8 +63,10 @@ import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.ConversationDisplayState
 import com.github.im.group.viewmodel.UserViewModel
 import io.github.aakira.napier.Napier
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ChatUI(
     navHostController: NavHostController,
@@ -70,7 +75,6 @@ fun ChatUI(
     val userViewModel: UserViewModel = koinViewModel()
 
     val conversations by chatViewModel.conversationState.collectAsState()
-    var userSearchQuery by remember { mutableStateOf("") }
     val searchResults by userViewModel.searchResults.collectAsState()
     val userInfo by userViewModel.currentLocalUserInfo.collectAsState()
     val loading by chatViewModel.loading.collectAsState()
@@ -78,12 +82,14 @@ fun ChatUI(
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
 
+    var userSearchQuery by remember { mutableStateOf("") }
     var showCreateGroupDialog by remember { mutableStateOf(false) }
+    var actionConversation by remember { mutableStateOf<ConversationDisplayState?>(null) }
 
     DisposableEffect(lifecycleOwner, userInfo?.userId) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                userInfo?.userId?.let { chatViewModel.refreshUnreadCounts(it) }
+                userInfo?.userId?.let { chatViewModel.refreshConversationList(it, includeRemote = false) }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -91,31 +97,60 @@ fun ChatUI(
     }
 
     LaunchedEffect(userInfo?.userId) {
-        Napier.d { "当前的用户为 ： $userInfo" }
-        userInfo?.userId?.let { userId ->
-            // 只有当当前列表为空或者需要强制刷新时才触发加载
-            if (conversations.isEmpty()) {
-                chatViewModel.getConversations(userId)
+        Napier.d { "Current user: $userInfo" }
+        userInfo?.userId?.let(chatViewModel::getConversations)
+    }
+
+    if (showCreateGroupDialog) {
+        CreateGroupDialog(
+            friends = friends,
+            onDismiss = { showCreateGroupDialog = false },
+            onCreate = { groupName, desc, members ->
+                showCreateGroupDialog = false
+                scope.launch {
+                    val createdConversation = chatViewModel.createGroupChat(groupName, desc, members)
+                    navHostController.navigate(conversation(createdConversation.conversationId))
+                }
             }
-        }
+        )
+    }
+
+    actionConversation?.let { item ->
+        AlertDialog(
+            onDismissRequest = { actionConversation = null },
+            title = { Text(item.conversation.getName(userInfo)) },
+            text = {
+                Text(
+                    if (item.isPinned) {
+                        "取消置顶后，这个会话会回到最近活跃排序。"
+                    } else {
+                        "置顶后，这个会话会固定显示在普通会话上方。"
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        chatViewModel.togglePinConversation(item.conversation.conversationId)
+                        actionConversation = null
+                    }
+                ) {
+                    Text(if (item.isPinned) "取消置顶" else "置顶会话")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { actionConversation = null }) {
+                    Text("取消")
+                }
+            }
+        )
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(ThemeTokens.BackgroundDark)
-//            .padding(top = 16.dp)
     ) {
-//        Column(modifier = Modifier.padding(horizontal = 20.dp, bottom = 12.dp)) {
-//            Text(
-//                text = "正在聊天",
-//                style = MaterialTheme.typography.headlineMedium,
-//                color = Color.White,
-//                fontWeight = FontWeight.Bold
-//            )
-//        }
-
-        // --- 离线状态提示 ---
         if (loading && conversations.isEmpty()) {
             OfflineStatusBanner()
         }
@@ -123,14 +158,9 @@ fun ChatUI(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-//                圆角处理
-//                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
                 .background(Color.White.copy(alpha = 0.98f))
         ) {
-            Column(modifier = Modifier.fillMaxSize()
-//                .padding(horizontal = 16.dp, vertical = 20.dp)
-            ) {
-                // --- 搜索框区域 ---
+            Column(modifier = Modifier.fillMaxSize()) {
                 OutlinedTextField(
                     value = userSearchQuery,
                     onValueChange = {
@@ -138,7 +168,14 @@ fun ChatUI(
                         userViewModel.searchUser(it)
                     },
                     placeholder = { Text("搜索联系人或消息...", fontSize = 14.sp) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = ThemeTokens.TextMuted, modifier = Modifier.size(20.dp)) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = ThemeTokens.TextMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
                     trailingIcon = {
                         IconButton(
                             onClick = {
@@ -146,7 +183,11 @@ fun ChatUI(
                                 showCreateGroupDialog = true
                             }
                         ) {
-                            Icon(Icons.Default.GroupAdd, contentDescription = "创建群聊", tint = ThemeTokens.PrimaryBlue)
+                            Icon(
+                                Icons.Default.GroupAdd,
+                                contentDescription = "创建群聊",
+                                tint = ThemeTokens.PrimaryBlue
+                            )
                         }
                     },
                     modifier = Modifier
@@ -165,15 +206,18 @@ fun ChatUI(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 if (userSearchQuery.isNotBlank()) {
-                    // --- 搜索结果列表 ---
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(searchResults) { user ->
                             UserSearchItem(
                                 user = user,
                                 currentUser = userInfo,
-                                onAddFriend = { /* logic */ }
+                                onAddFriend = {}
                             )
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 72.dp), thickness = 0.5.dp, color = Color(0xFFF1F5F9))
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 72.dp),
+                                thickness = 0.5.dp,
+                                color = Color(0xFFF1F5F9)
+                            )
                         }
                     }
                 } else {
@@ -181,14 +225,18 @@ fun ChatUI(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        items(conversations) { conversation ->
+                        items(conversations, key = { it.conversation.conversationId }) { item ->
                             userInfo?.let { me ->
                                 ChatItem(
-                                    conversation = conversation,
+                                    conversation = item,
                                     userInfo = me,
                                     onClick = {
-                                        val conversationId = conversation.conversation.conversationId
-                                        navHostController.navigate(conversation(conversationId))
+                                        navHostController.navigate(
+                                            conversation(item.conversation.conversationId)
+                                        )
+                                    },
+                                    onLongPress = {
+                                        actionConversation = item
                                     }
                                 )
                                 HorizontalDivider(
@@ -199,11 +247,8 @@ fun ChatUI(
                             }
                         }
 
-                        // 如果没有会话且不在加载中，显示空状态
                         if (conversations.isEmpty() && !loading) {
-                            item {
-                                EmptyChatState()
-                            }
+                            item { EmptyChatState() }
                         }
                     }
                 }
@@ -235,7 +280,7 @@ private fun OfflineStatusBanner() {
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "网络连接异常，正在加载本地数据...",
+                text = "网络异常，正在回退本地会话列表...",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
             )
@@ -251,9 +296,7 @@ private fun EmptyChatState() {
             .padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = null,
@@ -268,7 +311,7 @@ private fun EmptyChatState() {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "您可以搜索联系人开始聊天",
+                text = "可以从联系人里开始一个新会话。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -276,48 +319,76 @@ private fun EmptyChatState() {
     }
 }
 
-// 保留原有的组件定义
 @Composable
-fun ChatItem(conversation: ConversationDisplayState, userInfo: UserInfo, onClick: () -> Unit) {
+fun ChatItem(
+    conversation: ConversationDisplayState,
+    userInfo: UserInfo,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit = {}
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress
+            )
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         UserAvatar(username = conversation.conversation.getName(userInfo), size = 52)
-        
+
         Spacer(modifier = Modifier.width(14.dp))
-        
+
         Column(modifier = Modifier.weight(1f)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = conversation.conversation.getName(userInfo),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = conversation.conversation.getName(userInfo),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (conversation.isPinned) {
+                        Surface(
+                            shape = RoundedCornerShape(999.dp),
+                            color = ThemeTokens.PrimaryBlue.copy(alpha = 0.12f),
+                            modifier = Modifier.padding(start = 8.dp)
+                        ) {
+                            Text(
+                                text = "置顶",
+                                color = ThemeTokens.PrimaryBlue,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+                }
+
                 Text(
                     text = conversation.displayDateTime,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(2.dp))
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = conversation.lastMessage.takeIf { it.isNotEmpty() } ?: "暂无消息",
+                    text = conversation.lastMessage.ifBlank { "暂无消息" },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -388,7 +459,9 @@ private fun CreateGroupDialog(
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,
-            modifier = Modifier.fillMaxWidth().padding(16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("创建群聊", style = MaterialTheme.typography.titleLarge)
@@ -415,20 +488,32 @@ private fun CreateGroupDialog(
 
                 Spacer(Modifier.height(12.dp))
 
-                Text("选择成员（至少 2 人）", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "选择成员（至少 2 人）",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(Modifier.height(8.dp))
 
                 val selectableFriends = friends.mapNotNull { it.friendUserInfo }
-                LazyColumn(modifier = Modifier.fillMaxWidth().height(260.dp)) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(260.dp)
+                ) {
                     items(selectableFriends, key = { it.userId }) { user ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    val next = selected.value.toMutableSet()
-                                    if (!next.add(user.userId)) next.remove(user.userId)
-                                    selected.value = next
-                                }
+                                .combinedClickable(
+                                    onClick = {
+                                        val next = selected.value.toMutableSet()
+                                        if (!next.add(user.userId)) {
+                                            next.remove(user.userId)
+                                        }
+                                        selected.value = next
+                                    }
+                                )
                                 .padding(vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -451,8 +536,11 @@ private fun CreateGroupDialog(
 
                 Spacer(Modifier.height(12.dp))
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    androidx.compose.material3.TextButton(onClick = onDismiss) { Text("取消") }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) { Text("取消") }
                     Spacer(Modifier.width(8.dp))
                     val canCreate = groupName.isNotBlank() && selected.value.size >= 2
                     Button(

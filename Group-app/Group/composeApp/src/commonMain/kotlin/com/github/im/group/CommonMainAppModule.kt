@@ -2,6 +2,7 @@ package com.github.im.group
 
 import com.github.im.group.config.ConfigManager
 import com.github.im.group.manager.AudioPlaybackManager
+import com.github.im.group.manager.ConversationListCoordinator
 import org.koin.dsl.module
 
 val commonModule = module {
@@ -14,5 +15,6 @@ val commonModule = module {
     
     // 音频播放管理器
     single { AudioPlaybackManager(get()) }
+    single { ConversationListCoordinator() }
 
 }

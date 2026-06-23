@@ -108,6 +108,7 @@ val appmodule = module {
             loginStateManager = get(),
             messageRepository = get(),
             conversationRepository = get(),
+            conversationListCoordinator = get()
         )
     }
 
@@ -123,7 +124,8 @@ val appmodule = module {
             conversationRepository = get(),
             fileStorageManager = get(),
             filePicker = get(),
-            filesRepository = get()
+            filesRepository = get(),
+            conversationListCoordinator = get()
         )
     }
 
