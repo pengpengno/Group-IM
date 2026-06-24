@@ -7,6 +7,7 @@ type ConnectionState = 'disconnected' | 'connecting' | 'reconnecting' | 'connect
 
 class MeetingSignalingService extends EventEmitter {
   private initialized = false;
+  private messageListenerCount = 0;
 
   private log(scope: string, details?: Record<string, unknown>): void {
     console.log('[MeetingSignalingService]', details ? { scope, ...details } : { scope });
@@ -31,7 +32,10 @@ class MeetingSignalingService extends EventEmitter {
 
   public initialize(): void {
     if (this.initialized) {
-      this.log('initialize-skipped');
+      this.log('initialize-skipped', {
+        messageListenerCount: this.messageListenerCount,
+        connectionState: socketService.getConnectionState()
+      });
       return;
     }
 
@@ -39,7 +43,9 @@ class MeetingSignalingService extends EventEmitter {
     // re-emits room signaling so WebRTC/UI code can depend on a narrower API.
     socketService.on('signaling-message', this.forwardSocketMessage);
     this.initialized = true;
-    this.log('initialized');
+    this.log('initialized', {
+      connectionState: socketService.getConnectionState()
+    });
   }
 
   public destroy(): void {
@@ -67,6 +73,10 @@ class MeetingSignalingService extends EventEmitter {
 
   public onMessage(handler: (message: WebrtcMessage) => void): () => void {
     this.on('message', handler);
+    this.messageListenerCount += 1;
+    this.log('message-listener-added', {
+      messageListenerCount: this.messageListenerCount
+    });
     return () => this.off('message', handler);
   }
 }

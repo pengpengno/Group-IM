@@ -128,6 +128,14 @@ export class WebRTCService extends EventEmitter {
     this.iceServers = iceServers;
   }
 
+  /**
+   * Keep WebRTC diagnostics consistent so browser console logs can be matched
+   * against webrtc-internals timestamps during call setup debugging.
+   */
+  private log(scope: string, details?: Record<string, unknown>): void {
+    console.log('[WebRTCService]', details ? { scope, ...details } : { scope });
+  }
+
   public getState(): CallInternalState {
     return {
       ...this.state,
@@ -210,7 +218,17 @@ export class WebRTCService extends EventEmitter {
     if (store) this.store = store;
     if (userId) this.userId = userId;
 
+    this.log('initialize-requested', {
+      hasStore: !!store || !!this.store,
+      userId: userId || this.userId,
+      alreadyInitialized: this.initialized
+    });
+
     if (this.initialized) {
+      this.log('initialize-skipped', {
+        userId: this.userId,
+        connectionState: meetingSignalingService.getConnectionState()
+      });
       return;
     }
 
@@ -218,8 +236,11 @@ export class WebRTCService extends EventEmitter {
     // before the user opens any call surface. WebRTCService only consumes that
     // signaling stream to manage call/session state.
     this.signalingUnsubscribe = meetingSignalingService.onMessage((message) => this.handleSignalingMessage(message));
+    this.log('signaling-subscription-attached', {
+      connectionState: meetingSignalingService.getConnectionState()
+    });
 
-    console.log('Fetching ICE servers from backend...');
+    this.log('fetch-ice-servers-start');
     try {
       const response = await webrtcAPI.getIceServers();
       if (response.data && Array.isArray(response.data)) {
@@ -228,13 +249,19 @@ export class WebRTCService extends EventEmitter {
           username: server.username,
           credential: server.credential
         }));
-        console.log('Fetched ICE servers successfully:', this.iceServers);
+        this.log('fetch-ice-servers-success', {
+          iceServers: this.iceServers
+        });
       }
     } catch (error) {
-      console.warn('Failed to fetch ICE servers, using defaults:', error);
+      console.warn('[WebRTCService] fetch-ice-servers-failed', error);
     }
 
     this.initialized = true;
+    this.log('initialized', {
+      userId: this.userId,
+      iceServerCount: this.iceServers.length
+    });
   }
 
   public async acquireLocalMedia(): Promise<MediaStream> {
@@ -295,7 +322,14 @@ export class WebRTCService extends EventEmitter {
   }
 
   private handleSignalingMessage(message: WebrtcMessage): void {
-    console.log('Signaling Received:', message.type, 'from:', message.fromUser);
+    this.log('signaling-received', {
+      type: message.type,
+      roomId: message.roomId,
+      fromUser: message.fromUser,
+      toUser: message.toUser,
+      callStatus: this.state.callStatus,
+      participantCount: this.state.participants.length
+    });
 
     switch (message.type) {
       case SIGNALING_MESSAGE_TYPES.MEETING_REQUEST:
@@ -428,6 +462,10 @@ export class WebRTCService extends EventEmitter {
   private handleParticipantJoined(message: WebrtcMessage): void {
     const participantId = String(message.fromUser || message.userId || '');
     if (!participantId || participantId === this.userId) {
+      this.log('participant-joined-ignored', {
+        participantId,
+        selfUserId: this.userId
+      });
       return;
     }
 
@@ -439,7 +477,17 @@ export class WebRTCService extends EventEmitter {
     this.pushActivity('info', `${message.userName || message.fromUserName || participantId} joined`, 'Connecting media stream.');
 
     if (this.state.callStatus !== VideoCallStatus.INCOMING) {
+      this.log('participant-joined-create-offer', {
+        participantId,
+        callStatus: this.state.callStatus,
+        roomId: this.state.roomId
+      });
       void this.createOfferForParticipant(participantId);
+    } else {
+      this.log('participant-joined-waiting-for-offer', {
+        participantId,
+        callStatus: this.state.callStatus
+      });
     }
   }
 
@@ -481,6 +529,11 @@ export class WebRTCService extends EventEmitter {
 
   private async createOfferForParticipant(remoteUserId: string): Promise<void> {
     try {
+      this.log('create-offer-start', {
+        remoteUserId,
+        hasLocalStream: !!this.localStream,
+        roomId: this.state.roomId
+      });
       if (!this.localStream) {
         await this.acquireLocalMedia();
       }
@@ -503,6 +556,11 @@ export class WebRTCService extends EventEmitter {
 
       this.updateState({ callStatus: VideoCallStatus.CONNECTING });
       this.pushActivity('info', 'Offer sent', `Waiting for ${this.getParticipantLabel(remoteUserId)} to connect.`);
+      this.log('create-offer-success', {
+        remoteUserId,
+        signalingState: peerConnection.signalingState,
+        iceConnectionState: peerConnection.iceConnectionState
+      });
     } catch (error) {
       this.handleError(error as Error);
     }
@@ -512,8 +570,19 @@ export class WebRTCService extends EventEmitter {
     try {
       const remoteUserId = String(message.fromUser || '');
       if (!remoteUserId) {
+        this.log('handle-offer-ignored', {
+          reason: 'missing-remote-user',
+          roomId: message.roomId
+        });
         return;
       }
+
+      this.log('handle-offer-start', {
+        remoteUserId,
+        roomId: message.roomId,
+        hasLocalStream: !!this.localStream,
+        hasSdp: !!message.sdp
+      });
 
       if (!this.localStream) {
         await this.acquireLocalMedia();
@@ -545,6 +614,11 @@ export class WebRTCService extends EventEmitter {
 
       this.updateState({ callStatus: VideoCallStatus.CONNECTING });
       this.pushActivity('info', 'Answer sent', `Accepted ${this.getParticipantLabel(remoteUserId)}.`);
+      this.log('handle-offer-success', {
+        remoteUserId,
+        queuedCandidateCount: queuedCandidates.length,
+        signalingState: peerConnection.signalingState
+      });
     } catch (error) {
       this.handleError(error as Error);
     }
@@ -555,8 +629,18 @@ export class WebRTCService extends EventEmitter {
       const remoteUserId = String(message.fromUser || '');
       const peerConnection = this.peerConnections.get(remoteUserId);
       if (!peerConnection || !message.sdp) {
+        this.log('handle-answer-ignored', {
+          remoteUserId,
+          hasPeerConnection: !!peerConnection,
+          hasSdp: !!message.sdp
+        });
         return;
       }
+
+      this.log('handle-answer-start', {
+        remoteUserId,
+        queuedCandidateCount: (this.pendingIceCandidates.get(remoteUserId) || []).length
+      });
 
       await peerConnection.setRemoteDescription(new RTCSessionDescription({
         type: SIGNALING_SDP_TYPES.ANSWER,
@@ -568,6 +652,12 @@ export class WebRTCService extends EventEmitter {
         await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
       }
       this.pendingIceCandidates.delete(remoteUserId);
+      this.log('handle-answer-success', {
+        remoteUserId,
+        queuedCandidateCount: queuedCandidates.length,
+        signalingState: peerConnection.signalingState,
+        iceConnectionState: peerConnection.iceConnectionState
+      });
     } catch (error) {
       this.handleError(error as Error);
     }
@@ -576,6 +666,10 @@ export class WebRTCService extends EventEmitter {
   private handleIceCandidate(message: WebrtcMessage): void {
     const remoteUserId = String(message.fromUser || '');
     if (!remoteUserId || !message.candidate) {
+      this.log('handle-candidate-ignored', {
+        remoteUserId,
+        hasCandidate: !!message.candidate
+      });
       return;
     }
 
@@ -587,6 +681,10 @@ export class WebRTCService extends EventEmitter {
 
     const peerConnection = this.peerConnections.get(remoteUserId);
     if (peerConnection && peerConnection.remoteDescription) {
+      this.log('handle-candidate-apply-immediately', {
+        remoteUserId,
+        signalingState: peerConnection.signalingState
+      });
       peerConnection.addIceCandidate(new RTCIceCandidate(candidate)).catch((error) => {
         console.error('Error adding ICE candidate:', error);
       });
@@ -596,6 +694,10 @@ export class WebRTCService extends EventEmitter {
     const pending = this.pendingIceCandidates.get(remoteUserId) || [];
     pending.push(candidate);
     this.pendingIceCandidates.set(remoteUserId, pending);
+    this.log('handle-candidate-queued', {
+      remoteUserId,
+      queuedCandidateCount: pending.length
+    });
   }
 
   private async ensurePeerConnection(remoteUserId: string): Promise<RTCPeerConnection> {
@@ -603,9 +705,19 @@ export class WebRTCService extends EventEmitter {
 
     const existing = this.peerConnections.get(remoteUserId);
     if (existing) {
+      this.log('ensure-peer-connection-reuse', {
+        remoteUserId,
+        signalingState: existing.signalingState,
+        connectionState: existing.connectionState
+      });
       return existing;
     }
 
+    this.log('ensure-peer-connection-create', {
+      remoteUserId,
+      iceServers: this.iceServers,
+      hasLocalStream: !!this.localStream
+    });
     const peerConnection = new RTCPeerConnection({ iceServers: this.iceServers });
     this.peerConnections.set(remoteUserId, peerConnection);
 
@@ -617,6 +729,12 @@ export class WebRTCService extends EventEmitter {
 
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
+        this.log('peer-onicecandidate', {
+          remoteUserId,
+          candidateType: event.candidate.type,
+          protocol: event.candidate.protocol,
+          sdpMid: event.candidate.sdpMid
+        });
         this.sendSignalingMessage({
           type: SIGNALING_MESSAGE_TYPES.CANDIDATE,
           fromUser: this.userId,
@@ -634,6 +752,11 @@ export class WebRTCService extends EventEmitter {
     peerConnection.ontrack = (event) => {
       if (event.streams && event.streams[0]) {
         const stream = event.streams[0];
+        this.log('peer-ontrack', {
+          remoteUserId,
+          streamId: stream.id,
+          trackCount: stream.getTracks().length
+        });
         this.remoteStreams.set(remoteUserId, stream);
         this.upsertParticipant({
           userId: remoteUserId,
@@ -650,6 +773,12 @@ export class WebRTCService extends EventEmitter {
     };
 
     peerConnection.onconnectionstatechange = () => {
+      this.log('peer-connection-state-change', {
+        remoteUserId,
+        connectionState: peerConnection.connectionState,
+        iceConnectionState: peerConnection.iceConnectionState,
+        signalingState: peerConnection.signalingState
+      });
       this.upsertParticipant({
         userId: remoteUserId,
         connectionState: peerConnection.connectionState
@@ -903,9 +1032,21 @@ export class WebRTCService extends EventEmitter {
   }
 
   private sendSignalingMessage(message: WebrtcMessage): void {
+    this.log('signaling-send-attempt', {
+      type: message.type,
+      roomId: message.roomId,
+      fromUser: message.fromUser,
+      toUser: message.toUser
+    });
     const result = meetingSignalingService.sendMessage(message);
     if (!result.accepted) {
       console.warn('Failed to hand signaling message to meetingSignalingService:', message.type);
+    } else {
+      this.log('signaling-send-dispatched', {
+        type: message.type,
+        roomId: message.roomId,
+        queued: result.queued
+      });
     }
   }
 

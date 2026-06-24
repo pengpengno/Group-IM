@@ -37,6 +37,12 @@ interface ChatRoomProps {
 const localMediaCache = new Map<string, string>();
 
 /**
+ * Centralize file-id extraction so list thumbnails and preview modals can share
+ * the same cached blob URL instead of downloading the same media twice.
+ */
+const extractFileIdFromDownloadUrl = (url: string) => url ? url.split('/').pop() || '' : '';
+
+/**
  * Authenticated Media Hook to handle blob URLs with token
  */
 const useAuthenticatedMedia = (url: string, token?: string) => {
@@ -46,9 +52,10 @@ const useAuthenticatedMedia = (url: string, token?: string) => {
 
   useEffect(() => {
     let objectUrl = '';
+    let shouldRevokeObjectUrl = false;
 
     // Extract fileId (UUID) from download URL. Format: .../api/files/download/{fileId}
-    const fileId = url ? url.split('/').pop() : '';
+    const fileId = extractFileIdFromDownloadUrl(url);
     if (fileId && localMediaCache.has(fileId)) {
       setMediaSrc(localMediaCache.get(fileId) || '');
       setLoading(false);
@@ -65,6 +72,11 @@ const useAuthenticatedMedia = (url: string, token?: string) => {
           responseType: 'blob'
         });
         objectUrl = URL.createObjectURL(response.data);
+        if (fileId) {
+          localMediaCache.set(fileId, objectUrl);
+        } else {
+          shouldRevokeObjectUrl = true;
+        }
         setMediaSrc(objectUrl);
         setError(false);
       } catch (err) {
@@ -78,7 +90,7 @@ const useAuthenticatedMedia = (url: string, token?: string) => {
     fetchMedia();
 
     return () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      if (shouldRevokeObjectUrl && objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [url, token]);
 
@@ -139,7 +151,7 @@ const AuthenticatedImage: React.FC<{
   url: string;
   token?: string;
   className?: string;
-  onClick?: () => void;
+  onClick?: (resolvedUrl: string) => void;
 }> = ({ url, token, className, onClick }) => {
   const { mediaSrc, loading, error } = useAuthenticatedMedia(url, token);
 
@@ -155,7 +167,40 @@ const AuthenticatedImage: React.FC<{
     </div>
   );
 
-  return <img src={mediaSrc} className={className} onClick={onClick} alt="Chat media" />;
+  return <img src={mediaSrc} className={className} onClick={() => onClick?.(mediaSrc || url)} alt="Chat media" />;
+};
+
+const AuthenticatedVideo: React.FC<{
+  url: string;
+  token?: string;
+  className?: string;
+  controls?: boolean;
+  autoPlay?: boolean;
+}> = ({ url, token, className, controls = false, autoPlay = false }) => {
+  const { mediaSrc, loading, error } = useAuthenticatedMedia(url, token);
+
+  if (loading) return (
+    <div className={`${className} media-placeholder`}>
+      <div className="spinner-small"></div>
+    </div>
+  );
+
+  if (error) return (
+    <div className={`${className} media-placeholder error`}>
+      <span>Failed to load</span>
+    </div>
+  );
+
+  return (
+    <video
+      controls={controls}
+      autoPlay={autoPlay}
+      className={className}
+      src={mediaSrc}
+    >
+      Your browser does not support video playback.
+    </video>
+  );
 };
 
 const parseMeetingPayload = (message: MessageDTO): MeetingMessagePayload | null => {
@@ -218,15 +263,16 @@ const MessageBubble: React.FC<{
               url={url}
               token={token}
               className="msg-img-preview"
-              onClick={() => onImageClick && onImageClick(url, 'IMAGE')}
+              onClick={(resolvedUrl) => onImageClick && onImageClick(resolvedUrl, 'IMAGE')}
             />
           </div>
         );
       }
       case MessageType.VIDEO: {
         const url = getFileUrl(message.content);
+        const previewUrl = localMediaCache.get(message.content) || url;
         return (
-          <div className="msg-media-container msg-video-container" onClick={() => onImageClick && onImageClick(url, 'VIDEO')}>
+          <div className="msg-media-container msg-video-container" onClick={() => onImageClick && onImageClick(previewUrl, 'VIDEO')}>
             <div className="video-overlay-play">
               <svg viewBox="0 0 24 24" width="40" height="40" fill="white"><path d="M8 5v14l11-7z" /></svg>
             </div>
@@ -1077,14 +1123,13 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
                   className="active-media-preview"
                 />
               ) : (
-                <video
+                <AuthenticatedVideo
+                  url={previewMedia.url}
+                  token={user?.token}
+                  className="active-media-preview"
                   controls
                   autoPlay
-                  className="active-media-preview"
-                >
-                  <source src={previewMedia.url} />
-                  Your browser does not support video playback.
-                </video>
+                />
               )}
             </div>
           </div>
