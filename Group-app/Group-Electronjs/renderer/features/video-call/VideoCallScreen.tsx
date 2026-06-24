@@ -102,17 +102,23 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
+  const attachPrimaryRemoteVideoRef = (element: HTMLVideoElement | null) => {
+    // React 在不同阶段会多次回调 ref，这里集中补绑远端流，避免时序问题。
+    (remoteVideoRef as React.MutableRefObject<HTMLVideoElement | null>).current = element;
+    bindMediaStreamToVideo(element, remoteStream, 'primary-remote-ref');
+  };
+
   const dispatch = useDispatch();
   const reduxState = useSelector((state: RootState) => state.videoCall);
   const isMinimized = reduxState?.isMinimized || false;
 
   useEffect(() => {
     bindMediaStreamToVideo(localVideoRef.current, localStream, 'local-preview');
-  }, [localStream, isMinimized]);
+  }, [localStream, isMinimized, callState.callStatus]);
 
   useEffect(() => {
     bindMediaStreamToVideo(remoteVideoRef.current, remoteStream, 'primary-remote');
-  }, [remoteStream, isMinimized]);
+  }, [remoteStream, isMinimized, callState.callStatus]);
 
   useEffect(() => {
     remoteParticipants.forEach((participant) => {
@@ -274,7 +280,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
           )
         ) : remoteStream && callState.callStatus === VideoCallStatus.ACTIVE ? (
           <video
-            ref={remoteVideoRef}
+            ref={attachPrimaryRemoteVideoRef}
             autoPlay
             playsInline
             className="remote-video-full"

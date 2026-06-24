@@ -50,7 +50,7 @@ public class Message {
      * <p>会议总结这类富结构消息序列化后很容易超过 255 个字符，
      * 所以这里必须明确映射为 TEXT，避免线上再次出现长度溢出。</p>
      */
-    @Lob
+//    @Lob
     @Column(columnDefinition = "TEXT")
     private String content;  // 消息正文
 

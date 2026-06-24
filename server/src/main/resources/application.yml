@@ -26,6 +26,7 @@ spring:
           max-wait: 1000ms
 
   jpa:
+    show-sql: true
     hibernate:
       ddl-auto: update
     properties:
