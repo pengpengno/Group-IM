@@ -42,10 +42,20 @@ export const useVideoCall = (): UseVideoCallReturn => {
     };
 
     const handleRemoteStream = (stream: MediaStream) => {
+      console.log('[useVideoCall]', {
+        scope: 'remote-stream-event',
+        streamId: stream?.id,
+        trackCount: stream?.getTracks().length || 0
+      });
       setRemoteStream(stream);
     };
 
     const handleRemoteParticipantsChange = (participants: RemoteParticipantStream[]) => {
+      console.log('[useVideoCall]', {
+        scope: 'remote-participants-change',
+        participantCount: participants.length,
+        streamIds: participants.map((participant) => participant.stream?.id || null)
+      });
       setRemoteParticipants(participants);
       setRemoteStream(participants[0]?.stream || null);
     };

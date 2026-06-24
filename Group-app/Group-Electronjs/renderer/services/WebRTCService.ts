@@ -764,6 +764,8 @@ export class WebRTCService extends EventEmitter {
           connectionState: peerConnection.connectionState
         });
         this.emit('remote-streams-change', this.getRemoteParticipantStreams());
+        // 同时派发单路远端流事件，兼容仍然依赖旧单人通话流模型的界面层。
+        this.emit('remote-stream', stream);
 
         const firstRemoteStream = this.getRemoteStream();
         if (this.store) {

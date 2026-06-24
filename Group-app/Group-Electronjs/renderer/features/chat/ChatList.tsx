@@ -210,11 +210,11 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
     const isGroup = item?.conversation.conversationType === 'GROUP';
     // DEBUG: Trace Group Info
     if (isGroup) {
-      console.log(`[DEBUG-CHATLIST] Group Conv ${item.conversation.conversationId}:`, {
-        groupName: item.conversation.groupName,
-        name: (item.conversation as any).name,
-        full: item.conversation
-      });
+      // console.log(`[DEBUG-CHATLIST] Group Conv ${item.conversation.conversationId}:`, {
+      //   groupName: item.conversation.groupName,
+      //   name: (item.conversation as any).name,
+      //   full: item.conversation
+      // });
     }
 
     const displayName = isGroup

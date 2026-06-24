@@ -38,6 +38,41 @@ const formatDuration = (seconds: number): string => {
 const formatClockTime = (timestamp: number): string =>
   new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+/**
+ * 统一处理 video.srcObject 绑定。
+ * WebRTC 场景里流对象会比 DOM 元素更早或更晚到达，这里集中做兜底，
+ * 避免某个 useEffect 漏掉后出现“已经 connected 但画面没挂上”的情况。
+ */
+const bindMediaStreamToVideo = (
+  element: HTMLVideoElement | null,
+  stream: MediaStream | null,
+  scope: string
+) => {
+  if (!element) {
+    return;
+  }
+
+  if (!stream) {
+    if (element.srcObject) {
+      console.log('[VideoCallScreen]', { scope, action: 'clear-srcObject' });
+    }
+    element.srcObject = null;
+    return;
+  }
+
+  if (element.srcObject !== stream) {
+    console.log('[VideoCallScreen]', {
+      scope,
+      action: 'bind-srcObject',
+      streamId: stream.id,
+      trackCount: stream.getTracks().length
+    });
+    element.srcObject = stream;
+  }
+
+  element.play().catch((error) => console.warn(`${scope} video play failed:`, error));
+};
+
 const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   onCallEnd,
   remoteUserId,
@@ -72,26 +107,17 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   const isMinimized = reduxState?.isMinimized || false;
 
   useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-      localVideoRef.current.play().catch((error) => console.warn('Local video play failed:', error));
-    }
+    bindMediaStreamToVideo(localVideoRef.current, localStream, 'local-preview');
   }, [localStream, isMinimized]);
 
   useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.play().catch((error) => console.warn('Remote video play failed:', error));
-    }
+    bindMediaStreamToVideo(remoteVideoRef.current, remoteStream, 'primary-remote');
   }, [remoteStream, isMinimized]);
 
   useEffect(() => {
     remoteParticipants.forEach((participant) => {
       const element = remoteVideoRefs.current[participant.userId];
-      if (element && participant.stream) {
-        element.srcObject = participant.stream;
-        element.play().catch((error) => console.warn('Remote participant video play failed:', error));
-      }
+      bindMediaStreamToVideo(element, participant.stream, `participant-${participant.userId}`);
     });
   }, [remoteParticipants, isMinimized]);
 
@@ -228,9 +254,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                   <video
                     ref={(element) => {
                       remoteVideoRefs.current[participant.userId] = element;
-                      if (element && participant.stream) {
-                        element.srcObject = participant.stream;
-                      }
+                      bindMediaStreamToVideo(element, participant.stream, `participant-ref-${participant.userId}`);
                     }}
                     autoPlay
                     playsInline

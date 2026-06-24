@@ -6,6 +6,7 @@ import com.github.im.group.sdk.WebRTCManager
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.launch
 
 class WebRTCLoginListener(
