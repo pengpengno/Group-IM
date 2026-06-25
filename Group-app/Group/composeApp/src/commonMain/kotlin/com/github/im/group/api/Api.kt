@@ -471,6 +471,21 @@ object MeetingApi {
     }
 }
 
+/**
+ * WebRTC 基础配置接口。
+ *
+ * web 端已经从服务端拉取 ICE servers；移动端也必须走同一份配置，
+ * 否则公网环境下会出现 web 能走 TURN，而移动端仍只依赖局域网 host candidate 的问题。
+ */
+object WebrtcApi {
+    suspend fun getIceServers(): List<WebrtcIceServerDTO> {
+        return ProxyApi.request<Unit, List<WebrtcIceServerDTO>>(
+            hmethod = HttpMethod.Get,
+            path = "/api/webrtc/ice-servers"
+        )
+    }
+}
+
 object PushApi {
     suspend fun listEndpoints(): List<PushEndpointDTO> {
         return ProxyApi.request<Unit, ApiResponse<List<PushEndpointDTO>>>(
@@ -584,6 +599,13 @@ data class MeetingCreateRequest(
 @Serializable
 data class MeetingJoinRequest(
     val roomId: String
+)
+
+@Serializable
+data class WebrtcIceServerDTO(
+    val url: String,
+    val username: String? = null,
+    val credential: String? = null
 )
 
 @Serializable

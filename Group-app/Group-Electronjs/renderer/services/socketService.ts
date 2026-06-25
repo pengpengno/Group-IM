@@ -87,6 +87,11 @@ class SocketService extends EventEmitter {
       return;
     }
 
+    if (payload.kind === 'signaling-runtime-message') {
+      this.handleSignalingRuntimeMessage(payload.payload, { source: 'broadcast' });
+      return;
+    }
+
     if (payload.kind === 'sync-conversations' && this.store && this.userId) {
       (this.store.dispatch as any)(fetchConversations(this.userId));
       return;
@@ -258,13 +263,30 @@ class SocketService extends EventEmitter {
     }
   }
 
-  private handleSignalingRuntimeMessage(message: WebrtcMessage) {
+  /**
+   * Web 端浏览器多标签场景下，只有 leader 标签页持有真实 WebSocket。
+   * 因此 leader 收到 signaling 后必须继续广播给其他 follower 标签页，
+   * 否则当前可见页不是 leader 时，就会出现“移动端已发起通话，但本页没有来电提示”的问题。
+   */
+  private handleSignalingRuntimeMessage(
+    message: WebrtcMessage,
+    options?: { source?: 'socket' | 'broadcast' }
+  ) {
     this.log('signaling-runtime-message', {
       type: message.type,
       roomId: message.roomId,
       fromUser: message.fromUser,
-      toUser: message.toUser
+      toUser: message.toUser,
+      source: options?.source || 'socket'
     });
+
+    if (options?.source === 'socket' && this.isBrowserEnvironment() && this.browserLeader) {
+      this.publishBrowserRealtimeEvent({
+        kind: 'signaling-runtime-message',
+        payload: message
+      });
+    }
+
     this.emit('signaling-message', message);
   }
 
@@ -814,7 +836,7 @@ class SocketService extends EventEmitter {
                 fromUser: message.fromUser,
                 toUser: message.toUser
               });
-              this.handleSignalingRuntimeMessage(message);
+              this.handleSignalingRuntimeMessage(message, { source: 'socket' });
             } else {
               console.log('Unknown JSON message:', message);
             }

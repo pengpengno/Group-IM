@@ -84,6 +84,8 @@ interface SignalingConnectionConfig {
 
 const DEFAULT_ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 
+const RELAY_ONLY_DEBUG_STORAGE_KEY = 'group.webrtc.forceRelayOnly';
+
 function nextUiFrame(): Promise<void> {
   return new Promise((resolve) => {
     // Let React commit the call screen before camera/mic permission or WebRTC
@@ -126,6 +128,108 @@ export class WebRTCService extends EventEmitter {
   constructor(iceServers: RTCIceServer[] = DEFAULT_ICE_SERVERS) {
     super();
     this.iceServers = iceServers;
+  }
+
+  /**
+   * 公网排障时，我们经常需要强制 WebRTC 只走 TURN relay，
+   * 这样可以快速区分“直连候选失败”还是“TURN 本身不可用”。
+   * 这里通过 localStorage 开关控制，避免每次都改代码。
+   */
+  private isRelayOnlyDebugEnabled(): boolean {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return false;
+    }
+
+    return window.localStorage.getItem(RELAY_ONLY_DEBUG_STORAGE_KEY) === 'true';
+  }
+
+  /**
+   * 统一格式化 ICE server 日志，避免浏览器把 urls/object 混在一起时难读。
+   */
+  private describeIceServers(): Array<Record<string, unknown>> {
+    return this.iceServers.map((server) => ({
+      urls: server.urls,
+      username: server.username,
+      hasCredential: Boolean(server.credential)
+    }));
+  }
+
+  /**
+   * 在连接成功或失败时抓一份候选对摘要。
+   * 重点看是否真的出现 relay 候选，以及最终选中的 candidate pair 是哪一对。
+   */
+  private async logIceCandidateSummary(
+    peerConnection: RTCPeerConnection,
+    remoteUserId: string,
+    scope: string
+  ): Promise<void> {
+    try {
+      const stats = await peerConnection.getStats();
+      const localCandidates = new Map<string, RTCStats>();
+      const remoteCandidates = new Map<string, RTCStats>();
+      const candidatePairs: RTCStats[] = [];
+
+      stats.forEach((report) => {
+        if (report.type === 'local-candidate') {
+          localCandidates.set(report.id, report);
+          return;
+        }
+
+        if (report.type === 'remote-candidate') {
+          remoteCandidates.set(report.id, report);
+          return;
+        }
+
+        if (report.type === 'candidate-pair') {
+          candidatePairs.push(report);
+        }
+      });
+
+      const selectedPair = candidatePairs.find((report: any) => report.selected) ||
+        candidatePairs.find((report: any) => report.nominated);
+
+      const summarizeCandidate = (candidate?: any) => candidate ? {
+        id: candidate.id,
+        type: candidate.candidateType,
+        protocol: candidate.protocol,
+        address: candidate.address || candidate.ip,
+        port: candidate.port,
+        relayProtocol: candidate.relayProtocol
+      } : null;
+
+      const relayLocalCandidates = [...localCandidates.values()]
+        .filter((candidate: any) => candidate.candidateType === 'relay')
+        .map((candidate: any) => summarizeCandidate(candidate));
+
+      const relayRemoteCandidates = [...remoteCandidates.values()]
+        .filter((candidate: any) => candidate.candidateType === 'relay')
+        .map((candidate: any) => summarizeCandidate(candidate));
+
+      const selectedLocal = selectedPair ? localCandidates.get((selectedPair as any).localCandidateId) : undefined;
+      const selectedRemote = selectedPair ? remoteCandidates.get((selectedPair as any).remoteCandidateId) : undefined;
+
+      this.log(scope, {
+        remoteUserId,
+        relayOnlyDebug: this.isRelayOnlyDebugEnabled(),
+        selectedPair: selectedPair ? {
+          state: (selectedPair as any).state,
+          nominated: (selectedPair as any).nominated,
+          bytesSent: (selectedPair as any).bytesSent,
+          bytesReceived: (selectedPair as any).bytesReceived,
+          currentRoundTripTime: (selectedPair as any).currentRoundTripTime
+        } : null,
+        selectedLocalCandidate: summarizeCandidate(selectedLocal as any),
+        selectedRemoteCandidate: summarizeCandidate(selectedRemote as any),
+        relayLocalCandidates,
+        relayRemoteCandidates
+      });
+    } catch (error) {
+      console.warn('[WebRTCService] failed to collect ICE summary', {
+        scope,
+        remoteUserId,
+        error
+      });
+    }
   }
 
   /**
@@ -637,9 +741,36 @@ export class WebRTCService extends EventEmitter {
         return;
       }
 
+      /**
+       * answer 只能在本地已经发出 offer、并且 signalingState 仍处于
+       * have-local-offer 时设置。
+       * 公网弱网下可能会收到重复 answer，或者通话结束后的迟到 answer，
+       * 这两类都不应该再触发 setRemoteDescription，否则会报
+       * "Called in wrong state: stable"。
+       */
+      if (peerConnection.signalingState === 'stable' && peerConnection.remoteDescription) {
+        this.log('handle-answer-ignored-stable', {
+          remoteUserId,
+          signalingState: peerConnection.signalingState,
+          remoteDescriptionType: peerConnection.remoteDescription.type
+        });
+        return;
+      }
+
+      if (peerConnection.signalingState !== 'have-local-offer') {
+        this.log('handle-answer-ignored-unexpected-state', {
+          remoteUserId,
+          signalingState: peerConnection.signalingState,
+          hasRemoteDescription: Boolean(peerConnection.remoteDescription),
+          hasLocalDescription: Boolean(peerConnection.localDescription)
+        });
+        return;
+      }
+
       this.log('handle-answer-start', {
         remoteUserId,
-        queuedCandidateCount: (this.pendingIceCandidates.get(remoteUserId) || []).length
+        queuedCandidateCount: (this.pendingIceCandidates.get(remoteUserId) || []).length,
+        signalingState: peerConnection.signalingState
       });
 
       await peerConnection.setRemoteDescription(new RTCSessionDescription({
@@ -715,10 +846,14 @@ export class WebRTCService extends EventEmitter {
 
     this.log('ensure-peer-connection-create', {
       remoteUserId,
-      iceServers: this.iceServers,
-      hasLocalStream: !!this.localStream
+      iceServers: this.describeIceServers(),
+      hasLocalStream: !!this.localStream,
+      relayOnlyDebug: this.isRelayOnlyDebugEnabled()
     });
-    const peerConnection = new RTCPeerConnection({ iceServers: this.iceServers });
+    const peerConnection = new RTCPeerConnection({
+      iceServers: this.iceServers,
+      iceTransportPolicy: this.isRelayOnlyDebugEnabled() ? 'relay' : 'all'
+    });
     this.peerConnections.set(remoteUserId, peerConnection);
 
     if (this.localStream) {
@@ -733,7 +868,8 @@ export class WebRTCService extends EventEmitter {
           remoteUserId,
           candidateType: event.candidate.type,
           protocol: event.candidate.protocol,
-          sdpMid: event.candidate.sdpMid
+          sdpMid: event.candidate.sdpMid,
+          candidate: event.candidate.candidate
         });
         this.sendSignalingMessage({
           type: SIGNALING_MESSAGE_TYPES.CANDIDATE,
@@ -747,6 +883,32 @@ export class WebRTCService extends EventEmitter {
           }
         });
       }
+    };
+
+    peerConnection.onicecandidateerror = (event) => {
+      this.log('peer-onicecandidateerror', {
+        remoteUserId,
+        url: event.url,
+        address: event.address,
+        port: event.port,
+        errorCode: event.errorCode,
+        errorText: event.errorText
+      });
+    };
+
+    peerConnection.onicegatheringstatechange = () => {
+      this.log('peer-ice-gathering-state-change', {
+        remoteUserId,
+        iceGatheringState: peerConnection.iceGatheringState
+      });
+    };
+
+    peerConnection.oniceconnectionstatechange = () => {
+      this.log('peer-ice-connection-state-change', {
+        remoteUserId,
+        iceConnectionState: peerConnection.iceConnectionState,
+        connectionState: peerConnection.connectionState
+      });
     };
 
     peerConnection.ontrack = (event) => {
@@ -787,6 +949,7 @@ export class WebRTCService extends EventEmitter {
       });
 
       if (peerConnection.connectionState === 'connected') {
+        void this.logIceCandidateSummary(peerConnection, remoteUserId, 'peer-ice-summary-connected');
         if (!this.state.callStartTime) {
           this.updateState({
             callStatus: VideoCallStatus.ACTIVE,
@@ -801,6 +964,7 @@ export class WebRTCService extends EventEmitter {
           this.updateState({ callStatus: VideoCallStatus.ACTIVE });
         }
       } else if (peerConnection.connectionState === 'failed') {
+        void this.logIceCandidateSummary(peerConnection, remoteUserId, 'peer-ice-summary-failed');
         this.handleError(new Error(`WebRTC Connection failed for ${remoteUserId}`));
       } else if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'closed') {
         this.removeParticipantConnection(remoteUserId);

@@ -12,15 +12,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.github.im.group.GlobalCredentialProvider
+import com.github.im.group.api.WebrtcApi
 import com.github.im.group.ui.video.VideoCallState
 import com.github.im.group.ui.video.VideoCallStatus
 import com.shepeliev.webrtckmp.AudioTrack
+import com.shepeliev.webrtckmp.IceServer
+import com.shepeliev.webrtckmp.IceTransportPolicy
 import com.shepeliev.webrtckmp.IceCandidate
 import com.shepeliev.webrtckmp.MediaDevices
 import com.shepeliev.webrtckmp.MediaStream
 import com.shepeliev.webrtckmp.MediaStreamTrackKind
 import com.shepeliev.webrtckmp.OfferAnswerOptions
 import com.shepeliev.webrtckmp.PeerConnection
+import com.shepeliev.webrtckmp.RtcConfiguration
 import com.shepeliev.webrtckmp.SessionDescription
 import com.shepeliev.webrtckmp.SessionDescriptionType
 import com.shepeliev.webrtckmp.VideoTrack
@@ -40,6 +45,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.decodeFromString
@@ -116,7 +122,11 @@ class AndroidWebRTCManager(
     override val remoteAudioTrack: StateFlow<AndroidAudioTrack?> = _remoteAudioTrack
 
     private var userId: String = ""
+    private var currentUserName: String = ""
     private var roomId: String? = null
+    // Android 端也要和 web 共用服务端下发的 ICE servers。
+    // 否则 web 拿到了 TURN、移动端却仍走默认配置时，公网跨端通话会非常不稳定。
+    private var rtcConfiguration: RtcConfiguration = RtcConfiguration()
     
     // 多人连接管理: Map<RemoteUserId, PeerConnection>
     private val peerConnections = mutableMapOf<String, PeerConnection>()
@@ -147,7 +157,48 @@ class AndroidWebRTCManager(
     }
     
     override suspend fun initialize() {
+        loadRtcConfiguration()
         Napier.d("AndroidWebRTCManager initialized")
+    }
+
+    /**
+     * 从服务端同步 ICE server 列表，并转换为 webrtc-kmp 使用的 RtcConfiguration。
+     *
+     * 这里故意带上详细日志，后续若 TURN 域名、账号密码、transport 调整，
+     * 可以第一时间从移动端日志确认它到底有没有拿到正确配置。
+     */
+    private suspend fun loadRtcConfiguration() {
+        try {
+            val servers = WebrtcApi.getIceServers()
+            val iceServers = servers
+                .mapNotNull { server ->
+                    val url = server.url.trim()
+                    if (url.isBlank()) {
+                        null
+                    } else {
+                        IceServer(
+                            urls = listOf(url),
+                            username = server.username ?: "",
+                            password = server.credential ?: ""
+                        )
+                    }
+                }
+
+            rtcConfiguration = RtcConfiguration(
+                iceServers = iceServers,
+                iceTransportPolicy = IceTransportPolicy.All
+            )
+
+            Log.d(
+                "WebRTC",
+                "Loaded ICE servers for Android: ${iceServers.map { it.urls }}"
+            )
+        } catch (e: Exception) {
+            // 失败时保留默认配置，但明确打出告警。
+            // 如果这里拉取失败，公网场景大概率只能依赖 host candidate，容易跨网失败。
+            rtcConfiguration = RtcConfiguration()
+            Log.e("WebRTC", "Failed to load ICE servers, fallback to default PeerConnection config", e)
+        }
     }
     
     override suspend fun createLocalMediaStream(): AndroidMediaStream? {
@@ -159,6 +210,11 @@ class AndroidWebRTCManager(
     
     override fun connectToSignalingServer(serverUrl: String, userId: String) {
         this.userId = userId
+        // 这里缓存当前登录用户名，后续发起通话邀请时补到信令里，
+        // 这样 web / 其他端在来电弹层里就不会只看到裸 userId。
+        currentUserName = runBlocking {
+            GlobalCredentialProvider.storage.getUserInfo()?.username.orEmpty()
+        }
         signalingClient.connect(userId)
     }
 
@@ -330,8 +386,13 @@ class AndroidWebRTCManager(
     
     private suspend fun ensurePeerConnection(remoteUserId: String): PeerConnection {
         peerConnections[remoteUserId]?.let { return it }
-        val pc = PeerConnection()
+        val pc = PeerConnection(rtcConfiguration)
         peerConnections[remoteUserId] = pc
+
+        Log.d(
+            "WebRTC",
+            "Created PeerConnection for $remoteUserId with iceServers=${rtcConfiguration.iceServers.map { it.urls }}"
+        )
         
         localMediaStream?.let { stream -> 
             stream.videoTracks.forEach { if (it is AndroidVideoTrack) pc.addTrack(it.webrtcVideoTrack) }
@@ -381,7 +442,9 @@ class AndroidWebRTCManager(
         _remoteVideoTracks.value = _remoteVideoTracks.value - remoteUserId
         _remoteAudioTracks.value = _remoteAudioTracks.value - remoteUserId
         if (peerConnections.isEmpty()) {
-            // Optional: reset state if no one left
+            // 最后一位远端离开后，要把整个会话状态一起收尾。
+            // 否则移动端界面会停留在通话中，但实际上房间已经没有对端了。
+            cleanup()
         }
     }
     
@@ -393,12 +456,27 @@ class AndroidWebRTCManager(
     override fun initiateMeeting(roomId: String, participantIds: List<String>) {
         this.roomId = roomId
         _connectionState.value = _connectionState.value.copy(callStatus = VideoCallStatus.OUTGOING, callId = roomId)
-        
+
+        // 这里把发起参数完整打出来，方便排查“页面已进入通话态，
+        // 但对端没有收到 meeting/request”这类时序问题。
+        Log.d(
+            "WebRTC",
+            "initiateMeeting roomId=$roomId, participantIds=$participantIds, currentUser=$userId"
+        )
+
+        if (participantIds.isEmpty()) {
+            Log.w("WebRTC", "initiateMeeting called with empty participantIds, falling back to joinMeeting only")
+            joinMeeting(roomId)
+            return
+        }
+
         val participants = participantIds.map { ParticipantInfo(userId = it) }
-        
+
         participantIds.forEach { targetId ->
+            Log.d("WebRTC", "Sending meeting/request roomId=$roomId to targetId=$targetId")
             sendWebSocketMessage(WebrtcMessage(
                 type = SignalingMessageType.MEETING_REQUEST, fromUser = userId, toUser = targetId,
+                fromUserName = currentUserName.ifBlank { null },
                 roomId = roomId, participants = participants
             ))
         }
@@ -407,6 +485,7 @@ class AndroidWebRTCManager(
     
     override fun joinMeeting(roomId: String) {
         this.roomId = roomId
+        Log.d("WebRTC", "Sending meeting/join roomId=$roomId, currentUser=$userId")
         sendWebSocketMessage(WebrtcMessage(type = SignalingMessageType.MEETING_JOIN, fromUser = userId, roomId = roomId))
         _connectionState.value = _connectionState.value.copy(callStatus = VideoCallStatus.CONNECTING, callId = roomId)
     }
@@ -447,7 +526,11 @@ class AndroidWebRTCManager(
     }
     
     private fun sendWebSocketMessage(msg: WebrtcMessage) {
-        signalingClient.send(msg)
+        val accepted = signalingClient.send(msg)
+        Log.d(
+            "WebRTC",
+            "sendWebSocketMessage type=${msg.type}, roomId=${msg.roomId}, toUser=${msg.toUser}, accepted=$accepted"
+        )
     }
     
     private fun cleanup() {

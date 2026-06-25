@@ -26,7 +26,7 @@ spring:
           max-wait: 1000ms
 
   jpa:
-    show-sql: true
+#    show-sql: true
     hibernate:
       ddl-auto: update
     properties:
@@ -133,7 +133,7 @@ group:
     turn-enabled: ${WEBRTC_TURN_ENABLED:false}
     turn-server:
       url: ${WEBRTC_TURN_SERVER_URL:}
-      username: ${WEBRTC_TURN_SERVER_USERNAME:}
+      username: ${WEBRTC_TURN_SERVER_USERNAME:}WE
       credential: ${WEBRTC_TURN_SERVER_CREDENTIAL:}
 
 # JWT 配置

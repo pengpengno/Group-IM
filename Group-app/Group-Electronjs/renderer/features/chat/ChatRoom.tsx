@@ -27,10 +27,21 @@ declare global {
 
 interface ChatRoomProps {
   conversation: ConversationRes;
-  onVideoCall?: (userId: string, conversationId?: number, callKind?: 'VIDEO_CALL' | 'VOICE_CALL') => void;
+  onVideoCall?: (
+    userId: string,
+    userName?: string,
+    conversationId?: number,
+    callKind?: 'VIDEO_CALL' | 'VOICE_CALL'
+  ) => void;
   onStartMeeting?: (participants: Array<{ userId: string; userName?: string }>, roomId?: string) => void;
   onJoinMeeting?: (roomId: string) => void;
 }
+
+type MessageSenderDisplay = {
+  displayName: string;
+  avatarText: string;
+  avatarSeed: string;
+};
 
 // 消息项组件
 // Define a local media cache to store local previews for uploaded media to prevent downloading them again
@@ -220,14 +231,41 @@ const parseMeetingPayload = (message: MessageDTO): MeetingMessagePayload | null 
   return null;
 };
 
+/**
+ * 实时消息通过 socket 进入聊天页时，不一定会附带完整的 fromAccount。
+ * 这里优先使用消息里的发送者信息，缺失时再退回到会话成员列表，
+ * 这样页面可以第一时间把“是谁发来的”渲染出来，而不是显示成问号。
+ */
+const resolveMessageSenderDisplay = (
+  message: MessageDTO,
+  conversation: ConversationRes
+): MessageSenderDisplay => {
+  const senderId = String(message.fromAccountId ?? '');
+  const members = Array.isArray(conversation.members) ? conversation.members : [];
+  const senderMember = members.find((member) => String(member.userId) === senderId);
+  const displayName =
+    message.fromAccount?.username ||
+    senderMember?.username ||
+    senderId ||
+    '未知用户';
+
+  return {
+    displayName,
+    avatarText: displayName.charAt(0).toUpperCase() || '?',
+    avatarSeed: displayName || senderId || 'unknown-user'
+  };
+};
+
 const MessageBubble: React.FC<{
   message: MessageDTO;
+  conversation: ConversationRes;
   isOwnMessage: boolean;
   onImageClick?: (url: string, type: string) => void;
   onResend?: (message: MessageDTO) => void;
   onJoinMeeting?: (roomId: string) => void;
-}> = ({ message, isOwnMessage, onImageClick, onResend, onJoinMeeting }) => {
+}> = ({ message, conversation, isOwnMessage, onImageClick, onResend, onJoinMeeting }) => {
   const token = useAppSelector((state: RootState) => state.auth.user?.token);
+  const senderDisplay = resolveMessageSenderDisplay(message, conversation);
 
   const formatTime = (timestamp: any) => {
     if (!timestamp) return '';
@@ -355,9 +393,10 @@ const MessageBubble: React.FC<{
       {!isOwnMessage && (
         <div
           className="msg-avatar"
-          style={{ backgroundColor: getColorFromString(message.fromAccount?.username || message.fromAccountId.toString()) }}
+          style={{ backgroundColor: getColorFromString(senderDisplay.avatarSeed) }}
+          title={senderDisplay.displayName}
         >
-          {(message.fromAccount?.username || '?').charAt(0).toUpperCase()}
+          {senderDisplay.avatarText}
         </div>
       )}
       <div className="msg-content-wrapper">
@@ -436,14 +475,21 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     return getConversationDisplayName(conversation, user?.userId);
   };
 
-  // 获取对方用户ID（用于视频通话）
-  const getOtherUserId = () => {
-    if (!isGroupConversation(conversation)) {
-      const otherUser = (Array.isArray(conversation.members) ? conversation.members : []).find(m => m.userId.toString() !== user?.userId);
-      return otherUser?.userId.toString();
+  /**
+   * 私聊场景下统一解析“对方用户”。
+   * 后续头像、在线状态、拨打音视频都从这里取值，避免各处重复查 members。
+   */
+  const getOtherUser = () => {
+    if (isGroupConversation(conversation)) {
+      return null;
     }
-    return null;
+
+    return (Array.isArray(conversation.members) ? conversation.members : [])
+      .find((member) => member.userId.toString() !== user?.userId) || null;
   };
+
+  const getOtherUserId = () => getOtherUser()?.userId.toString() || null;
+  const getOtherUserName = () => getOtherUser()?.username;
 
   const getGroupParticipants = () => {
     if (!isGroupConversation(conversation)) {
@@ -971,7 +1017,12 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
             <>
               <button
                 className="action-icon-btn"
-                onClick={() => onVideoCall(getOtherUserId()!, conversation.conversationId, 'VOICE_CALL')}
+                onClick={() => onVideoCall(
+                  getOtherUserId()!,
+                  getOtherUserName(),
+                  conversation.conversationId,
+                  'VOICE_CALL'
+                )}
                 title="语音通话"
               >
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
@@ -980,7 +1031,12 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
               </button>
               <button
                 className="action-icon-btn"
-                onClick={() => onVideoCall(getOtherUserId()!, conversation.conversationId, 'VIDEO_CALL')}
+                onClick={() => onVideoCall(
+                  getOtherUserId()!,
+                  getOtherUserName(),
+                  conversation.conversationId,
+                  'VIDEO_CALL'
+                )}
                 title="视频通话"
               >
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1021,6 +1077,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
                 <MessageBubble
                   key={uniqueKey}
                   message={msg}
+                  conversation={conversation}
                   isOwnMessage={isOwnMessage(msg)}
                   onImageClick={(url, type) => setPreviewMedia({ url, type })}
                   onResend={handleResendMessage}
