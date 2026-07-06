@@ -71,7 +71,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatRoomScreen(
@@ -99,20 +98,16 @@ fun ChatRoomScreen(
     val isGroupConversation = chatUiState.conversation?.conversationType == ConversationType.GROUP
     val isPreparingPrivateChat = chatRoom.type == ChatRoomType.CREATE_PRIVATE &&
         chatUiState.sessionCreationState == SessionCreationState.Creating
-    val canSendMessages = chatUiState.conversation != null && !isPreparingPrivateChat
+    val canSendMessages = chatUiState.canSendMessages
     val roomSubtitle = when {
-        isGroupConversation -> "${chatUiState.conversation?.members?.size ?: 0} members"
+        isGroupConversation -> "${chatUiState.conversation?.members?.size ?: 0} 位成员"
         remoteUser?.email?.isNotBlank() == true -> remoteUser?.email ?: ""
         else -> "私聊"
     }
 
     val pullRefreshState = rememberPullRefreshState(
-        refreshing = chatUiState.loading,
-        onRefresh = {
-            chatUiState.conversation?.conversationId?.let { id ->
-                chatRoomViewModel.loadMessages(id)
-            }
-        }
+        refreshing = chatUiState.isRefreshing,
+        onRefresh = { chatRoomViewModel.refreshMessages() }
     )
 
     val listState = rememberLazyListState()
@@ -122,7 +117,7 @@ fun ChatRoomScreen(
     var hasRestoredScrollPosition by remember(conversationId) { mutableStateOf(false) }
 
     LaunchedEffect(chatRoom) {
-        chatRoomViewModel.initChatRoom(chatRoom)
+        chatRoomViewModel.openRoom(chatRoom)
     }
 
     LaunchedEffect(chatUiState.conversation?.conversationId, chatUiState.friend) {
@@ -130,12 +125,12 @@ fun ChatRoomScreen(
         remoteUser = chatUiState.friend
     }
 
-    LaunchedEffect(listState, conversationId, chatUiState.messages.size, chatUiState.loading) {
+    LaunchedEffect(listState, conversationId, chatUiState.messages.size, chatUiState.isLoadingHistory) {
         snapshotFlow {
             val totalItems = chatUiState.messages.size
             val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.maxOfOrNull { it.index } ?: -1
             val shouldLoadMore = totalItems > 0 &&
-                !chatUiState.loading &&
+                !chatUiState.isLoadingHistory &&
                 lastVisibleIndex >= totalItems - 2
 
             Triple(shouldLoadMore, totalItems, lastVisibleIndex)
@@ -145,13 +140,12 @@ fun ChatRoomScreen(
                 if (!shouldLoadMore) return@collect
 
                 val oldestSequenceId = chatUiState.messages.lastOrNull()?.seqId ?: 0L
-                val currentConversationId = conversationId ?: return@collect
                 if (oldestSequenceId <= 0L || lastRequestedHistorySeq == oldestSequenceId) {
                     return@collect
                 }
 
                 lastRequestedHistorySeq = oldestSequenceId
-                chatRoomViewModel.loadOlderMessages(currentConversationId, oldestSequenceId)
+                chatRoomViewModel.loadOlderMessages(oldestSequenceId)
             }
     }
 
@@ -202,7 +196,7 @@ fun ChatRoomScreen(
     if (showUserSelector) {
         val members = chatUiState.conversation?.members?.filter { it.userId != userInfo?.userId } ?: emptyList()
         UserSelectorDialog(
-            title = "Invite participants",
+            title = "邀请参会成员",
             initialSelectedUsers = members,
             onDismiss = { showUserSelector = false },
             onConfirm = { selected ->
@@ -266,7 +260,6 @@ fun ChatRoomScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = 0.dp)
                     .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)),
                 color = Color.White,
                 tonalElevation = 0.dp
@@ -302,15 +295,31 @@ fun ChatRoomScreen(
                                     .filter { it != userInfo?.userId?.toString() }
                                 meetingIsHost = payload.hostId == userInfo?.userId
                                 showMeeting = true
-                            },
+                            }
                         )
                     }
 
-                if (!chatUiState.loading && chatUiState.messages.isEmpty()) {
-                    item {
-                        EmptyChatPlaceholder(isGroup = isGroupConversation)
+                    if (chatUiState.isLoadingHistory && chatUiState.messages.isNotEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                androidx.compose.material3.CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        }
                     }
-                }
+
+                    if (!chatUiState.isInitializing && !chatUiState.isRefreshing && chatUiState.messages.isEmpty()) {
+                        item {
+                            EmptyChatPlaceholder(isGroup = isGroupConversation)
+                        }
+                    }
                 }
             }
 
@@ -326,7 +335,9 @@ fun ChatRoomScreen(
                 val uid = userInfo?.userId ?: return@LaunchedEffect
                 if (!isLatestMessageVisible) return@LaunchedEffect
 
-                val hasUnread = chatUiState.messages.any { it.userInfo.userId != uid && it.status == MessageStatus.SENT }
+                val hasUnread = chatUiState.messages.any {
+                    it.userInfo.userId != uid && it.status == MessageStatus.SENT
+                }
                 if (!hasUnread) return@LaunchedEffect
 
                 val lastSeq = chatUiState.messages.firstOrNull()?.seqId ?: 0L
@@ -343,7 +354,7 @@ fun ChatRoomScreen(
             }
 
             PullRefreshIndicator(
-                refreshing = chatUiState.loading,
+                refreshing = chatUiState.isRefreshing,
                 state = pullRefreshState,
                 modifier = Modifier.align(Alignment.TopCenter)
             )
@@ -354,7 +365,11 @@ fun ChatRoomScreen(
             }
 
             val focusManager = LocalFocusManager.current
-            Box(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+            ) {
                 ChatInputArea(
                     enabled = canSendMessages,
                     onSendText = { text ->
@@ -389,7 +404,30 @@ fun ChatRoomScreen(
                             strokeWidth = 2.dp
                         )
                         Text(
-                            text = "Preparing private chat...",
+                            text = "正在准备私聊会话...",
+                            modifier = Modifier.padding(start = 12.dp),
+                            color = ThemeTokens.TextMain
+                        )
+                    }
+                }
+            }
+
+            if (chatUiState.isInitializing && chatUiState.messages.isEmpty() && !isPreparingPrivateChat) {
+                Surface(
+                    modifier = Modifier.align(Alignment.Center),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Text(
+                            text = "正在加载会话...",
                             modifier = Modifier.padding(start = 12.dp),
                             color = ThemeTokens.TextMain
                         )
@@ -405,7 +443,9 @@ fun ChatRoomScreen(
             }
             androidx.compose.animation.AnimatedVisibility(
                 visible = chatUiState.messages.isNotEmpty() && !isLatestMessageVisible,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 98.dp, end = 16.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 98.dp, end = 16.dp),
                 enter = androidx.compose.animation.fadeIn(),
                 exit = androidx.compose.animation.fadeOut()
             ) {
@@ -435,18 +475,24 @@ fun ChatRoomScreen(
 
             if (chatUiState.error != null) {
                 Surface(
-                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(16.dp),
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.errorContainer
                 ) {
-                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(text = chatUiState.error ?: "", modifier = Modifier.weight(1f))
                         Button(
                             onClick = {
                                 if (chatRoom.type == ChatRoomType.CREATE_PRIVATE) {
                                     chatRoomViewModel.retryPreparePrivateChat()
                                 } else {
-                                    chatRoomViewModel.clearSessionCreationError()
+                                    chatRoomViewModel.clearError()
                                 }
                             }
                         ) {

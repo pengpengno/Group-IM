@@ -10,12 +10,12 @@ import com.github.im.group.api.FileApi
 import com.github.im.group.api.FileMeta
 import com.github.im.group.api.UserApi
 import com.github.im.group.db.entities.MessageStatus
+import com.github.im.group.manager.ConversationListCoordinator
 import com.github.im.group.manager.FileStorageManager
 import com.github.im.group.manager.MessageFacade
 import com.github.im.group.manager.MessageHandler
 import com.github.im.group.manager.MessageRouter
 import com.github.im.group.manager.MessageStore
-import com.github.im.group.manager.ConversationListCoordinator
 import com.github.im.group.manager.getFile
 import com.github.im.group.manager.getLocalFilePath
 import com.github.im.group.model.MessageItem
@@ -41,26 +41,26 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 sealed class SessionCreationState {
-    object Idle : SessionCreationState()
-    object Creating : SessionCreationState()
-    object Pending : SessionCreationState()
-    object Success : SessionCreationState()
-    object Error : SessionCreationState()
+    data object Idle : SessionCreationState()
+    data object Creating : SessionCreationState()
+    data object Error : SessionCreationState()
 }
 
 data class ChatUiState(
-    val messages: List<MessageItem> = emptyList(),
+    val room: ChatRoom? = null,
     val conversation: ConversationRes? = null,
-    val chatRoom: ChatRoom? = null,
-    val loading: Boolean = false,
-    val messageIndex: Int = 0,
+    val friend: UserInfo? = null,
+    val messages: List<MessageItem> = emptyList(),
+    val isInitializing: Boolean = false,
+    val isRefreshing: Boolean = false,
+    val isLoadingHistory: Boolean = false,
     val sessionCreationState: SessionCreationState = SessionCreationState.Idle,
     val error: String? = null,
-    val friend: UserInfo? = null,
     val scrollToLatestEvent: Long = 0L,
-    val savedScrollPosition: ChatScrollPositionRecord? = null,
+    val savedScrollPosition: ChatScrollPositionRecord? = null
 ) {
-    fun hasCreateConversation(): Boolean = conversation != null
+    val canSendMessages: Boolean
+        get() = conversation != null && sessionCreationState != SessionCreationState.Creating
 
     fun getRoomName(): String {
         return conversation?.let {
@@ -100,9 +100,9 @@ class ChatRoomViewModel(
     val fileDownloadStates: StateFlow<Map<String, FileDownloadState>> = _fileDownloadStates.asStateFlow()
 
     private var activeConversationId: Long? = null
-    private var initSessionId: Long = 0L
-    private var syncRemoteJob: Job? = null
-    private var loadMoreJob: Job? = null
+    private var activeRoomRequestId: Long = 0L
+    private var refreshJob: Job? = null
+    private var loadHistoryJob: Job? = null
     private var lastHistoryBoundarySeqId: Long? = null
 
     init {
@@ -111,23 +111,17 @@ class ChatRoomViewModel(
                 messageFacade.startSync(user)
             }
         }
-        
+
+        // MessageStore 是当前会话页唯一的消息来源，UI 只订阅这一条流。
         viewModelScope.launch {
-            messageStore.messages.collect { msgs ->
-                _uiState.update { 
-                    it.copy(
-                        messages = msgs,
-                        messageIndex = if (msgs.isNotEmpty()) 0 else -1
-                    )
-                }
+            messageStore.messages.collect { messages ->
+                _uiState.update { it.copy(messages = messages) }
             }
         }
     }
 
     override fun onMessageReceived(message: MessageWrapper) {
-        if (message.conversationId > 0 && activeConversationId != message.conversationId) {
-            // Not for current room visually immediately if background, but let's store it
-        }
+        // 不管消息是否来自当前可见会话，都先落本地，再通知会话列表刷新。
         messageStore.saveOrUpdate(message)
         conversationRepository.markConversationActive(message.conversationId)
         conversationListCoordinator.notifyConversationChanged(
@@ -143,10 +137,14 @@ class ChatRoomViewModel(
 
     fun getFile(fileId: String): File? = fileStorageManager.getFile(fileId)
 
-    fun initChatRoom(room: ChatRoom) {
-        val sessionId = ++initSessionId
-        syncRemoteJob?.cancel()
-        loadMoreJob?.cancel()
+    /**
+     * 进入会话页的统一入口。
+     * 先清理上一个会话状态，再根据“已有会话 / 新建私聊”走不同绑定流程。
+     */
+    fun openRoom(room: ChatRoom) {
+        val requestId = ++activeRoomRequestId
+        refreshJob?.cancel()
+        loadHistoryJob?.cancel()
         lastHistoryBoundarySeqId = null
 
         val previousConversationId = activeConversationId
@@ -154,42 +152,14 @@ class ChatRoomViewModel(
             unregister(previousConversationId)
         }
 
+        activeConversationId = null
+        messageStore.clear()
+        _uiState.value = ChatUiState(room = room, isInitializing = true)
+
         viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    chatRoom = room,
-                    error = null,
-                    loading = false,
-                    sessionCreationState = SessionCreationState.Idle
-                )
-            }
             when (room.type) {
-                ChatRoomType.CONVERSATION -> {
-                    bindConversation(room.roomId, sessionId)
-                }
-
-                ChatRoomType.CREATE_PRIVATE -> {
-                    val currentUser = userRepository.getLocalUserInfo() ?: return@launch
-                    launch { loadFriendInfo(room.roomId) }
-                    val existingConversation = conversationRepository
-                        .getLocalConversationByMembers(currentUser.userId, room.roomId)
-
-                    if (existingConversation != null) {
-                        bindConversation(existingConversation.conversationId, sessionId, existingConversation)
-                    } else {
-                        activeConversationId = null
-                        messageStore.clear()
-                        _uiState.update {
-                            it.copy(
-                                conversation = null,
-                                messages = emptyList(),
-                                messageIndex = -1,
-                                sessionCreationState = SessionCreationState.Creating
-                            )
-                        }
-                        ensurePrivateConversation(currentUser.userId, room.roomId, sessionId)
-                    }
-                }
+                ChatRoomType.CONVERSATION -> bindExistingConversation(room.roomId, requestId)
+                ChatRoomType.CREATE_PRIVATE -> preparePrivateConversation(room.roomId, requestId)
             }
         }
     }
@@ -203,21 +173,19 @@ class ChatRoomViewModel(
         performSend(content = voice.file.name, pickedFile = voice.file, duration = voice.durationMillis)
     }
 
-    fun sendFile(file: File, duration: Long = 0) {
+    fun sendFile(file: File, duration: Long = 0L) {
         performSend(content = file.name, pickedFile = file, duration = duration)
     }
 
     private fun performSend(
         content: String? = null,
         pickedFile: File? = null,
-        duration: Long = 0
+        duration: Long = 0L
     ) {
         viewModelScope.launch {
             val currentUser = userRepository.getLocalUserInfo() ?: return@launch
             val currentConversation = uiState.value.conversation ?: run {
-                _uiState.update {
-                    it.copy(error = "Private chat is still being prepared. Please try again in a moment.")
-                }
+                _uiState.update { it.copy(error = "私聊会话仍在准备中，请稍后再试。") }
                 return@launch
             }
             val friendId = uiState.value.friend?.userId
@@ -225,6 +193,7 @@ class ChatRoomViewModel(
             register(targetConversationId)
             conversationRepository.markConversationActive(targetConversationId)
 
+            // 发送动作只处理当前会话；列表排序和摘要刷新统一交给 coordinator 回流。
             if (pickedFile != null) {
                 messageFacade.sendFile(targetConversationId, pickedFile, duration, currentUser, friendId)
             } else if (content != null) {
@@ -239,78 +208,80 @@ class ChatRoomViewModel(
         }
     }
 
-    fun loadLocalMessages(conversationId: Long, limit: Long = 30) {
-        viewModelScope.launch {
-            messageStore.loadLocal(conversationId, limit)
-        }
-    }
-
-    fun loadMessages(conversationId: Long, limit: Long = 30) {
-        viewModelScope.launch {
-            messageStore.loadLocal(conversationId, limit)
-            syncRemoteMessages(conversationId, limit, showLoading = false)
-        }
-    }
-
-    fun syncRemoteMessages(
+    private fun refreshConversation(
         conversationId: Long,
-        limit: Long = 30,
-        showLoading: Boolean = true,
-        sessionId: Long = initSessionId
+        showLoading: Boolean,
+        requestId: Long = activeRoomRequestId
     ) {
-        syncRemoteJob?.cancel()
-        syncRemoteJob = viewModelScope.launch {
-            if (showLoading) {
-                _uiState.update { it.copy(loading = true) }
+        // 首次进入后的远端同步，以及下拉刷新，都统一走这里。
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            if (showLoading && isRequestActive(requestId)) {
+                _uiState.update { it.copy(isRefreshing = true) }
             }
             try {
-                val hasNew = withContext(Dispatchers.Default) {
+                val hasNewMessages = withContext(Dispatchers.Default) {
                     messageStore.syncRemote(conversationId)
                 }
-                if (hasNew && isSessionValid(conversationId, sessionId)) {
-                    messageStore.loadLocal(conversationId, limit)
+                if (hasNewMessages && isConversationActive(conversationId, requestId)) {
+                    withContext(Dispatchers.Default) {
+                        messageStore.loadLocal(conversationId, 30)
+                    }
+                }
+            } catch (e: Exception) {
+                Napier.e("sync messages failed", e)
+                if (isConversationActive(conversationId, requestId)) {
+                    _uiState.update { it.copy(error = e.message ?: "刷新消息失败") }
                 }
             } finally {
-                if (showLoading && isSessionValid(conversationId, sessionId)) {
-                    _uiState.update { it.copy(loading = false) }
+                if (showLoading && isConversationActive(conversationId, requestId)) {
+                    _uiState.update { it.copy(isRefreshing = false) }
                 }
             }
         }
     }
 
-    private suspend fun loadFriendInfo(friendUserId: Long) {
-        try {
-            _uiState.update { it.copy(friend = getUserById(friendUserId)) }
-        } catch (_: Exception) {
-            _uiState.update { it.copy(error = "获取好友信息失败") }
-        }
-    }
-
-    private suspend fun loadConversationInfo(conversationId: Long, sessionId: Long = initSessionId) {
+    // 先本地后远端，保证会话标题和成员信息可以快速出现，再逐步校正为最新状态。
+    private suspend fun loadConversationInfo(
+        conversationId: Long,
+        requestId: Long = activeRoomRequestId
+    ) {
         val currentUser = userRepository.getLocalUserInfo() ?: return
         conversationRepository.getLocalConversation(conversationId)?.let { local ->
-            if (!isSessionValid(conversationId, sessionId)) return
-            _uiState.update { it.copy(conversation = local) }
-            handlePrivateChatInfo(local, currentUser)
+            if (!isConversationActive(conversationId, requestId)) return
+            updateConversationState(local, _uiState.value.savedScrollPosition, currentUser)
         }
 
         try {
             val remote = withContext(Dispatchers.Default) {
                 conversationRepository.getConversation(conversationId)
             }
-            if (isSessionValid(conversationId, sessionId)) {
-                _uiState.update { it.copy(conversation = remote) }
-                handlePrivateChatInfo(remote, currentUser)
-            }
+            if (!isConversationActive(conversationId, requestId)) return
+            updateConversationState(remote, _uiState.value.savedScrollPosition, currentUser)
         } catch (e: Exception) {
             Napier.w("load conversation info failed: ${e.message}")
         }
     }
 
-    private fun handlePrivateChatInfo(conversation: ConversationRes, currentInfo: UserInfo) {
-        if (conversation.conversationType == ConversationType.PRIVATE_CHAT) {
-            val friend = conversation.members.firstOrNull { it.userId != currentInfo.userId }
-            _uiState.update { it.copy(friend = friend) }
+    private suspend fun updateConversationState(
+        conversation: ConversationRes,
+        savedPosition: ChatScrollPositionRecord?,
+        currentUser: UserInfo?
+    ) {
+        val friend = if (conversation.conversationType == ConversationType.PRIVATE_CHAT && currentUser != null) {
+            conversation.members.firstOrNull { it.userId != currentUser.userId }
+        } else {
+            _uiState.value.friend
+        }
+
+        _uiState.update {
+            it.copy(
+                conversation = conversation,
+                friend = friend,
+                savedScrollPosition = savedPosition,
+                sessionCreationState = SessionCreationState.Idle,
+                error = null
+            )
         }
     }
 
@@ -339,27 +310,29 @@ class ChatRoomViewModel(
     }
 
     fun refreshMessages() {
-        uiState.value.conversation?.conversationId?.let { syncRemoteMessages(it) }
+        activeConversationId?.let { refreshConversation(it, showLoading = true) }
     }
 
-    fun loadOlderMessages(conversationId: Long, beforeSequenceId: Long) {
+    fun loadOlderMessages(beforeSequenceId: Long) {
+        // 上拉历史时只补更早消息，不打断当前底部阅读体验。
+        val conversationId = activeConversationId ?: return
         if (beforeSequenceId <= 0L || lastHistoryBoundarySeqId == beforeSequenceId) {
             return
         }
 
-        loadMoreJob?.cancel()
-        loadMoreJob = viewModelScope.launch {
+        loadHistoryJob?.cancel()
+        loadHistoryJob = viewModelScope.launch {
             lastHistoryBoundarySeqId = beforeSequenceId
-            _uiState.update { it.copy(loading = true) }
+            _uiState.update { it.copy(isLoadingHistory = true) }
             try {
                 withContext(Dispatchers.Default) {
                     messageStore.loadHistoryBefore(conversationId, beforeSequenceId)
                 }
             } catch (e: Exception) {
                 lastHistoryBoundarySeqId = null
-                throw e
+                Napier.e("load older messages failed", e)
             } finally {
-                _uiState.update { it.copy(loading = false) }
+                _uiState.update { it.copy(isLoadingHistory = false) }
             }
         }
     }
@@ -415,18 +388,12 @@ class ChatRoomViewModel(
         }
     }
 
-    fun clearSessionCreationError() {
-        _uiState.update { it.copy(sessionCreationState = SessionCreationState.Idle, error = null) }
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
     }
 
     fun retryPreparePrivateChat() {
-        val room = _uiState.value.chatRoom ?: return
-        if (room.type != ChatRoomType.CREATE_PRIVATE) return
-        initChatRoom(room)
-    }
-
-    fun updateMessageIndex(index: Int) {
-        _uiState.update { it.copy(messageIndex = index) }
+        uiState.value.room?.takeIf { it.type == ChatRoomType.CREATE_PRIVATE }?.let(::openRoom)
     }
 
     fun triggerScrollToLatest() {
@@ -438,6 +405,7 @@ class ChatRoomViewModel(
         anchorMessage: MessageItem?,
         scrollOffset: Int
     ) {
+        // 页面退出时记录阅读锚点，下次进入优先恢复到原来的阅读位置。
         conversationRepository.saveChatScrollPosition(
             conversationId = conversationId,
             anchorMsgId = anchorMessage?.id?.takeIf { it > 0L },
@@ -467,8 +435,8 @@ class ChatRoomViewModel(
                 val lastSeq = _uiState.value.messages.firstOrNull()?.seqId ?: 0L
                 if (lastSeq <= 0L) return@launch
 
+                // 只有当前页已经看到最新消息时，才同步本地和服务端的已读状态。
                 messageStore.markConversationRead(conversationId, currentUserId)
-
                 ChatApi.markConversationAsRead(conversationId = conversationId, sequenceId = lastSeq)
                 conversationListCoordinator.notifyConversationChanged(conversationId)
             } catch (e: Exception) {
@@ -477,72 +445,94 @@ class ChatRoomViewModel(
         }
     }
 
-    private fun bindConversation(
+    // 会话绑定顺序固定为：注册监听 -> 恢复会话信息 -> 加载本地消息 -> 后台同步远端。
+    private suspend fun bindConversation(
         conversationId: Long,
-        sessionId: Long,
+        requestId: Long,
         initialConversation: ConversationRes? = null
     ) {
+        if (!isRequestActive(requestId)) return
+
         activeConversationId = conversationId
         register(conversationId)
         conversationRepository.markConversationActive(conversationId)
+        val savedPosition = conversationRepository.getChatScrollPosition(conversationId)
+        val currentUser = userRepository.getLocalUserInfo()
+
         initialConversation?.let { conversation ->
-            _uiState.update {
-                it.copy(
-                    conversation = conversation,
-                    sessionCreationState = SessionCreationState.Idle,
-                    error = null
-                )
-            }
+            updateConversationState(conversation, savedPosition, currentUser)
+        } ?: _uiState.update {
+            it.copy(
+                conversation = null,
+                savedScrollPosition = savedPosition
+            )
         }
-        loadLocalMessages(conversationId)
+
+        withContext(Dispatchers.Default) {
+            messageStore.loadLocal(conversationId, 30)
+        }
+
+        _uiState.update {
+            it.copy(
+                isInitializing = false,
+                sessionCreationState = SessionCreationState.Idle
+            )
+        }
+
         viewModelScope.launch {
-            val savedPosition = conversationRepository.getChatScrollPosition(conversationId)
-            _uiState.update { it.copy(savedScrollPosition = savedPosition) }
-            loadConversationInfo(conversationId, sessionId)
+            loadConversationInfo(conversationId, requestId)
         }
-        syncRemoteMessages(conversationId, showLoading = false, sessionId = sessionId)
+        refreshConversation(conversationId, showLoading = false, requestId = requestId)
         conversationListCoordinator.notifyConversationChanged(
             conversationId = conversationId,
             moveToTop = true
         )
     }
 
-    private suspend fun ensurePrivateConversation(
-        currentUserId: Long,
+    // 新私聊优先复用本地会话，不存在时再向服务端创建。
+    private suspend fun preparePrivateConversation(
         friendId: Long,
-        sessionId: Long
+        requestId: Long
     ) {
+        val currentUser = userRepository.getLocalUserInfo() ?: return
         try {
-            _uiState.update { it.copy(sessionCreationState = SessionCreationState.Creating, error = null) }
-            val conversation = conversationRepository.getLocalConversationByMembers(currentUserId, friendId)
+            _uiState.update {
+                it.copy(
+                    friend = getUserById(friendId),
+                    sessionCreationState = SessionCreationState.Creating,
+                    isInitializing = true,
+                    error = null
+                )
+            }
+            val conversation = conversationRepository.getLocalConversationByMembers(currentUser.userId, friendId)
                 ?: withContext(Dispatchers.Default) {
                     ConversationApi.createOrGetConversation(friendId)
                 }.also { remote ->
                     conversationRepository.saveConversation(remote)
                 }
 
-            if (!isSessionValidForRoom(sessionId, friendId)) return
-            bindConversation(conversation.conversationId, sessionId, conversation)
+            bindConversation(conversation.conversationId, requestId, conversation)
         } catch (e: Exception) {
             Napier.e("prepare private conversation failed", e)
-            if (!isSessionValidForRoom(sessionId, friendId)) return
+            if (!isRequestActive(requestId)) return
             _uiState.update {
                 it.copy(
+                    isInitializing = false,
                     sessionCreationState = SessionCreationState.Error,
-                    error = "Failed to create private chat: ${e.message ?: "unknown error"}"
+                    error = "创建私聊会话失败：${e.message ?: "未知错误"}"
                 )
             }
         }
     }
 
-    private fun isSessionValid(conversationId: Long, sessionId: Long): Boolean {
-        return activeConversationId == conversationId && initSessionId == sessionId
+    private suspend fun bindExistingConversation(conversationId: Long, requestId: Long) {
+        val localConversation = conversationRepository.getLocalConversation(conversationId)
+        bindConversation(conversationId, requestId, localConversation)
     }
 
-    private fun isSessionValidForRoom(sessionId: Long, friendId: Long): Boolean {
-        val room = _uiState.value.chatRoom
-        return initSessionId == sessionId &&
-            room?.type == ChatRoomType.CREATE_PRIVATE &&
-            room.roomId == friendId
+    private fun isConversationActive(conversationId: Long, requestId: Long): Boolean {
+        return activeConversationId == conversationId && isRequestActive(requestId)
     }
+
+    private fun isRequestActive(requestId: Long): Boolean = activeRoomRequestId == requestId
 }

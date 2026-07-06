@@ -16,14 +16,12 @@ import com.github.im.group.repository.ConversationRepository
 import com.github.im.group.repository.ConversationUiPreference
 import com.github.im.group.repository.UserRepository
 import io.github.aakira.napier.Napier
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
@@ -40,6 +38,14 @@ data class ConversationDisplayState(
     val lastActiveAt: Long = 0L
 )
 
+data class ConversationListUiState(
+    val conversations: List<ConversationDisplayState> = emptyList(),
+    val isLoading: Boolean = false,
+    val isSyncing: Boolean = false,
+    val usedOfflineData: Boolean = false,
+    val error: String? = null
+)
+
 class ChatViewModel(
     private val userRepository: UserRepository,
     private val loginStateManager: LoginStateManager,
@@ -48,11 +54,10 @@ class ChatViewModel(
     private val conversationListCoordinator: ConversationListCoordinator
 ) : ViewModel() {
 
-    private val _conversations = MutableStateFlow(emptyList<ConversationDisplayState>())
-    val conversationState: StateFlow<List<ConversationDisplayState>> = _conversations.asStateFlow()
+    private val _uiState = MutableStateFlow(ConversationListUiState())
+    val uiState: StateFlow<ConversationListUiState> = _uiState.asStateFlow()
 
-    private val _loading = MutableStateFlow(false)
-    val loading: StateFlow<Boolean> = _loading.asStateFlow()
+    private var activeUserId: Long? = null
 
     init {
         viewModelScope.launch {
@@ -62,35 +67,78 @@ class ChatViewModel(
         }
     }
 
-    fun refreshUnreadCounts(currentUserId: Long) {
-        _conversations.update { currentList ->
-            sortConversations(
-                currentList.map { item ->
-                    val unreadCount = messageRepository.getUnreadCount(
-                        item.conversation.conversationId,
-                        currentUserId
+    /**
+     * 会话列表统一入口：
+     * 1. 先展示本地缓存，保证页面秒开
+     * 2. 再按需同步远端，补齐最新会话状态
+     */
+    fun loadConversations(userId: Long, forceRemote: Boolean = true) {
+        activeUserId = userId
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isLoading = it.conversations.isEmpty(),
+                    isSyncing = forceRemote,
+                    error = null,
+                    usedOfflineData = false
+                )
+            }
+
+            val localConversations = loadLocalConversations(userId)
+            _uiState.update {
+                it.copy(
+                    conversations = localConversations,
+                    isLoading = false
+                )
+            }
+
+            if (!forceRemote) {
+                _uiState.update { it.copy(isSyncing = false) }
+                return@launch
+            }
+
+            try {
+                val remoteConversations = loadRemoteConversations(userId)
+                _uiState.update {
+                    it.copy(
+                        conversations = remoteConversations,
+                        isSyncing = false,
+                        usedOfflineData = false,
+                        error = null
                     )
-                    if (unreadCount == item.unreadCount) {
-                        item
-                    } else {
-                        item.copy(unreadCount = unreadCount)
-                    }
                 }
-            )
+            } catch (e: UnauthorizedException) {
+                _uiState.update { it.copy(isSyncing = false, isLoading = false) }
+                handleUnauthorizedException(e)
+            } catch (e: Exception) {
+                Napier.e("Failed to sync conversation list", e)
+                _uiState.update {
+                    it.copy(
+                        isSyncing = false,
+                        isLoading = false,
+                        usedOfflineData = localConversations.isNotEmpty(),
+                        error = e.message
+                    )
+                }
+            }
         }
     }
 
-    fun refreshConversationList(currentUserId: Long, includeRemote: Boolean = false) {
+    fun refreshCachedConversations(userId: Long) {
+        activeUserId = userId
         viewModelScope.launch {
-            loadLocalConversations(currentUserId)
-            if (includeRemote) {
-                loadRemoteConversations(currentUserId)
+            val localConversations = loadLocalConversations(userId)
+            _uiState.update {
+                it.copy(
+                    conversations = localConversations,
+                    isLoading = false
+                )
             }
         }
     }
 
     fun togglePinConversation(conversationId: Long) {
-        val current = _conversations.value.firstOrNull {
+        val current = _uiState.value.conversations.firstOrNull {
             it.conversation.conversationId == conversationId
         } ?: return
 
@@ -105,59 +153,39 @@ class ChatViewModel(
         }
     }
 
-    fun getConversations(userId: Long) {
-        viewModelScope.launch {
-            _loading.value = true
-            try {
-                loadLocalConversations(userId)
-                loadRemoteConversations(userId)
-            } catch (e: UnauthorizedException) {
-                handleUnauthorizedException(e)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                Napier.d("Loading conversation list cancelled")
-            } catch (e: Exception) {
-                Napier.e("Failed to load conversation list", e)
-                handleLoadFailure(userId)
-            } finally {
-                _loading.value = false
-            }
-        }
-    }
-
-    private suspend fun loadLocalConversations(userId: Long) {
-        try {
+    private suspend fun loadLocalConversations(userId: Long): List<ConversationDisplayState> {
+        return try {
             val localConversations = conversationRepository.getConversationsByUserId(userId)
             val preferences = conversationRepository.getConversationUiPreferences()
-            val displayStates = localConversations.map { conversation ->
-                createConversationDisplayState(
-                    conversation = conversation,
-                    currentUserId = userId,
-                    preference = preferences[conversation.conversationId]
-                )
-            }
-            _conversations.value = sortConversations(displayStates)
+            sortConversations(
+                localConversations.map { conversation ->
+                    createConversationDisplayState(
+                        conversation = conversation,
+                        currentUserId = userId,
+                        preference = preferences[conversation.conversationId]
+                    )
+                }
+            )
         } catch (e: Exception) {
             Napier.e("Failed to load local conversations", e)
+            emptyList()
         }
     }
 
-    private suspend fun loadRemoteConversations(userId: Long) {
-        try {
-            val response = ConversationApi.getActiveConversationsByUserId(userId)
-            response.forEach { conversationRepository.saveConversation(it) }
+    private suspend fun loadRemoteConversations(userId: Long): List<ConversationDisplayState> {
+        val response = ConversationApi.getActiveConversationsByUserId(userId)
+        response.forEach { conversationRepository.saveConversation(it) }
 
-            val preferences = conversationRepository.getConversationUiPreferences()
-            val displayStates = response.map { conversation ->
+        val preferences = conversationRepository.getConversationUiPreferences()
+        return sortConversations(
+            response.map { conversation ->
                 createConversationDisplayState(
                     conversation = conversation,
                     currentUserId = userId,
                     preference = preferences[conversation.conversationId]
                 )
             }
-            _conversations.value = sortConversations(displayStates)
-        } catch (e: Exception) {
-            Napier.e("Failed to load remote conversations", e)
-        }
+        )
     }
 
     suspend fun createConversationDisplayState(
@@ -165,9 +193,11 @@ class ChatViewModel(
         currentUserId: Long = 0L,
         preference: ConversationUiPreference? = null
     ): ConversationDisplayState {
+        // 列表项展示数据统一在这里收口，避免 UI 自己拼摘要/时间/未读数
         val latestMessage = messageRepository.getLocalLatestMessage(conversation.conversationId)
         val lastMessageText = latestMessage?.let(::getMessageDesc).orEmpty()
-        val displayDateTime = latestMessage?.let { calculateDisplayDateTime(it.time) }.orEmpty()
+        val latestMessageTime = latestMessage?.clientTime ?: latestMessage?.time
+        val displayDateTime = latestMessageTime?.let(::calculateDisplayDateTime).orEmpty()
         val localPreference = preference ?: conversationRepository.getConversationUiPreference(conversation.conversationId)
         val unreadCount = if (currentUserId > 0L) {
             messageRepository.getUnreadCount(conversation.conversationId, currentUserId)
@@ -194,11 +224,11 @@ class ChatViewModel(
     private fun getMessageDesc(message: MessageWrapper): String {
         return when (message.type) {
             MessageType.TEXT -> message.content
-            MessageType.FILE -> "File"
-            MessageType.VOICE -> "Voice"
-            MessageType.VIDEO -> "Video"
-            MessageType.IMAGE -> "Image"
-            MessageType.MEETING -> "Meeting"
+            MessageType.FILE -> "[文件]"
+            MessageType.VOICE -> "[语音]"
+            MessageType.VIDEO -> "[视频]"
+            MessageType.IMAGE -> "[图片]"
+            MessageType.MEETING -> "[会议]"
         }
     }
 
@@ -206,54 +236,6 @@ class ChatViewModel(
         Napier.e("Token expired, logging out", e)
         userRepository.updateToLoggedOut()
         loginStateManager.setLoggedOut()
-    }
-
-    private suspend fun handleLoadFailure(userId: Long) {
-        if (_conversations.value.isNotEmpty()) {
-            return
-        }
-
-        try {
-            val localConversations = conversationRepository.getConversationsByUserId(userId)
-            val preferences = conversationRepository.getConversationUiPreferences()
-            _conversations.value = sortConversations(
-                localConversations.map { conversation ->
-                    createConversationDisplayState(
-                        conversation = conversation,
-                        currentUserId = userId,
-                        preference = preferences[conversation.conversationId]
-                    )
-                }
-            )
-        } catch (e: Exception) {
-            Napier.e("Failed to recover local conversations", e)
-            _conversations.value = emptyList()
-        }
-    }
-
-    fun getOrCreatePrivateChat(userId: Long, friendId: Long) {
-        viewModelScope.launch {
-            val localConversation = conversationRepository.getLocalConversationByMembers(userId, friendId)
-            val conversation = if (localConversation != null) {
-                localConversation
-            } else {
-                try {
-                    ConversationApi.createOrGetConversation(friendId)
-                } catch (e: UnauthorizedException) {
-                    handleUnauthorizedException(e)
-                    throw e
-                }
-            }
-
-            conversationRepository.saveConversation(conversation)
-            conversationRepository.markConversationActive(conversation.conversationId)
-            val state = createConversationDisplayState(conversation, userId)
-            _conversations.update { current ->
-                sortConversations(current.filterNot {
-                    it.conversation.conversationId == conversation.conversationId
-                } + state)
-            }
-        }
     }
 
     suspend fun createGroupChat(
@@ -276,47 +258,55 @@ class ChatViewModel(
 
         conversationRepository.saveConversation(conversation)
         conversationRepository.markConversationActive(conversation.conversationId)
-        val currentUserId = userRepository.getLocalUserInfo()?.userId ?: 0L
-        val state = createConversationDisplayState(conversation, currentUserId)
-        _conversations.update { current ->
-            sortConversations(current.filterNot {
-                it.conversation.conversationId == conversation.conversationId
-            } + state)
-        }
+        syncConversationIntoList(conversation)
         return conversation
     }
 
     suspend fun syncConversationToUI(conversationId: Long) {
-        try {
-            val conversation = conversationRepository.getConversation(conversationId)
-            val currentUserId = userRepository.getLocalUserInfo()?.userId ?: 0L
-            val state = createConversationDisplayState(conversation, currentUserId)
-            _conversations.update { current ->
-                sortConversations(current.filterNot {
-                    it.conversation.conversationId == conversationId
-                } + state)
-            }
-        } catch (e: Exception) {
-            Napier.e("Failed to sync conversation to UI", e)
+        val conversation = runCatching {
+            conversationRepository.getConversation(conversationId)
+        }.getOrElse {
+            Napier.e("Failed to sync conversation to UI", it)
+            return
+        }
+        syncConversationIntoList(conversation)
+    }
+
+    private suspend fun syncConversationIntoList(conversation: ConversationRes) {
+        // 群聊创建、消息收发、已读变化后，统一走这个入口回写列表
+        val currentUserId = activeUserId ?: userRepository.getLocalUserInfo()?.userId ?: 0L
+        val state = createConversationDisplayState(conversation, currentUserId)
+        _uiState.update { current ->
+            current.copy(
+                conversations = sortConversations(
+                    current.conversations.filterNot {
+                        it.conversation.conversationId == conversation.conversationId
+                    } + state
+                )
+            )
         }
     }
 
     private suspend fun refreshConversationItem(conversationId: Long, moveToTop: Boolean) {
-        val currentUserId = userRepository.getLocalUserInfo()?.userId ?: 0L
-        val conversation = withContext(Dispatchers.Default) {
-            conversationRepository.getLocalConversation(conversationId)
-                ?: runCatching { conversationRepository.getConversation(conversationId) }.getOrNull()
-        } ?: return
+        // 收到消息或会话状态变化时，只刷新受影响的那一项，避免整页重算
+        val currentUserId = activeUserId ?: userRepository.getLocalUserInfo()?.userId ?: 0L
+        val conversation = conversationRepository.getLocalConversation(conversationId)
+            ?: runCatching { conversationRepository.getConversation(conversationId) }.getOrNull()
+            ?: return
 
         if (moveToTop) {
             conversationRepository.markConversationActive(conversationId)
         }
 
         val updated = createConversationDisplayState(conversation, currentUserId)
-        _conversations.update { current ->
-            sortConversations(current.filterNot {
-                it.conversation.conversationId == conversationId
-            } + updated)
+        _uiState.update { current ->
+            current.copy(
+                conversations = sortConversations(
+                    current.conversations.filterNot {
+                        it.conversation.conversationId == conversationId
+                    } + updated
+                )
+            )
         }
     }
 
@@ -325,6 +315,7 @@ class ChatViewModel(
             compareByDescending<ConversationDisplayState> { it.isPinned }
                 .thenByDescending { if (it.isPinned) it.pinRank else it.lastActiveAt }
                 .thenByDescending { it.unreadCount > 0 }
+                .thenByDescending { it.lastActiveAt }
                 .thenByDescending { it.conversation.conversationId }
         )
     }
@@ -340,19 +331,19 @@ class ChatViewModel(
                 }
 
                 createAt.date == now.date.minus(1, DateTimeUnit.DAY) -> {
-                    "Yesterday ${createAt.hour}:${createAt.minute.toString().padStart(2, '0')}"
+                    "昨天 ${createAt.hour}:${createAt.minute.toString().padStart(2, '0')}"
                 }
 
                 (now.date.toEpochDays() - createAt.date.toEpochDays()) <= 7 -> {
                     when (createAt.dayOfWeek.ordinal) {
-                        0 -> "Mon"
-                        1 -> "Tue"
-                        2 -> "Wed"
-                        3 -> "Thu"
-                        4 -> "Fri"
-                        5 -> "Sat"
-                        6 -> "Sun"
-                        else -> "Recent"
+                        0 -> "周一"
+                        1 -> "周二"
+                        2 -> "周三"
+                        3 -> "周四"
+                        4 -> "周五"
+                        5 -> "周六"
+                        6 -> "周日"
+                        else -> "近期"
                     }
                 }
 

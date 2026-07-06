@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import Loading from '../../components/common/Loading';
+import { formatDateTime, useI18n } from '../../i18n';
 import { meetingAPI } from '../../services/api/apiClient';
 import type { ConversationRes, MeetingDTO, RootState } from '../../types';
 import './MeetingList.css';
@@ -19,29 +20,16 @@ type GroupConversation = ConversationRes & {
 
 const unwrapPayload = <T,>(payload: any): T => payload?.data?.data ?? payload?.data ?? payload;
 
-const formatDateTime = (value?: string) => {
-  if (!value) {
-    return 'Not scheduled';
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString();
-};
-
-const getMeetingStatus = (status?: string) => {
+const getMeetingStatus = (status: string | undefined, labelFor: ReturnType<typeof useI18n>['t']) => {
   switch (status) {
     case 'ACTIVE':
-      return { text: 'In Progress', tone: 'active' as const };
+      return { text: labelFor('meeting.status.active'), tone: 'active' as const };
     case 'SCHEDULED':
-      return { text: 'Scheduled', tone: 'scheduled' as const };
+      return { text: labelFor('meeting.status.scheduled'), tone: 'scheduled' as const };
     case 'ENDED':
-      return { text: 'Ended', tone: 'ended' as const };
+      return { text: labelFor('meeting.status.ended'), tone: 'ended' as const };
     default:
-      return { text: status || 'Unknown', tone: 'ended' as const };
+      return { text: status || labelFor('meeting.list.unknown'), tone: 'ended' as const };
   }
 };
 
@@ -73,6 +61,7 @@ const MeetingComposerDialog: React.FC<ComposerDialogProps> = ({
   onClose,
   onSubmit
 }) => {
+  const { t } = useI18n();
   const [conversationId, setConversationId] = useState<number>(conversations[0]?.conversationId ?? 0);
   const [title, setTitle] = useState(conversations[0]?.groupName || '');
   const [scheduledAt, setScheduledAt] = useState(buildDefaultSchedule());
@@ -106,7 +95,7 @@ const MeetingComposerDialog: React.FC<ComposerDialogProps> = ({
       return;
     }
 
-    const finalTitle = title.trim() || selectedConversation.groupName || 'Meeting';
+    const finalTitle = title.trim() || selectedConversation.groupName || t('meeting.composer.defaultMeetingTitle');
     onSubmit({
       conversationId: selectedConversation.conversationId,
       title: finalTitle,
@@ -120,23 +109,23 @@ const MeetingComposerDialog: React.FC<ComposerDialogProps> = ({
       <div className="meeting-composer-card" onClick={(event) => event.stopPropagation()}>
         <div className="meeting-composer-header">
           <div>
-            <h3>{mode === 'scheduled' ? 'Schedule Meeting' : 'Start Meeting'}</h3>
-            <p>{mode === 'scheduled' ? 'Create a reservation for a group conversation.' : 'Launch an instant room from a group conversation.'}</p>
+            <h3>{mode === 'scheduled' ? t('meeting.composer.scheduleTitle') : t('meeting.composer.startTitle')}</h3>
+            <p>{mode === 'scheduled' ? t('meeting.composer.scheduleSubtitle') : t('meeting.composer.startSubtitle')}</p>
           </div>
-          <button className="meeting-close-btn" onClick={onClose} disabled={submitting} aria-label="Close">
+          <button className="meeting-close-btn" onClick={onClose} disabled={submitting} aria-label={t('common.close')}>
             ×
           </button>
         </div>
 
         {!conversations.length ? (
           <div className="meeting-composer-empty">
-            <h4>No group conversations yet</h4>
-            <p>Create a group chat first, then you can start or schedule meetings from it.</p>
+            <h4>{t('meeting.composer.emptyTitle')}</h4>
+            <p>{t('meeting.composer.emptyBody')}</p>
           </div>
         ) : (
           <>
             <label className="meeting-field">
-              <span>Group conversation</span>
+              <span>{t('meeting.composer.groupConversation')}</span>
               <select value={conversationId} onChange={(event) => setConversationId(Number(event.target.value))}>
                 {conversations.map((conversation) => (
                   <option key={conversation.conversationId} value={conversation.conversationId}>
@@ -147,18 +136,18 @@ const MeetingComposerDialog: React.FC<ComposerDialogProps> = ({
             </label>
 
             <label className="meeting-field">
-              <span>Meeting title</span>
+              <span>{t('meeting.composer.meetingTitle')}</span>
               <input
                 type="text"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                placeholder="Weekly sync, launch review, product demo..."
+                placeholder={t('meeting.composer.meetingTitlePlaceholder')}
               />
             </label>
 
             {mode === 'scheduled' && (
               <label className="meeting-field">
-                <span>Scheduled time</span>
+                <span>{t('meeting.composer.scheduledTime')}</span>
                 <input
                   type="datetime-local"
                   value={scheduledAt}
@@ -168,10 +157,10 @@ const MeetingComposerDialog: React.FC<ComposerDialogProps> = ({
             )}
 
             <div className="meeting-field">
-              <span>Participants ({participants.length})</span>
+              <span>{t('meeting.composer.participants', { count: participants.length })}</span>
               <div className="meeting-member-preview">
                 {participants.length === 0 ? (
-                  <p>This group has no other members to invite yet.</p>
+                  <p>{t('meeting.composer.noParticipants')}</p>
                 ) : (
                   participants.map((member) => (
                     <div key={member.userId} className="meeting-member-chip">
@@ -189,7 +178,7 @@ const MeetingComposerDialog: React.FC<ComposerDialogProps> = ({
 
         <div className="meeting-composer-footer">
           <button className="meeting-secondary-btn" onClick={onClose} disabled={submitting}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             className="meeting-primary-btn"
@@ -201,7 +190,7 @@ const MeetingComposerDialog: React.FC<ComposerDialogProps> = ({
               || (mode === 'scheduled' && !scheduledAt)
             }
           >
-            {submitting ? 'Submitting...' : mode === 'scheduled' ? 'Schedule meeting' : 'Start now'}
+            {submitting ? t('common.submitting') : mode === 'scheduled' ? t('meeting.composer.scheduleAction') : t('meeting.composer.startAction')}
           </button>
         </div>
       </div>
@@ -210,6 +199,7 @@ const MeetingComposerDialog: React.FC<ComposerDialogProps> = ({
 };
 
 const MeetingList: React.FC<MeetingListProps> = ({ onJoin, highlightedRoomId }) => {
+  const { locale, t } = useI18n();
   const { conversations } = useSelector((state: RootState) => state.chat);
   const currentUserId = useSelector((state: RootState) => state.auth.user?.userId);
 
@@ -254,7 +244,7 @@ const MeetingList: React.FC<MeetingListProps> = ({ onJoin, highlightedRoomId }) 
       setMeetings(unwrapPayload<MeetingDTO[]>(response));
     } catch (fetchError: any) {
       console.error('Failed to fetch meetings:', fetchError);
-      setError(fetchError?.message || 'Failed to load meetings.');
+      setError(fetchError?.message || t('meeting.list.loadFailed'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -294,7 +284,7 @@ const MeetingList: React.FC<MeetingListProps> = ({ onJoin, highlightedRoomId }) 
       const response = await meetingAPI.create(payload);
       const meeting = unwrapPayload<MeetingDTO>(response);
       setComposerMode(null);
-      setFeedback(payload.scheduledAt ? 'Meeting scheduled successfully.' : 'Meeting created successfully.');
+      setFeedback(payload.scheduledAt ? t('meeting.list.feedbackScheduled') : t('meeting.list.feedbackCreated'));
       await fetchMeetings({ silent: true });
 
       if (!payload.scheduledAt && meeting?.roomId) {
@@ -302,7 +292,7 @@ const MeetingList: React.FC<MeetingListProps> = ({ onJoin, highlightedRoomId }) 
       }
     } catch (submitError: any) {
       console.error('Failed to create meeting:', submitError);
-      setError(submitError?.message || 'Failed to create meeting.');
+      setError(submitError?.message || t('meeting.list.createFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -328,7 +318,7 @@ const MeetingList: React.FC<MeetingListProps> = ({ onJoin, highlightedRoomId }) 
   if (loading) {
     return (
       <div className="meeting-list-shell">
-        <Loading text="Preparing meeting workspace..." />
+        <Loading text={t('meeting.list.loading')} />
       </div>
     );
   }
@@ -354,53 +344,60 @@ const MeetingList: React.FC<MeetingListProps> = ({ onJoin, highlightedRoomId }) 
 
       <div className="meeting-hero">
         <div>
-          <p className="meeting-overline">Meetings</p>
-          <h2>Meeting control center</h2>
-          <p className="meeting-subtitle">Create, schedule, refresh, and inspect meeting records across your group conversations.</p>
+          <p className="meeting-overline">{t('meeting.list.title')}</p>
+          <h2>{t('meeting.list.heroTitle')}</h2>
+          <p className="meeting-subtitle">{t('meeting.list.heroSubtitle')}</p>
         </div>
 
         <div className="meeting-hero-actions">
           <button className="meeting-ghost-btn" onClick={handleRefresh} disabled={refreshing}>
-            {refreshing ? 'Refreshing...' : 'Refresh'}
+            {refreshing ? t('common.refreshing') : t('common.refresh')}
           </button>
           <button className="meeting-secondary-btn" onClick={() => setComposerMode('scheduled')}>
-            Schedule
+            {t('meeting.composer.scheduleTitle')}
           </button>
           <button className="meeting-primary-btn" onClick={() => setComposerMode('instant')}>
-            Start meeting
+            {t('meeting.composer.startTitle')}
           </button>
         </div>
       </div>
 
       <div className="meeting-stats">
         <div className="meeting-stat-card">
-          <span>Total</span>
+          <span>{t('meeting.list.rooms')}</span>
           <strong>{summary.total}</strong>
         </div>
         <div className="meeting-stat-card">
-          <span>Live now</span>
+          <span>{t('meeting.list.liveNow')}</span>
           <strong>{summary.active}</strong>
         </div>
         <div className="meeting-stat-card">
-          <span>Scheduled</span>
+          <span>{t('meeting.list.scheduled')}</span>
           <strong>{summary.scheduled}</strong>
         </div>
       </div>
 
       <div className="meeting-toolbar">
-        <div className="meeting-toggle-group">
-          <button
-            className={queryMode === 'my' ? 'active' : ''}
-            onClick={() => handleQueryModeChange('my')}
-          >
-            My meetings
-          </button>
-          <button
-            className={queryMode === 'conversation' ? 'active' : ''}
-            onClick={() => handleQueryModeChange('conversation')}
-          >
-            Query by group
-          </button>
+        <div className="meeting-toolbar-copy">
+          <div className="meeting-toggle-group">
+            <button
+              className={queryMode === 'my' ? 'active' : ''}
+              onClick={() => handleQueryModeChange('my')}
+            >
+              {t('meeting.list.myMeetings')}
+            </button>
+            <button
+              className={queryMode === 'conversation' ? 'active' : ''}
+              onClick={() => handleQueryModeChange('conversation')}
+            >
+              {t('meeting.list.queryByGroup')}
+            </button>
+          </div>
+          <p className="meeting-toolbar-hint">
+            {queryMode === 'conversation'
+              ? t('meeting.list.queryHint.group')
+              : t('meeting.list.queryHint.mine')}
+          </p>
         </div>
 
         <div className="meeting-toolbar-controls">
@@ -410,7 +407,7 @@ const MeetingList: React.FC<MeetingListProps> = ({ onJoin, highlightedRoomId }) 
               value={conversationFilter}
               onChange={(event) => handleConversationFilterChange(event.target.value === 'all' ? 'all' : Number(event.target.value))}
             >
-              {groupConversations.length === 0 && <option value="all">No group conversations</option>}
+              {groupConversations.length === 0 && <option value="all">{t('meeting.list.noGroups')}</option>}
               {groupConversations.map((conversation) => (
                 <option key={conversation.conversationId} value={conversation.conversationId}>
                   {conversation.groupName || `Group #${conversation.conversationId}`}
@@ -424,10 +421,10 @@ const MeetingList: React.FC<MeetingListProps> = ({ onJoin, highlightedRoomId }) 
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
           >
-            <option value="ALL">All status</option>
-            <option value="ACTIVE">In progress</option>
-            <option value="SCHEDULED">Scheduled</option>
-            <option value="ENDED">Ended</option>
+            <option value="ALL">{t('meeting.list.allStatus')}</option>
+            <option value="ACTIVE">{t('meeting.list.inProgress')}</option>
+            <option value="SCHEDULED">{t('meeting.list.scheduled')}</option>
+            <option value="ENDED">{t('meeting.list.ended')}</option>
           </select>
 
           <div className="meeting-search">
@@ -439,7 +436,7 @@ const MeetingList: React.FC<MeetingListProps> = ({ onJoin, highlightedRoomId }) 
               type="text"
               value={searchText}
               onChange={(event) => setSearchText(event.target.value)}
-              placeholder="Search by title or room ID"
+              placeholder={t('common.searchPlaceholder')}
             />
           </div>
         </div>
@@ -456,13 +453,13 @@ const MeetingList: React.FC<MeetingListProps> = ({ onJoin, highlightedRoomId }) 
               <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
             </svg>
           </div>
-          <h3>No meetings match this view</h3>
-          <p>Try changing the group filter, status filter, or create a new meeting from the buttons above.</p>
+          <h3>{t('meeting.list.emptyTitle')}</h3>
+          <p>{t('meeting.list.emptyBody')}</p>
         </div>
       ) : (
         <div className="meetings-grid">
           {visibleMeetings.map((meeting) => {
-            const status = getMeetingStatus(meeting.status);
+            const status = getMeetingStatus(meeting.status, t);
             const isHighlighted = !!highlightedRoomId && meeting.roomId === highlightedRoomId;
             return (
               <div
@@ -471,12 +468,16 @@ const MeetingList: React.FC<MeetingListProps> = ({ onJoin, highlightedRoomId }) 
               >
                 <div className="meeting-card-top">
                   <span className={`meeting-status-badge ${status.tone}`}>{status.text}</span>
-                  <span className="meeting-time">{formatDateTime(meeting.scheduledAt || meeting.startedAt)}</span>
+                  <span className="meeting-time">
+                    {meeting.scheduledAt || meeting.startedAt
+                      ? formatDateTime(meeting.scheduledAt || meeting.startedAt || '', locale)
+                      : t('meeting.list.notScheduled')}
+                  </span>
                 </div>
 
-                <h4>{meeting.title || 'Untitled meeting'}</h4>
+                <h4>{meeting.title || t('meeting.list.untitled')}</h4>
                 <p className="meeting-room-text">
-                  Room ID <code>{meeting.roomId}</code>
+                  {t('meeting.list.roomId')} <code>{meeting.roomId}</code>
                 </p>
 
                 <div className="meeting-participants">
@@ -487,17 +488,17 @@ const MeetingList: React.FC<MeetingListProps> = ({ onJoin, highlightedRoomId }) 
                       </div>
                     ))}
                   </div>
-                  <span>{meeting.participants?.length || 0} participants</span>
+                  <span>{t('meeting.list.participants', { count: meeting.participants?.length || 0 })}</span>
                 </div>
 
                 <div className="meeting-card-footer">
-                  <div className="meeting-conversation-id">Conversation #{meeting.conversationId}</div>
+                  <div className="meeting-conversation-id">{t('meeting.list.conversationId', { id: meeting.conversationId })}</div>
                   <button
                     className="meeting-join-btn"
                     disabled={meeting.status === 'ENDED'}
                     onClick={() => onJoin(meeting.roomId)}
                   >
-                    {meeting.status === 'SCHEDULED' ? 'Enter lobby' : meeting.status === 'ENDED' ? 'Closed' : 'Join meeting'}
+                    {meeting.status === 'SCHEDULED' ? t('meeting.list.enterLobby') : meeting.status === 'ENDED' ? t('meeting.list.closed') : t('meeting.list.joinMeeting')}
                   </button>
                 </div>
               </div>

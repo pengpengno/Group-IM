@@ -162,7 +162,7 @@ fun ChatMainScreen(
                         }
                     }
                     is LoginState.Authenticated -> {
-                        userInfo?.userId?.let { chatViewModel.getConversations(it) }
+                        userInfo?.userId?.let { chatViewModel.loadConversations(it) }
                     }
                     is LoginState.Authenticating -> {
                         userViewModel.autoLogin()

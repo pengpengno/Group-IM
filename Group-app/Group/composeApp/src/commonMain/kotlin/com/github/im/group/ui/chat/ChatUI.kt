@@ -31,6 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -74,10 +75,9 @@ fun ChatUI(
     val chatViewModel: ChatViewModel = koinViewModel()
     val userViewModel: UserViewModel = koinViewModel()
 
-    val conversations by chatViewModel.conversationState.collectAsState()
+    val chatListState by chatViewModel.uiState.collectAsState()
     val searchResults by userViewModel.searchResults.collectAsState()
     val userInfo by userViewModel.currentLocalUserInfo.collectAsState()
-    val loading by chatViewModel.loading.collectAsState()
     val friends by userViewModel.friends.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
@@ -89,7 +89,7 @@ fun ChatUI(
     DisposableEffect(lifecycleOwner, userInfo?.userId) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                userInfo?.userId?.let { chatViewModel.refreshConversationList(it, includeRemote = false) }
+                userInfo?.userId?.let(chatViewModel::refreshCachedConversations)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -98,7 +98,7 @@ fun ChatUI(
 
     LaunchedEffect(userInfo?.userId) {
         Napier.d { "Current user: $userInfo" }
-        userInfo?.userId?.let(chatViewModel::getConversations)
+        userInfo?.userId?.let { chatViewModel.loadConversations(it) }
     }
 
     if (showCreateGroupDialog) {
@@ -151,8 +151,34 @@ fun ChatUI(
             .fillMaxSize()
             .background(ThemeTokens.BackgroundDark)
     ) {
-        if (loading && conversations.isEmpty()) {
+        if (chatListState.usedOfflineData) {
             OfflineStatusBanner()
+        }
+
+        if (chatListState.isSyncing && chatListState.conversations.isNotEmpty()) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Text(
+                        text = "正在同步会话...",
+                        modifier = Modifier.padding(start = 10.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
 
         Box(
@@ -160,6 +186,15 @@ fun ChatUI(
                 .fillMaxSize()
                 .background(Color.White.copy(alpha = 0.98f))
         ) {
+            if (chatListState.isLoading && chatListState.conversations.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
             Column(modifier = Modifier.fillMaxSize()) {
                 OutlinedTextField(
                     value = userSearchQuery,
@@ -225,7 +260,7 @@ fun ChatUI(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        items(conversations, key = { it.conversation.conversationId }) { item ->
+                        items(chatListState.conversations, key = { it.conversation.conversationId }) { item ->
                             userInfo?.let { me ->
                                 ChatItem(
                                     conversation = item,
@@ -247,7 +282,7 @@ fun ChatUI(
                             }
                         }
 
-                        if (conversations.isEmpty() && !loading) {
+                        if (chatListState.conversations.isEmpty() && !chatListState.isLoading) {
                             item { EmptyChatState() }
                         }
                     }
@@ -481,7 +516,7 @@ private fun CreateGroupDialog(
                 OutlinedTextField(
                     value = desc,
                     onValueChange = { desc = it },
-                    label = { Text("描述（可选）") },
+                    label = { Text("群描述（可选）") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

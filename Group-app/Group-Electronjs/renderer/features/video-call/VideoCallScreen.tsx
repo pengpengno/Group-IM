@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { formatClockTime, useI18n } from '../../i18n';
 import { useVideoCall } from './useVideoCall';
 import { VideoCallStatus } from './videoCallSlice';
 import { RootState } from '../../store';
@@ -12,20 +13,20 @@ interface VideoCallScreenProps {
   remoteAvatar?: string;
 }
 
-const getStatusLabel = (status: VideoCallStatus, isMeeting: boolean) => {
+const getStatusLabel = (status: VideoCallStatus, isMeeting: boolean, t: ReturnType<typeof useI18n>['t']) => {
   switch (status) {
     case VideoCallStatus.OUTGOING:
-      return isMeeting ? 'Inviting participants...' : 'Calling...';
+      return isMeeting ? t('videoCall.status.outgoing.meeting') : t('videoCall.status.outgoing.call');
     case VideoCallStatus.PRE_JOIN:
-      return 'Ready to join meeting';
+      return t('videoCall.status.preJoin');
     case VideoCallStatus.CONNECTING:
-      return isMeeting ? 'Joining meeting room...' : 'Connecting...';
+      return isMeeting ? t('videoCall.status.connecting.meeting') : t('videoCall.status.connecting.call');
     case VideoCallStatus.INCOMING:
-      return isMeeting ? 'Incoming meeting invite' : 'Incoming video call';
+      return isMeeting ? t('videoCall.status.incoming.meeting') : t('videoCall.status.incoming.call');
     case VideoCallStatus.ACTIVE:
-      return isMeeting ? 'Meeting in progress' : 'Video call in progress';
+      return isMeeting ? t('videoCall.status.active.meeting') : t('videoCall.status.active.call');
     default:
-      return isMeeting ? 'Preparing meeting...' : 'Preparing call...';
+      return isMeeting ? t('videoCall.status.preparing.meeting') : t('videoCall.status.preparing.call');
   }
 };
 
@@ -35,8 +36,88 @@ const formatDuration = (seconds: number): string => {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
-const formatClockTime = (timestamp: number): string =>
-  new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const getParticipantStateLabel = (state?: string) => {
+  switch (state) {
+    case 'connected':
+      return '已连接';
+    case 'connecting':
+      return '连接中';
+    case 'disconnected':
+      return '已断开';
+    case 'failed':
+      return '连接失败';
+    case 'closed':
+      return '已关闭';
+    case 'new':
+      return '准备中';
+    case 'idle':
+    default:
+      return '等待中';
+  }
+};
+
+const getLocalizedParticipantStateLabel = (
+  state: string | undefined,
+  t: ReturnType<typeof useI18n>['t']
+) => {
+  switch (state) {
+    case 'connected':
+      return t('videoCall.participant.connected');
+    case 'connecting':
+      return t('videoCall.participant.connecting');
+    case 'disconnected':
+      return t('videoCall.participant.disconnected');
+    case 'failed':
+      return t('videoCall.participant.failed');
+    case 'closed':
+      return t('videoCall.participant.closed');
+    case 'new':
+      return t('videoCall.participant.new');
+    case 'idle':
+    default:
+      return t('videoCall.participant.idle');
+  }
+};
+
+const MicIcon: React.FC<{ muted?: boolean }> = ({ muted }) => (
+  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    {muted ? (
+      <>
+        <path d="M9 9v3a3 3 0 0 0 5.12 2.12" />
+        <path d="M15 9V4a3 3 0 0 0-5.77-1.16" />
+        <path d="M17 13a5 5 0 0 1-8.43 3.64" />
+        <path d="M12 19v4" />
+        <path d="M8 23h8" />
+        <path d="M1 1l22 22" />
+      </>
+    ) : (
+      <>
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+        <path d="M12 19v4" />
+        <path d="M8 23h8" />
+      </>
+    )}
+  </svg>
+);
+
+const CameraIcon: React.FC<{ off?: boolean; size?: number }> = ({ off, size = 24 }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    {off ? (
+      <>
+        <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2" />
+        <path d="M10 5h4a2 2 0 0 1 2 2v3" />
+        <path d="M23 7l-7 5 7 5V7z" />
+        <path d="M1 1l22 22" />
+      </>
+    ) : (
+      <>
+        <path d="M23 7l-7 5 7 5V7z" />
+        <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+      </>
+    )}
+  </svg>
+);
 
 /**
  * 统一处理 video.srcObject 绑定。
@@ -79,6 +160,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   remoteUserName,
   remoteAvatar
 }) => {
+  const { t } = useI18n();
   const {
     state: callState,
     localStream,
@@ -98,9 +180,12 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+  const floatingWindowRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef({ x: 0, y: 0, pointerX: 0, pointerY: 0 });
+  const dragMovedRef = useRef(false);
   const [floatingPos, setFloatingPos] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [snapSide, setSnapSide] = useState<'left' | 'right'>('left');
 
   const attachPrimaryRemoteVideoRef = (element: HTMLVideoElement | null) => {
     // React 在不同阶段会多次回调 ref，这里集中补绑远端流，避免时序问题。
@@ -144,7 +229,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   const displayAvatar = callState.remoteAvatar || remoteAvatar;
   const activeRemoteParticipants = remoteParticipants.filter((participant) => participant.stream);
   const isMeetingMode = callState.isMeeting || activeRemoteParticipants.length > 1 || callState.participants.filter((participant) => !participant.isLocal).length > 1;
-  const statusLabel = getStatusLabel(callState.callStatus, isMeetingMode);
+  const statusLabel = getStatusLabel(callState.callStatus, isMeetingMode, t);
   const participantCount = Math.max(callState.participants.length, activeRemoteParticipants.length + (localStream ? 1 : 0));
   const sessionSummary = callState.sessionSummary;
   const endedOrFailed = callState.callStatus === VideoCallStatus.ENDED || callState.callStatus === VideoCallStatus.ERROR;
@@ -167,36 +252,118 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
     onCallEnd();
   };
 
-  const handleMouseDown = (event: React.MouseEvent) => {
+  const mediaStatusChips = useMemo(() => {
+    const chips: string[] = [];
+    if (!callState.isCameraAvailable) {
+      chips.push('摄像头不可用');
+    } else if (!callState.isLocalVideoEnabled) {
+      chips.push('摄像头已关闭');
+    }
+
+    if (!callState.isMicrophoneAvailable) {
+      chips.push('麦克风不可用');
+    } else if (!callState.isMicrophoneEnabled) {
+      chips.push('麦克风已静音');
+    }
+    return chips;
+  }, [
+    callState.isCameraAvailable,
+    callState.isLocalVideoEnabled,
+    callState.isMicrophoneAvailable,
+    callState.isMicrophoneEnabled
+  ]);
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!isMinimized) return;
     setIsDragging(true);
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    setDragOffset({
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top
-    });
+    dragStartRef.current = {
+      x: rect.left,
+      y: rect.top,
+      pointerX: event.clientX,
+      pointerY: event.clientY
+    };
+    dragMovedRef.current = false;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const clampFloatingPosition = (x: number, y: number) => {
+    const element = floatingWindowRef.current;
+    const width = element?.offsetWidth ?? 320;
+    const height = element?.offsetHeight ?? 88;
+    const maxX = Math.max(12, window.innerWidth - width - 12);
+    const maxY = Math.max(12, window.innerHeight - height - 12);
+    return {
+      x: Math.min(Math.max(12, x), maxX),
+      y: Math.min(Math.max(12, y), maxY)
+    };
+  };
+
+  const getSnappedFloatingPosition = (x: number, y: number) => {
+    const clamped = clampFloatingPosition(x, y);
+    const element = floatingWindowRef.current;
+    const width = element?.offsetWidth ?? 320;
+    const maxX = Math.max(12, window.innerWidth - width - 12);
+    const snapThreshold = 56;
+    const distanceToLeft = clamped.x - 12;
+    const distanceToRight = maxX - clamped.x;
+
+    if (distanceToLeft <= snapThreshold || distanceToLeft <= distanceToRight) {
+      return { x: 12, y: clamped.y, side: 'left' as const };
+    }
+
+    return { x: maxX, y: clamped.y, side: 'right' as const };
   };
 
   useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
+    const handlePointerMove = (event: PointerEvent) => {
       if (!isDragging) return;
-      setFloatingPos({
-        x: window.innerWidth - event.clientX - (150 - dragOffset.x),
-        y: event.clientY - dragOffset.y
-      });
+      const deltaX = event.clientX - dragStartRef.current.pointerX;
+      const deltaY = event.clientY - dragStartRef.current.pointerY;
+      if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
+        dragMovedRef.current = true;
+      }
+      setFloatingPos(
+        clampFloatingPosition(
+          dragStartRef.current.x + deltaX,
+          dragStartRef.current.y + deltaY
+        )
+      );
     };
-    const handleMouseUp = () => setIsDragging(false);
+    const handlePointerUp = () => {
+      const snapped = getSnappedFloatingPosition(floatingPos.x, floatingPos.y);
+      setFloatingPos({ x: snapped.x, y: snapped.y });
+      setSnapSide(snapped.side);
+      window.setTimeout(() => {
+        setIsDragging(false);
+      }, 0);
+    };
 
     if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
     }
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [isDragging, dragOffset]);
+  }, [floatingPos.x, floatingPos.y, isDragging]);
+
+  useEffect(() => {
+    if (!isMinimized) {
+      return;
+    }
+
+    const handleResize = () => {
+      const snapped = getSnappedFloatingPosition(floatingPos.x, floatingPos.y);
+      setFloatingPos({ x: snapped.x, y: snapped.y });
+      setSnapSide(snapped.side);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [floatingPos.x, floatingPos.y, isMinimized]);
 
   const handleMinimize = () => {
     dispatch({ type: 'videoCall/minimizeCall' });
@@ -209,14 +376,15 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   if (isMinimized) {
     return (
       <div
-        className={`video-call-floating-window ${isDragging ? 'dragging' : ''}`}
+        ref={floatingWindowRef}
+        className={`video-call-floating-window ${isDragging ? 'dragging' : ''} snap-${snapSide}`}
         style={{
-          right: `${floatingPos.x}px`,
+          left: `${floatingPos.x}px`,
           top: `${floatingPos.y}px`
         }}
-        onMouseDown={handleMouseDown}
+        onPointerDown={handlePointerDown}
         onClick={() => {
-          if (isDragging) return;
+          if (dragMovedRef.current) return;
           handleRestore();
         }}
       >
@@ -301,25 +469,25 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
             <div className="call-summary-card">
               <div className="call-summary-header">
                 <div>
-                  <div className="call-summary-eyebrow">Call recap</div>
-                  <h2>{sessionSummary?.title || 'Call finished'}</h2>
-                  <p>{sessionSummary?.detail || callState.errorMessage || 'The call has ended.'}</p>
+                  <div className="call-summary-eyebrow">{t('videoCall.summary.eyebrow')}</div>
+                  <h2>{sessionSummary?.title || t('videoCall.summary.defaultTitle')}</h2>
+                  <p>{sessionSummary?.detail || callState.errorMessage || t('videoCall.summary.defaultBody')}</p>
                 </div>
-                <button className="summary-close-btn" onClick={handleDismissSummary}>Close</button>
+                <button className="summary-close-btn" onClick={handleDismissSummary}>{t('common.close')}</button>
               </div>
 
               <div className="call-summary-stats">
                 <div className="summary-stat">
-                  <span className="summary-stat-label">Duration</span>
+                  <span className="summary-stat-label">{t('videoCall.summary.duration')}</span>
                   <strong>{formatDuration(sessionSummary?.durationSeconds || callState.duration)}</strong>
                 </div>
                 <div className="summary-stat">
-                  <span className="summary-stat-label">Result</span>
-                  <strong>{sessionSummary?.connected ? 'Connected' : 'Not connected'}</strong>
+                  <span className="summary-stat-label">{t('videoCall.summary.result')}</span>
+                  <strong>{sessionSummary?.connected ? t('videoCall.summary.connected') : t('videoCall.summary.notConnected')}</strong>
                 </div>
                 <div className="summary-stat">
-                  <span className="summary-stat-label">Ended by</span>
-                  <strong>{sessionSummary?.endedBy || 'system'}</strong>
+                  <span className="summary-stat-label">{t('videoCall.summary.endedBy')}</span>
+                  <strong>{sessionSummary?.endedBy || t('common.system')}</strong>
                 </div>
               </div>
 
@@ -341,15 +509,27 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
           </div>
         )}
 
+        {!endedOrFailed && callState.mediaNotice && (
+          <div className="call-media-notice" role="status">
+            <div className="call-media-notice-icon">
+              <CameraIcon off={!callState.isCameraAvailable} size={18} />
+            </div>
+            <div>
+              <strong>{t('videoCall.media.fallbackTitle')}</strong>
+              <span>{callState.mediaNotice}</span>
+            </div>
+          </div>
+        )}
+
         {isMeetingMode ? (
           <div className="meeting-session-shell">
             <div className="meeting-session-main">
               <div className="call-header">
                 <div className="meeting-session-meta">
-                  <span className="meeting-room-pill">Meeting</span>
-                  <div>
-                    <div className="meeting-session-title">{callState.roomId || 'Meeting room'}</div>
-                    <div className="meeting-session-copy">
+                  <span className="meeting-room-pill">{t('videoCall.meeting.roomPill')}</span>
+                    <div>
+                      <div className="meeting-session-title">{callState.roomId || t('videoCall.meeting.defaultRoom')}</div>
+                      <div className="meeting-session-copy">
                       {callState.callStatus === VideoCallStatus.ACTIVE ? (
                         <span className="duration-timer">
                           <span className="live-dot"></span>
@@ -359,13 +539,19 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                         <span className="status-label">{statusLabel}</span>
                       )}
                       <span className="meeting-session-divider">/</span>
-                      <span>{Math.max(participantCount, 1)} participants</span>
+                      <span>{t('videoCall.meeting.participants', { count: Math.max(participantCount, 1) })}</span>
+                      {mediaStatusChips.length > 0 && (
+                        <>
+                          <span className="meeting-session-divider">/</span>
+                          <span>{mediaStatusChips.join(' / ')}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 <div className="header-right">
-                  <button className="minimize-btn" title="Minimize" onClick={handleMinimize}>
+                  <button className="minimize-btn" title={t('videoCall.controls.minimize')} onClick={handleMinimize}>
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M4 14h6m0 0v6m0-6L3 21m17-11h-6m0 0V4m0 6l7-7"></path>
                     </svg>
@@ -383,7 +569,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                         {displayAvatar ? <img src={displayAvatar} alt="" /> : 'M'}
                       </div>
                     </div>
-                    <h2 className="display-name-large">Preparing meeting room</h2>
+                    <h2 className="display-name-large">{t('videoCall.meeting.preparingRoom')}</h2>
                     <div className="premium-status-badge">
                       <div className="status-dot"></div>
                       <p className="status-message">{statusLabel}</p>
@@ -403,10 +589,8 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                 />
                 {!callState.isLocalVideoEnabled && (
                   <div className="camera-off-msg">
-                    <svg viewBox="0 0 24 24" width="32" height="32" fill="white" opacity="0.6">
-                      <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34M23 7l-7 5 7 5V7z" stroke="currentColor" strokeWidth="2"></path>
-                      <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2"></line>
-                    </svg>
+                    <CameraIcon off size={32} />
+                    <span>{callState.isCameraAvailable ? t('videoCall.media.cameraTurnedOff') : t('videoCall.media.cameraUnavailable')}</span>
                   </div>
                 )}
               </div>
@@ -416,38 +600,26 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                   <button
                     className={`action-fab ${!callState.isMicrophoneEnabled ? 'off' : ''}`}
                     onClick={() => toggleMicrophone(!callState.isMicrophoneEnabled)}
-                    title={callState.isMicrophoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
+                    title={callState.isMicrophoneEnabled ? t('videoCall.controls.mute') : t('videoCall.controls.unmute')}
                   >
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
-                      {callState.isMicrophoneEnabled ? (
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v4m-4 0h8"></path>
-                      ) : (
-                        <path d="M18.89 12v2a6.89 6.89 0 0 1-2.06 4.93m-1.95 1.5A7 7 0 0 1 5 13v-3m10.22-3.14l-4.24-4.24a3 3 0 0 1 4.24 4.24zM12 1a3 3 0 0 0-3 3v.17M12 19v4m-4 0h8"></path>
-                      )}
-                    </svg>
+                    <MicIcon muted={!callState.isMicrophoneEnabled} />
                   </button>
 
                   <button
                     className={`action-fab ${!callState.isLocalVideoEnabled ? 'off' : ''}`}
                     onClick={() => toggleCamera(!callState.isLocalVideoEnabled)}
-                    title={callState.isLocalVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
+                    title={callState.isLocalVideoEnabled ? t('videoCall.controls.cameraOff') : t('videoCall.controls.cameraOn')}
                   >
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
-                      {callState.isLocalVideoEnabled ? (
-                        <path d="M23 7l-7 5 7 5V7zM16 11.5a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v4.5z"></path>
-                      ) : (
-                        <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34M23 7l-7 5 7 5V7zM1 1l22 22"></path>
-                      )}
-                    </svg>
+                    <CameraIcon off={!callState.isLocalVideoEnabled} />
                   </button>
 
-                  <button className="action-fab end-call" onClick={() => endCall()} title="Leave meeting">
+                  <button className="action-fab end-call" onClick={() => endCall()} title={t('videoCall.meeting.leave')}>
                     <svg viewBox="0 0 24 24" width="28" height="28" fill="white">
                       <path d="M22.21 17.3l-5.11-2.12c-.52-.22-1.12-.1-1.51.3l-2.01 2.01c-2.43-1.25-4.42-3.24-5.67-5.67l2.01-2.01c.39-.39.52-.99.3-1.51L8.1 3.23a1.5 1.5 0 0 0-1.74-.88L2.43 3.55a1.5 1.5 0 0 0-1.1 1.45c0 9.17 7.46 16.64 16.64 16.64a1.5 1.5 0 0 0 1.45-1.1l1.2-3.93a1.5 1.5 0 0 0-.88-1.74z" transform="rotate(135 12 12)"></path>
                     </svg>
                   </button>
 
-                  <button className={`action-fab ${!callState.isSpeakerEnabled ? 'off' : ''}`} onClick={() => toggleSpeaker(!callState.isSpeakerEnabled)} title="Speaker">
+                  <button className={`action-fab ${!callState.isSpeakerEnabled ? 'off' : ''}`} onClick={() => toggleSpeaker(!callState.isSpeakerEnabled)} title={t('videoCall.controls.speaker')}>
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
                     </svg>
@@ -457,8 +629,8 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
             </div>
 
             <aside className="meeting-side-panel">
-              <div className="meeting-side-title">Participants</div>
-              <div className="meeting-side-subtitle">Keep track of who is in the room and who is still connecting.</div>
+              <div className="meeting-side-title">{t('videoCall.meeting.participantsTitle')}</div>
+              <div className="meeting-side-subtitle">{t('videoCall.meeting.participantsSubtitle')}</div>
               <div className="meeting-roster">
                 {rosterParticipants.map((participant) => (
                   <div key={participant.userId} className={`meeting-roster-item ${participant.isLocal ? 'local' : ''}`}>
@@ -468,9 +640,9 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                     <div className="meeting-roster-copy">
                       <div className="meeting-roster-name">
                         {participant.userName || participant.userId}
-                        {participant.isLocal ? <span className="meeting-you-badge">You</span> : null}
+                        {participant.isLocal ? <span className="meeting-you-badge">{t('videoCall.meeting.you')}</span> : null}
                       </div>
-                      <div className="meeting-roster-state">{participant.connectionState || 'idle'}</div>
+                      <div className="meeting-roster-state">{getLocalizedParticipantStateLabel(participant.connectionState, t)}</div>
                     </div>
                   </div>
                 ))}
@@ -496,11 +668,18 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                       <span className="status-label">{statusLabel}</span>
                     )}
                   </div>
+                  {mediaStatusChips.length > 0 ? (
+                    <div className="call-media-chip-row">
+                      {mediaStatusChips.map((chip) => (
+                        <span key={chip} className="call-media-chip">{chip}</span>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
               <div className="header-right">
-                <button className="minimize-btn" title="Minimize" onClick={handleMinimize}>
+                <button className="minimize-btn" title={t('videoCall.controls.minimize')} onClick={handleMinimize}>
                   <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M4 14h6m0 0v6m0-6L3 21m17-11h-6m0 0V4m0 6l7-7"></path>
                   </svg>
@@ -536,10 +715,8 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
               />
               {!callState.isLocalVideoEnabled && (
                 <div className="camera-off-msg">
-                  <svg viewBox="0 0 24 24" width="32" height="32" fill="white" opacity="0.6">
-                    <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34M23 7l-7 5 7 5V7z" stroke="currentColor" strokeWidth="2"></path>
-                    <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2"></line>
-                  </svg>
+                  <CameraIcon off size={32} />
+                  <span>{callState.isCameraAvailable ? t('videoCall.media.cameraTurnedOff') : t('videoCall.media.cameraUnavailable')}</span>
                 </div>
               )}
             </div>
@@ -549,32 +726,20 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                 <button
                   className={`action-fab ${!callState.isMicrophoneEnabled ? 'off' : ''}`}
                   onClick={() => toggleMicrophone(!callState.isMicrophoneEnabled)}
-                  title={callState.isMicrophoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
+                  title={callState.isMicrophoneEnabled ? t('videoCall.controls.mute') : t('videoCall.controls.unmute')}
                 >
-                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
-                    {callState.isMicrophoneEnabled ? (
-                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v4m-4 0h8"></path>
-                    ) : (
-                      <path d="M18.89 12v2a6.89 6.89 0 0 1-2.06 4.93m-1.95 1.5A7 7 0 0 1 5 13v-3m10.22-3.14l-4.24-4.24a3 3 0 0 1 4.24 4.24zM12 1a3 3 0 0 0-3 3v.17M12 19v4m-4 0h8"></path>
-                    )}
-                  </svg>
+                  <MicIcon muted={!callState.isMicrophoneEnabled} />
                 </button>
 
                 <button
                   className={`action-fab ${!callState.isLocalVideoEnabled ? 'off' : ''}`}
                   onClick={() => toggleCamera(!callState.isLocalVideoEnabled)}
-                  title={callState.isLocalVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
+                  title={callState.isLocalVideoEnabled ? t('videoCall.controls.cameraOff') : t('videoCall.controls.cameraOn')}
                 >
-                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
-                    {callState.isLocalVideoEnabled ? (
-                      <path d="M23 7l-7 5 7 5V7zM16 11.5a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v4.5z"></path>
-                    ) : (
-                      <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34M23 7l-7 5 7 5V7zM1 1l22 22"></path>
-                    )}
-                  </svg>
+                  <CameraIcon off={!callState.isLocalVideoEnabled} />
                 </button>
 
-                <button className="action-fab end-call" onClick={() => endCall()} title="End call">
+                <button className="action-fab end-call" onClick={() => endCall()} title={t('videoCall.controls.endCall')}>
                   <svg viewBox="0 0 24 24" width="28" height="28" fill="white">
                     <path d="M22.21 17.3l-5.11-2.12c-.52-.22-1.12-.1-1.51.3l-2.01 2.01c-2.43-1.25-4.42-3.24-5.67-5.67l2.01-2.01c.39-.39.52-.99.3-1.51L8.1 3.23a1.5 1.5 0 0 0-1.74-.88L2.43 3.55a1.5 1.5 0 0 0-1.1 1.45c0 9.17 7.46 16.64 16.64 16.64a1.5 1.5 0 0 0 1.45-1.1l1.2-3.93a1.5 1.5 0 0 0-.88-1.74z" transform="rotate(135 12 12)"></path>
                   </svg>
@@ -595,8 +760,8 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
               <h3>{displayName}</h3>
               <p>
                 {callState.callStatus === VideoCallStatus.PRE_JOIN
-                  ? 'Meeting invite opened from notification. Join when you are ready.'
-                  : isMeetingMode ? 'Incoming meeting invitation...' : 'Incoming video call...'}
+                  ? t('videoCall.incoming.preJoin')
+                  : isMeetingMode ? t('videoCall.incoming.meeting') : t('videoCall.incoming.call')}
               </p>
             </div>
             <div className="modal-actions">
@@ -606,7 +771,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                     <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .3l-2.2 2.2c-2.8-1.4-5.1-3.8-6.6-6.6l2.2-2.2c.3-.3.4-.7.2-1-.3-1.1-.5-2.3-.5-3.5 0-.5-.4-.9-.9-.9H4c-.5 0-1 .4-1 .9 0 9.4 7.6 17 17 17 .5 0 .9-.4.9-.9v-3.5c0-.5-.4-.9-.9-.9z"></path>
                   </svg>
                 </div>
-                <span>{callState.callStatus === VideoCallStatus.PRE_JOIN || isMeetingMode ? 'Join' : 'Accept'}</span>
+                <span>{callState.callStatus === VideoCallStatus.PRE_JOIN || isMeetingMode ? t('videoCall.incoming.join') : t('videoCall.incoming.accept')}</span>
               </button>
               <button className="modal-btn reject" onClick={() => rejectCall()}>
                 <div className="icon-circle">
@@ -614,7 +779,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                     <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.58.9-.98.45-1.87 1.05-2.65 1.76-.17.16-.34.22-.52.22-.17 0-.35-.07-.48-.2l-3.37-3.37c-.13-.13-.2-.3-.2-.48s.07-.35.2-.48C3.36 8.35 7.42 6 12 6s8.64 2.35 12.19 5.39c.13.13.2.3.2.48s-.07.35-.2.48l-3.37 3.37c-.13.13-.3.2-.48.2s-.35-.07-.48-.2c-.78-.71-1.67-1.31-2.65-1.76-.35-.16-.58-.51-.58-.9v-3.1c-1.45-.47-3-.72-4.6-.72z"></path>
                   </svg>
                 </div>
-                <span>{callState.callStatus === VideoCallStatus.PRE_JOIN ? 'Dismiss' : 'Decline'}</span>
+                <span>{callState.callStatus === VideoCallStatus.PRE_JOIN ? t('videoCall.incoming.dismiss') : t('videoCall.incoming.decline')}</span>
               </button>
             </div>
           </div>
