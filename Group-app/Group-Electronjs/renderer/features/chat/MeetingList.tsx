@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import Loading from '../../components/common/Loading';
 import { formatDateTime, useI18n } from '../../i18n';
@@ -492,13 +492,22 @@ const MeetingList: React.FC<MeetingListProps> = ({ onJoin, highlightedRoomId }) 
                 </div>
 
                 <div className="meeting-card-footer">
-                  <div className="meeting-conversation-id">{t('meeting.list.conversationId', { id: meeting.conversationId })}</div>
+                  <div className="meeting-card-action-copy">
+                    <div className="meeting-conversation-id">{t('meeting.list.conversationId', { id: meeting.conversationId })}</div>
+                    <div className="meeting-card-action-hint">
+                      {meeting.status === 'ACTIVE' ? t('meeting.list.actionHintActive') : t('meeting.list.actionHintReady')}
+                    </div>
+                  </div>
                   <button
                     className="meeting-join-btn"
                     disabled={meeting.status === 'ENDED'}
                     onClick={() => onJoin(meeting.roomId)}
                   >
-                    {meeting.status === 'SCHEDULED' ? t('meeting.list.enterLobby') : meeting.status === 'ENDED' ? t('meeting.list.closed') : t('meeting.list.joinMeeting')}
+                    <span>{meeting.status === 'SCHEDULED' ? t('meeting.list.enterLobby') : meeting.status === 'ENDED' ? t('meeting.list.closed') : t('meeting.list.joinMeeting')}</span>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M5 12h14"></path>
+                      <path d="m13 5 7 7-7 7"></path>
+                    </svg>
                   </button>
                 </div>
               </div>

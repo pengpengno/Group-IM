@@ -20,6 +20,7 @@ interface UseVideoCallReturn {
   toggleCamera: (enabled: boolean) => void;
   toggleMicrophone: (enabled: boolean) => void;
   toggleSpeaker: (enabled: boolean) => void;
+  setRelayOnlyDebug: (enabled: boolean) => void;
 
   // Events
   onIncomingCall: (callback: (callerId: string) => void) => () => void;
@@ -118,6 +119,10 @@ export const useVideoCall = (): UseVideoCallReturn => {
     // Real speaker toggle would use audio output device selection
   }, []);
 
+  const setRelayOnlyDebug = useCallback((enabled: boolean) => {
+    webRTCService.setRelayOnlyDebug(enabled);
+  }, []);
+
   // Event attachment helpers
   const onIncomingCall = useCallback((callback: (callerId: string) => void) => {
     const handler = ({ callerId }: { callerId: string }) => callback(callerId);
@@ -164,6 +169,7 @@ export const useVideoCall = (): UseVideoCallReturn => {
     toggleCamera,
     toggleMicrophone,
     toggleSpeaker,
+    setRelayOnlyDebug,
     onIncomingCall,
     onCallAccepted,
     onCallRejected,

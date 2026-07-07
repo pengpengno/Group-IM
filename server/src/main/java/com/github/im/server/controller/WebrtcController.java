@@ -2,6 +2,7 @@ package com.github.im.server.controller;
 
 import com.github.im.server.config.webrtc.WebrtcConfig;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,6 +15,7 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/webrtc")
 @RequiredArgsConstructor
+@Slf4j
 public class WebrtcController {
 
     private static final String FALLBACK_STUN_URL = "stun:stun.l.google.com:19302";
@@ -68,6 +70,15 @@ public class WebrtcController {
         String credential = trimToNull(turn.getCredential());
         String[] protocols = turn.getProtocols();
 
+        if (username == null || credential == null) {
+            log.warn("TURN server is enabled but credentials are incomplete. url={}, hasUsername={}, hasCredential={}",
+                baseUrl,
+                username != null,
+                credential != null
+            );
+            return;
+        }
+
         Set<String> urls = new LinkedHashSet<>();
         if (protocols != null && protocols.length > 0) {
             for (String protocol : protocols) {
@@ -91,6 +102,12 @@ public class WebrtcController {
         for (String url : urls) {
             servers.add(new WebrtcConfig.IceServerConfig(url, username, credential));
         }
+
+        log.info("Prepared {} TURN server entries for WebRTC. baseUrl={}, protocols={}",
+            urls.size(),
+            baseUrl,
+            protocols == null ? List.of() : List.of(protocols)
+        );
     }
 
     private String trimToNull(String value) {

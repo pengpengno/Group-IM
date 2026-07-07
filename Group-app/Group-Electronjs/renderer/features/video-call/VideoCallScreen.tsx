@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { formatClockTime, useI18n } from '../../i18n';
 import { useVideoCall } from './useVideoCall';
@@ -34,6 +34,32 @@ const formatDuration = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
+const formatDiagnosticNumber = (value?: number, digits = 2) =>
+  typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '--';
+
+const getDiagnosticStatusLabel = (
+  callState: ReturnType<typeof useVideoCall>['state'],
+  hasRemoteVideo: boolean,
+  t: ReturnType<typeof useI18n>['t']
+) => {
+  if (callState.errorMessage) {
+    return t('videoCall.debug.error');
+  }
+  if (hasRemoteVideo) {
+    return t('videoCall.debug.remoteReady');
+  }
+  if (callState.diagnostics.some((item) => item.connectionState === 'failed' || item.iceConnectionState === 'failed')) {
+    return t('videoCall.debug.iceFailed');
+  }
+  if (callState.diagnostics.some((item) => item.remoteTrackCount > 0)) {
+    return t('videoCall.debug.trackDetected');
+  }
+  if (callState.diagnostics.some((item) => item.hasRemoteDescription)) {
+    return t('videoCall.debug.waitingForTrack');
+  }
+  return t('videoCall.debug.gathering');
 };
 
 const getParticipantStateLabel = (state?: string) => {
@@ -173,6 +199,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
     toggleCamera,
     toggleMicrophone,
     toggleSpeaker,
+    setRelayOnlyDebug,
     onCallEnded,
     onError
   } = useVideoCall();
@@ -186,6 +213,13 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   const [floatingPos, setFloatingPos] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
   const [snapSide, setSnapSide] = useState<'left' | 'right'>('left');
+  const [debugExpanded, setDebugExpanded] = useState(false);
+  const [debugMode, setDebugMode] = useState<'compact' | 'verbose'>(() => {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return 'compact';
+    }
+    return window.localStorage.getItem('group.webrtc.debugPanelMode') === 'verbose' ? 'verbose' : 'compact';
+  });
 
   const attachPrimaryRemoteVideoRef = (element: HTMLVideoElement | null) => {
     // React 在不同阶段会多次回调 ref，这里集中补绑远端流，避免时序问题。
@@ -225,6 +259,12 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
     };
   }, [onCallEnded, onError, onCallEnd]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem('group.webrtc.debugPanelMode', debugMode);
+    }
+  }, [debugMode]);
+
   const displayName = callState.remoteUserName || remoteUserName || callState.remoteUserId || remoteUserId || 'Unknown User';
   const displayAvatar = callState.remoteAvatar || remoteAvatar;
   const activeRemoteParticipants = remoteParticipants.filter((participant) => participant.stream);
@@ -233,6 +273,15 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   const participantCount = Math.max(callState.participants.length, activeRemoteParticipants.length + (localStream ? 1 : 0));
   const sessionSummary = callState.sessionSummary;
   const endedOrFailed = callState.callStatus === VideoCallStatus.ENDED || callState.callStatus === VideoCallStatus.ERROR;
+  const hasRemoteVideo = activeRemoteParticipants.length > 0 || Boolean(remoteStream);
+  const shouldShowDebugPanel = !endedOrFailed && (
+    callState.callStatus === VideoCallStatus.CONNECTING
+    || callState.callStatus === VideoCallStatus.OUTGOING
+    || callState.callStatus === VideoCallStatus.PRE_JOIN
+    || Boolean(callState.errorMessage)
+    || !hasRemoteVideo
+  );
+  const debugStatusLabel = getDiagnosticStatusLabel(callState, hasRemoteVideo, t);
 
   const rosterParticipants = useMemo(() => {
     const participants = [...callState.participants];
@@ -255,23 +304,29 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   const mediaStatusChips = useMemo(() => {
     const chips: string[] = [];
     if (!callState.isCameraAvailable) {
-      chips.push('摄像头不可用');
+      chips.push(t('videoCall.media.noCamera'));
     } else if (!callState.isLocalVideoEnabled) {
-      chips.push('摄像头已关闭');
+      chips.push(t('videoCall.media.cameraOff'));
     }
 
     if (!callState.isMicrophoneAvailable) {
-      chips.push('麦克风不可用');
+      chips.push(t('videoCall.media.noMicrophone'));
     } else if (!callState.isMicrophoneEnabled) {
-      chips.push('麦克风已静音');
+      chips.push(t('videoCall.media.microphoneMuted'));
     }
     return chips;
   }, [
+    t,
     callState.isCameraAvailable,
     callState.isLocalVideoEnabled,
     callState.isMicrophoneAvailable,
     callState.isMicrophoneEnabled
   ]);
+
+  const debugPeers = useMemo(
+    () => [...callState.diagnostics].sort((left, right) => (right.lastUpdatedAt || 0) - (left.lastUpdatedAt || 0)),
+    [callState.diagnostics]
+  );
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!isMinimized) return;
@@ -518,6 +573,130 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
               <strong>{t('videoCall.media.fallbackTitle')}</strong>
               <span>{callState.mediaNotice}</span>
             </div>
+          </div>
+        )}
+
+        {shouldShowDebugPanel && (
+          <div className={`call-debug-panel ${debugExpanded ? 'expanded' : ''}`}>
+            <div className="call-debug-header">
+              <div>
+                <div className="call-debug-title">{t('videoCall.debug.title')}</div>
+                <div className="call-debug-subtitle">{debugStatusLabel}</div>
+              </div>
+              <div className="call-debug-actions">
+                <button
+                  type="button"
+                  className={`call-debug-chip ${debugMode === 'compact' ? 'active' : ''}`}
+                  onClick={() => setDebugMode('compact')}
+                >
+                  {t('videoCall.debug.compact')}
+                </button>
+                <button
+                  type="button"
+                  className={`call-debug-chip ${debugMode === 'verbose' ? 'active' : ''}`}
+                  onClick={() => setDebugMode('verbose')}
+                >
+                  {t('videoCall.debug.verbose')}
+                </button>
+                <button
+                  type="button"
+                  className={`call-debug-chip ${callState.relayOnlyForced ? 'active warning' : ''}`}
+                  onClick={() => setRelayOnlyDebug(!callState.relayOnlyForced)}
+                >
+                  {t('videoCall.debug.forceRelay')}
+                </button>
+                <button
+                  type="button"
+                  className="call-debug-toggle"
+                  onClick={() => setDebugExpanded((value) => !value)}
+                >
+                  {debugExpanded ? t('videoCall.debug.hide') : t('videoCall.debug.show')}
+                </button>
+              </div>
+            </div>
+
+            <div className="call-debug-summary">
+              <div className="call-debug-pill">
+                <span>{t('videoCall.debug.signaling')}</span>
+                <strong>{callState.signalingConnectionState || '--'}</strong>
+              </div>
+              <div className="call-debug-pill">
+                <span>{t('videoCall.debug.remoteVideo')}</span>
+                <strong>{hasRemoteVideo ? t('videoCall.debug.available') : t('videoCall.debug.missing')}</strong>
+              </div>
+              <div className="call-debug-pill">
+                <span>{t('videoCall.debug.remoteTrack')}</span>
+                <strong>{debugPeers.reduce((sum, item) => sum + item.remoteTrackCount, 0)}</strong>
+              </div>
+              <div className="call-debug-pill">
+                <span>{t('videoCall.debug.peerCount')}</span>
+                <strong>{debugPeers.length}</strong>
+              </div>
+            </div>
+
+            {debugExpanded && (
+              <div className="call-debug-details">
+                {debugPeers.length === 0 ? (
+                  <div className="call-debug-empty">{t('videoCall.debug.noPeer')}</div>
+                ) : (
+                  debugPeers.map((peer) => (
+                    <div key={peer.remoteUserId} className="call-debug-card">
+                      <div className="call-debug-card-head">
+                        <strong>{peer.remoteUserName || peer.remoteUserId}</strong>
+                        <span>{peer.remoteUserId}</span>
+                      </div>
+                      <div className="call-debug-grid">
+                        <div><span>{t('videoCall.debug.connection')}</span><strong>{peer.connectionState || '--'}</strong></div>
+                        <div><span>{t('videoCall.debug.iceConnection')}</span><strong>{peer.iceConnectionState || '--'}</strong></div>
+                        <div><span>{t('videoCall.debug.iceGathering')}</span><strong>{peer.iceGatheringState || '--'}</strong></div>
+                        <div><span>{t('videoCall.debug.signalingState')}</span><strong>{peer.signalingState || '--'}</strong></div>
+                        <div><span>{t('videoCall.debug.remoteDesc')}</span><strong>{peer.hasRemoteDescription ? t('videoCall.debug.available') : t('videoCall.debug.missing')}</strong></div>
+                        <div><span>{t('videoCall.debug.localDesc')}</span><strong>{peer.hasLocalDescription ? t('videoCall.debug.available') : t('videoCall.debug.missing')}</strong></div>
+                        <div><span>{t('videoCall.debug.queuedCandidates')}</span><strong>{peer.queuedRemoteCandidateCount}</strong></div>
+                        <div><span>{t('videoCall.debug.receivedCandidates')}</span><strong>{peer.receivedRemoteCandidateCount}</strong></div>
+                        <div><span>{t('videoCall.debug.localCandidates')}</span><strong>{peer.localCandidateCount}</strong></div>
+                        <div><span>{t('videoCall.debug.relayCandidates')}</span><strong>{peer.localRelayCandidateCount}</strong></div>
+                        <div><span>{t('videoCall.debug.remoteTrack')}</span><strong>{peer.remoteTrackCount}</strong></div>
+                        <div><span>{t('videoCall.debug.rtt')}</span><strong>{formatDiagnosticNumber(peer.currentRoundTripTime)}</strong></div>
+                      </div>
+                      {debugMode === 'verbose' && (
+                        <div className="call-debug-meta">
+                          <div className="call-debug-meta-row">
+                            <span>{t('videoCall.debug.selectedLocal')}</span>
+                            <strong>{peer.selectedLocalCandidate?.type || '--'} / {peer.selectedLocalCandidate?.protocol || '--'}</strong>
+                          </div>
+                          <div className="call-debug-meta-row">
+                            <span>{t('videoCall.debug.selectedRemote')}</span>
+                            <strong>{peer.selectedRemoteCandidate?.type || '--'} / {peer.selectedRemoteCandidate?.protocol || '--'}</strong>
+                          </div>
+                          <div className="call-debug-meta-row">
+                            <span>{t('videoCall.debug.selectedPair')}</span>
+                            <strong>{peer.selectedPairState || '--'}</strong>
+                          </div>
+                          <div className="call-debug-meta-row">
+                            <span>{t('videoCall.debug.remoteStreamId')}</span>
+                            <strong>{peer.remoteStreamId || '--'}</strong>
+                          </div>
+                          {peer.candidateError ? (
+                            <div className="call-debug-warning">{peer.candidateError}</div>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+
+                <div className="call-debug-activity">
+                  <div className="call-debug-activity-title">{t('videoCall.debug.recentTimeline')}</div>
+                  {callState.activityLog.slice(-4).map((item) => (
+                    <div key={item.id} className="call-debug-activity-row">
+                      <span>{item.label}</span>
+                      <time>{formatClockTime(item.timestamp)}</time>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

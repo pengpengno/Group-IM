@@ -53,6 +53,38 @@ export interface CallSessionSummary {
   endedAt: number;
 }
 
+export interface SelectedCandidateDiagnostic {
+  type?: string;
+  protocol?: string;
+  address?: string;
+  port?: number;
+  relayProtocol?: string;
+}
+
+export interface PeerConnectionDiagnostic {
+  remoteUserId: string;
+  remoteUserName?: string;
+  connectionState?: RTCPeerConnectionState | 'idle';
+  iceConnectionState?: RTCIceConnectionState;
+  iceGatheringState?: RTCIceGatheringState;
+  signalingState?: RTCSignalingState;
+  hasLocalDescription: boolean;
+  hasRemoteDescription: boolean;
+  queuedRemoteCandidateCount: number;
+  receivedRemoteCandidateCount: number;
+  localCandidateCount: number;
+  localRelayCandidateCount: number;
+  remoteTrackCount: number;
+  remoteStreamId?: string;
+  selectedPairState?: string;
+  currentRoundTripTime?: number;
+  selectedLocalCandidate?: SelectedCandidateDiagnostic | null;
+  selectedRemoteCandidate?: SelectedCandidateDiagnostic | null;
+  candidateError?: string;
+  lastTrackAt?: number;
+  lastUpdatedAt: number;
+}
+
 export interface CallInternalState {
   callStatus: VideoCallStatus;
   roomId?: string;
@@ -76,6 +108,9 @@ export interface CallInternalState {
   activityLog: CallActivityItem[];
   sessionSummary?: CallSessionSummary;
   isInitiator: boolean;
+  signalingConnectionState?: 'disconnected' | 'connecting' | 'reconnecting' | 'connected';
+  relayOnlyForced: boolean;
+  diagnostics: PeerConnectionDiagnostic[];
 }
 
 interface SignalingConnectionConfig {
@@ -117,6 +152,8 @@ export class WebRTCService extends EventEmitter {
   private setupTimeout: ReturnType<typeof setTimeout> | null = null;
   private signalingConfig: SignalingConnectionConfig | null = null;
   private signalingUnsubscribe: (() => void) | null = null;
+  private signalingStateUnsubscribe: (() => void) | null = null;
+  private peerDiagnostics = new Map<string, PeerConnectionDiagnostic>();
 
   private state: CallInternalState = {
     callStatus: VideoCallStatus.IDLE,
@@ -130,7 +167,9 @@ export class WebRTCService extends EventEmitter {
     isMicrophoneAvailable: true,
     isMeeting: false,
     activityLog: [],
-    isInitiator: false
+    isInitiator: false,
+    relayOnlyForced: false,
+    diagnostics: []
   };
 
   constructor(iceServers: RTCIceServer[] = DEFAULT_ICE_SERVERS) {
@@ -215,6 +254,15 @@ export class WebRTCService extends EventEmitter {
 
       const selectedLocal = selectedPair ? localCandidates.get((selectedPair as any).localCandidateId) : undefined;
       const selectedRemote = selectedPair ? remoteCandidates.get((selectedPair as any).remoteCandidateId) : undefined;
+      const selectedLocalSummary = summarizeCandidate(selectedLocal as any);
+      const selectedRemoteSummary = summarizeCandidate(selectedRemote as any);
+
+      this.upsertPeerDiagnostic(remoteUserId, {
+        selectedPairState: selectedPair ? String((selectedPair as any).state || '') : undefined,
+        currentRoundTripTime: selectedPair ? Number((selectedPair as any).currentRoundTripTime || 0) : undefined,
+        selectedLocalCandidate: selectedLocalSummary,
+        selectedRemoteCandidate: selectedRemoteSummary
+      });
 
       this.log(scope, {
         remoteUserId,
@@ -226,8 +274,8 @@ export class WebRTCService extends EventEmitter {
           bytesReceived: (selectedPair as any).bytesReceived,
           currentRoundTripTime: (selectedPair as any).currentRoundTripTime
         } : null,
-        selectedLocalCandidate: summarizeCandidate(selectedLocal as any),
-        selectedRemoteCandidate: summarizeCandidate(selectedRemote as any),
+        selectedLocalCandidate: selectedLocalSummary,
+        selectedRemoteCandidate: selectedRemoteSummary,
         relayLocalCandidates,
         relayRemoteCandidates
       });
@@ -255,7 +303,8 @@ export class WebRTCService extends EventEmitter {
   public getState(): CallInternalState {
     return {
       ...this.state,
-      participants: [...this.state.participants]
+      participants: [...this.state.participants],
+      diagnostics: [...this.state.diagnostics]
     };
   }
 
@@ -341,6 +390,10 @@ export class WebRTCService extends EventEmitter {
     });
 
     if (this.initialized) {
+      this.updateState({
+        signalingConnectionState: meetingSignalingService.getConnectionState(),
+        relayOnlyForced: this.isRelayOnlyDebugEnabled()
+      });
       this.log('initialize-skipped', {
         userId: this.userId,
         connectionState: meetingSignalingService.getConnectionState()
@@ -352,6 +405,13 @@ export class WebRTCService extends EventEmitter {
     // before the user opens any call surface. WebRTCService only consumes that
     // signaling stream to manage call/session state.
     this.signalingUnsubscribe = meetingSignalingService.onMessage((message) => this.handleSignalingMessage(message));
+    this.signalingStateUnsubscribe = meetingSignalingService.onConnectionStateChange((connectionState) => {
+      this.updateState({ signalingConnectionState: connectionState });
+    });
+    this.updateState({
+      signalingConnectionState: meetingSignalingService.getConnectionState(),
+      relayOnlyForced: this.isRelayOnlyDebugEnabled()
+    });
     this.log('signaling-subscription-attached', {
       connectionState: meetingSignalingService.getConnectionState()
     });
@@ -423,7 +483,7 @@ export class WebRTCService extends EventEmitter {
           reconnectTracks: true
         });
         if (attempt.notice) {
-          this.pushActivity('warning', 'Media limited', attempt.notice);
+          this.pushActivity('warning', this.t('service.media.modeLimited'), attempt.notice);
         }
         this.log('acquire-local-media-success', {
           mode: attempt.label,
@@ -785,6 +845,10 @@ export class WebRTCService extends EventEmitter {
         offerToReceiveVideo: true
       });
       await peerConnection.setLocalDescription(offer);
+      this.upsertPeerDiagnostic(remoteUserId, {
+        signalingState: peerConnection.signalingState,
+        hasLocalDescription: Boolean(peerConnection.localDescription)
+      });
 
       this.sendSignalingMessage({
         type: SIGNALING_MESSAGE_TYPES.OFFER,
@@ -838,15 +902,27 @@ export class WebRTCService extends EventEmitter {
         type: SIGNALING_SDP_TYPES.OFFER,
         sdp: message.sdp
       }));
+      this.upsertPeerDiagnostic(remoteUserId, {
+        signalingState: peerConnection.signalingState,
+        hasRemoteDescription: Boolean(peerConnection.remoteDescription),
+        queuedRemoteCandidateCount: (this.pendingIceCandidates.get(remoteUserId) || []).length
+      });
 
       const queuedCandidates = this.pendingIceCandidates.get(remoteUserId) || [];
       for (const candidate of queuedCandidates) {
         await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
       }
       this.pendingIceCandidates.delete(remoteUserId);
+      this.upsertPeerDiagnostic(remoteUserId, {
+        queuedRemoteCandidateCount: 0
+      });
 
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
+      this.upsertPeerDiagnostic(remoteUserId, {
+        signalingState: peerConnection.signalingState,
+        hasLocalDescription: Boolean(peerConnection.localDescription)
+      });
 
       this.sendSignalingMessage({
         type: SIGNALING_MESSAGE_TYPES.ANSWER,
@@ -922,12 +998,21 @@ export class WebRTCService extends EventEmitter {
         type: SIGNALING_SDP_TYPES.ANSWER,
         sdp: message.sdp
       }));
+      this.upsertPeerDiagnostic(remoteUserId, {
+        signalingState: peerConnection.signalingState,
+        hasRemoteDescription: Boolean(peerConnection.remoteDescription),
+        queuedRemoteCandidateCount: (this.pendingIceCandidates.get(remoteUserId) || []).length
+      });
 
       const queuedCandidates = this.pendingIceCandidates.get(remoteUserId) || [];
       for (const candidate of queuedCandidates) {
         await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
       }
       this.pendingIceCandidates.delete(remoteUserId);
+      this.upsertPeerDiagnostic(remoteUserId, {
+        queuedRemoteCandidateCount: 0,
+        iceConnectionState: peerConnection.iceConnectionState
+      });
       this.log('handle-answer-success', {
         remoteUserId,
         queuedCandidateCount: queuedCandidates.length,
@@ -956,6 +1041,9 @@ export class WebRTCService extends EventEmitter {
     };
 
     const peerConnection = this.peerConnections.get(remoteUserId);
+    this.upsertPeerDiagnostic(remoteUserId, {
+      receivedRemoteCandidateCount: (this.peerDiagnostics.get(remoteUserId)?.receivedRemoteCandidateCount || 0) + 1
+    });
     if (peerConnection && peerConnection.remoteDescription) {
       this.log('handle-candidate-apply-immediately', {
         remoteUserId,
@@ -970,6 +1058,9 @@ export class WebRTCService extends EventEmitter {
     const pending = this.pendingIceCandidates.get(remoteUserId) || [];
     pending.push(candidate);
     this.pendingIceCandidates.set(remoteUserId, pending);
+    this.upsertPeerDiagnostic(remoteUserId, {
+      queuedRemoteCandidateCount: pending.length
+    });
     this.log('handle-candidate-queued', {
       remoteUserId,
       queuedCandidateCount: pending.length
@@ -1000,6 +1091,16 @@ export class WebRTCService extends EventEmitter {
       iceTransportPolicy: this.isRelayOnlyDebugEnabled() ? 'relay' : 'all'
     });
     this.peerConnections.set(remoteUserId, peerConnection);
+    this.upsertPeerDiagnostic(remoteUserId, {
+      remoteUserName: this.participantDirectory.get(remoteUserId)?.userName,
+      connectionState: peerConnection.connectionState,
+      iceConnectionState: peerConnection.iceConnectionState,
+      iceGatheringState: peerConnection.iceGatheringState,
+      signalingState: peerConnection.signalingState,
+      hasLocalDescription: Boolean(peerConnection.localDescription),
+      hasRemoteDescription: Boolean(peerConnection.remoteDescription),
+      queuedRemoteCandidateCount: this.pendingIceCandidates.get(remoteUserId)?.length || 0
+    });
 
     if (this.localStream) {
       this.localStream.getTracks().forEach((track) => {
@@ -1009,6 +1110,11 @@ export class WebRTCService extends EventEmitter {
 
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
+        this.upsertPeerDiagnostic(remoteUserId, {
+          localCandidateCount: (this.peerDiagnostics.get(remoteUserId)?.localCandidateCount || 0) + 1,
+          localRelayCandidateCount: (this.peerDiagnostics.get(remoteUserId)?.localRelayCandidateCount || 0)
+            + (event.candidate.type === 'relay' ? 1 : 0)
+        });
         this.log('peer-onicecandidate', {
           remoteUserId,
           candidateType: event.candidate.type,
@@ -1031,6 +1137,14 @@ export class WebRTCService extends EventEmitter {
     };
 
     peerConnection.onicecandidateerror = (event) => {
+      this.upsertPeerDiagnostic(remoteUserId, {
+        candidateError: `${event.errorCode || 'unknown'} ${event.errorText || ''}`.trim()
+      });
+      this.pushActivity(
+        'warning',
+        this.t('service.debug.iceCandidateError'),
+        `${this.getParticipantLabel(remoteUserId)}: ${event.errorCode || 'unknown'} ${event.errorText || ''}`.trim()
+      );
       this.log('peer-onicecandidateerror', {
         remoteUserId,
         url: event.url,
@@ -1042,6 +1156,9 @@ export class WebRTCService extends EventEmitter {
     };
 
     peerConnection.onicegatheringstatechange = () => {
+      this.upsertPeerDiagnostic(remoteUserId, {
+        iceGatheringState: peerConnection.iceGatheringState
+      });
       this.log('peer-ice-gathering-state-change', {
         remoteUserId,
         iceGatheringState: peerConnection.iceGatheringState
@@ -1049,6 +1166,10 @@ export class WebRTCService extends EventEmitter {
     };
 
     peerConnection.oniceconnectionstatechange = () => {
+      this.upsertPeerDiagnostic(remoteUserId, {
+        iceConnectionState: peerConnection.iceConnectionState,
+        connectionState: peerConnection.connectionState
+      });
       this.log('peer-ice-connection-state-change', {
         remoteUserId,
         iceConnectionState: peerConnection.iceConnectionState,
@@ -1063,6 +1184,11 @@ export class WebRTCService extends EventEmitter {
           remoteUserId,
           streamId: stream.id,
           trackCount: stream.getTracks().length
+        });
+        this.upsertPeerDiagnostic(remoteUserId, {
+          remoteStreamId: stream.id,
+          remoteTrackCount: stream.getTracks().length,
+          lastTrackAt: Date.now()
         });
         this.remoteStreams.set(remoteUserId, stream);
         this.upsertParticipant({
@@ -1087,6 +1213,14 @@ export class WebRTCService extends EventEmitter {
         connectionState: peerConnection.connectionState,
         iceConnectionState: peerConnection.iceConnectionState,
         signalingState: peerConnection.signalingState
+      });
+      this.upsertPeerDiagnostic(remoteUserId, {
+        connectionState: peerConnection.connectionState,
+        iceConnectionState: peerConnection.iceConnectionState,
+        signalingState: peerConnection.signalingState,
+        hasLocalDescription: Boolean(peerConnection.localDescription),
+        hasRemoteDescription: Boolean(peerConnection.remoteDescription),
+        queuedRemoteCandidateCount: this.pendingIceCandidates.get(remoteUserId)?.length || 0
       });
       this.upsertParticipant({
         userId: remoteUserId,
@@ -1391,6 +1525,12 @@ export class WebRTCService extends EventEmitter {
       ...current,
       ...participant
     });
+    if (!participant.isLocal && !current.isLocal) {
+      this.upsertPeerDiagnostic(participant.userId, {
+        remoteUserName: participant.userName ?? current.userName,
+        connectionState: participant.connectionState ?? current.connectionState
+      });
+    }
     this.syncStateParticipants();
   }
 
@@ -1407,6 +1547,7 @@ export class WebRTCService extends EventEmitter {
     this.pendingIceCandidates.delete(userId);
     this.remoteStreams.delete(userId);
     this.participantDirectory.delete(userId);
+    this.removePeerDiagnostic(userId);
 
     this.emit('remote-streams-change', this.getRemoteParticipantStreams());
     const firstRemoteStream = this.getRemoteStream();
@@ -1432,13 +1573,15 @@ export class WebRTCService extends EventEmitter {
 
   private prepareFreshSession(): void {
     if (this.state.callStatus === VideoCallStatus.ENDED || this.state.callStatus === VideoCallStatus.ERROR) {
+      this.peerDiagnostics.clear();
       this.updateState({
         activityLog: [],
         sessionSummary: undefined,
         errorMessage: undefined,
         duration: 0,
         callStartTime: undefined,
-        isInitiator: false
+        isInitiator: false,
+        diagnostics: []
       });
     }
   }
@@ -1447,9 +1590,47 @@ export class WebRTCService extends EventEmitter {
     this.state = {
       ...this.state,
       ...updates,
-      participants: updates.participants ?? this.state.participants
+      participants: updates.participants ?? this.state.participants,
+      diagnostics: updates.diagnostics ?? this.state.diagnostics
     };
     this.emit('state-change', this.getState());
+  }
+
+  private upsertPeerDiagnostic(
+    remoteUserId: string,
+    updates: Partial<PeerConnectionDiagnostic>
+  ): void {
+    const previous = this.peerDiagnostics.get(remoteUserId) || {
+      remoteUserId,
+      hasLocalDescription: false,
+      hasRemoteDescription: false,
+      queuedRemoteCandidateCount: 0,
+      receivedRemoteCandidateCount: 0,
+      localCandidateCount: 0,
+      localRelayCandidateCount: 0,
+      remoteTrackCount: 0,
+      lastUpdatedAt: Date.now()
+    };
+
+    this.peerDiagnostics.set(remoteUserId, {
+      ...previous,
+      ...updates,
+      remoteUserId,
+      lastUpdatedAt: Date.now()
+    });
+    this.updateState({
+      diagnostics: [...this.peerDiagnostics.values()]
+    });
+  }
+
+  private removePeerDiagnostic(remoteUserId: string): void {
+    if (!this.peerDiagnostics.delete(remoteUserId)) {
+      return;
+    }
+
+    this.updateState({
+      diagnostics: [...this.peerDiagnostics.values()]
+    });
   }
 
   private handleError(error: Error): void {
@@ -1524,6 +1705,7 @@ export class WebRTCService extends EventEmitter {
     this.peerConnections.clear();
     this.pendingIceCandidates.clear();
     this.remoteStreams.clear();
+    this.peerDiagnostics.clear();
 
     if (this.localStream) {
       this.localStream.getTracks().forEach((track) => track.stop());
@@ -1554,7 +1736,8 @@ export class WebRTCService extends EventEmitter {
       sessionSummary: resetError ? undefined : this.state.sessionSummary,
       errorMessage: resetError ? undefined : this.state.errorMessage,
       mediaNotice: resetError ? undefined : this.state.mediaNotice,
-      isInitiator: resetError ? false : this.state.isInitiator
+      isInitiator: resetError ? false : this.state.isInitiator,
+      diagnostics: []
     });
 
     if (this.store) {
@@ -1568,6 +1751,10 @@ export class WebRTCService extends EventEmitter {
     if (this.signalingUnsubscribe) {
       this.signalingUnsubscribe();
       this.signalingUnsubscribe = null;
+    }
+    if (this.signalingStateUnsubscribe) {
+      this.signalingStateUnsubscribe();
+      this.signalingStateUnsubscribe = null;
     }
     this.initialized = false;
     this.cleanupCallState(true);
@@ -1628,6 +1815,18 @@ export class WebRTCService extends EventEmitter {
     this.updateState({ isSpeakerEnabled: enabled });
   }
 
+  public setRelayOnlyDebug(enabled: boolean): void {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(RELAY_ONLY_DEBUG_STORAGE_KEY, enabled ? 'true' : 'false');
+    }
+    this.updateState({ relayOnlyForced: enabled });
+    this.pushActivity(
+      'info',
+      enabled ? this.t('service.debug.relayOnlyEnabled') : this.t('service.debug.relayOnlyDisabled'),
+      enabled ? this.t('service.debug.relayOnlyEnabledDetail') : this.t('service.debug.relayOnlyDisabledDetail')
+    );
+  }
+
   public dismissCallSummary(): void {
     this.cleanupCallState(true);
   }
@@ -1657,6 +1856,7 @@ export class WebRTCService extends EventEmitter {
     this.peerConnections.clear();
     this.pendingIceCandidates.clear();
     this.remoteStreams.clear();
+    this.peerDiagnostics.clear();
 
     this.releaseLocalStream();
 
@@ -1676,6 +1876,7 @@ export class WebRTCService extends EventEmitter {
       isCameraAvailable: true,
       isMicrophoneAvailable: true,
       mediaNotice: undefined,
+      diagnostics: [],
       sessionSummary: {
         title: summary.title,
         detail: summary.detail,
