@@ -49,6 +49,7 @@ import com.github.im.group.db.entities.FileStatus
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.manager.toFile
+import com.github.im.group.manager.toPreviewFile
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
 import com.github.im.group.ui.UserAvatar
@@ -129,7 +130,11 @@ fun MessageBubble(
                     ) {
                         Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
                             when (msg.type) {
-                                MessageType.TEXT -> TextMessage(MessageContent.Text(msg.content), isOwnMessage)
+                                MessageType.TEXT -> BotCardMessage(
+                                    rawText = msg.content,
+                                    isOwnMessage = isOwnMessage,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                )
                                 MessageType.VOICE -> VoiceMessageContent(msg, messageViewModel, isOwnMessage)
                                 MessageType.MEETING -> {
                                     val payload = extractMeetingPayload(msg)
@@ -141,7 +146,11 @@ fun MessageBubble(
                                 }
                                 MessageType.IMAGE, MessageType.VIDEO, MessageType.FILE ->
                                     FileMessageContent(message = msg, messageViewModel = messageViewModel, isOwnMessage = isOwnMessage)
-                                else -> TextMessage(MessageContent.Text(msg.content), isOwnMessage)
+                                else -> BotCardMessage(
+                                    rawText = msg.content,
+                                    isOwnMessage = isOwnMessage,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                )
                             }
                         }
                     }
@@ -293,6 +302,9 @@ private fun FileMessageContent(
                 resolvedMeta.let { fileMeta ->
                     messageViewModel.getFile(fileMeta.fileId)
                         ?: messageViewModel.getLocalFilePath(fileMeta.fileId)?.let(fileMeta::toFile)
+                        ?: fileMeta.takeIf {
+                            it.fileStatus == FileStatus.NORMAL && message.type == MessageType.IMAGE
+                        }?.toPreviewFile()
                         ?: fileMeta.takeIf { it.fileStatus == FileStatus.NORMAL }?.toFile()
                 }
             }
@@ -328,7 +340,11 @@ private fun FileMessageContent(
             onDownloadFile = messageViewModel::downloadFileMessage
         )
 
-        else -> TextMessage(MessageContent.Text(message.content), isOwnMessage)
+        else -> BotCardMessage(
+            rawText = message.content,
+            isOwnMessage = isOwnMessage,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+        )
     }
 }
 

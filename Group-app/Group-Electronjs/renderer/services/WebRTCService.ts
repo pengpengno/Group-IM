@@ -110,6 +110,7 @@ export interface CallInternalState {
   isInitiator: boolean;
   signalingConnectionState?: 'disconnected' | 'connecting' | 'reconnecting' | 'connected';
   relayOnlyForced: boolean;
+  videoQualityPreset: VideoQualityPreset;
   diagnostics: PeerConnectionDiagnostic[];
 }
 
@@ -121,10 +122,44 @@ interface SignalingConnectionConfig {
   pageProtocol: string;
 }
 
+export type VideoQualityPreset = 'fast' | 'balanced' | 'hd';
+
+interface VideoQualityProfile {
+  width: number;
+  height: number;
+  frameRate: number;
+  maxBitrate: number;
+  minBitrate: number;
+}
+
 const DEFAULT_ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 const CALL_SETUP_TIMEOUT_MS = 30_000;
-
+const VIDEO_QUALITY_STORAGE_KEY = 'group.webrtc.videoQualityPreset';
 const RELAY_ONLY_DEBUG_STORAGE_KEY = 'group.webrtc.forceRelayOnly';
+const DEFAULT_VIDEO_QUALITY_PRESET: VideoQualityPreset = 'fast';
+const VIDEO_QUALITY_PROFILES: Record<VideoQualityPreset, VideoQualityProfile> = {
+  fast: {
+    width: 640,
+    height: 360,
+    frameRate: 15,
+    maxBitrate: 350_000,
+    minBitrate: 120_000
+  },
+  balanced: {
+    width: 960,
+    height: 540,
+    frameRate: 20,
+    maxBitrate: 850_000,
+    minBitrate: 250_000
+  },
+  hd: {
+    width: 1280,
+    height: 720,
+    frameRate: 30,
+    maxBitrate: 1_500_000,
+    minBitrate: 500_000
+  }
+};
 
 function nextUiFrame(): Promise<void> {
   return new Promise((resolve) => {
@@ -169,6 +204,7 @@ export class WebRTCService extends EventEmitter {
     activityLog: [],
     isInitiator: false,
     relayOnlyForced: false,
+    videoQualityPreset: DEFAULT_VIDEO_QUALITY_PRESET,
     diagnostics: []
   };
 
@@ -188,6 +224,157 @@ export class WebRTCService extends EventEmitter {
     }
 
     return window.localStorage.getItem(RELAY_ONLY_DEBUG_STORAGE_KEY) === 'true';
+  }
+
+  private getStoredVideoQualityPreset(): VideoQualityPreset {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return DEFAULT_VIDEO_QUALITY_PRESET;
+    }
+
+    const storedValue = window.localStorage.getItem(VIDEO_QUALITY_STORAGE_KEY);
+    if (storedValue === 'fast' || storedValue === 'balanced' || storedValue === 'hd') {
+      return storedValue;
+    }
+
+    return DEFAULT_VIDEO_QUALITY_PRESET;
+  }
+
+  private persistVideoQualityPreset(preset: VideoQualityPreset): void {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return;
+    }
+
+    window.localStorage.setItem(VIDEO_QUALITY_STORAGE_KEY, preset);
+  }
+
+  private getVideoQualityProfile(
+    preset: VideoQualityPreset = this.state.videoQualityPreset
+  ): VideoQualityProfile {
+    return VIDEO_QUALITY_PROFILES[preset] || VIDEO_QUALITY_PROFILES[DEFAULT_VIDEO_QUALITY_PRESET];
+  }
+
+  private getVideoQualityPresetLabel(preset: VideoQualityPreset): string {
+    switch (preset) {
+      case 'fast':
+        return this.t('service.media.videoQualityPreset.fast');
+      case 'balanced':
+        return this.t('service.media.videoQualityPreset.balanced');
+      case 'hd':
+      default:
+        return this.t('service.media.videoQualityPreset.hd');
+    }
+  }
+
+  private getCameraConstraints(
+    preset: VideoQualityPreset = this.state.videoQualityPreset
+  ): MediaTrackConstraints {
+    const profile = this.getVideoQualityProfile(preset);
+    return {
+      width: { ideal: profile.width, max: profile.width },
+      height: { ideal: profile.height, max: profile.height },
+      frameRate: { ideal: profile.frameRate, max: profile.frameRate }
+    };
+  }
+
+  private async applyVideoSenderParameters(
+    sender: RTCRtpSender,
+    preset: VideoQualityPreset = this.state.videoQualityPreset
+  ): Promise<void> {
+    if (!sender.track || sender.track.kind !== 'video') {
+      return;
+    }
+
+    const profile = this.getVideoQualityProfile(preset);
+
+    try {
+      const parameters = sender.getParameters() as RTCRtpSendParameters & {
+        degradationPreference?: string;
+      };
+      const encodings = parameters.encodings && parameters.encodings.length > 0
+        ? [...parameters.encodings]
+        : [{}];
+
+      parameters.degradationPreference = 'maintain-framerate';
+      parameters.encodings = encodings.map((encoding, index) => ({
+        ...encoding,
+        maxBitrate: profile.maxBitrate,
+        minBitrate: profile.minBitrate,
+        maxFramerate: profile.frameRate,
+        scaleResolutionDownBy: index === 0 ? 1 : encoding.scaleResolutionDownBy
+      }));
+
+      await sender.setParameters(parameters);
+    } catch (error) {
+      console.warn('[WebRTCService] failed to apply video sender parameters', {
+        preset,
+        error
+      });
+    }
+  }
+
+  private async applyVideoQualityToPeerConnections(
+    preset: VideoQualityPreset = this.state.videoQualityPreset
+  ): Promise<void> {
+    const tasks: Array<Promise<void>> = [];
+
+    this.peerConnections.forEach((peerConnection) => {
+      peerConnection.getSenders().forEach((sender) => {
+        if (sender.track?.kind === 'video') {
+          tasks.push(this.applyVideoSenderParameters(sender, preset));
+        }
+      });
+    });
+
+    await Promise.all(tasks);
+  }
+
+  private async refreshVideoTrackConstraints(
+    preset: VideoQualityPreset = this.state.videoQualityPreset
+  ): Promise<void> {
+    const videoTrack = this.localStream?.getVideoTracks()[0];
+    if (!videoTrack) {
+      return;
+    }
+
+    videoTrack.contentHint = 'motion';
+    await videoTrack.applyConstraints(this.getCameraConstraints(preset));
+  }
+
+  public async setVideoQualityPreset(preset: VideoQualityPreset): Promise<void> {
+    const previousPreset = this.state.videoQualityPreset;
+    this.persistVideoQualityPreset(preset);
+    this.updateState({ videoQualityPreset: preset });
+
+    if (!this.localStream?.getVideoTracks().length) {
+      this.pushActivity(
+        'info',
+        this.t('service.media.videoQualityUpdated'),
+        this.getVideoQualityPresetLabel(preset)
+      );
+      return;
+    }
+
+    try {
+      await this.refreshVideoTrackConstraints(preset);
+      await this.applyVideoQualityToPeerConnections(preset);
+      this.pushActivity(
+        'success',
+        this.t('service.media.videoQualityUpdated'),
+        this.t('service.media.videoQualityUpdatedDetail', {
+          preset: this.getVideoQualityPresetLabel(preset)
+        })
+      );
+      this.log('video-quality-updated', { preset });
+    } catch (error) {
+      this.persistVideoQualityPreset(previousPreset);
+      this.updateState({ videoQualityPreset: previousPreset });
+      const message = error instanceof Error ? error.message : String(error);
+      this.pushActivity(
+        'warning',
+        this.t('service.media.videoQualityUpdateFailed'),
+        message
+      );
+    }
   }
 
   /**
@@ -392,7 +579,8 @@ export class WebRTCService extends EventEmitter {
     if (this.initialized) {
       this.updateState({
         signalingConnectionState: meetingSignalingService.getConnectionState(),
-        relayOnlyForced: this.isRelayOnlyDebugEnabled()
+        relayOnlyForced: this.isRelayOnlyDebugEnabled(),
+        videoQualityPreset: this.getStoredVideoQualityPreset()
       });
       this.log('initialize-skipped', {
         userId: this.userId,
@@ -410,7 +598,8 @@ export class WebRTCService extends EventEmitter {
     });
     this.updateState({
       signalingConnectionState: meetingSignalingService.getConnectionState(),
-      relayOnlyForced: this.isRelayOnlyDebugEnabled()
+      relayOnlyForced: this.isRelayOnlyDebugEnabled(),
+      videoQualityPreset: this.getStoredVideoQualityPreset()
     });
     this.log('signaling-subscription-attached', {
       connectionState: meetingSignalingService.getConnectionState()
@@ -441,7 +630,7 @@ export class WebRTCService extends EventEmitter {
   }
 
   public async acquireLocalMedia(): Promise<MediaStream> {
-    const cameraConstraints = { width: 1280, height: 720, frameRate: 30 };
+    const cameraConstraints = this.getCameraConstraints();
     const attempts: Array<{
       label: string;
       constraints: MediaStreamConstraints;
@@ -582,6 +771,9 @@ export class WebRTCService extends EventEmitter {
 
     const hasVideoTrack = stream.getVideoTracks().length > 0;
     const hasAudioTrack = stream.getAudioTracks().length > 0;
+    stream.getVideoTracks().forEach((track) => {
+      track.contentHint = 'motion';
+    });
 
     this.upsertParticipant({
       userId: this.userId,
@@ -599,6 +791,10 @@ export class WebRTCService extends EventEmitter {
       isMicrophoneAvailable: options?.isMicrophoneAvailable ?? hasAudioTrack,
       mediaNotice: options?.mediaNotice
     });
+
+    if (hasVideoTrack) {
+      void this.applyVideoQualityToPeerConnections();
+    }
   }
 
   public connectSignaling(host: string, port: number, userId: string, token: string, pageProtocol: string = 'http:'): void {
@@ -1104,9 +1300,14 @@ export class WebRTCService extends EventEmitter {
 
     if (this.localStream) {
       this.localStream.getTracks().forEach((track) => {
+        if (track.kind === 'video') {
+          track.contentHint = 'motion';
+        }
         peerConnection.addTrack(track, this.localStream!);
       });
     }
+
+    void this.applyVideoQualityToPeerConnections(this.state.videoQualityPreset);
 
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
@@ -1924,7 +2125,7 @@ export class WebRTCService extends EventEmitter {
     try {
       const stream = await this.requestUserMedia(
         kind === 'video'
-          ? { video: { width: 1280, height: 720, frameRate: 30 }, audio: false }
+          ? { video: this.getCameraConstraints(), audio: false }
           : { video: false, audio: true }
       );
       const track = kind === 'video' ? stream.getVideoTracks()[0] : stream.getAudioTracks()[0];
@@ -1933,9 +2134,15 @@ export class WebRTCService extends EventEmitter {
       }
 
       const baseStream = this.localStream || new MediaStream();
+      if (kind === 'video') {
+        track.contentHint = 'motion';
+      }
       baseStream.addTrack(track);
       this.localStream = baseStream;
       this.syncLocalStreamToPeers();
+      if (kind === 'video') {
+        await this.applyVideoQualityToPeerConnections();
+      }
 
       this.updateState({
         isLocalVideoEnabled: kind === 'video' ? true : this.state.isLocalVideoEnabled,

@@ -200,6 +200,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
     toggleMicrophone,
     toggleSpeaker,
     setRelayOnlyDebug,
+    setVideoQualityPreset,
     onCallEnded,
     onError
   } = useVideoCall();
@@ -214,6 +215,7 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [snapSide, setSnapSide] = useState<'left' | 'right'>('left');
   const [debugExpanded, setDebugExpanded] = useState(false);
+  const [qualityUpdating, setQualityUpdating] = useState(false);
   const [debugMode, setDebugMode] = useState<'compact' | 'verbose'>(() => {
     if (typeof window === 'undefined' || !window.localStorage) {
       return 'compact';
@@ -327,6 +329,28 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
     () => [...callState.diagnostics].sort((left, right) => (right.lastUpdatedAt || 0) - (left.lastUpdatedAt || 0)),
     [callState.diagnostics]
   );
+
+  const qualityOptions = useMemo(
+    () => ([
+      { value: 'fast', label: t('videoCall.quality.fast'), description: t('videoCall.quality.desc.fast') },
+      { value: 'balanced', label: t('videoCall.quality.balanced'), description: t('videoCall.quality.desc.balanced') },
+      { value: 'hd', label: t('videoCall.quality.hd'), description: t('videoCall.quality.desc.hd') }
+    ] as const),
+    [t]
+  );
+
+  const handleVideoQualityChange = async (preset: 'fast' | 'balanced' | 'hd') => {
+    if (preset === callState.videoQualityPreset || qualityUpdating) {
+      return;
+    }
+
+    setQualityUpdating(true);
+    try {
+      await setVideoQualityPreset(preset);
+    } finally {
+      setQualityUpdating(false);
+    }
+  };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!isMinimized) return;
@@ -730,6 +754,23 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
                 </div>
 
                 <div className="header-right">
+                  <div className="quality-selector" aria-label={t('videoCall.quality.title')}>
+                    <span className="quality-selector-label">{t('videoCall.quality.title')}</span>
+                    <div className="quality-selector-options">
+                      {qualityOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`quality-option-btn ${callState.videoQualityPreset === option.value ? 'active' : ''}`}
+                          onClick={() => void handleVideoQualityChange(option.value)}
+                          disabled={qualityUpdating}
+                          title={option.description}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <button className="minimize-btn" title={t('videoCall.controls.minimize')} onClick={handleMinimize}>
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M4 14h6m0 0v6m0-6L3 21m17-11h-6m0 0V4m0 6l7-7"></path>
@@ -858,6 +899,23 @@ const VideoCallScreen: React.FC<VideoCallScreenProps> = ({
               </div>
 
               <div className="header-right">
+                <div className="quality-selector" aria-label={t('videoCall.quality.title')}>
+                  <span className="quality-selector-label">{t('videoCall.quality.title')}</span>
+                  <div className="quality-selector-options">
+                    {qualityOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={`quality-option-btn ${callState.videoQualityPreset === option.value ? 'active' : ''}`}
+                        onClick={() => void handleVideoQualityChange(option.value)}
+                        disabled={qualityUpdating}
+                        title={option.description}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <button className="minimize-btn" title={t('videoCall.controls.minimize')} onClick={handleMinimize}>
                   <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M4 14h6m0 0v6m0-6L3 21m17-11h-6m0 0V4m0 6l7-7"></path>

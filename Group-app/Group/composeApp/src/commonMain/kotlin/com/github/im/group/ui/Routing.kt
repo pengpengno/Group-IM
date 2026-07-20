@@ -13,6 +13,8 @@ data class ChatRoom(
 
     fun createPrivate() = ChatRoom(roomId, ChatRoomType.CREATE_PRIVATE)
 
+    fun bot() = ChatRoom(roomId, ChatRoomType.BOT)
+
 //
 //    /**
 //     * 创建私聊的聊天室
@@ -33,13 +35,19 @@ fun createPrivate(friendUserId: Long):ChatRoom{
     return ChatRoom(friendUserId, ChatRoomType.CREATE_PRIVATE)
 }
 
+fun botConversation(roomId: Long): ChatRoom {
+    return ChatRoom(roomId, ChatRoomType.BOT)
+}
+
 
 @Serializable
 enum class ChatRoomType {
 
     CONVERSATION,
 
-    CREATE_PRIVATE
+    CREATE_PRIVATE,
+
+    BOT
 }
 
 

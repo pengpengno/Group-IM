@@ -1,14 +1,19 @@
 package com.github.im.group.viewmodel
 
+import com.github.im.group.bot.buildAiAssistantConversation
+import com.github.im.group.bot.isAiAssistantConversation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.im.group.api.ChatApi
 import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.api.GroupInfo
 import com.github.im.group.api.UnauthorizedException
 import com.github.im.group.db.entities.MessageType
+import com.github.im.group.manager.AppRuntimeState
 import com.github.im.group.manager.ConversationListCoordinator
 import com.github.im.group.manager.LoginStateManager
+import com.github.im.group.manager.NotificationPreferenceStore
 import com.github.im.group.model.MessageWrapper
 import com.github.im.group.model.UserInfo
 import com.github.im.group.repository.ChatMessageRepository
@@ -22,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
@@ -35,15 +41,27 @@ data class ConversationDisplayState(
     val unreadCount: Int = 0,
     val isPinned: Boolean = false,
     val pinRank: Long = 0L,
-    val lastActiveAt: Long = 0L
+    val lastActiveAt: Long = 0L,
+    val isMuted: Boolean = false,
+    val muteUntil: Long = 0L
+)
+
+data class RealtimeConversationHint(
+    val conversationId: Long,
+    val title: String,
+    val preview: String,
+    val unreadCount: Int
 )
 
 data class ConversationListUiState(
     val conversations: List<ConversationDisplayState> = emptyList(),
+    val totalUnreadCount: Int = 0,
     val isLoading: Boolean = false,
     val isSyncing: Boolean = false,
     val usedOfflineData: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val readAllInProgress: Boolean = false,
+    val realtimeHint: RealtimeConversationHint? = null
 )
 
 class ChatViewModel(
@@ -51,7 +69,8 @@ class ChatViewModel(
     private val loginStateManager: LoginStateManager,
     private val messageRepository: ChatMessageRepository,
     private val conversationRepository: ConversationRepository,
-    private val conversationListCoordinator: ConversationListCoordinator
+    private val conversationListCoordinator: ConversationListCoordinator,
+    private val notificationPreferenceStore: NotificationPreferenceStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConversationListUiState())
@@ -67,14 +86,10 @@ class ChatViewModel(
         }
     }
 
-    /**
-     * 会话列表统一入口：
-     * 1. 先展示本地缓存，保证页面秒开
-     * 2. 再按需同步远端，补齐最新会话状态
-     */
     fun loadConversations(userId: Long, forceRemote: Boolean = true) {
         activeUserId = userId
         viewModelScope.launch {
+            ensureAssistantConversation()
             _uiState.update {
                 it.copy(
                     isLoading = it.conversations.isEmpty(),
@@ -85,10 +100,10 @@ class ChatViewModel(
             }
 
             val localConversations = loadLocalConversations(userId)
-            _uiState.update {
+            updateConversationList(localConversations) {
                 it.copy(
-                    conversations = localConversations,
-                    isLoading = false
+                    isLoading = false,
+                    realtimeHint = it.realtimeHint
                 )
             }
 
@@ -99,9 +114,8 @@ class ChatViewModel(
 
             try {
                 val remoteConversations = loadRemoteConversations(userId)
-                _uiState.update {
+                updateConversationList(remoteConversations) {
                     it.copy(
-                        conversations = remoteConversations,
                         isSyncing = false,
                         usedOfflineData = false,
                         error = null
@@ -127,13 +141,9 @@ class ChatViewModel(
     fun refreshCachedConversations(userId: Long) {
         activeUserId = userId
         viewModelScope.launch {
+            ensureAssistantConversation()
             val localConversations = loadLocalConversations(userId)
-            _uiState.update {
-                it.copy(
-                    conversations = localConversations,
-                    isLoading = false
-                )
-            }
+            updateConversationList(localConversations) { it.copy(isLoading = false) }
         }
     }
 
@@ -153,11 +163,115 @@ class ChatViewModel(
         }
     }
 
+    fun toggleMuteConversation(conversationId: Long) {
+        val current = _uiState.value.conversations.firstOrNull {
+            it.conversation.conversationId == conversationId
+        } ?: return
+
+        val nextMuteUntil = if (current.isMuted) 0L else Long.MAX_VALUE
+        conversationRepository.setConversationMuteUntil(conversationId, nextMuteUntil)
+        AppRuntimeState.setConversationMutedUntil(conversationId, nextMuteUntil)
+
+        viewModelScope.launch {
+            refreshConversationItem(conversationId, moveToTop = false)
+        }
+    }
+
+    fun muteConversationForEightHours(conversationId: Long) {
+        setConversationMuteUntil(conversationId, Clock.System.now().toEpochMilliseconds() + 8L * 60L * 60L * 1000L)
+    }
+
+    fun muteConversationUntilEndOfDay(conversationId: Long) {
+        val zone = TimeZone.currentSystemDefault()
+        val nowInstant = Clock.System.now()
+        val now = nowInstant.toLocalDateTime(zone)
+        val millisUntilTomorrow =
+            (23 - now.hour) * 60L * 60L * 1000L +
+                (59 - now.minute) * 60L * 1000L +
+                (59 - now.second) * 1000L +
+                (999_999_999 - now.nanosecond) / 1_000_000L +
+                1L
+        setConversationMuteUntil(conversationId, nowInstant.toEpochMilliseconds() + millisUntilTomorrow)
+    }
+
+    fun muteConversationForever(conversationId: Long) {
+        setConversationMuteUntil(conversationId, Long.MAX_VALUE)
+    }
+
+    fun unmuteConversation(conversationId: Long) {
+        setConversationMuteUntil(conversationId, 0L)
+    }
+
+    fun clearRealtimeHint() {
+        _uiState.update { it.copy(realtimeHint = null) }
+    }
+
+    fun clearRealtimeHint(conversationId: Long) {
+        _uiState.update { state ->
+            state.copy(
+                realtimeHint = state.realtimeHint?.takeUnless { it.conversationId == conversationId }
+            )
+        }
+    }
+
+    fun markConversationRead(conversationId: Long) {
+        val currentUserId = activeUserId ?: return
+        viewModelScope.launch {
+            val latestSeq = messageRepository.getLocalLatestMessage(conversationId)?.seqId ?: 0L
+            if (latestSeq <= 0L) return@launch
+
+            messageRepository.markConversationMessagesAsRead(conversationId, currentUserId)
+            runCatching {
+                ChatApi.markConversationAsRead(conversationId, latestSeq)
+            }.onFailure { error: Throwable ->
+                Napier.w("Failed to sync conversation read state: ${error.message}")
+            }
+
+            refreshConversationItem(conversationId, moveToTop = false)
+            _uiState.update { state ->
+                state.copy(
+                    realtimeHint = state.realtimeHint?.takeUnless { it.conversationId == conversationId }
+                )
+            }
+        }
+    }
+
+    fun markAllConversationsRead() {
+        val currentUserId = activeUserId ?: return
+        viewModelScope.launch {
+            val unreadConversations = _uiState.value.conversations.filter { it.unreadCount > 0 }
+            if (unreadConversations.isEmpty()) return@launch
+
+            _uiState.update { it.copy(readAllInProgress = true) }
+            unreadConversations.forEach { item ->
+                val latestSeq = messageRepository.getLocalLatestMessage(item.conversation.conversationId)?.seqId ?: 0L
+                if (latestSeq <= 0L) return@forEach
+
+                messageRepository.markConversationMessagesAsRead(item.conversation.conversationId, currentUserId)
+                runCatching {
+                    ChatApi.markConversationAsRead(item.conversation.conversationId, latestSeq)
+                }.onFailure { error: Throwable ->
+                    Napier.w(
+                        "Failed to sync all-read state for ${item.conversation.conversationId}: ${error.message}"
+                    )
+                }
+            }
+
+            updateConversationList(loadLocalConversations(currentUserId)) {
+                it.copy(
+                    readAllInProgress = false,
+                    realtimeHint = null
+                )
+            }
+            syncMutedConversationsToRuntime()
+        }
+    }
+
     private suspend fun loadLocalConversations(userId: Long): List<ConversationDisplayState> {
         return try {
             val localConversations = conversationRepository.getConversationsByUserId(userId)
             val preferences = conversationRepository.getConversationUiPreferences()
-            sortConversations(
+            includeAssistantConversation(
                 localConversations.map { conversation ->
                     createConversationDisplayState(
                         conversation = conversation,
@@ -177,7 +291,7 @@ class ChatViewModel(
         response.forEach { conversationRepository.saveConversation(it) }
 
         val preferences = conversationRepository.getConversationUiPreferences()
-        return sortConversations(
+        return includeAssistantConversation(
             response.map { conversation ->
                 createConversationDisplayState(
                     conversation = conversation,
@@ -193,7 +307,6 @@ class ChatViewModel(
         currentUserId: Long = 0L,
         preference: ConversationUiPreference? = null
     ): ConversationDisplayState {
-        // 列表项展示数据统一在这里收口，避免 UI 自己拼摘要/时间/未读数
         val latestMessage = messageRepository.getLocalLatestMessage(conversation.conversationId)
         val lastMessageText = latestMessage?.let(::getMessageDesc).orEmpty()
         val latestMessageTime = latestMessage?.clientTime ?: latestMessage?.time
@@ -217,7 +330,9 @@ class ChatViewModel(
             unreadCount = unreadCount,
             isPinned = localPreference?.isPinned == true,
             pinRank = localPreference?.pinRank ?: 0L,
-            lastActiveAt = localPreference?.lastActiveAt?.takeIf { it > 0L } ?: fallbackActiveAt
+            lastActiveAt = localPreference?.lastActiveAt?.takeIf { it > 0L } ?: fallbackActiveAt,
+            isMuted = localPreference?.isMuted == true,
+            muteUntil = localPreference?.muteUntil ?: 0L
         )
     }
 
@@ -273,22 +388,16 @@ class ChatViewModel(
     }
 
     private suspend fun syncConversationIntoList(conversation: ConversationRes) {
-        // 群聊创建、消息收发、已读变化后，统一走这个入口回写列表
         val currentUserId = activeUserId ?: userRepository.getLocalUserInfo()?.userId ?: 0L
         val state = createConversationDisplayState(conversation, currentUserId)
-        _uiState.update { current ->
-            current.copy(
-                conversations = sortConversations(
-                    current.conversations.filterNot {
-                        it.conversation.conversationId == conversation.conversationId
-                    } + state
-                )
-            )
-        }
+        updateConversationList(
+            _uiState.value.conversations.filterNot {
+                it.conversation.conversationId == conversation.conversationId
+            } + state
+        )
     }
 
     private suspend fun refreshConversationItem(conversationId: Long, moveToTop: Boolean) {
-        // 收到消息或会话状态变化时，只刷新受影响的那一项，避免整页重算
         val currentUserId = activeUserId ?: userRepository.getLocalUserInfo()?.userId ?: 0L
         val conversation = conversationRepository.getLocalConversation(conversationId)
             ?: runCatching { conversationRepository.getConversation(conversationId) }.getOrNull()
@@ -299,14 +408,71 @@ class ChatViewModel(
         }
 
         val updated = createConversationDisplayState(conversation, currentUserId)
-        _uiState.update { current ->
+        val currentUser = userRepository.getLocalUserInfo()
+        val notificationPreferences = notificationPreferenceStore.getSnapshot()
+        val nextList = _uiState.value.conversations.filterNot {
+            it.conversation.conversationId == conversationId
+        } + updated
+
+        updateConversationList(nextList) { current ->
             current.copy(
-                conversations = sortConversations(
-                    current.conversations.filterNot {
-                        it.conversation.conversationId == conversationId
-                    } + updated
+                realtimeHint = when {
+                    moveToTop && updated.unreadCount > 0 &&
+                        !updated.isMuted &&
+                        notificationPreferences.enableNotifications &&
+                        AppRuntimeState.shouldShowRealtimeConversationHint(updated.conversation.conversationId) -> RealtimeConversationHint(
+                        conversationId = updated.conversation.conversationId,
+                        title = updated.conversation.getName(currentUser),
+                        preview = if (notificationPreferences.enablePreview) {
+                            updated.lastMessage.ifBlank { "你有一条新消息" }
+                        } else {
+                            "你有一条新消息"
+                        },
+                        unreadCount = updated.unreadCount
+                    )
+                    current.realtimeHint?.conversationId == conversationId &&
+                        (updated.unreadCount <= 0 || updated.isMuted) -> null
+                    else -> current.realtimeHint
+                }
+            )
+        }
+    }
+
+    private fun updateConversationList(
+        conversations: List<ConversationDisplayState>,
+        transform: (ConversationListUiState) -> ConversationListUiState = { it }
+    ) {
+        _uiState.update { current ->
+            val sorted = sortConversations(conversations)
+            syncMutedConversationsToRuntime(sorted)
+            transform(
+                current.copy(
+                    conversations = sorted,
+                    totalUnreadCount = sorted.sumOf { it.unreadCount }
                 )
             )
+        }
+    }
+
+    private fun syncMutedConversationsToRuntime(
+        conversations: List<ConversationDisplayState> = _uiState.value.conversations
+    ) {
+        AppRuntimeState.replaceMutedConversationState(
+            conversations
+                .filter { it.isMuted }
+                .associate { it.conversation.conversationId to it.muteUntil }
+        )
+    }
+
+    private fun setConversationMuteUntil(conversationId: Long, muteUntil: Long) {
+        conversationRepository.setConversationMuteUntil(conversationId, muteUntil)
+        AppRuntimeState.setConversationMutedUntil(conversationId, muteUntil)
+        if (muteUntil > 0L) {
+            clearRealtimeHint(conversationId)
+        }
+
+        viewModelScope.launch {
+            refreshConversationItem(conversationId, moveToTop = false)
         }
     }
 
@@ -359,5 +525,25 @@ class ChatViewModel(
             Napier.e("Failed to format conversation time", e)
             createAt.toString()
         }
+    }
+
+    private suspend fun ensureAssistantConversation() {
+        val currentUser = userRepository.getLocalUserInfo() ?: return
+        conversationRepository.saveConversation(buildAiAssistantConversation(currentUser))
+    }
+
+    private suspend fun includeAssistantConversation(
+        items: List<ConversationDisplayState>
+    ): List<ConversationDisplayState> {
+        val currentUser = userRepository.getLocalUserInfo()
+        val assistantConversation = buildAiAssistantConversation(currentUser)
+        val assistantState = createConversationDisplayState(
+            conversation = assistantConversation,
+            currentUserId = activeUserId ?: currentUser?.userId ?: 0L,
+            preference = conversationRepository.getConversationUiPreference(assistantConversation.conversationId)
+        )
+        return sortConversations(
+            items.filterNot { it.conversation.isAiAssistantConversation() } + assistantState
+        )
     }
 }

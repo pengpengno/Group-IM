@@ -13,6 +13,8 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.github.im.group.MainActivity
 import com.github.im.group.R
+import com.github.im.group.manager.AppRuntimeState
+import com.github.im.group.notification.AndroidNotificationPreferenceStore
 import io.github.aakira.napier.Napier
 import org.json.JSONObject
 
@@ -71,12 +73,32 @@ class AndroidPushNotificationManager(
         val clickAction = data["clickAction"]
         val notificationKind = data["notificationKind"]
         val channelId = if (isMeetingInvite(eventType)) CHANNEL_CALLS else CHANNEL_CHAT
+        val conversationId = data["conversationId"]?.toLongOrNull()
+        val notificationPreferences = AndroidNotificationPreferenceStore(context).getSnapshot()
+
+        if (channelId == CHANNEL_CHAT && !notificationPreferences.enableNotifications) {
+            Napier.i("Skip Android chat notification because notifications are disabled in preferences.")
+            return
+        }
+
+        if (channelId == CHANNEL_CHAT && !AppRuntimeState.shouldShowSystemChatNotification(conversationId)) {
+            Napier.i(
+                "Skip Android chat notification because app is foreground. conversationId=$conversationId, activeConversationId=${AppRuntimeState.getActiveConversationId()}"
+            )
+            return
+        }
+
+        val displayBody = if (channelId == CHANNEL_CHAT && !notificationPreferences.enablePreview) {
+            "你收到一条新消息"
+        } else {
+            body
+        }
 
         val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
-            .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setContentText(displayBody)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(displayBody))
             .setPriority(
                 if (channelId == CHANNEL_CALLS) NotificationCompat.PRIORITY_HIGH
                 else NotificationCompat.PRIORITY_DEFAULT
@@ -97,6 +119,10 @@ class AndroidPushNotificationManager(
                     notificationKind = notificationKind
                 )
             )
+
+        if (channelId == CHANNEL_CHAT && !notificationPreferences.enableSound) {
+            builder.setSilent(true)
+        }
 
         if (channelId == CHANNEL_CALLS && !roomId.isNullOrBlank()) {
             builder.addAction(buildCallAction(

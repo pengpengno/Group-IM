@@ -26,6 +26,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
+import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.nio.file.*;
@@ -49,6 +56,7 @@ public class FileStorageService {
     private final FileMapper fileMapper;
     private Path baseDir;
     private Path chunkTempDir;
+    private Path previewCacheDir;
 
     @PostConstruct
     public void init() throws IOException {
@@ -59,6 +67,8 @@ public class FileStorageService {
         // 创建根目录
         Files.createDirectories(baseDir);
         Files.createDirectories(chunkTempDir);
+        previewCacheDir = baseDir.resolve(".variants").normalize();
+        Files.createDirectories(previewCacheDir);
 
     }
 
@@ -208,6 +218,33 @@ public class FileStorageService {
             throw new FileNotFoundException("文件不存在或不可读: " + filePath);
         }
         return filePath.toFile();
+    }
+
+    public File loadPreviewFile(UUID fileId, Integer width, Integer quality) throws IOException {
+        FileResource fileResource = getFile(fileId);
+        if (fileResource.getStatus() != FileStatus.NORMAL) {
+            throw new FileNotFoundException("Preview not available: " + fileId);
+        }
+
+        MediaFileResource mediaResource = mediaFileResourceRepository.findByFileId(fileId);
+        if (mediaResource != null && mediaResource.getThumbnail() != null && !mediaResource.getThumbnail().isBlank()) {
+            try {
+                FileResource thumbnailResource = getFile(UUID.fromString(mediaResource.getThumbnail()));
+                if (thumbnailResource.getStatus() == FileStatus.NORMAL) {
+                    return loadFile(thumbnailResource);
+                }
+            } catch (Exception ex) {
+                log.warn("Failed to use thumbnail {} for file {}", mediaResource.getThumbnail(), fileId, ex);
+            }
+        }
+
+        if (!isPreviewableImage(fileResource)) {
+            return loadFile(fileResource);
+        }
+
+        int previewWidth = sanitizePreviewWidth(width);
+        int previewQuality = sanitizePreviewQuality(quality);
+        return buildOrReuseImagePreview(fileResource, previewWidth, previewQuality);
     }
     /**
      * 如果你在 Controller 中需要返回 Resource，可以这样：
@@ -390,5 +427,99 @@ public class FileStorageService {
         String ext = extension.toLowerCase();
         return ext.equals("jpg") || ext.equals("jpeg") || ext.equals("png") || ext.equals("gif") ||
                ext.equals("webp") || ext.equals("bmp");
+    }
+
+    private boolean isPreviewableImage(FileResource fileResource) {
+        if (fileResource == null) {
+            return false;
+        }
+        if (fileResource.getContentType() != null && fileResource.getContentType().startsWith("image/")) {
+            return !fileResource.getContentType().equalsIgnoreCase("image/svg+xml");
+        }
+        return isImageFile(fileResource.getExtension());
+    }
+
+    private int sanitizePreviewWidth(Integer width) {
+        if (width == null) {
+            return 480;
+        }
+        return Math.max(160, Math.min(width, 1600));
+    }
+
+    private int sanitizePreviewQuality(Integer quality) {
+        if (quality == null) {
+            return 75;
+        }
+        return Math.max(40, Math.min(quality, 95));
+    }
+
+    private File buildOrReuseImagePreview(FileResource fileResource, int previewWidth, int previewQuality) throws IOException {
+        File originalFile = loadFile(fileResource);
+        BufferedImage sourceImage = ImageIO.read(originalFile);
+        if (sourceImage == null || sourceImage.getWidth() <= previewWidth) {
+            return originalFile;
+        }
+
+        Path fileVariantDir = previewCacheDir.resolve(fileResource.getId().toString()).normalize();
+        Files.createDirectories(fileVariantDir);
+
+        String format = resolvePreviewFormat(fileResource.getContentType(), fileResource.getExtension());
+        Path previewPath = fileVariantDir.resolve("w" + previewWidth + "-q" + previewQuality + "." + format);
+        if (Files.exists(previewPath) && Files.isReadable(previewPath)) {
+            return previewPath.toFile();
+        }
+
+        int targetHeight = Math.max(1, (int) Math.round((double) sourceImage.getHeight() * previewWidth / sourceImage.getWidth()));
+        int imageType = "png".equals(format) ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB;
+        BufferedImage resizedImage = new BufferedImage(previewWidth, targetHeight, imageType);
+        Graphics2D graphics = resizedImage.createGraphics();
+        try {
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            if (imageType == BufferedImage.TYPE_INT_RGB) {
+                graphics.setColor(Color.WHITE);
+                graphics.fillRect(0, 0, previewWidth, targetHeight);
+            }
+            graphics.drawImage(sourceImage, 0, 0, previewWidth, targetHeight, null);
+        } finally {
+            graphics.dispose();
+        }
+
+        writePreviewImage(resizedImage, format, previewPath, previewQuality);
+        return previewPath.toFile();
+    }
+
+    private void writePreviewImage(BufferedImage image, String format, Path previewPath, int previewQuality) throws IOException {
+        if ("jpg".equals(format)) {
+            ImageWriter writer = ImageIO.getImageWritersByFormatName("jpg").next();
+            try (OutputStream fileOutputStream = Files.newOutputStream(previewPath);
+                 ImageOutputStream imageOutputStream = ImageIO.createImageOutputStream(fileOutputStream)) {
+                writer.setOutput(imageOutputStream);
+                ImageWriteParam writeParam = writer.getDefaultWriteParam();
+                if (writeParam.canWriteCompressed()) {
+                    writeParam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                    writeParam.setCompressionQuality(previewQuality / 100.0f);
+                }
+                writer.write(null, new IIOImage(image, null, null), writeParam);
+            } finally {
+                writer.dispose();
+            }
+            return;
+        }
+
+        try (OutputStream fileOutputStream = Files.newOutputStream(previewPath)) {
+            ImageIO.write(image, format, fileOutputStream);
+        }
+    }
+
+    private String resolvePreviewFormat(String contentType, String extension) {
+        if (contentType != null && contentType.equalsIgnoreCase("image/png")) {
+            return "png";
+        }
+        if (extension != null && extension.equalsIgnoreCase("png")) {
+            return "png";
+        }
+        return "jpg";
     }
 }

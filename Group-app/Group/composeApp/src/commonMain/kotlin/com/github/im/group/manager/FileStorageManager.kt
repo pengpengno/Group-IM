@@ -3,6 +3,7 @@ package com.github.im.group.manager
 import com.github.im.common.connect.model.proto.MessageType
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.FileMeta
+import com.github.im.group.config.ProxyConfig
 import com.github.im.group.db.entities.FileStatus
 import com.github.im.group.repository.FilesRepository
 import com.github.im.group.sdk.File
@@ -104,6 +105,18 @@ fun FileMeta.toFile(): File {
         mimeType = this.contentType,
         size = this.size,
         data = FileData.Path(getFileUrl() ?: "")
+    )
+}
+
+fun FileMeta.toPreviewFile(): File {
+    val baseUrl = ProxyConfig.getBaseUrl()
+    val previewUrl = "$baseUrl/api/files/preview/$fileId?width=480&quality=75"
+    return File(
+        name = this.fileName,
+        path = "",
+        mimeType = this.contentType,
+        size = this.size,
+        data = FileData.Path(previewUrl)
     )
 }
 

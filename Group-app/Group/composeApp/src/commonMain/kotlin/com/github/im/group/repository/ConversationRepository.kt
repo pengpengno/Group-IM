@@ -14,7 +14,9 @@ data class ConversationUiPreference(
     val conversationId: Long,
     val isPinned: Boolean = false,
     val pinRank: Long = 0L,
-    val lastActiveAt: Long = 0L
+    val lastActiveAt: Long = 0L,
+    val isMuted: Boolean = false,
+    val muteUntil: Long = 0L
 )
 
 data class ChatScrollPositionRecord(
@@ -148,11 +150,14 @@ class ConversationRepository(
                 .selectAllConversationUiPreferences()
                 .executeAsList()
                 .associate { row ->
+                    val now = Clock.System.now().toEpochMilliseconds()
                     row.conversation_id to ConversationUiPreference(
                         conversationId = row.conversation_id,
                         isPinned = row.is_pinned != 0L,
                         pinRank = row.pin_rank,
-                        lastActiveAt = row.last_active_at
+                        lastActiveAt = row.last_active_at,
+                        isMuted = row.is_muted != 0L || row.mute_until > now,
+                        muteUntil = row.mute_until
                     )
                 }
         } catch (e: Exception) {
@@ -168,11 +173,14 @@ class ConversationRepository(
                 .selectConversationUiPreferenceByConversation(conversationId)
                 .executeAsOneOrNull()
                 ?.let { row ->
+                    val now = Clock.System.now().toEpochMilliseconds()
                     ConversationUiPreference(
                         conversationId = row.conversation_id,
                         isPinned = row.is_pinned != 0L,
                         pinRank = row.pin_rank,
-                        lastActiveAt = row.last_active_at
+                        lastActiveAt = row.last_active_at,
+                        isMuted = row.is_muted != 0L || row.mute_until > now,
+                        muteUntil = row.mute_until
                     )
                 }
         } catch (e: Exception) {
@@ -215,6 +223,19 @@ class ConversationRepository(
             )
         } catch (e: Exception) {
             Napier.e("Failed to unpin conversation: $conversationId", e)
+        }
+    }
+
+    fun setConversationMuteUntil(conversationId: Long, muteUntil: Long) {
+        try {
+            db.conversationUiPreferenceQueries.insertConversationUiPreferenceIfMissing(conversationId)
+            db.conversationUiPreferenceQueries.updateConversationMutePolicy(
+                is_muted = if (muteUntil > 0L) 1L else 0L,
+                mute_until = muteUntil,
+                conversation_id = conversationId
+            )
+        } catch (e: Exception) {
+            Napier.e("Failed to update mute state: $conversationId", e)
         }
     }
 

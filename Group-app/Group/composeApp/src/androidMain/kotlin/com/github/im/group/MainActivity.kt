@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.github.im.group.config.ConfigManager
+import com.github.im.group.manager.AppRuntimeState
 import com.github.im.group.model.UserInfo
 import com.github.im.group.notification.AndroidCallNotificationContract
 import com.github.im.group.notification.AndroidNotificationPermissionHelper
@@ -86,6 +87,16 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleCallNotificationIntent(intent)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        AppRuntimeState.markForeground()
+    }
+
+    override fun onStop() {
+        AppRuntimeState.markBackground()
+        super.onStop()
     }
 
     private fun handleCallNotificationIntent(intent: Intent?) {

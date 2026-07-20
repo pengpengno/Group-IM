@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { webRTCService, CallInternalState, RemoteParticipantStream } from '../../services/WebRTCService';
+import {
+  webRTCService,
+  CallInternalState,
+  RemoteParticipantStream,
+  type VideoQualityPreset
+} from '../../services/WebRTCService';
 
 interface UseVideoCallReturn {
   // State
@@ -21,6 +26,7 @@ interface UseVideoCallReturn {
   toggleMicrophone: (enabled: boolean) => void;
   toggleSpeaker: (enabled: boolean) => void;
   setRelayOnlyDebug: (enabled: boolean) => void;
+  setVideoQualityPreset: (preset: VideoQualityPreset) => Promise<void>;
 
   // Events
   onIncomingCall: (callback: (callerId: string) => void) => () => void;
@@ -123,6 +129,10 @@ export const useVideoCall = (): UseVideoCallReturn => {
     webRTCService.setRelayOnlyDebug(enabled);
   }, []);
 
+  const setVideoQualityPreset = useCallback(async (preset: VideoQualityPreset) => {
+    await webRTCService.setVideoQualityPreset(preset);
+  }, []);
+
   // Event attachment helpers
   const onIncomingCall = useCallback((callback: (callerId: string) => void) => {
     const handler = ({ callerId }: { callerId: string }) => callback(callerId);
@@ -170,6 +180,7 @@ export const useVideoCall = (): UseVideoCallReturn => {
     toggleMicrophone,
     toggleSpeaker,
     setRelayOnlyDebug,
+    setVideoQualityPreset,
     onIncomingCall,
     onCallAccepted,
     onCallRejected,

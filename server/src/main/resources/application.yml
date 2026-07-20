@@ -114,6 +114,9 @@ group:
   # AI 配置
   ai:
     enabled: ${SPRING_AI_ENABLED:false}
+    webhook:
+      enabled: ${GROUP_AI_WEBHOOK_ENABLED:true}
+      tokens: ${GROUP_AI_WEBHOOK_TOKENS:}
     groq:
       api-key: ${GROQ_API_KEY:}
       base-url: ${GROQ_BASE_URL:https://api.groq.com/openai/v1}

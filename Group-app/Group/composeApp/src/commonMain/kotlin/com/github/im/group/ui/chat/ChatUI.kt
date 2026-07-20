@@ -1,5 +1,10 @@
 package com.github.im.group.ui.chat
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -17,24 +22,32 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -46,6 +59,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,6 +69,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavHostController
+import com.github.im.group.bot.AI_ASSISTANT_CONVERSATION_ID
 import com.github.im.group.api.FriendshipDTO
 import com.github.im.group.model.UserInfo
 import com.github.im.group.ui.UserAvatar
@@ -65,9 +80,10 @@ import com.github.im.group.viewmodel.ConversationDisplayState
 import com.github.im.group.viewmodel.UserViewModel
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ChatUI(
     navHostController: NavHostController,
@@ -101,6 +117,17 @@ fun ChatUI(
         userInfo?.userId?.let { chatViewModel.loadConversations(it) }
     }
 
+    LaunchedEffect(chatListState.realtimeHint?.conversationId, chatListState.realtimeHint?.unreadCount) {
+        val hint = chatListState.realtimeHint ?: return@LaunchedEffect
+        delay(4000)
+        val latestHint = chatViewModel.uiState.value.realtimeHint
+        if (latestHint?.conversationId == hint.conversationId &&
+            latestHint.unreadCount == hint.unreadCount
+        ) {
+            chatViewModel.clearRealtimeHint(hint.conversationId)
+        }
+    }
+
     if (showCreateGroupDialog) {
         CreateGroupDialog(
             friends = friends,
@@ -116,34 +143,50 @@ fun ChatUI(
     }
 
     actionConversation?.let { item ->
-        AlertDialog(
+        val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
             onDismissRequest = { actionConversation = null },
-            title = { Text(item.conversation.getName(userInfo)) },
-            text = {
-                Text(
-                    if (item.isPinned) {
-                        "取消置顶后，这个会话会回到最近活跃排序。"
-                    } else {
-                        "置顶后，这个会话会固定显示在普通会话上方。"
-                    }
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        chatViewModel.togglePinConversation(item.conversation.conversationId)
-                        actionConversation = null
-                    }
-                ) {
-                    Text(if (item.isPinned) "取消置顶" else "置顶会话")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { actionConversation = null }) {
-                    Text("取消")
-                }
-            }
-        )
+            sheetState = bottomSheetState,
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            ConversationActionSheet(
+                conversation = item,
+                onOpen = {
+                    chatViewModel.clearRealtimeHint()
+                    actionConversation = null
+                    navHostController.navigate(conversation(item.conversation.conversationId))
+                },
+                onTogglePin = {
+                    chatViewModel.togglePinConversation(item.conversation.conversationId)
+                    actionConversation = null
+                },
+                onToggleMute = {
+                    chatViewModel.toggleMuteConversation(item.conversation.conversationId)
+                    actionConversation = null
+                },
+                onMuteEightHours = {
+                    chatViewModel.muteConversationForEightHours(item.conversation.conversationId)
+                    actionConversation = null
+                },
+                onMuteToday = {
+                    chatViewModel.muteConversationUntilEndOfDay(item.conversation.conversationId)
+                    actionConversation = null
+                },
+                onMuteForever = {
+                    chatViewModel.muteConversationForever(item.conversation.conversationId)
+                    actionConversation = null
+                },
+                onUnmute = {
+                    chatViewModel.unmuteConversation(item.conversation.conversationId)
+                    actionConversation = null
+                },
+                onMarkRead = {
+                    chatViewModel.markConversationRead(item.conversation.conversationId)
+                    actionConversation = null
+                },
+                onDismiss = { actionConversation = null }
+            )
+        }
     }
 
     Column(
@@ -155,13 +198,35 @@ fun ChatUI(
             OfflineStatusBanner()
         }
 
+        AnimatedVisibility(
+            visible = chatListState.realtimeHint != null,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            chatListState.realtimeHint?.let { hint ->
+                RealtimeHintCard(
+                    title = hint.title,
+                    preview = hint.preview,
+                    unreadCount = hint.unreadCount,
+                    onOpen = {
+                        chatViewModel.clearRealtimeHint()
+                        navHostController.navigate(conversation(hint.conversationId))
+                    },
+                    onMarkRead = {
+                        chatViewModel.markConversationRead(hint.conversationId)
+                    },
+                    onDismiss = { chatViewModel.clearRealtimeHint() }
+                )
+            }
+        }
+
         if (chatListState.isSyncing && chatListState.conversations.isNotEmpty()) {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -172,7 +237,7 @@ fun ChatUI(
                         strokeWidth = 2.dp
                     )
                     Text(
-                        text = "正在同步会话...",
+                        text = "正在同步会话列表…",
                         modifier = Modifier.padding(start = 10.dp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -196,49 +261,25 @@ fun ChatUI(
             }
 
             Column(modifier = Modifier.fillMaxSize()) {
-                OutlinedTextField(
-                    value = userSearchQuery,
-                    onValueChange = {
+                ConversationToolbar(
+                    searchQuery = userSearchQuery,
+                    unreadCount = chatListState.totalUnreadCount,
+                    readAllInProgress = chatListState.readAllInProgress,
+                    onQueryChange = {
                         userSearchQuery = it
                         userViewModel.searchUser(it)
                     },
-                    placeholder = { Text("搜索联系人或消息...", fontSize = 14.sp) },
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = null,
-                            tint = ThemeTokens.TextMuted,
-                            modifier = Modifier.size(20.dp)
-                        )
+                    onCreateGroup = {
+                        userViewModel.loadFriendsIfNeeded()
+                        showCreateGroupDialog = true
                     },
-                    trailingIcon = {
-                        IconButton(
-                            onClick = {
-                                userViewModel.loadFriendsIfNeeded()
-                                showCreateGroupDialog = true
-                            }
-                        ) {
-                            Icon(
-                                Icons.Default.GroupAdd,
-                                contentDescription = "创建群聊",
-                                tint = ThemeTokens.PrimaryBlue
-                            )
-                        }
+                    onOpenAssistant = {
+                        navHostController.navigate(conversation(AI_ASSISTANT_CONVERSATION_ID))
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedContainerColor = Color(0xFFF1F5F9),
-                        focusedContainerColor = Color(0xFFF1F5F9),
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedBorderColor = ThemeTokens.PrimaryBlue.copy(alpha = 0.4f)
-                    ),
-                    singleLine = true
+                    onMarkAllRead = {
+                        chatViewModel.markAllConversationsRead()
+                    }
                 )
-
-                Spacer(modifier = Modifier.height(20.dp))
 
                 if (userSearchQuery.isNotBlank()) {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -258,7 +299,8 @@ fun ChatUI(
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        contentPadding = PaddingValues(bottom = 20.dp)
                     ) {
                         items(chatListState.conversations, key = { it.conversation.conversationId }) { item ->
                             userInfo?.let { me ->
@@ -266,12 +308,16 @@ fun ChatUI(
                                     conversation = item,
                                     userInfo = me,
                                     onClick = {
+                                        chatViewModel.clearRealtimeHint()
                                         navHostController.navigate(
                                             conversation(item.conversation.conversationId)
                                         )
                                     },
                                     onLongPress = {
                                         actionConversation = item
+                                    },
+                                    onMarkRead = {
+                                        chatViewModel.markConversationRead(item.conversation.conversationId)
                                     }
                                 )
                                 HorizontalDivider(
@@ -293,13 +339,204 @@ fun ChatUI(
 }
 
 @Composable
+private fun ConversationToolbar(
+    searchQuery: String,
+    unreadCount: Int,
+    readAllInProgress: Boolean,
+    onQueryChange: (String) -> Unit,
+    onCreateGroup: () -> Unit,
+    onOpenAssistant: () -> Unit,
+    onMarkAllRead: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color(0xFFF7FBFF), Color.White)
+                )
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onQueryChange,
+            placeholder = { Text("搜索联系人、群聊或消息", fontSize = 14.sp) },
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null,
+                    tint = ThemeTokens.TextMuted,
+                    modifier = Modifier.size(20.dp)
+                )
+            },
+            trailingIcon = {
+                IconButton(onClick = onCreateGroup) {
+                    Icon(
+                        Icons.Default.GroupAdd,
+                        contentDescription = "创建群聊",
+                        tint = ThemeTokens.PrimaryBlue
+                    )
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(22.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = Color(0xFFF1F5F9),
+                focusedContainerColor = Color(0xFFF1F5F9),
+                unfocusedBorderColor = Color.Transparent,
+                focusedBorderColor = ThemeTokens.PrimaryBlue.copy(alpha = 0.4f)
+            ),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AssistChip(
+                onClick = onOpenAssistant,
+                label = {
+                    Text("AI 助手")
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                colors = AssistChipDefaults.assistChipColors(
+                    containerColor = Color(0xFFF4F7EC),
+                    labelColor = Color(0xFF365314)
+                )
+            )
+
+            AssistChip(
+                onClick = onMarkAllRead,
+                enabled = unreadCount > 0 && !readAllInProgress,
+                label = {
+                    Text(
+                        if (readAllInProgress) "处理中…" else "全部标为已读"
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.DoneAll,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                colors = AssistChipDefaults.assistChipColors(
+                    containerColor = Color(0xFFEFF6FF),
+                    labelColor = ThemeTokens.PrimaryBlue
+                )
+            )
+
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = Color(0xFF111827)
+            ) {
+                Text(
+                    text = if (unreadCount > 0) "未读 $unreadCount" else "全部清爽",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RealtimeHintCard(
+    title: String,
+    preview: String,
+    unreadCount: Int,
+    onOpen: () -> Unit,
+    onMarkRead: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFF0F172A),
+        shadowElevation = 10.dp,
+        onClick = onOpen
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .background(Color.White.copy(alpha = 0.12f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Notifications,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp)
+            ) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = preview,
+                    color = Color.White.copy(alpha = 0.72f),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = Color(0xFFEF4444)
+            ) {
+                Text(
+                    text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+            TextButton(onClick = onMarkRead) {
+                Text("已读", color = Color.White)
+            }
+            TextButton(onClick = onDismiss) {
+                Text("稍后", color = Color.White)
+            }
+        }
+    }
+}
+
+@Composable
 private fun OfflineStatusBanner() {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         color = MaterialTheme.colorScheme.secondaryContainer,
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
             modifier = Modifier
@@ -315,7 +552,7 @@ private fun OfflineStatusBanner() {
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "网络异常，正在回退本地会话列表...",
+                text = "网络有点不稳，当前先展示本地会话缓存。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
             )
@@ -340,13 +577,13 @@ private fun EmptyChatState() {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "暂无聊天会话",
+                text = "还没有聊天会话",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "可以从联系人里开始一个新会话。",
+                text = "可以从联系人里开始一个新会话，或者创建一个群聊。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -359,7 +596,8 @@ fun ChatItem(
     conversation: ConversationDisplayState,
     userInfo: UserInfo,
     onClick: () -> Unit,
-    onLongPress: () -> Unit = {}
+    onLongPress: () -> Unit = {},
+    onMarkRead: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -371,7 +609,17 @@ fun ChatItem(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        UserAvatar(username = conversation.conversation.getName(userInfo), size = 52)
+        Box {
+            UserAvatar(username = conversation.conversation.getName(userInfo), size = 52)
+            if (conversation.unreadCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(12.dp)
+                        .background(Color(0xFFEF4444), CircleShape)
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.width(14.dp))
 
@@ -387,7 +635,9 @@ fun ChatItem(
                 ) {
                     Text(
                         text = conversation.conversation.getName(userInfo),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = if (conversation.unreadCount > 0) FontWeight.Bold else FontWeight.SemiBold
+                        ),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
@@ -406,6 +656,20 @@ fun ChatItem(
                             )
                         }
                     }
+                    if (conversation.isMuted) {
+                        Surface(
+                            shape = RoundedCornerShape(999.dp),
+                            color = Color(0xFFF1F5F9),
+                            modifier = Modifier.padding(start = 8.dp)
+                        ) {
+                            Text(
+                                text = "免打扰",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
                 }
 
                 Text(
@@ -415,7 +679,7 @@ fun ChatItem(
                 )
             }
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -425,28 +689,172 @@ fun ChatItem(
                 Text(
                     text = conversation.lastMessage.ifBlank { "暂无消息" },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (conversation.unreadCount > 0) {
+                        ThemeTokens.TextMain
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
 
-                if (conversation.unreadCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .size(20.dp)
-                            .background(Color(0xFFEF4444), RoundedCornerShape(10.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (conversation.unreadCount > 99) "99+" else conversation.unreadCount.toString(),
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (conversation.unreadCount > 0) {
+                        TextButton(
+                            onClick = onMarkRead,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                        ) {
+                            Text("已读", style = MaterialTheme.typography.labelMedium)
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(width = 28.dp, height = 20.dp)
+                                .background(Color(0xFFEF4444), RoundedCornerShape(10.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (conversation.unreadCount > 99) "99+" else conversation.unreadCount.toString(),
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConversationActionSheet(
+    conversation: ConversationDisplayState,
+    onOpen: () -> Unit,
+    onTogglePin: () -> Unit,
+    onToggleMute: () -> Unit,
+    onMuteEightHours: () -> Unit,
+    onMuteToday: () -> Unit,
+    onMuteForever: () -> Unit,
+    onUnmute: () -> Unit,
+    onMarkRead: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = conversation.conversation.groupName.ifBlank { "会话操作" },
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        ActionSheetItem(
+            icon = Icons.Default.Search,
+            title = "打开会话",
+            description = "直接进入聊天页继续处理消息",
+            onClick = onOpen
+        )
+        ActionSheetItem(
+            icon = if (conversation.isPinned) Icons.Default.PushPin else Icons.Default.PushPin,
+            title = if (conversation.isPinned) "取消置顶" else "置顶会话",
+            description = if (conversation.isPinned) "恢复为按活跃时间排序" else "固定在会话列表顶部",
+            onClick = onTogglePin
+        )
+        if (conversation.isMuted) {
+            ActionSheetItem(
+                icon = Icons.Default.Notifications,
+                title = "恢复提醒",
+                description = "重新接收这个会话的实时提示和通知",
+                onClick = onUnmute
+            )
+        } else {
+            ActionSheetItem(
+                icon = Icons.Default.NotificationsOff,
+                title = "8 小时免打扰",
+                description = "适合临时专注，不影响明天继续提醒",
+                onClick = onMuteEightHours
+            )
+            ActionSheetItem(
+                icon = Icons.Default.NotificationsOff,
+                title = "今天内免打扰",
+                description = "今天剩余时间不再提醒，明天自动恢复",
+                onClick = onMuteToday
+            )
+            ActionSheetItem(
+                icon = Icons.Default.NotificationsOff,
+                title = "永久免打扰",
+                description = "保留未读数，但不再弹这个会话的提醒",
+                onClick = onMuteForever
+            )
+        }
+        if (conversation.unreadCount > 0) {
+            ActionSheetItem(
+                icon = Icons.Default.DoneAll,
+                title = "标记已读",
+                description = "立即清除这个会话的小红点",
+                onClick = onMarkRead
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        TextButton(
+            onClick = onDismiss,
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text("取消")
+        }
+        Spacer(modifier = Modifier.height(18.dp))
+    }
+}
+
+@Composable
+private fun ActionSheetItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFFF8FAFC),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 10.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .background(Color.White, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = ThemeTokens.PrimaryBlue
+                )
+            }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp)
+            ) {
+                Text(text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -552,7 +960,7 @@ private fun CreateGroupDialog(
                                 .padding(vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Checkbox(
+                            androidx.compose.material3.Checkbox(
                                 checked = selected.value.contains(user.userId),
                                 onCheckedChange = { checked ->
                                     val next = selected.value.toMutableSet()

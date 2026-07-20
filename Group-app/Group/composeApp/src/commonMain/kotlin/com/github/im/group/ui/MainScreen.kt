@@ -1,5 +1,8 @@
 package com.github.im.group.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -7,7 +10,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -22,7 +27,10 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.Contacts
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -34,7 +42,9 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
@@ -46,6 +56,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
@@ -53,7 +64,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -93,6 +106,7 @@ fun ChatMainScreen(
     val scope = rememberCoroutineScope()
     val loginState by userViewModel.loginState.collectAsState()
     val userInfo by userViewModel.currentLocalUserInfo.collectAsState()
+    val chatListState by chatViewModel.uiState.collectAsState()
 
     var isVideoCallMinimized by remember { mutableStateOf(false) }
     var selectedItem by remember { mutableIntStateOf(0) }
@@ -174,6 +188,19 @@ fun ChatMainScreen(
                 kotlinx.coroutines.delay(1000) 
                 isRefreshing = false
             }
+        }
+    }
+
+    LaunchedEffect(chatListState.realtimeHint?.conversationId, chatListState.realtimeHint?.unreadCount, selectedItem) {
+        if (selectedItem == 0) return@LaunchedEffect
+        val hint = chatListState.realtimeHint ?: return@LaunchedEffect
+        delay(5000)
+        val latestHint = chatViewModel.uiState.value.realtimeHint
+        if (selectedItem != 0 &&
+            latestHint?.conversationId == hint.conversationId &&
+            latestHint.unreadCount == hint.unreadCount
+        ) {
+            chatViewModel.clearRealtimeHint(hint.conversationId)
         }
     }
 
@@ -321,14 +348,35 @@ fun ChatMainScreen(
                                 NavigationBarItem(
                                     icon = {
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Icon(
-                                                imageVector = if (isSelected) item.selectedIcon else item.icon,
-                                                contentDescription = item.title,
-                                                modifier = Modifier
-                                                    .size(24.dp)
-                                                    .scale(animatedScale),
-                                                tint = animatedColor
-                                            )
+                                            val iconContent: @Composable () -> Unit = {
+                                                Icon(
+                                                    imageVector = if (isSelected) item.selectedIcon else item.icon,
+                                                    contentDescription = item.title,
+                                                    modifier = Modifier
+                                                        .size(24.dp)
+                                                        .scale(animatedScale),
+                                                    tint = animatedColor
+                                                )
+                                            }
+                                            if (index == 0 && chatListState.totalUnreadCount > 0) {
+                                                BadgedBox(
+                                                    badge = {
+                                                        Badge {
+                                                            Text(
+                                                                text = if (chatListState.totalUnreadCount > 99) {
+                                                                    "99+"
+                                                                } else {
+                                                                    chatListState.totalUnreadCount.toString()
+                                                                }
+                                                            )
+                                                        }
+                                                    }
+                                                ) {
+                                                    iconContent()
+                                                }
+                                            } else {
+                                                iconContent()
+                                            }
                                         }
                                     },
                                     label = { 
@@ -363,6 +411,74 @@ fun ChatMainScreen(
                     ) {
                         Column {
                             GlobalAudioBar()
+                            AnimatedVisibility(
+                                visible = selectedItem != 0 && chatListState.realtimeHint != null,
+                                enter = fadeIn(),
+                                exit = fadeOut()
+                            ) {
+                                chatListState.realtimeHint?.let { hint ->
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+                                        color = Color(0xFF0F172A),
+                                        shadowElevation = 8.dp,
+                                        onClick = {
+                                            selectedItem = 0
+                                            chatViewModel.clearRealtimeHint()
+                                            navHostController.navigate(conversation(hint.conversationId))
+                                        }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = hint.title,
+                                                    color = Color.White,
+                                                    style = MaterialTheme.typography.titleSmall,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    text = hint.preview,
+                                                    color = Color.White.copy(alpha = 0.72f),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                            Surface(
+                                                shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
+                                                color = Color(0xFFEF4444)
+                                            ) {
+                                                Text(
+                                                    text = if (hint.unreadCount > 99) "99+" else hint.unreadCount.toString(),
+                                                    color = Color.White,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                                )
+                                            }
+                                            TextButton(
+                                                onClick = {
+                                                    chatViewModel.markConversationRead(hint.conversationId)
+                                                },
+                                                colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
+                                            ) {
+                                                Text("已读")
+                                            }
+                                            TextButton(
+                                                onClick = { chatViewModel.clearRealtimeHint() },
+                                                colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
+                                            ) {
+                                                Text("稍后")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             when (selectedItem) {
                                 0 -> ChatUI(navHostController = navHostController)
                                 1 -> ContactsUI(navHostController = navHostController)

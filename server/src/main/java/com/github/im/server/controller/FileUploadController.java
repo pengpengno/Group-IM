@@ -9,17 +9,21 @@ import com.github.im.server.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.core.io.support.ResourceRegion;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpRange;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
@@ -133,4 +137,20 @@ public class FileUploadController {
 
     }
 
+    @GetMapping("/preview/{fileId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Resource> previewFile(@PathVariable UUID fileId,
+                                                @RequestParam(value = "width", required = false) Integer width,
+                                                @RequestParam(value = "quality", required = false) Integer quality) throws IOException {
+        var previewFile = fileStorageService.loadPreviewFile(fileId, width, quality);
+        var resource = new UrlResource(previewFile.toURI());
+        var contentType = MediaTypeFactory.getMediaType(previewFile.getName())
+                .orElse(MediaType.APPLICATION_OCTET_STREAM);
+
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePrivate())
+                .contentType(contentType)
+                .contentLength(resource.contentLength())
+                .body(resource);
+    }
 }

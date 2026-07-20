@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -19,7 +18,6 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -34,21 +32,6 @@ import androidx.compose.ui.unit.sp
 import com.github.im.group.model.UserInfo
 import com.github.im.group.ui.theme.ThemeTokens
 
-/**
- * ChatRoom 顶部导航栏
- *
- * 职责：
- * - 显示会话名称/对方用户名
- * - 单聊时显示在线状态副标题
- * - 提供返回和视频通话按钮
- *
- * @param roomName        会话标题（群名 or 好友名）
- * @param roomSubtitle    单聊时副标题（如"在线" / 成员数）
- * @param isGroupConversation 是否为群聊（影响图标和通话行为）
- * @param remoteUser      单聊时的对方 UserInfo，用于显示头像占位
- * @param onBack          返回按钮回调
- * @param onStartVideoCall 视频通话按钮回调
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatRoomTopBar(
@@ -57,7 +40,8 @@ fun ChatRoomTopBar(
     isGroupConversation: Boolean,
     remoteUser: UserInfo?,
     onBack: () -> Unit,
-    onStartVideoCall: () -> Unit
+    onStartVideoCall: () -> Unit,
+    showVideoCallAction: Boolean = true
 ) {
     CenterAlignedTopAppBar(
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -76,14 +60,16 @@ fun ChatRoomTopBar(
         },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Avatar placeholder
                 Box(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
                         .background(
-                            if (isGroupConversation) ThemeTokens.PrimaryBlue.copy(alpha = 0.15f)
-                            else ThemeTokens.Sphere2.copy(alpha = 0.15f)
+                            if (isGroupConversation) {
+                                ThemeTokens.PrimaryBlue.copy(alpha = 0.15f)
+                            } else {
+                                ThemeTokens.Sphere2.copy(alpha = 0.15f)
+                            }
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -116,13 +102,15 @@ fun ChatRoomTopBar(
             }
         },
         actions = {
-            IconButton(onClick = onStartVideoCall) {
-                Icon(
-                    imageVector = Icons.Default.VideoCall,
-                    contentDescription = "视频通话",
-                    tint = ThemeTokens.PrimaryBlue,
-                    modifier = Modifier.size(26.dp)
-                )
+            if (showVideoCallAction) {
+                IconButton(onClick = onStartVideoCall) {
+                    Icon(
+                        imageVector = Icons.Default.VideoCall,
+                        contentDescription = "视频通话",
+                        tint = ThemeTokens.PrimaryBlue,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
             }
         },
         modifier = Modifier.fillMaxWidth()

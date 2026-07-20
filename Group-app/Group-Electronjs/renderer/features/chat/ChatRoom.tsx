@@ -3,8 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import ParticipantPicker from './ParticipantPicker';
 import ScheduleMeetingDialog from './ScheduleMeetingDialog';
 import { RootState, AppDispatch } from '../../store';
-import { fetchMessages, sendMessageViaSocket } from './chatSlice';
-import { BASE_URL, authAPI, meetingAPI } from '../../services/api/apiClient';
+import { addMessage, fetchMessages, sendMessageViaSocket } from './chatSlice';
+import { BASE_URL, aiBotAPI, authAPI, meetingAPI } from '../../services/api/apiClient';
 import { useAppSelector } from '../../hooks';
 import { getElectronAPI, isElectronEnvironment } from '../../services/api/electronAPI';
 import { socketService } from '../../services/socketService';
@@ -43,6 +43,22 @@ type MessageSenderDisplay = {
   avatarSeed: string;
 };
 
+type AiBotReplyDto = {
+  content?: string;
+  messageType?: string;
+  metadata?: Record<string, any> | null;
+};
+
+type BotCardData = {
+  title?: string;
+  summary?: string;
+  sections?: Array<{ title?: string; text?: string }>;
+  actions?: Array<{ label?: string; url?: string; value?: string }>;
+};
+
+const BOT_CARD_PREFIX = '[[BOT_CARD]]';
+const BOT_MENTION_PATTERN = /^@(机器人|AI助手|AI\s*助手)\s*/i;
+
 // 消息项组件
 // Define a local media cache to store local previews for uploaded media to prevent downloading them again
 const localMediaCache = new Map<string, string>();
@@ -51,7 +67,7 @@ const localMediaCache = new Map<string, string>();
  * Centralize file-id extraction so list thumbnails and preview modals can share
  * the same cached blob URL instead of downloading the same media twice.
  */
-const extractFileIdFromDownloadUrl = (url: string) => url ? url.split('/').pop() || '' : '';
+const getMediaCacheKey = (url: string) => url || '';
 
 /**
  * Authenticated Media Hook to handle blob URLs with token
@@ -65,10 +81,9 @@ const useAuthenticatedMedia = (url: string, token?: string) => {
     let objectUrl = '';
     let shouldRevokeObjectUrl = false;
 
-    // Extract fileId (UUID) from download URL. Format: .../api/files/download/{fileId}
-    const fileId = extractFileIdFromDownloadUrl(url);
-    if (fileId && localMediaCache.has(fileId)) {
-      setMediaSrc(localMediaCache.get(fileId) || '');
+    const cacheKey = getMediaCacheKey(url);
+    if (cacheKey && localMediaCache.has(cacheKey)) {
+      setMediaSrc(localMediaCache.get(cacheKey) || '');
       setLoading(false);
       setError(false);
       return;
@@ -83,8 +98,8 @@ const useAuthenticatedMedia = (url: string, token?: string) => {
           responseType: 'blob'
         });
         objectUrl = URL.createObjectURL(response.data);
-        if (fileId) {
-          localMediaCache.set(fileId, objectUrl);
+        if (cacheKey) {
+          localMediaCache.set(cacheKey, objectUrl);
         } else {
           shouldRevokeObjectUrl = true;
         }
@@ -231,6 +246,138 @@ const parseMeetingPayload = (message: MessageDTO): MeetingMessagePayload | null 
   return null;
 };
 
+const parseBotCard = (content: string): BotCardData | null => {
+  if (!content?.startsWith(BOT_CARD_PREFIX)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(content.slice(BOT_CARD_PREFIX.length)) as BotCardData;
+  } catch {
+    return null;
+  }
+};
+
+const renderRichText = (content: string): React.ReactNode => {
+  const normalized = (content || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|h\d|blockquote|pre|ul|ol)>/gi, '\n')
+    .replace(/<(strong|b)>(.*?)<\/(strong|b)>/gi, '**$2**')
+    .replace(/<(em|i)>(.*?)<\/(em|i)>/gi, '*$2*')
+    .replace(/<code>(.*?)<\/code>/gi, '`$1`')
+    .replace(/<pre[^>]*>/gi, '```\n')
+    .replace(/<\/pre>/gi, '\n```')
+    .replace(/<li[^>]*>/gi, '- ')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<a\s+[^>]*href=['"]([^'"]+)['"][^>]*>(.*?)<\/a>/gi, '[$2]($1)')
+    .replace(/<[^>]+>/g, '')
+    .trim();
+
+  const lines = normalized.split('\n').filter((line) => line.trim().length > 0);
+  const inCodeBlock = normalized.startsWith('```') && normalized.endsWith('```');
+
+  if (inCodeBlock) {
+    return <pre className="msg-code-block">{normalized.replace(/^```/, '').replace(/```$/, '').trim()}</pre>;
+  }
+
+  return (
+    <div className="msg-rich-text">
+      {lines.map((line, index) => {
+        const trimmed = line.trim();
+        const numbered = trimmed.match(/^(\d+)\.\s+(.*)$/);
+        const bullet = trimmed.match(/^[-*]\s+(.*)$/);
+        const heading = trimmed.match(/^#+\s+(.*)$/);
+        const quote = trimmed.match(/^>\s?(.*)$/);
+
+        let className = 'msg-rich-line';
+        let text = trimmed;
+        if (heading) {
+          className += ' heading';
+          text = heading[1];
+        } else if (numbered) {
+          className += ' list';
+          text = `${numbered[1]}. ${numbered[2]}`;
+        } else if (bullet) {
+          className += ' list';
+          text = `• ${bullet[1]}`;
+        } else if (quote) {
+          className += ' quote';
+          text = quote[1];
+        }
+
+        const segments = text.split(/(https?:\/\/[^\s]+|\[[^\]]+\]\((https?:\/\/[^)]+)\)|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g).filter(Boolean);
+        return (
+          <div key={`${index}-${text}`} className={className}>
+            {segments.map((segment, segmentIndex) => {
+              const markdownLink = segment.match(/^\[([^\]]+)]\((https?:\/\/[^)]+)\)$/);
+              if (markdownLink) {
+                return <a key={segmentIndex} href={markdownLink[2]} target="_blank" rel="noreferrer">{markdownLink[1]}</a>;
+              }
+              if (/^https?:\/\/[^\s]+$/.test(segment)) {
+                return <a key={segmentIndex} href={segment} target="_blank" rel="noreferrer">{segment}</a>;
+              }
+              if (/^`[^`]+`$/.test(segment)) {
+                return <code key={segmentIndex}>{segment.slice(1, -1)}</code>;
+              }
+              if (/^\*\*[^*]+\*\*$/.test(segment)) {
+                return <strong key={segmentIndex}>{segment.slice(2, -2)}</strong>;
+              }
+              if (/^\*[^*]+\*$/.test(segment)) {
+                return <em key={segmentIndex}>{segment.slice(1, -1)}</em>;
+              }
+              return <React.Fragment key={segmentIndex}>{segment}</React.Fragment>;
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const BotCard: React.FC<{ card: BotCardData; isOwnMessage: boolean }> = ({ card, isOwnMessage }) => {
+  return (
+    <div className={`bot-card ${isOwnMessage ? 'own' : ''}`}>
+      {card.title && <div className="bot-card-title">{card.title}</div>}
+      {card.summary && <div className="bot-card-summary">{card.summary}</div>}
+      {!!card.sections?.length && (
+        <div className="bot-card-sections">
+          {card.sections.map((section, index) => (
+            <div className="bot-card-section" key={`${section.title || 'section'}-${index}`}>
+              {section.title && <div className="bot-card-section-title">{section.title}</div>}
+              {section.text && <div className="bot-card-section-text">{section.text}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+      {!!card.actions?.length && (
+        <div className="bot-card-actions">
+          {card.actions.map((action, index) => {
+            const label = action.label || '操作';
+            const key = `${label}-${index}`;
+            if (action.url) {
+              return (
+                <a key={key} className="bot-card-action" href={action.url} target="_blank" rel="noreferrer">
+                  {label}
+                </a>
+              );
+            }
+            return (
+              <button
+                key={key}
+                type="button"
+                className="bot-card-action secondary"
+                onClick={() => action.value && navigator.clipboard?.writeText(action.value)}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /**
  * 实时消息通过 socket 进入聊天页时，不一定会附带完整的 fromAccount。
  * 这里优先使用消息里的发送者信息，缺失时再退回到会话成员列表，
@@ -290,27 +437,34 @@ const MessageBubble: React.FC<{
 
   const renderContent = () => {
     const getFileUrl = (fileId: string) => `${BASE_URL}/api/files/download/${fileId}`;
+    const getPreviewUrl = (fileId: string, width = 480, quality = 75) =>
+      `${BASE_URL}/api/files/preview/${fileId}?width=${width}&quality=${quality}`;
     const type = message.type.toUpperCase();
+    const botCard = parseBotCard(message.content);
+
+    if (botCard) {
+      return <BotCard card={botCard} isOwnMessage={isOwnMessage} />;
+    }
 
     switch (type) {
       case MessageType.IMAGE: {
-        const url = getFileUrl(message.content);
+        const previewUrl = getPreviewUrl(message.content, 480, 75);
+        const originalUrl = getFileUrl(message.content);
         return (
           <div className="msg-media-container msg-image-container">
             <AuthenticatedImage
-              url={url}
+              url={previewUrl}
               token={token}
               className="msg-img-preview"
-              onClick={(resolvedUrl) => onImageClick && onImageClick(resolvedUrl, 'IMAGE')}
+              onClick={() => onImageClick && onImageClick(originalUrl, 'IMAGE')}
             />
           </div>
         );
       }
       case MessageType.VIDEO: {
         const url = getFileUrl(message.content);
-        const previewUrl = localMediaCache.get(message.content) || url;
         return (
-          <div className="msg-media-container msg-video-container" onClick={() => onImageClick && onImageClick(previewUrl, 'VIDEO')}>
+          <div className="msg-media-container msg-video-container" onClick={() => onImageClick && onImageClick(url, 'VIDEO')}>
             <div className="video-overlay-play">
               <svg viewBox="0 0 24 24" width="40" height="40" fill="white"><path d="M8 5v14l11-7z" /></svg>
             </div>
@@ -384,7 +538,7 @@ const MessageBubble: React.FC<{
         );
       }
       default:
-        return <div className="msg-text">{message.content}</div>;
+        return <div className="msg-text">{renderRichText(message.content)}</div>;
     }
   };
 
@@ -508,6 +662,58 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     setToast({ message, type });
   };
 
+  const shouldTriggerBotReply = (content: string) => isGroupConversation(conversation) && BOT_MENTION_PATTERN.test(content.trim());
+
+  const extractBotPrompt = (content: string) => content.trim().replace(BOT_MENTION_PATTERN, '').trim();
+
+  const toBotRenderableContent = (reply: AiBotReplyDto): string => {
+    if ((reply.messageType || '').toLowerCase() === 'card' && reply.metadata) {
+      return `${BOT_CARD_PREFIX}${JSON.stringify(reply.metadata)}`;
+    }
+    return reply.content?.trim() || '我暂时没有组织出合适的回复。';
+  };
+
+  const appendLocalBotReply = (content: string) => {
+    dispatch(addMessage({
+      msgId: -(Date.now()),
+      conversationId: conversation.conversationId,
+      content,
+      fromAccountId: -20260721,
+      fromAccount: {
+        userId: -20260721,
+        username: 'AI 助手',
+        email: 'ai-assistant@local.group',
+        phoneNumber: ''
+      },
+      type: MessageType.TEXT,
+      timestamp: Date.now(),
+      clientMsgId: `web-bot-${Date.now()}`,
+      sendingStatus: 'success'
+    }));
+  };
+
+  const requestBotReply = async (sourceContent: string) => {
+    const prompt = extractBotPrompt(sourceContent);
+    if (!prompt || !currentUserId) {
+      return;
+    }
+
+    try {
+      const response = await aiBotAPI.sendMessage({
+        content: prompt,
+        conversationId: conversation.conversationId,
+        fromAccountId: currentUserId,
+        clientMsgId: window.crypto?.randomUUID?.() || `web-ai-${Date.now()}`
+      });
+      const reply = (response.data?.data || response.data) as AiBotReplyDto;
+      appendLocalBotReply(toBotRenderableContent(reply));
+      scrollToBottom();
+    } catch (error) {
+      console.error('Failed to request bot reply:', error);
+      appendLocalBotReply('AI 助手暂时无法响应这次 @ 提问，请稍后重试。');
+    }
+  };
+
   const getSocketStatusText = () => {
     switch (socketConnectionState) {
       case 'connected':
@@ -583,10 +789,10 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
   // 发送消息
   const sendMessage = async () => {
-    if (!inputText.trim()) return;
+      if (!inputText.trim()) return;
 
-    const content = inputText.trim();
-    setInputText('');
+      const content = inputText.trim();
+      setInputText('');
 
     // Define a clientMsgId to track the message through optimistic update
     const clientMsgId = window.crypto && window.crypto.randomUUID
@@ -600,16 +806,20 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         preview: content.slice(0, 80)
       });
       // Async dispatch, don't await unwrap if we want immediate UI
-      dispatch(sendMessageViaSocket({
-        conversationId: conversation.conversationId,
-        content: content,
-        type: 'TEXT',
-        clientMsgId,
-        senderSnapshot: currentSenderSnapshot
-      }));
+        dispatch(sendMessageViaSocket({
+          conversationId: conversation.conversationId,
+          content: content,
+          type: 'TEXT',
+          clientMsgId,
+          senderSnapshot: currentSenderSnapshot
+        }));
 
-      scrollToBottom();
-    } catch (err: any) {
+        if (shouldTriggerBotReply(content)) {
+          void requestBotReply(content);
+        }
+
+        scrollToBottom();
+      } catch (err: any) {
       console.error('Failed to send message async:', err);
     }
   };

@@ -14,8 +14,10 @@ import com.github.im.group.manager.FileUploadService
 import com.github.im.group.manager.LoginStateListener
 import com.github.im.group.manager.LoginStateManager
 import com.github.im.group.manager.MessageRouter
+import com.github.im.group.manager.NotificationPreferenceStore
 import com.github.im.group.manager.UserDataSyncListener
 import com.github.im.group.manager.VoiceFileManager
+import com.github.im.group.notification.AndroidNotificationPreferenceStore
 import com.github.im.group.notification.AndroidPushEndpointRegistrar
 import com.github.im.group.repository.ChatMessageRepository
 import com.github.im.group.repository.ConversationRepository
@@ -66,6 +68,7 @@ val appmodule = module {
     single { AndroidMeetingSignalingClient() }
     single<WebRTCManager> { AndroidWebRTCManager(androidContext(), get()) }
     single { AndroidPushEndpointRegistrar(androidContext()) }
+    single<NotificationPreferenceStore> { AndroidNotificationPreferenceStore(androidContext()) }
     single { UserRepository(get()) }
     single { ConversationRepository(get(),get()) }
     single { ChatMessageRepository(get(),get()) }
@@ -108,7 +111,8 @@ val appmodule = module {
             loginStateManager = get(),
             messageRepository = get(),
             conversationRepository = get(),
-            conversationListCoordinator = get()
+            conversationListCoordinator = get(),
+            notificationPreferenceStore = get()
         )
     }
 

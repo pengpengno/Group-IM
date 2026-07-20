@@ -54,11 +54,14 @@ import androidx.navigation.compose.rememberNavController
 import com.github.im.group.api.ConversationType
 import com.github.im.group.api.MeetingApi
 import com.github.im.group.api.MeetingCreateRequest
+import com.github.im.group.bot.AI_ASSISTANT_SUBTITLE
 import com.github.im.group.db.entities.MessageStatus
+import com.github.im.group.manager.AppRuntimeState
 import com.github.im.group.model.UserInfo
 import com.github.im.group.ui.ChatRoom
 import com.github.im.group.ui.ChatRoomType
 import com.github.im.group.ui.theme.ThemeTokens
+import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.ui.video.MeetingLauncher
 import com.github.im.group.ui.video.VideoCallLauncher
 import com.github.im.group.viewmodel.ChatRoomViewModel
@@ -80,6 +83,7 @@ fun ChatRoomScreen(
 ) {
     val userViewModel: UserViewModel = koinViewModel()
     val voiceViewModel: VoiceViewModel = koinViewModel()
+    val chatViewModel: ChatViewModel = koinViewModel()
     val chatRoomViewModel: ChatRoomViewModel = koinViewModel()
 
     val uiState by voiceViewModel.uiState.collectAsState()
@@ -95,6 +99,7 @@ fun ChatRoomScreen(
     var remoteUser by remember { mutableStateOf<UserInfo?>(chatUiState.friend) }
     var showUserSelector by remember { mutableStateOf(false) }
 
+    val isBotConversation = chatUiState.isBotSession
     val isGroupConversation = chatUiState.conversation?.conversationType == ConversationType.GROUP
     val isPreparingPrivateChat = chatRoom.type == ChatRoomType.CREATE_PRIVATE &&
         chatUiState.sessionCreationState == SessionCreationState.Creating
@@ -125,6 +130,11 @@ fun ChatRoomScreen(
         remoteUser = chatUiState.friend
     }
 
+    LaunchedEffect(conversationId) {
+        AppRuntimeState.setActiveConversation(conversationId)
+        conversationId?.let(chatViewModel::clearRealtimeHint)
+    }
+
     LaunchedEffect(listState, conversationId, chatUiState.messages.size, chatUiState.isLoadingHistory) {
         snapshotFlow {
             val totalItems = chatUiState.messages.size
@@ -153,6 +163,7 @@ fun ChatRoomScreen(
     val latestConversationId by rememberUpdatedState(conversationId)
     DisposableEffect(conversationId) {
         onDispose {
+            AppRuntimeState.clearActiveConversation(conversationId)
             latestConversationId?.let { cid ->
                 val anchorMessage = latestMessages.getOrNull(listState.firstVisibleItemIndex)
                 chatRoomViewModel.saveReadingPosition(
@@ -235,12 +246,16 @@ fun ChatRoomScreen(
                 remoteUser = remoteUser,
                 onBack = onBack,
                 onStartVideoCall = {
+                    if (chatUiState.isBotSession) {
+                        return@ChatRoomTopBar
+                    }
                     if (isGroupConversation) {
                         showUserSelector = true
                     } else {
                         showVideoCall = true
                     }
-                }
+                },
+                showVideoCallAction = !chatUiState.isBotSession
             )
         }
     ) { paddingValues ->

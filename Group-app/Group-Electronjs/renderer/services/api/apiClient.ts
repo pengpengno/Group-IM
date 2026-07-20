@@ -109,6 +109,22 @@ export const conversationAPI = {
   }
 };
 
+export const aiBotAPI = {
+  sendMessage: async (payload: {
+    content: string;
+    conversationId: number;
+    fromAccountId: number;
+    clientMsgId: string;
+  }) => {
+    return http.post('/api/ai-bot/message', {
+      ...payload,
+      type: 'TEXT',
+      status: 'SENT',
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
 export const orgAPI = {
   // GET /api/company/structure
   getStructure: async () => {

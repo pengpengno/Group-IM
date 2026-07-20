@@ -2,14 +2,22 @@ package com.github.im.group.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.im.group.api.AiBotApi
+import com.github.im.group.api.AiBotReplyDto
 import com.github.im.group.api.ChatApi
 import com.github.im.group.api.ConversationApi
 import com.github.im.group.api.ConversationRes
 import com.github.im.group.api.ConversationType
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.FileMeta
+import com.github.im.group.api.MessageDTO
 import com.github.im.group.api.UserApi
+import com.github.im.group.bot.AI_ASSISTANT_CONVERSATION_ID
+import com.github.im.group.bot.aiAssistantUser
+import com.github.im.group.bot.buildAiAssistantConversation
+import com.github.im.group.bot.isAiAssistantConversationId
 import com.github.im.group.db.entities.MessageStatus
+import com.github.im.group.db.entities.MessageType
 import com.github.im.group.manager.ConversationListCoordinator
 import com.github.im.group.manager.FileStorageManager
 import com.github.im.group.manager.MessageFacade
@@ -39,6 +47,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.Clock
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 sealed class SessionCreationState {
     data object Idle : SessionCreationState()
@@ -51,6 +67,8 @@ data class ChatUiState(
     val conversation: ConversationRes? = null,
     val friend: UserInfo? = null,
     val messages: List<MessageItem> = emptyList(),
+    val isBotSession: Boolean = false,
+    val isBotResponding: Boolean = false,
     val isInitializing: Boolean = false,
     val isRefreshing: Boolean = false,
     val isLoadingHistory: Boolean = false,
@@ -93,6 +111,10 @@ class ChatRoomViewModel(
     val conversationListCoordinator: ConversationListCoordinator
 ) : ViewModel(), MessageHandler {
 
+    companion object {
+        const val BOT_CARD_PREFIX = "[[BOT_CARD]]"
+    }
+
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
@@ -112,7 +134,6 @@ class ChatRoomViewModel(
             }
         }
 
-        // MessageStore 是当前会话页唯一的消息来源，UI 只订阅这一条流。
         viewModelScope.launch {
             messageStore.messages.collect { messages ->
                 _uiState.update { it.copy(messages = messages) }
@@ -121,7 +142,6 @@ class ChatRoomViewModel(
     }
 
     override fun onMessageReceived(message: MessageWrapper) {
-        // 不管消息是否来自当前可见会话，都先落本地，再通知会话列表刷新。
         messageStore.saveOrUpdate(message)
         conversationRepository.markConversationActive(message.conversationId)
         conversationListCoordinator.notifyConversationChanged(
@@ -132,15 +152,11 @@ class ChatRoomViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        uiState.value.conversation?.conversationId?.let { unregister(it) }
+        uiState.value.conversation?.conversationId?.let(::unregister)
     }
 
     fun getFile(fileId: String): File? = fileStorageManager.getFile(fileId)
 
-    /**
-     * 进入会话页的统一入口。
-     * 先清理上一个会话状态，再根据“已有会话 / 新建私聊”走不同绑定流程。
-     */
     fun openRoom(room: ChatRoom) {
         val requestId = ++activeRoomRequestId
         refreshJob?.cancel()
@@ -158,15 +174,31 @@ class ChatRoomViewModel(
 
         viewModelScope.launch {
             when (room.type) {
-                ChatRoomType.CONVERSATION -> bindExistingConversation(room.roomId, requestId)
+                ChatRoomType.CONVERSATION -> {
+                    if (isAiAssistantConversationId(room.roomId)) {
+                        bindBotConversation(requestId)
+                    } else {
+                        bindExistingConversation(room.roomId, requestId)
+                    }
+                }
+
                 ChatRoomType.CREATE_PRIVATE -> preparePrivateConversation(room.roomId, requestId)
+                ChatRoomType.BOT -> bindBotConversation(requestId)
             }
         }
     }
 
     fun sendText(content: String) {
         if (content.isBlank()) return
-        performSend(content = content.trim())
+        if (uiState.value.isBotSession) {
+            sendBotText(content.trim())
+            return
+        }
+        val normalized = content.trim()
+        performSend(content = normalized)
+        if (shouldTriggerGroupBot(normalized)) {
+            sendGroupBotReply(normalized)
+        }
     }
 
     fun sendVoice(voice: VoiceRecordingResult) {
@@ -193,7 +225,6 @@ class ChatRoomViewModel(
             register(targetConversationId)
             conversationRepository.markConversationActive(targetConversationId)
 
-            // 发送动作只处理当前会话；列表排序和摘要刷新统一交给 coordinator 回流。
             if (pickedFile != null) {
                 messageFacade.sendFile(targetConversationId, pickedFile, duration, currentUser, friendId)
             } else if (content != null) {
@@ -213,7 +244,6 @@ class ChatRoomViewModel(
         showLoading: Boolean,
         requestId: Long = activeRoomRequestId
     ) {
-        // 首次进入后的远端同步，以及下拉刷新，都统一走这里。
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
             if (showLoading && isRequestActive(requestId)) {
@@ -241,7 +271,6 @@ class ChatRoomViewModel(
         }
     }
 
-    // 先本地后远端，保证会话标题和成员信息可以快速出现，再逐步校正为最新状态。
     private suspend fun loadConversationInfo(
         conversationId: Long,
         requestId: Long = activeRoomRequestId
@@ -310,11 +339,12 @@ class ChatRoomViewModel(
     }
 
     fun refreshMessages() {
+        if (uiState.value.isBotSession) return
         activeConversationId?.let { refreshConversation(it, showLoading = true) }
     }
 
     fun loadOlderMessages(beforeSequenceId: Long) {
-        // 上拉历史时只补更早消息，不打断当前底部阅读体验。
+        if (uiState.value.isBotSession) return
         val conversationId = activeConversationId ?: return
         if (beforeSequenceId <= 0L || lastHistoryBoundarySeqId == beforeSequenceId) {
             return
@@ -405,7 +435,6 @@ class ChatRoomViewModel(
         anchorMessage: MessageItem?,
         scrollOffset: Int
     ) {
-        // 页面退出时记录阅读锚点，下次进入优先恢复到原来的阅读位置。
         conversationRepository.saveChatScrollPosition(
             conversationId = conversationId,
             anchorMsgId = anchorMessage?.id?.takeIf { it > 0L },
@@ -416,6 +445,7 @@ class ChatRoomViewModel(
     }
 
     fun withdrawMessage(message: MessageItem) {
+        if (isAiAssistantConversationId(message.conversationId)) return
         viewModelScope.launch {
             try {
                 ChatApi.withdrawMessage(message.id)
@@ -432,10 +462,14 @@ class ChatRoomViewModel(
     fun markConversationAsRead(conversationId: Long, currentUserId: Long) {
         viewModelScope.launch {
             try {
+                if (uiState.value.isBotSession) {
+                    messageStore.markConversationRead(conversationId, currentUserId)
+                    conversationListCoordinator.notifyConversationChanged(conversationId)
+                    return@launch
+                }
                 val lastSeq = _uiState.value.messages.firstOrNull()?.seqId ?: 0L
                 if (lastSeq <= 0L) return@launch
 
-                // 只有当前页已经看到最新消息时，才同步本地和服务端的已读状态。
                 messageStore.markConversationRead(conversationId, currentUserId)
                 ChatApi.markConversationAsRead(conversationId = conversationId, sequenceId = lastSeq)
                 conversationListCoordinator.notifyConversationChanged(conversationId)
@@ -445,7 +479,6 @@ class ChatRoomViewModel(
         }
     }
 
-    // 会话绑定顺序固定为：注册监听 -> 恢复会话信息 -> 加载本地消息 -> 后台同步远端。
     private suspend fun bindConversation(
         conversationId: Long,
         requestId: Long,
@@ -489,11 +522,7 @@ class ChatRoomViewModel(
         )
     }
 
-    // 新私聊优先复用本地会话，不存在时再向服务端创建。
-    private suspend fun preparePrivateConversation(
-        friendId: Long,
-        requestId: Long
-    ) {
+    private suspend fun preparePrivateConversation(friendId: Long, requestId: Long) {
         val currentUser = userRepository.getLocalUserInfo() ?: return
         try {
             _uiState.update {
@@ -528,6 +557,185 @@ class ChatRoomViewModel(
     private suspend fun bindExistingConversation(conversationId: Long, requestId: Long) {
         val localConversation = conversationRepository.getLocalConversation(conversationId)
         bindConversation(conversationId, requestId, localConversation)
+    }
+
+    private suspend fun bindBotConversation(requestId: Long) {
+        if (!isRequestActive(requestId)) return
+        val currentUser = userRepository.getLocalUserInfo() ?: return
+        val assistantConversation = buildAiAssistantConversation(currentUser)
+        conversationRepository.saveConversation(assistantConversation)
+        conversationRepository.markConversationActive(AI_ASSISTANT_CONVERSATION_ID)
+        activeConversationId = AI_ASSISTANT_CONVERSATION_ID
+        val savedPosition = conversationRepository.getChatScrollPosition(AI_ASSISTANT_CONVERSATION_ID)
+        withContext(Dispatchers.Default) {
+            messageStore.loadLocal(AI_ASSISTANT_CONVERSATION_ID, 50)
+        }
+        _uiState.update {
+            it.copy(
+                conversation = assistantConversation,
+                friend = aiAssistantUser(),
+                isBotSession = true,
+                isBotResponding = false,
+                isInitializing = false,
+                sessionCreationState = SessionCreationState.Idle,
+                savedScrollPosition = savedPosition,
+                error = null
+            )
+        }
+        conversationListCoordinator.notifyConversationChanged(
+            conversationId = AI_ASSISTANT_CONVERSATION_ID,
+            moveToTop = false
+        )
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun sendBotText(content: String) {
+        viewModelScope.launch {
+            val currentUser = userRepository.getLocalUserInfo() ?: return@launch
+            conversationRepository.saveConversation(buildAiAssistantConversation(currentUser))
+            conversationRepository.markConversationActive(AI_ASSISTANT_CONVERSATION_ID)
+
+            val userMessage = createLocalTextMessage(
+                conversationId = AI_ASSISTANT_CONVERSATION_ID,
+                sender = currentUser,
+                content = content
+            )
+            messageStore.saveOrUpdate(userMessage)
+            _uiState.update { it.copy(isBotResponding = true, error = null) }
+            conversationListCoordinator.notifyConversationChanged(
+                conversationId = AI_ASSISTANT_CONVERSATION_ID,
+                moveToTop = true
+            )
+            triggerScrollToLatest()
+
+            runCatching {
+                AiBotApi.sendMessage(
+                    content = content,
+                    conversationId = AI_ASSISTANT_CONVERSATION_ID,
+                    fromAccountId = currentUser.userId,
+                    clientMsgId = userMessage.clientMsgId
+                )
+            }.onSuccess { reply ->
+                val botMessage = createLocalTextMessage(
+                    conversationId = AI_ASSISTANT_CONVERSATION_ID,
+                    sender = aiAssistantUser(),
+                    content = renderBotReplyContent(reply)
+                )
+                messageStore.saveOrUpdate(botMessage)
+                conversationListCoordinator.notifyConversationChanged(
+                    conversationId = AI_ASSISTANT_CONVERSATION_ID,
+                    moveToTop = true
+                )
+                triggerScrollToLatest()
+            }.onFailure { error ->
+                Napier.e("ai assistant reply failed", error)
+                val fallbackMessage = createLocalTextMessage(
+                    conversationId = AI_ASSISTANT_CONVERSATION_ID,
+                    sender = aiAssistantUser(),
+                    content = "AI 助手暂时不可用：${error.message ?: "请稍后重试"}"
+                )
+                messageStore.saveOrUpdate(fallbackMessage)
+                _uiState.update { it.copy(error = error.message ?: "AI 助手暂时不可用") }
+                conversationListCoordinator.notifyConversationChanged(
+                    conversationId = AI_ASSISTANT_CONVERSATION_ID,
+                    moveToTop = true
+                )
+                triggerScrollToLatest()
+            }
+
+            _uiState.update { it.copy(isBotResponding = false) }
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun createLocalTextMessage(
+        conversationId: Long,
+        sender: UserInfo,
+        content: String
+    ): MessageWrapper {
+        return MessageWrapper(
+            messageDto = MessageDTO(
+                conversationId = conversationId,
+                content = content,
+                fromAccountId = sender.userId,
+                clientMsgId = Uuid.random().toString(),
+                fromAccount = sender,
+                type = MessageType.TEXT,
+                status = MessageStatus.SENT,
+                timestamp = Clock.System.now().toString()
+            )
+        )
+    }
+
+    private fun renderBotReplyContent(reply: AiBotReplyDto): String {
+        if (reply.messageType.equals("card", ignoreCase = true)) {
+            return renderCardReply(reply.metadata, reply.content)
+        }
+        return reply.content.ifBlank { "我暂时没有组织出合适的回复。" }
+    }
+
+    private fun renderCardReply(metadata: JsonElement?, fallback: String): String {
+        val json = metadata as? JsonObject ?: return fallback.ifBlank { "机器人返回了一张卡片消息。" }
+        return BOT_CARD_PREFIX + json.toString()
+    }
+
+    private fun shouldTriggerGroupBot(content: String): Boolean {
+        val conversation = uiState.value.conversation ?: return false
+        if (conversation.conversationType != ConversationType.GROUP) return false
+        return extractMentionPrompt(content).isNotBlank()
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun sendGroupBotReply(content: String) {
+        val prompt = extractMentionPrompt(content)
+        if (prompt.isBlank()) return
+
+        viewModelScope.launch {
+            val currentUser = userRepository.getLocalUserInfo() ?: return@launch
+            val conversationId = uiState.value.conversation?.conversationId ?: return@launch
+
+            _uiState.update { it.copy(isBotResponding = true) }
+
+            runCatching {
+                AiBotApi.sendMessage(
+                    content = prompt,
+                    conversationId = conversationId,
+                    fromAccountId = currentUser.userId,
+                    clientMsgId = "group-bot-${Uuid.random()}"
+                )
+            }.onSuccess { reply ->
+                val botMessage = createLocalTextMessage(
+                    conversationId = conversationId,
+                    sender = aiAssistantUser(),
+                    content = renderBotReplyContent(reply)
+                )
+                messageStore.saveOrUpdate(botMessage)
+                conversationListCoordinator.notifyConversationChanged(
+                    conversationId = conversationId,
+                    moveToTop = true
+                )
+                triggerScrollToLatest()
+            }.onFailure { error ->
+                Napier.e("group ai mention reply failed", error)
+                val fallbackMessage = createLocalTextMessage(
+                    conversationId = conversationId,
+                    sender = aiAssistantUser(),
+                    content = "AI 助手暂时无法响应这次 @ 提问：${error.message ?: "请稍后重试"}"
+                )
+                messageStore.saveOrUpdate(fallbackMessage)
+                triggerScrollToLatest()
+            }
+
+            _uiState.update { it.copy(isBotResponding = false) }
+        }
+    }
+
+    private fun extractMentionPrompt(content: String): String {
+        return content.trim()
+            .replaceFirst("^@机器人\\s*", "")
+            .replaceFirst("^@AI助手\\s*", "")
+            .replaceFirst("^@AI\\s+助手\\s*", "")
+            .trim()
     }
 
     private fun isConversationActive(conversationId: Long, requestId: Long): Boolean {
