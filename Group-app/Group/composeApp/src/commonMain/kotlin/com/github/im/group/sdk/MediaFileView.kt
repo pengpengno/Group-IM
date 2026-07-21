@@ -77,6 +77,10 @@ fun MediaFileView(
  */
 fun File.isVideo(): Boolean {
     val name = this.name
+    val mime = this.mimeType?.lowercase()
+    if (mime?.startsWith("video/") == true) {
+        return true
+    }
     return name.endsWith(".mp4", true) ||
             name.endsWith(".mov", true) ||
             name.endsWith(".mkv", true) ||
@@ -91,13 +95,21 @@ fun File.isVideo(): Boolean {
  */
 fun File.isImage(): Boolean {
     val name = this.name
+    val mime = this.mimeType?.lowercase()
+    if (mime?.startsWith("image/") == true) {
+        return true
+    }
 
     return name.endsWith(".jpg", true) ||
             name.endsWith(".jpeg", true) ||
             name.endsWith(".png", true) ||
             name.endsWith(".gif", true) ||
             name.endsWith(".webp", true) ||
-            name.endsWith(".bmp", true)
+            name.endsWith(".bmp", true) ||
+            name.endsWith(".heic", true) ||
+            name.endsWith(".heif", true) ||
+            name.endsWith(".avif", true) ||
+            name.endsWith(".svg", true)
 }
 
 /**

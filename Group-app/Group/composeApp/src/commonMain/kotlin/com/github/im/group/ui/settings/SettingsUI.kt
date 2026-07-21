@@ -2,9 +2,11 @@ package com.github.im.group.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,23 +18,30 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -41,44 +50,44 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.github.im.group.manager.NotificationPreferenceStore
+import com.github.im.group.config.AppEnvironment
+import com.github.im.group.repository.NetworkSettingsDraft
 import com.github.im.group.viewmodel.ChatViewModel
-import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
+import com.github.im.group.viewmodel.SettingsViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsUI(
     navHostController: NavHostController
 ) {
     val chatViewModel: ChatViewModel = koinViewModel()
-    val notificationPreferenceStore: NotificationPreferenceStore = koinInject()
+    val settingsViewModel: SettingsViewModel = koinViewModel()
     val chatListState by chatViewModel.uiState.collectAsState()
-    val notificationPreferences by notificationPreferenceStore.preferences.collectAsState()
-    val scope = rememberCoroutineScope()
+    val uiState by settingsViewModel.uiState.collectAsState()
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = "消息与设置",
+                        text = "Settings",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = { navHostController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -107,75 +116,94 @@ fun SettingsUI(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            SettingsSection(title = "消息提醒") {
+            SettingsSection(title = "Notifications") {
                 SettingToggleItem(
                     icon = Icons.Default.Notifications,
-                    title = "接收新消息提醒",
-                    description = "保持会话实时提示和系统通知",
-                    checked = notificationPreferences.enableNotifications,
-                    onCheckedChange = { checked ->
-                        scope.launch {
-                            notificationPreferenceStore.updatePreferences {
-                                it.copy(enableNotifications = checked)
-                            }
-                        }
-                    }
+                    title = "Enable message notifications",
+                    description = "Allow chat alerts and system notifications on this device.",
+                    checked = uiState.notification.enableNotifications,
+                    onCheckedChange = settingsViewModel::updateNotificationsEnabled
                 )
                 HorizontalDivider()
                 SettingToggleItem(
                     icon = Icons.Default.VolumeUp,
-                    title = "声音提醒",
-                    description = "收到新消息时播放轻提示音",
-                    checked = notificationPreferences.enableSound,
-                    onCheckedChange = { checked ->
-                        scope.launch {
-                            notificationPreferenceStore.updatePreferences {
-                                it.copy(enableSound = checked)
-                            }
-                        }
-                    }
+                    title = "Play alert sound",
+                    description = "Play a sound when a new message arrives.",
+                    checked = uiState.notification.enableSound,
+                    onCheckedChange = settingsViewModel::updateNotificationSound
                 )
                 HorizontalDivider()
                 SettingToggleItem(
                     icon = Icons.Default.DoneAll,
-                    title = "通知显示消息摘要",
-                    description = "在列表实时提示中显示消息预览",
-                    checked = notificationPreferences.enablePreview,
-                    onCheckedChange = { checked ->
-                        scope.launch {
-                            notificationPreferenceStore.updatePreferences {
-                                it.copy(enablePreview = checked)
-                            }
-                        }
-                    }
+                    title = "Show message preview",
+                    description = "Display preview text inside notifications.",
+                    checked = uiState.notification.enablePreview,
+                    onCheckedChange = settingsViewModel::updateNotificationPreview
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            SettingsSection(title = "账号与设备") {
+            SettingsSection(title = "Network And Proxy") {
+                NetworkEnvironmentSelector(
+                    currentEnvironment = uiState.networkDraft.environment,
+                    onSelect = settingsViewModel::setNetworkEnvironment
+                )
+                HorizontalDivider()
+                NetworkSettingsEditor(
+                    draft = uiState.networkDraft,
+                    currentBaseUrl = uiState.network.currentBaseUrl,
+                    isSaving = uiState.isSavingNetwork,
+                    isDirty = uiState.isNetworkDirty,
+                    onApiHostChange = settingsViewModel::setApiHost,
+                    onApiPortChange = settingsViewModel::setApiPort,
+                    onTcpHostChange = settingsViewModel::setTcpHost,
+                    onTcpPortChange = settingsViewModel::setTcpPort,
+                    onUseTlsChange = settingsViewModel::setUseTls,
+                    onReset = settingsViewModel::resetNetworkDraft,
+                    onSave = settingsViewModel::saveNetworkSettings
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SettingsSection(title = "Remote Settings Roadmap") {
+                SettingItem(
+                    icon = Icons.Default.Security,
+                    title = "Privacy And Security",
+                    description = "Account synced settings such as online visibility and friend request policy will move here.",
+                    onClick = { }
+                )
+                HorizontalDivider()
                 SettingItem(
                     icon = Icons.Default.PhoneAndroid,
-                    title = "设备管理",
-                    description = "查看当前登录设备与安全状态",
+                    title = "Video And Meeting Preferences",
+                    description = "Video quality, auto join audio, and meeting defaults will become remote user settings.",
+                    onClick = { }
+                )
+                HorizontalDivider()
+                SettingItem(
+                    icon = Icons.Default.Storage,
+                    title = "Storage And Device",
+                    description = "Download directory, cache policy, and device defaults remain local settings.",
                     onClick = { }
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            SettingsSection(title = "关于") {
+            SettingsSection(title = "About") {
                 SettingItem(
                     icon = Icons.Default.Info,
-                    title = "关于我们",
-                    description = "了解 Group IM 的版本和能力",
+                    title = "Settings architecture",
+                    description = "This screen is now the unified entry point for local settings and future remote settings.",
                     onClick = { }
                 )
                 HorizontalDivider()
                 SettingItem(
                     icon = Icons.Default.Update,
-                    title = "检查更新",
-                    description = "当前版本 v1.0.5",
+                    title = "Current version",
+                    description = "v1.0.5",
                     onClick = { }
                 )
             }
@@ -206,7 +234,7 @@ private fun MessageSummaryCard(
         ) {
             Column {
                 Text(
-                    text = "消息中心",
+                    text = "Message Center",
                     color = Color.White,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
@@ -214,9 +242,9 @@ private fun MessageSummaryCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = if (unreadCount > 0) {
-                        "当前还有 $unreadCount 条未读消息，支持一键清理红点。"
+                        "You still have $unreadCount unread messages. You can clear them in one tap here."
                     } else {
-                        "当前没有未读消息，主页会继续帮你保持实时提醒。"
+                        "No unread messages right now. Realtime alerts will continue in the background."
                     },
                     color = Color.White.copy(alpha = 0.82f),
                     style = MaterialTheme.typography.bodyMedium
@@ -227,7 +255,7 @@ private fun MessageSummaryCard(
                     enabled = unreadCount > 0 && !readAllInProgress,
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text(if (readAllInProgress) "处理中…" else "一键已读")
+                    Text(if (readAllInProgress) "Processing..." else "Mark all as read")
                 }
             }
         }
@@ -235,7 +263,7 @@ private fun MessageSummaryCard(
 }
 
 @Composable
-fun SettingsSection(
+private fun SettingsSection(
     title: String,
     content: @Composable () -> Unit
 ) {
@@ -259,7 +287,7 @@ fun SettingsSection(
 }
 
 @Composable
-fun SettingItem(
+private fun SettingItem(
     icon: ImageVector,
     title: String,
     onClick: () -> Unit,
@@ -308,7 +336,7 @@ fun SettingItem(
 }
 
 @Composable
-fun SettingToggleItem(
+private fun SettingToggleItem(
     icon: ImageVector,
     title: String,
     description: String,
@@ -355,5 +383,150 @@ fun SettingToggleItem(
             checked = checked,
             onCheckedChange = onCheckedChange
         )
+    }
+}
+
+@Composable
+private fun NetworkEnvironmentSelector(
+    currentEnvironment: AppEnvironment,
+    onSelect: (AppEnvironment) -> Unit
+) {
+    Column(
+        modifier = Modifier.padding(16.dp)
+    ) {
+        Text(
+            text = "Connection profile",
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Use a shared environment or switch to a custom local proxy for development.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            listOf(
+                AppEnvironment.DEV,
+                AppEnvironment.TEST,
+                AppEnvironment.PROD,
+                AppEnvironment.CUSTOM
+            ).forEach { environment ->
+                val selected = currentEnvironment == environment
+                OutlinedButton(
+                    onClick = { onSelect(environment) },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                    )
+                ) {
+                    Text(environment.name)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NetworkSettingsEditor(
+    draft: NetworkSettingsDraft,
+    currentBaseUrl: String,
+    isSaving: Boolean,
+    isDirty: Boolean,
+    onApiHostChange: (String) -> Unit,
+    onApiPortChange: (String) -> Unit,
+    onTcpHostChange: (String) -> Unit,
+    onTcpPortChange: (String) -> Unit,
+    onUseTlsChange: (Boolean) -> Unit,
+    onReset: () -> Unit,
+    onSave: () -> Unit
+) {
+    Column(
+        modifier = Modifier.padding(16.dp)
+    ) {
+        Text(
+            text = "Effective base URL: $currentBaseUrl",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = if (draft.isCustom) {
+                "Custom mode stores the local server override on this device only."
+            } else {
+                "Standard environments use shared preset hosts. Switch to CUSTOM to edit local network values."
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontStyle = FontStyle.Italic
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (draft.isCustom) {
+            OutlinedTextField(
+                value = draft.apiHost,
+                onValueChange = onApiHostChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("API host") },
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = draft.apiPort,
+                onValueChange = onApiPortChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("API port") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = draft.tcpHost,
+                onValueChange = onTcpHostChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("TCP host") },
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = draft.tcpPort,
+                onValueChange = onTcpPortChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("TCP port") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = draft.useTls,
+                    onCheckedChange = onUseTlsChange
+                )
+                Text("Use TLS")
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedButton(
+                onClick = onReset,
+                enabled = isDirty && !isSaving
+            ) {
+                Text("Reset")
+            }
+            Button(
+                onClick = onSave,
+                enabled = isDirty && !isSaving
+            ) {
+                Text(if (isSaving) "Saving..." else "Save")
+            }
+        }
     }
 }

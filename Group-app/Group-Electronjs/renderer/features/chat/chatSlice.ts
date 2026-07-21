@@ -53,9 +53,17 @@ function upsertMessage(messages: MessageDTO[], nextMessage: MessageDTO) {
     const existingIndex = findMessageIndex(messages, normalizedMessage);
 
     if (existingIndex !== -1) {
+        const existingMessage = messages[existingIndex];
         messages[existingIndex] = {
-            ...messages[existingIndex],
-            ...normalizedMessage
+            ...existingMessage,
+            ...normalizedMessage,
+            payload: normalizedMessage.payload ?? existingMessage.payload,
+            fromAccount: normalizedMessage.fromAccount ?? existingMessage.fromAccount,
+            localPreviewUrl: normalizedMessage.localPreviewUrl ?? existingMessage.localPreviewUrl,
+            localFileName: normalizedMessage.localFileName ?? existingMessage.localFileName,
+            localFileSize: normalizedMessage.localFileSize ?? existingMessage.localFileSize,
+            localMimeType: normalizedMessage.localMimeType ?? existingMessage.localMimeType,
+            attachmentStatus: normalizedMessage.attachmentStatus ?? existingMessage.attachmentStatus
         };
     } else {
         messages.push(normalizedMessage);
@@ -337,6 +345,29 @@ const chatSlice = createSlice({
                 }
             }
         },
+        updateMessageAttachmentState(state, action: PayloadAction<{
+            conversationId: number;
+            clientMsgId?: string;
+            content?: string;
+            patch: Partial<MessageDTO>;
+        }>) {
+            const { conversationId, clientMsgId, content, patch } = action.payload;
+            const list = state.messages[conversationId];
+            if (!list?.length) {
+                return;
+            }
+
+            const target = list.find((message) =>
+                (!!clientMsgId && !!message.clientMsgId && message.clientMsgId === clientMsgId) ||
+                (!!content && message.content === content && message.sendingStatus === 'sending')
+            );
+
+            if (!target) {
+                return;
+            }
+
+            Object.assign(target, patch);
+        },
         addMessage(state, action: PayloadAction<MessageDTO>) {
             const { conversationId, fromAccountId } = action.payload;
             const currentUserId = (state as any).auth?.user?.userId;
@@ -464,7 +495,12 @@ const chatSlice = createSlice({
                     } : undefined,
                     timestamp: Date.now(),
                     clientMsgId: clientMsgId,
-                    sendingStatus: 'sending'
+                    sendingStatus: 'sending',
+                    localPreviewUrl: msgDto?.localPreviewUrl,
+                    localFileName: msgDto?.localFileName,
+                    localFileSize: msgDto?.localFileSize,
+                    localMimeType: msgDto?.localMimeType,
+                    attachmentStatus: msgDto?.attachmentStatus
                 };
 
                 if (!state.messages[conversationId]) {
@@ -530,7 +566,7 @@ const chatSlice = createSlice({
     },
 });
 
-export const { setActiveConversation, addMessage, confirmMessageDelivery } = chatSlice.actions;
+export const { setActiveConversation, addMessage, confirmMessageDelivery, updateMessageAttachmentState } = chatSlice.actions;
 export default chatSlice.reducer;
 
 

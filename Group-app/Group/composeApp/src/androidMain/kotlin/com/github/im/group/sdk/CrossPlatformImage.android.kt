@@ -9,15 +9,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,16 +27,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
-import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
-import coil3.request.crossfade
-import com.github.im.group.GlobalCredentialProvider
 import io.github.aakira.napier.Napier
-import java.io.FileOutputStream
-import java.io.InputStream
 
 /**
- * 跨平台图像组件
+ * Cross-platform image composable for Android.
  */
 @Composable
 actual fun CrossPlatformImage(
@@ -51,7 +41,8 @@ actual fun CrossPlatformImage(
 ) {
     val context = LocalContext.current
     val path = file.dataPath()
-    
+    val isRemotePath = remember(path) { path.startsWith("http://") || path.startsWith("https://") }
+
     var showSaveDialog by remember { mutableStateOf(false) }
     var showFullScreen by remember { mutableStateOf(false) }
     Napier.d("CrossPlatformImage: path=$path")
@@ -62,19 +53,27 @@ actual fun CrossPlatformImage(
             title = { Text("保存图片") },
             text = { Text("是否保存图片到本地？") },
             confirmButton = {
-                Button(onClick = {
-                    showSaveDialog = false
-                    // 直接保存图片到本地
-                    saveImageToLocal(context, path, file.name ?: "image_${'$'}${'$'}{System.currentTimeMillis()}.png")
-                }) { Text("保存") }
+                Button(
+                    onClick = {
+                        showSaveDialog = false
+                        saveImageToLocal(
+                            context = context,
+                            path = path,
+                            fileName = file.name.ifBlank { "image_${System.currentTimeMillis()}.png" }
+                        )
+                    }
+                ) {
+                    Text("保存")
+                }
             },
             dismissButton = {
-                Button(onClick = { showSaveDialog = false }) { Text("取消") }
+                Button(onClick = { showSaveDialog = false }) {
+                    Text("取消")
+                }
             }
         )
     }
 
-    // 点击全屏展示
     if (showFullScreen) {
         FullScreenImage(path) { showFullScreen = false }
     }
@@ -83,80 +82,42 @@ actual fun CrossPlatformImage(
         modifier = modifier
             .padding(PaddingValues(3.dp, 12.dp))
             .combinedClickable(
-                onClick = { 
+                onClick = {
                     showFullScreen = true
                     Napier.d { "click show full screen" }
-                },   // 点击全屏
+                },
                 onLongClick = {
                     if (onLongClick != null) {
                         onLongClick()
                     } else {
-                        // 默认行为：显示保存对话框
                         showSaveDialog = true
                     }
-                } // 长按处理
+                }
             )
     ) {
-        var isLoading by remember { mutableStateOf(true) }
-        var isError by remember { mutableStateOf(false) }
-        
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(path)
-                .crossfade(true)
-                .build(),
-            contentDescription = null,
+        ImageContent(
+            context = context,
+            path = path,
+            isRemotePath = isRemotePath,
             modifier = Modifier.fillMaxSize(),
-            onLoading = { state ->
-                isLoading = true
-            },
-            onError = { state ->
-                isLoading = false
-                isError = true
-            },
-            onSuccess = { state ->
-                isLoading = false
-                isError = false
-            }
+            loadingSize = 40.dp
         )
-        
-        // 根据加载状态显示相应的覆盖内容
-        if (isLoading && !isError) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    color = Color.White,
-                    strokeWidth = 3.dp,
-                    modifier = Modifier.size(40.dp)
-                )
-            }
-        } else if (isError) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("加载失败", color = Color.White)
-            }
-        }
     }
 }
 
-/**
- * 全屏展示图片组件
- */
 @Composable
 fun FullScreenImage(
-    imagePath: String, 
+    imagePath: String,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    
-    Dialog(onDismissRequest = onDismiss,
-            properties = DialogProperties(
-            usePlatformDefaultWidth = false
-            )
+    val isRemotePath = remember(imagePath) {
+        imagePath.startsWith("http://") || imagePath.startsWith("https://")
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Box(
             modifier = Modifier
@@ -164,51 +125,14 @@ fun FullScreenImage(
                 .background(Color.Black),
             contentAlignment = Alignment.Center
         ) {
-            var isLoading by remember { mutableStateOf(true) }
-            var isError by remember { mutableStateOf(false) }
-            
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(imagePath)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = null,
+            ImageContent(
+                context = context,
+                path = imagePath,
+                isRemotePath = isRemotePath,
                 modifier = Modifier.fillMaxSize(),
-                onLoading = { state ->
-                    isLoading = true
-                },
-                onError = { state ->
-                    isLoading = false
-                    isError = true
-                },
-                onSuccess = { state ->
-                    isLoading = false
-                    isError = false
-                }
+                loadingSize = 60.dp
             )
-            
-            // 根据加载状态显示相应的覆盖内容
-            if (isLoading && !isError) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        strokeWidth = 3.dp,
-                        modifier = Modifier.size(60.dp)
-                    )
-                }
-            } else if (isError) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("加载失败", color = Color.White)
-                }
-            }
-            
-            // 右上角关闭按钮
+
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -226,9 +150,61 @@ fun FullScreenImage(
     }
 }
 
-/**
- * 从 FileData 获取实际路径字符串
- */
+@Composable
+private fun ImageContent(
+    context: Context,
+    path: String,
+    isRemotePath: Boolean,
+    modifier: Modifier,
+    loadingSize: androidx.compose.ui.unit.Dp
+) {
+    var isLoading by remember(path) { mutableStateOf(true) }
+    var isError by remember(path) { mutableStateOf(false) }
+
+    AsyncImage(
+        model = ImageRequest.Builder(context)
+            .data(path)
+            .build(),
+        contentDescription = null,
+        modifier = modifier,
+        onLoading = {
+            isLoading = true
+            isError = false
+        },
+        onError = {
+            isLoading = false
+            isError = true
+        },
+        onSuccess = {
+            isLoading = false
+            isError = false
+        }
+    )
+
+    if (isLoading && !isError) {
+        Box(
+            modifier = modifier,
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(
+                color = Color.White,
+                strokeWidth = 3.dp,
+                modifier = Modifier.size(loadingSize)
+            )
+        }
+    } else if (isError) {
+        Box(
+            modifier = modifier,
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = if (isRemotePath) "图片准备中..." else "加载失败",
+                color = Color.White
+            )
+        }
+    }
+}
+
 private fun File.dataPath(): String {
     return when (val data = this.data) {
         is FileData.Path -> data.path
@@ -237,15 +213,12 @@ private fun File.dataPath(): String {
             tmpFile.writeBytes(data.data)
             tmpFile.absolutePath
         }
+
         FileData.None -> ""
     }
 }
 
-/**
- * 保存图片到应用目录
- */
 private fun saveImageToLocal(context: Context, path: String, fileName: String) {
-    // 使用文件系统直接复制文件
     try {
         val sourceFile = java.io.File(path)
         if (sourceFile.exists()) {
@@ -254,7 +227,6 @@ private fun saveImageToLocal(context: Context, path: String, fileName: String) {
             Napier.d("图片已保存到: ${destFile.absolutePath}")
         }
     } catch (e: Exception) {
-        e.printStackTrace()
         Napier.e("保存图片失败: ${e.message}")
     }
 }

@@ -166,6 +166,11 @@ export interface MessageDTO {
   clientMsgId?: string;
   payload?: any;
   sendingStatus?: 'sending' | 'success' | 'failed';
+  localPreviewUrl?: string;
+  localFileName?: string;
+  localFileSize?: number;
+  localMimeType?: string;
+  attachmentStatus?: 'local' | 'uploading' | 'ready' | 'failed';
 }
 
 

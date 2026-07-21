@@ -12,12 +12,15 @@ import ChatRoom from '../chat/ChatRoom';
 import MeetingList from '../chat/MeetingList';
 import ContactsScreen from '../contacts/ContactsScreen';
 import AdminPanel from '../admin/AdminPanel';
+import SettingsScreen from '../settings/SettingsScreen';
 import { createPrivateChat, setActiveConversation } from '../chat/chatSlice';
 import { authAPI } from '../../services/api/apiClient';
 import { requestAndSyncBrowserNotifications } from '../../services/notificationEndpointService';
 import './Dashboard.css';
 import { useVideoCall } from '../video-call/useVideoCall';
 import { meetingAPI } from '../../services/api/apiClient';
+
+const AI_ASSISTANT_CONVERSATION_ID = -20260720;
 
 const Dashboard: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
@@ -46,7 +49,27 @@ const Dashboard: React.FC = () => {
     const { state: callState, startMeeting, joinMeeting } = useVideoCall();
 
     const { activeConversationId, conversations } = useSelector((state: RootState) => state.chat);
-    const activeConversation = conversations.find(c => c.conversation.conversationId === activeConversationId)?.conversation;
+    const activeConversation = React.useMemo(() => {
+        if (activeConversationId === AI_ASSISTANT_CONVERSATION_ID) {
+            return {
+                conversationId: AI_ASSISTANT_CONVERSATION_ID,
+                conversationType: 'PRIVATE_CHAT' as any,
+                groupName: 'AI 助手',
+                name: 'AI 助手',
+                description: '支持问答、机器人配置、Webhook 与富文本消息',
+                members: [
+                    {
+                        userId: -20260721,
+                        username: 'AI 助手',
+                        email: 'ai-assistant@local.group',
+                        phoneNumber: ''
+                    }
+                ],
+                createAt: new Date().toISOString()
+            };
+        }
+        return conversations.find(c => c.conversation.conversationId === activeConversationId)?.conversation;
+    }, [activeConversationId, conversations]);
 
     const electronAPI = getElectronAPI();
 
@@ -638,16 +661,7 @@ const Dashboard: React.FC = () => {
                     )}
 
                     {activeTab === 'settings' && (
-                        <div className="empty-view-placeholder">
-                            <div style={{ textAlign: 'center' }}>
-                                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                                </svg>
-                                <h3>Settings Coming Soon</h3>
-                                <p>We're working on making this space customizable.</p>
-                            </div>
-                        </div>
+                        <SettingsScreen />
                     )}
 
                     {activeTab === 'admin' && (

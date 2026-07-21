@@ -479,6 +479,20 @@
   object-fit: cover;
 }
 
+.attachment-pending-badge {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.72);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(6px);
+}
+
 .msg-video-container {
   width: 280px;
   height: 180px;
@@ -539,6 +553,11 @@
   background: #f9fafb;
   border-color: #3b82f6;
   transform: translateY(-1px);
+}
+
+.msg-file-card.pending {
+  cursor: default;
+  opacity: 0.88;
 }
 
 .own-message .msg-file-card:hover {
@@ -1000,4 +1019,84 @@
 .meeting-join-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.bot-config-modal {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.bot-config-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bot-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.bot-switch-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.bot-switch-desc {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.bot-switch-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #2563eb;
+  flex-shrink: 0;
+}
+
+.bot-config-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.bot-config-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.bot-config-grid textarea {
+  width: 100%;
+  min-height: 84px;
+  resize: vertical;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  color: #111827;
+  background: #ffffff;
+}
+
+.bot-config-tips {
+  display: grid;
+  gap: 10px;
+}
+
+.bot-config-tip {
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  line-height: 1.6;
+  word-break: break-word;
 }

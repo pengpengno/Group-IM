@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import ParticipantPicker from './ParticipantPicker';
 import ScheduleMeetingDialog from './ScheduleMeetingDialog';
 import { RootState, AppDispatch } from '../../store';
-import { addMessage, fetchMessages, sendMessageViaSocket } from './chatSlice';
+import { addMessage, fetchMessages, sendMessageViaSocket, updateMessageAttachmentState } from './chatSlice';
 import { BASE_URL, aiBotAPI, authAPI, meetingAPI } from '../../services/api/apiClient';
 import { useAppSelector } from '../../hooks';
 import { getElectronAPI, isElectronEnvironment } from '../../services/api/electronAPI';
@@ -18,7 +18,7 @@ import { MessageType } from '../../types';
 
 type SocketConnectionState = 'disconnected' | 'connecting' | 'reconnecting' | 'connected';
 
-// 定义 Electron 接口扩展 (防止 TS 报错)
+// 瀹氫箟 Electron 鎺ュ彛鎵╁睍 (闃叉 TS 鎶ラ敊)
 declare global {
   interface Window {
     electronAPI: any;
@@ -57,10 +57,22 @@ type BotCardData = {
 };
 
 const BOT_CARD_PREFIX = '[[BOT_CARD]]';
-const BOT_MENTION_PATTERN = /^@(机器人|AI助手|AI\s*助手)\s*/i;
+const BOT_TRIGGER_PATTERN = /^@(机器人|AI助手|AI\s*助手)\s*/i;
+const AI_ASSISTANT_CONVERSATION_ID = -20260720;
+const GROUP_BOT_SETTINGS_KEY = 'group.bot.settings';
 
-// 消息项组件
-// Define a local media cache to store local previews for uploaded media to prevent downloading them again
+type GroupBotSettings = {
+  enabled: boolean;
+  promptTemplate: string;
+  webhookHint: string;
+};
+
+const defaultGroupBotSettings: GroupBotSettings = {
+  enabled: true,
+  promptTemplate: '你是当前群聊的智能助手，请优先回答与当前会话相关的问题，保持简洁清晰。',
+  webhookHint: '可接入 /api/ai-bot/webhook/{token}，支持 content、markdown.text、html.content。'
+};
+
 const localMediaCache = new Map<string, string>();
 
 /**
@@ -69,17 +81,49 @@ const localMediaCache = new Map<string, string>();
  */
 const getMediaCacheKey = (url: string) => url || '';
 
+const IMAGE_EXTENSION_PATTERN = /\.(jpg|jpeg|png|gif|webp|bmp|heic|heif|avif|svg)$/i;
+const VIDEO_EXTENSION_PATTERN = /\.(mp4|mov|mkv|avi|webm|m4v|3gp)$/i;
+
+const isImageAttachment = (fileName?: string, mimeType?: string) =>
+  !!mimeType?.startsWith('image/') || (!!fileName && IMAGE_EXTENSION_PATTERN.test(fileName));
+
+const isVideoAttachment = (fileName?: string, mimeType?: string) =>
+  !!mimeType?.startsWith('video/') || (!!fileName && VIDEO_EXTENSION_PATTERN.test(fileName));
+
 /**
  * Authenticated Media Hook to handle blob URLs with token
  */
-const useAuthenticatedMedia = (url: string, token?: string) => {
+const useAuthenticatedMedia = (
+  url: string,
+  token?: string,
+  options?: {
+    preferredSrc?: string;
+    disableRemoteFetch?: boolean;
+  }
+) => {
   const [mediaSrc, setMediaSrc] = useState<string>('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!url);
   const [error, setError] = useState(false);
+  const preferredSrc = options?.preferredSrc;
+  const disableRemoteFetch = options?.disableRemoteFetch;
 
   useEffect(() => {
     let objectUrl = '';
     let shouldRevokeObjectUrl = false;
+
+    if (preferredSrc) {
+      setMediaSrc(preferredSrc);
+      setLoading(false);
+      setError(false);
+      return;
+    }
+
+    if (!url || disableRemoteFetch) {
+      setMediaSrc('');
+      setLoading(false);
+      setError(false);
+      return;
+    }
 
     const cacheKey = getMediaCacheKey(url);
     if (cacheKey && localMediaCache.has(cacheKey)) {
@@ -90,7 +134,6 @@ const useAuthenticatedMedia = (url: string, token?: string) => {
     }
 
     const fetchMedia = async () => {
-      if (!url) return;
       setLoading(true);
       try {
         const response = await axios.get(url, {
@@ -118,7 +161,7 @@ const useAuthenticatedMedia = (url: string, token?: string) => {
     return () => {
       if (shouldRevokeObjectUrl && objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url, token]);
+  }, [disableRemoteFetch, preferredSrc, token, url]);
 
   return { mediaSrc, loading, error };
 };
@@ -126,8 +169,16 @@ const useAuthenticatedMedia = (url: string, token?: string) => {
 /**
  * Beautiful Custom Audio Player
  */
-const CustomAudioPlayer: React.FC<{ url: string; token?: string }> = ({ url, token }) => {
-  const { mediaSrc, loading } = useAuthenticatedMedia(url, token);
+const CustomAudioPlayer: React.FC<{
+  url: string;
+  token?: string;
+  localSrc?: string;
+  pending?: boolean;
+}> = ({ url, token, localSrc, pending = false }) => {
+  const { mediaSrc, loading } = useAuthenticatedMedia(url, token, {
+    preferredSrc: localSrc,
+    disableRemoteFetch: pending && !!localSrc
+  });
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -148,7 +199,7 @@ const CustomAudioPlayer: React.FC<{ url: string; token?: string }> = ({ url, tok
     setProgress(p);
   };
 
-  if (loading) return <div className="audio-skeleton">Loading audio...</div>;
+  if (loading) return <div className="audio-skeleton">{pending ? 'Preparing audio...' : 'Loading audio...'}</div>;
 
   return (
     <div className="custom-audio-player">
@@ -178,8 +229,13 @@ const AuthenticatedImage: React.FC<{
   token?: string;
   className?: string;
   onClick?: (resolvedUrl: string) => void;
-}> = ({ url, token, className, onClick }) => {
-  const { mediaSrc, loading, error } = useAuthenticatedMedia(url, token);
+  localSrc?: string;
+  pending?: boolean;
+}> = ({ url, token, className, onClick, localSrc, pending = false }) => {
+  const { mediaSrc, loading, error } = useAuthenticatedMedia(url, token, {
+    preferredSrc: localSrc,
+    disableRemoteFetch: pending && !!localSrc
+  });
 
   if (loading) return (
     <div className={`${className} media-placeholder`}>
@@ -189,7 +245,7 @@ const AuthenticatedImage: React.FC<{
 
   if (error) return (
     <div className={`${className} media-placeholder error`}>
-      <span>Failed to load</span>
+      <span>{pending ? 'Preparing image...' : 'Failed to load'}</span>
     </div>
   );
 
@@ -202,8 +258,13 @@ const AuthenticatedVideo: React.FC<{
   className?: string;
   controls?: boolean;
   autoPlay?: boolean;
-}> = ({ url, token, className, controls = false, autoPlay = false }) => {
-  const { mediaSrc, loading, error } = useAuthenticatedMedia(url, token);
+  localSrc?: string;
+  pending?: boolean;
+}> = ({ url, token, className, controls = false, autoPlay = false, localSrc, pending = false }) => {
+  const { mediaSrc, loading, error } = useAuthenticatedMedia(url, token, {
+    preferredSrc: localSrc,
+    disableRemoteFetch: pending && !!localSrc
+  });
 
   if (loading) return (
     <div className={`${className} media-placeholder`}>
@@ -213,7 +274,7 @@ const AuthenticatedVideo: React.FC<{
 
   if (error) return (
     <div className={`${className} media-placeholder error`}>
-      <span>Failed to load</span>
+      <span>{pending ? 'Preparing video...' : 'Failed to load'}</span>
     </div>
   );
 
@@ -299,7 +360,7 @@ const renderRichText = (content: string): React.ReactNode => {
           text = `${numbered[1]}. ${numbered[2]}`;
         } else if (bullet) {
           className += ' list';
-          text = `• ${bullet[1]}`;
+          text = `鈥?${bullet[1]}`;
         } else if (quote) {
           className += ' quote';
           text = quote[1];
@@ -352,7 +413,7 @@ const BotCard: React.FC<{ card: BotCardData; isOwnMessage: boolean }> = ({ card,
       {!!card.actions?.length && (
         <div className="bot-card-actions">
           {card.actions.map((action, index) => {
-            const label = action.label || '操作';
+            const label = action.label || '鎿嶄綔';
             const key = `${label}-${index}`;
             if (action.url) {
               return (
@@ -379,10 +440,7 @@ const BotCard: React.FC<{ card: BotCardData; isOwnMessage: boolean }> = ({ card,
 };
 
 /**
- * 实时消息通过 socket 进入聊天页时，不一定会附带完整的 fromAccount。
- * 这里优先使用消息里的发送者信息，缺失时再退回到会话成员列表，
- * 这样页面可以第一时间把“是谁发来的”渲染出来，而不是显示成问号。
- */
+ * 瀹炴椂娑堟伅閫氳繃 socket 杩涘叆鑱婂ぉ椤垫椂锛屼笉涓€瀹氫細闄勫甫瀹屾暣鐨?fromAccount銆? * 杩欓噷浼樺厛浣跨敤娑堟伅閲岀殑鍙戦€佽€呬俊鎭紝缂哄け鏃跺啀閫€鍥炲埌浼氳瘽鎴愬憳鍒楄〃锛? * 杩欐牱椤甸潰鍙互绗竴鏃堕棿鎶娾€滄槸璋佸彂鏉ョ殑鈥濇覆鏌撳嚭鏉ワ紝鑰屼笉鏄樉绀烘垚闂彿銆? */
 const resolveMessageSenderDisplay = (
   message: MessageDTO,
   conversation: ConversationRes
@@ -394,7 +452,7 @@ const resolveMessageSenderDisplay = (
     message.fromAccount?.username ||
     senderMember?.username ||
     senderId ||
-    '未知用户';
+    '鏈煡鐢ㄦ埛';
 
   return {
     displayName,
@@ -413,6 +471,14 @@ const MessageBubble: React.FC<{
 }> = ({ message, conversation, isOwnMessage, onImageClick, onResend, onJoinMeeting }) => {
   const token = useAppSelector((state: RootState) => state.auth.user?.token);
   const senderDisplay = resolveMessageSenderDisplay(message, conversation);
+  const attachmentStatus = message.attachmentStatus;
+  const isAttachmentPending = attachmentStatus === 'local' || attachmentStatus === 'uploading';
+  const localPreviewUrl = message.localPreviewUrl;
+  const localFileName =
+    message.localFileName ||
+    message.payload?.filename ||
+    message.payload?.fileName ||
+    'Document';
 
   const formatTime = (timestamp: any) => {
     if (!timestamp) return '';
@@ -449,15 +515,18 @@ const MessageBubble: React.FC<{
     switch (type) {
       case MessageType.IMAGE: {
         const previewUrl = getPreviewUrl(message.content, 480, 75);
-        const originalUrl = getFileUrl(message.content);
+        const originalUrl = isAttachmentPending && localPreviewUrl ? localPreviewUrl : getFileUrl(message.content);
         return (
           <div className="msg-media-container msg-image-container">
             <AuthenticatedImage
               url={previewUrl}
               token={token}
               className="msg-img-preview"
+              localSrc={localPreviewUrl}
+              pending={isAttachmentPending}
               onClick={() => onImageClick && onImageClick(originalUrl, 'IMAGE')}
             />
+            {isAttachmentPending && <div className="attachment-pending-badge">Uploading...</div>}
           </div>
         );
       }
@@ -465,29 +534,31 @@ const MessageBubble: React.FC<{
         const url = getFileUrl(message.content);
         return (
           <div className="msg-media-container msg-video-container" onClick={() => onImageClick && onImageClick(url, 'VIDEO')}>
+            <AuthenticatedVideo
+              url={url}
+              token={token}
+              className="msg-img-preview"
+              localSrc={localPreviewUrl}
+              pending={isAttachmentPending}
+            />
             <div className="video-overlay-play">
               <svg viewBox="0 0 24 24" width="40" height="40" fill="white"><path d="M8 5v14l11-7z" /></svg>
             </div>
-            <div className="video-placeholder-thumb">
-              <svg viewBox="0 0 24 24" width="32" height="32" fill="white" opacity="0.5">
-                <path d="M21 7L17 11V7C17 6.45 16.55 6 16 6H5C4.45 6 4 6.45 4 7V17C4 17.55 4.45 18 5 18H16C16.55 18 17 17.55 17 17V13L21 17V7Z" />
-              </svg>
-            </div>
+            {isAttachmentPending && <div className="attachment-pending-badge">Uploading...</div>}
           </div>
         );
       }
       case MessageType.FILE: {
-        const fileName = message.payload?.filename || message.payload?.fileName || 'Document';
         return (
-          <div className="msg-file-card" onClick={() => handleDownload(message.content, fileName)}>
+          <div className={`msg-file-card ${isAttachmentPending ? 'pending' : ''}`} onClick={() => !isAttachmentPending && handleDownload(message.content, localFileName)}>
             <div className="file-icon-box">
               <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                 <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
               </svg>
             </div>
             <div className="file-detail">
-              <span className="file-name" title={fileName}>{fileName}</span>
-              <span className="file-action">Download</span>
+              <span className="file-name" title={localFileName}>{localFileName}</span>
+              <span className="file-action">{isAttachmentPending ? 'Uploading...' : 'Download'}</span>
             </div>
           </div>
         );
@@ -495,13 +566,18 @@ const MessageBubble: React.FC<{
       case MessageType.VOICE: {
         const url = getFileUrl(message.content);
         return (
-          <CustomAudioPlayer url={url} token={token} />
+          <CustomAudioPlayer
+            url={url}
+            token={token}
+            localSrc={localPreviewUrl}
+            pending={isAttachmentPending}
+          />
         );
       }
       case MessageType.MEETING: {
         const payload = parseMeetingPayload(message);
         const category = payload?.category || 'MEETING';
-        const title = payload?.title || (category === 'VIDEO_CALL' ? '视频通话' : category === 'VOICE_CALL' ? '语音通话' : '会议');
+        const title = payload?.title || (category === 'VIDEO_CALL' ? '瑙嗛閫氳瘽' : category === 'VOICE_CALL' ? '璇煶閫氳瘽' : '浼氳');
         const count = payload?.participantCount ?? payload?.participantIds?.length ?? 0;
         const roomId = payload?.roomId;
         const isScheduled = payload?.action === 'SCHEDULE';
@@ -514,7 +590,7 @@ const MessageBubble: React.FC<{
               <div className="meeting-title">{title}</div>
               <div className="meeting-meta">{payload?.summary || '通话已结束'}</div>
               {typeof payload?.durationSeconds === 'number' && (
-                <div className="meeting-meta">时长: {Math.floor(payload.durationSeconds / 60).toString().padStart(2, '0')}:{(payload.durationSeconds % 60).toString().padStart(2, '0')}</div>
+                <div className="meeting-meta">鏃堕暱: {Math.floor(payload.durationSeconds / 60).toString().padStart(2, '0')}:{(payload.durationSeconds % 60).toString().padStart(2, '0')}</div>
               )}
             </div>
           );
@@ -522,7 +598,7 @@ const MessageBubble: React.FC<{
 
         return (
           <div className={`msg-meeting-card ${isScheduled ? 'scheduled' : ''}`}>
-            <div className="meeting-title">{isScheduled ? `📅 预定会议: ${title}` : title}</div>
+            <div className="meeting-title">{isScheduled ? `预定会议: ${title}` : title}</div>
             {isScheduled && <div className="meeting-time">时间: {scheduledTime}</div>}
             <div className="meeting-meta">参会人数: {count}</div>
             {!isScheduled && (
@@ -562,7 +638,7 @@ const MessageBubble: React.FC<{
               <span className={`msg-status-indicator ${message.sendingStatus || 'success'}`}>
                 {message.sendingStatus === 'sending' && <span className="spinner-loading-tiny"></span>}
                 {message.sendingStatus === 'failed' && (
-                  <button className="resend-btn" onClick={() => onResend && onResend(message)} title="点击重发">
+                  <button className="resend-btn" onClick={() => onResend && onResend(message)} title="鐐瑰嚮閲嶅彂">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
                     </svg>
@@ -595,6 +671,8 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   const [socketConnectionState, setSocketConnectionState] = useState<SocketConnectionState>(socketService.getConnectionState());
   const [showParticipantPicker, setShowParticipantPicker] = useState(false);
   const [showScheduleMeeting, setShowScheduleMeeting] = useState(false);
+  const [showBotConfig, setShowBotConfig] = useState(false);
+  const [groupBotSettings, setGroupBotSettings] = useState<GroupBotSettings>(defaultGroupBotSettings);
 
   // Recording State
   const [isRecording, setIsRecording] = useState(false);
@@ -612,6 +690,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     email: user.email || '',
     phoneNumber: user.phoneNumber || ''
   } : undefined;
+  const isAiAssistantConversation = conversation.conversationId === AI_ASSISTANT_CONVERSATION_ID;
 
   const logChatRoom = (scope: string, details?: Record<string, unknown>) => {
     console.log('[ChatRoom]', {
@@ -624,15 +703,13 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     });
   };
 
-  // 获取会话名称
+  // 鑾峰彇浼氳瘽鍚嶇О
   const getRoomName = () => {
     return getConversationDisplayName(conversation, user?.userId);
   };
 
   /**
-   * 私聊场景下统一解析“对方用户”。
-   * 后续头像、在线状态、拨打音视频都从这里取值，避免各处重复查 members。
-   */
+   * 绉佽亰鍦烘櫙涓嬬粺涓€瑙ｆ瀽鈥滃鏂圭敤鎴封€濄€?   * 鍚庣画澶村儚銆佸湪绾跨姸鎬併€佹嫧鎵撻煶瑙嗛閮戒粠杩欓噷鍙栧€硷紝閬垮厤鍚勫閲嶅鏌?members銆?   */
   const getOtherUser = () => {
     if (isGroupConversation(conversation)) {
       return null;
@@ -662,9 +739,20 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     setToast({ message, type });
   };
 
-  const shouldTriggerBotReply = (content: string) => isGroupConversation(conversation) && BOT_MENTION_PATTERN.test(content.trim());
+  const getGroupBotSettingsStorageKey = () => `${GROUP_BOT_SETTINGS_KEY}.${conversation.conversationId}`;
 
-  const extractBotPrompt = (content: string) => content.trim().replace(BOT_MENTION_PATTERN, '').trim();
+  const shouldTriggerBotReply = (content: string) =>
+    isGroupConversation(conversation) &&
+    groupBotSettings.enabled &&
+    BOT_TRIGGER_PATTERN.test(content.trim());
+
+  const extractBotPrompt = (content: string) => {
+    const trimmed = content.trim();
+    if (isAiAssistantConversation) {
+      return trimmed;
+    }
+    return trimmed.replace(BOT_TRIGGER_PATTERN, '').trim();
+  };
 
   const toBotRenderableContent = (reply: AiBotReplyDto): string => {
     if ((reply.messageType || '').toLowerCase() === 'card' && reply.metadata) {
@@ -681,7 +769,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       fromAccountId: -20260721,
       fromAccount: {
         userId: -20260721,
-        username: 'AI 助手',
+        username: 'AI 鍔╂墜',
         email: 'ai-assistant@local.group',
         phoneNumber: ''
       },
@@ -698,9 +786,13 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       return;
     }
 
+    const requestContent = isGroupConversation(conversation) && !isAiAssistantConversation
+      ? `${groupBotSettings.promptTemplate}\n\n用户问题：${prompt}`
+      : prompt;
+
     try {
       const response = await aiBotAPI.sendMessage({
-        content: prompt,
+        content: requestContent,
         conversationId: conversation.conversationId,
         fromAccountId: currentUserId,
         clientMsgId: window.crypto?.randomUUID?.() || `web-ai-${Date.now()}`
@@ -710,7 +802,18 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       scrollToBottom();
     } catch (error) {
       console.error('Failed to request bot reply:', error);
-      appendLocalBotReply('AI 助手暂时无法响应这次 @ 提问，请稍后重试。');
+      appendLocalBotReply(isAiAssistantConversation ? 'AI 助手暂时无法响应，请稍后重试。' : 'AI 助手暂时无法响应这次 @ 提问，请稍后重试。');
+    }
+  };
+
+  const saveGroupBotSettings = () => {
+    try {
+      window.localStorage.setItem(getGroupBotSettingsStorageKey(), JSON.stringify(groupBotSettings));
+      showToast('群机器人配置已保存', 'success' as any);
+      setShowBotConfig(false);
+    } catch (error) {
+      console.error('Failed to save group bot settings:', error);
+      showToast('保存群机器人配置失败');
     }
   };
 
@@ -757,7 +860,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       setShowParticipantPicker(false);
     } catch (err: any) {
       console.error('Failed to create meeting:', err);
-      showToast(err?.message || '创建会议失败');
+      showToast(err?.message || '鍒涘缓浼氳澶辫触');
     }
   };
 
@@ -769,32 +872,33 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         scheduledAt: data.scheduledAt,
         participantIds: data.participantIds.map(id => Number(id))
       });
-      showToast('会议预定成功', 'success' as any);
+      showToast('浼氳棰勫畾鎴愬姛', 'success' as any);
       setShowScheduleMeeting(false);
     } catch (err: any) {
       console.error('Failed to schedule meeting:', err);
-      showToast(err?.message || '预定会议失败');
+      showToast(err?.message || '棰勫畾浼氳澶辫触');
     }
   };
 
-  // 加载消息
+  // 鍔犺浇娑堟伅
   const loadMessages = async () => {
+    if (isAiAssistantConversation) {
+      return;
+    }
     try {
       await dispatch(fetchMessages(conversation.conversationId)).unwrap();
     } catch (err: any) {
       console.error('Failed to load messages:', err);
-      showToast(err.message || '无法获取历史消息');
+      showToast(err.message || '鏃犳硶鑾峰彇鍘嗗彶娑堟伅');
     }
   };
 
-  // 发送消息
   const sendMessage = async () => {
-      if (!inputText.trim()) return;
+    if (!inputText.trim()) return;
 
-      const content = inputText.trim();
-      setInputText('');
+    const content = inputText.trim();
+    setInputText('');
 
-    // Define a clientMsgId to track the message through optimistic update
     const clientMsgId = window.crypto && window.crypto.randomUUID
       ? window.crypto.randomUUID()
       : Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -803,23 +907,41 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       logChatRoom('send-message-dispatch', {
         clientMsgId,
         contentLength: content.length,
-        preview: content.slice(0, 80)
+        preview: content.slice(0, 80),
+        isAiAssistantConversation
       });
-      // Async dispatch, don't await unwrap if we want immediate UI
-        dispatch(sendMessageViaSocket({
+
+      if (isAiAssistantConversation) {
+        dispatch(addMessage({
+          msgId: -(Date.now() + 1),
           conversationId: conversation.conversationId,
-          content: content,
-          type: 'TEXT',
+          content,
+          fromAccountId: currentUserId || 0,
+          fromAccount: currentSenderSnapshot,
+          type: MessageType.TEXT,
+          timestamp: Date.now(),
           clientMsgId,
-          senderSnapshot: currentSenderSnapshot
+          sendingStatus: 'success'
         }));
-
-        if (shouldTriggerBotReply(content)) {
-          void requestBotReply(content);
-        }
-
+        void requestBotReply(content);
         scrollToBottom();
-      } catch (err: any) {
+        return;
+      }
+
+      dispatch(sendMessageViaSocket({
+        conversationId: conversation.conversationId,
+        content,
+        type: 'TEXT',
+        clientMsgId,
+        senderSnapshot: currentSenderSnapshot
+      }));
+
+      if (shouldTriggerBotReply(content)) {
+        void requestBotReply(content);
+      }
+
+      scrollToBottom();
+    } catch (err: any) {
       console.error('Failed to send message async:', err);
     }
   };
@@ -840,21 +962,20 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     }));
   };
 
-  // 处理文件选取和上传
   const handleFileSelect = async (isImage: boolean = false) => {
     try {
       const api = getElectronAPI();
       const options = isImage ? {
-        filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }]
+        filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif', 'avif', 'svg'] }]
       } : {};
 
       const result = await api.selectFile(options);
 
       if (result.canceled) return;
 
-      showToast('准备上传...', 'info' as any);
+      showToast('鍑嗗涓婁紶...', 'info' as any);
 
-      // 1. 获取文件元数据并申请 UploadId
+      // 1. 鑾峰彇鏂囦欢鍏冩暟鎹苟鐢宠 UploadId
       let fileName = '';
       let fileSize = 0;
 
@@ -862,7 +983,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         fileName = result.file.name;
         fileSize = result.file.size;
       } else if (result.filePaths && result.filePaths.length > 0) {
-        // Electron 环境
+        // Electron 鐜
         fileName = (result as any).fileName || result.filePaths[0].split(/[\\/]/).pop() || 'file';
         fileSize = (result as any).fileSize || 0;
       }
@@ -878,17 +999,31 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       }
 
       const fileId = idRes.id;
+      const mimeType = result.file?.type || (result as any).mimeType || '';
+      const isImageFile = isImage || isImageAttachment(fileName, mimeType);
+      const isVideoFile = isVideoAttachment(fileName, mimeType);
+      const messageType = isImageFile ? MessageType.IMAGE : isVideoFile ? MessageType.VIDEO : MessageType.FILE;
+      const clientMsgId = window.crypto && window.crypto.randomUUID
+        ? window.crypto.randomUUID()
+        : Math.random().toString(36).substring(2) + Date.now().toString(36);
+      let localPreviewUrl: string | undefined;
 
       // Cache local file preview to avoid redundant download
       if (result.file) {
-        const localUrl = URL.createObjectURL(result.file);
-        localMediaCache.set(fileId, localUrl);
+        localPreviewUrl = URL.createObjectURL(result.file);
+        localMediaCache.set(fileId, localPreviewUrl);
       } else if (result.filePaths && result.filePaths.length > 0) {
-        const isImageFile = isImage || /\.(jpg|jpeg|png|gif|webp)$/i.test(result.filePaths[0]);
-        if (isImageFile && api.readFileAsDataURL) {
+        if ((isImageFile || isVideoFile) && api.readFileAsDataURL) {
           api.readFileAsDataURL(result.filePaths[0]).then(dataUrl => {
             if (dataUrl) {
               localMediaCache.set(fileId, dataUrl);
+              dispatch(updateMessageAttachmentState({
+                conversationId: conversation.conversationId,
+                clientMsgId,
+                patch: {
+                  localPreviewUrl: dataUrl
+                }
+              }));
             }
           }).catch(err => {
             console.error('Failed to pre-cache electron file:', err);
@@ -899,39 +1034,73 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       // OPTIMISTIC: Send message immediately after getting uploadId
       // The content is the fileId (UUID), the message type is IMAGE/FILE
       // The recipient will see a loading state if they try to fetch a file that is still UPLOADING
-      const clientMsgId = window.crypto && window.crypto.randomUUID
-        ? window.crypto.randomUUID()
-        : Math.random().toString(36).substring(2) + Date.now().toString(36);
-      console.log(clientMsgId);
       dispatch(sendMessageViaSocket({
         conversationId: conversation.conversationId,
         content: fileId,
-        type: isImage ? MessageType.IMAGE : MessageType.FILE,
+        type: messageType,
         clientMsgId,
+        msgDto: {
+          msgId: -1,
+          conversationId: conversation.conversationId,
+          content: fileId,
+          fromAccountId: currentUserId || 0,
+          type: messageType,
+          timestamp: Date.now(),
+          clientMsgId,
+          sendingStatus: 'sending',
+          localPreviewUrl,
+          localFileName: fileName,
+          localFileSize: fileSize,
+          localMimeType: mimeType,
+          attachmentStatus: 'uploading',
+          payload: idRes.fileMeta
+        },
         senderSnapshot: currentSenderSnapshot
       }));
 
       scrollToBottom();
-      showToast('正在后台上传文件...', 'info' as any);
+      showToast('姝ｅ湪鍚庡彴涓婁紶鏂囦欢...', 'info' as any);
 
       // 2. Background Upload
       const fileToUpload = result.file || result.filePaths[0];
       api.uploadFile(fileToUpload, fileId).then((uploadRes) => {
         if (uploadRes && (uploadRes.id || uploadRes.fileMeta)) {
-          showToast('文件上传完成', 'success' as any);
-          // Optional: we could dispatch an update if the server gives us a permanent URL
-          // but usually the fileId is enough as the CDN/proxy handles it
+          dispatch(updateMessageAttachmentState({
+            conversationId: conversation.conversationId,
+            clientMsgId,
+            patch: {
+              attachmentStatus: 'ready',
+              payload: uploadRes.fileMeta
+            }
+          }));
+          showToast('鏂囦欢涓婁紶瀹屾垚', 'success' as any);
         } else {
-          showToast('文件上传失败，消息已发送但无法查看');
+          dispatch(updateMessageAttachmentState({
+            conversationId: conversation.conversationId,
+            clientMsgId,
+            patch: {
+              attachmentStatus: 'failed',
+              sendingStatus: 'failed'
+            }
+          }));
+          showToast('鏂囦欢涓婁紶澶辫触锛屾秷鎭凡鍙戦€佷絾鏃犳硶鏌ョ湅');
         }
       }).catch(err => {
         console.error('Background upload error:', err);
-        showToast('后台上传出错');
+        dispatch(updateMessageAttachmentState({
+          conversationId: conversation.conversationId,
+          clientMsgId,
+          patch: {
+            attachmentStatus: 'failed',
+            sendingStatus: 'failed'
+          }
+        }));
+        showToast('鍚庡彴涓婁紶鍑洪敊');
       });
 
     } catch (err: any) {
       console.error('File selection/upload error:', err);
-      showToast(err.message || '操作失败');
+      showToast(err.message || '鎿嶄綔澶辫触');
     }
   };
 
@@ -952,10 +1121,10 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         const api = getElectronAPI();
         const duration = recordingTime * 1000; // ms
 
-        showToast('正在处理语音...', 'info' as any);
+        showToast('姝ｅ湪澶勭悊璇煶...', 'info' as any);
 
         try {
-          // 1. 获取 UploadId
+          // 1. 鑾峰彇 UploadId
           const idRes = await api.getUploadId({
             fileName: `voice_${Date.now()}.webm`,
             size: audioBlob.size,
@@ -983,18 +1152,56 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
             content: fileId,
             type: 'VOICE',
             clientMsgId,
+            msgDto: {
+              msgId: -1,
+              conversationId: conversation.conversationId,
+              content: fileId,
+              fromAccountId: currentUserId || 0,
+              type: MessageType.VOICE,
+              timestamp: Date.now(),
+              clientMsgId,
+              sendingStatus: 'sending',
+              localPreviewUrl: localUrl,
+              localFileName: `voice_${Date.now()}.webm`,
+              localFileSize: audioBlob.size,
+              localMimeType: audioBlob.type,
+              attachmentStatus: 'uploading'
+            },
             senderSnapshot: currentSenderSnapshot
           }));
 
           // 2. Background Upload
           api.uploadFile(audioBlob as any, fileId, duration).then(res => {
             if (res && (res.id || res.fileMeta)) {
-              console.log('Voice uploaded successfully');
+              dispatch(updateMessageAttachmentState({
+                conversationId: conversation.conversationId,
+                clientMsgId,
+                patch: {
+                  attachmentStatus: 'ready',
+                  payload: res.fileMeta
+                }
+              }));
             } else {
-              showToast('语音上传失败');
+              dispatch(updateMessageAttachmentState({
+                conversationId: conversation.conversationId,
+                clientMsgId,
+                patch: {
+                  attachmentStatus: 'failed',
+                  sendingStatus: 'failed'
+                }
+              }));
+              showToast('璇煶涓婁紶澶辫触');
             }
           }).catch(err => {
             console.error('Background voice upload error:', err);
+            dispatch(updateMessageAttachmentState({
+              conversationId: conversation.conversationId,
+              clientMsgId,
+              patch: {
+                attachmentStatus: 'failed',
+                sendingStatus: 'failed'
+              }
+            }));
           });
         } catch (err) {
           console.error('Audio upload error:', err);
@@ -1033,13 +1240,12 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  // 处理表情选择
+  // 澶勭悊琛ㄦ儏閫夋嫨
   const handleEmojiSelect = (emoji: string) => {
     setInputText(prev => prev + emoji);
     setShowEmojiPicker(false);
   };
 
-  // 开启桌面分享选择器
   const startScreenShare = async () => {
     try {
       const api = getElectronAPI();
@@ -1052,20 +1258,19 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         // Web fallback using getDisplayMedia
         if (navigator.mediaDevices && (navigator.mediaDevices as any).getDisplayMedia) {
           const stream = await (navigator.mediaDevices as any).getDisplayMedia({ video: true });
-          showToast('桌面分享已开启 (仅预览)', 'success' as any);
+          showToast('妗岄潰鍒嗕韩宸插紑鍚?(浠呴瑙?', 'success' as any);
           // Stop immediately as it is just a demo for now without real RTC signaling
           stream.getTracks().forEach((track: any) => track.stop());
         } else {
-          showToast('当前浏览器不支持桌面分享');
+          showToast('褰撳墠娴忚鍣ㄤ笉鏀寔妗岄潰鍒嗕韩');
         }
       }
     } catch (err: any) {
       console.error('Failed to get screen sources:', err);
-      showToast('操作被取消或失败');
+      showToast('鎿嶄綔琚彇娑堟垨澶辫触');
     }
   };
 
-  // 完成屏幕录制选择并发送
   const handleScreenShareConfirm = async () => {
     if (!selectedSourceId) return;
 
@@ -1091,7 +1296,6 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     '🍎', '🍕', '🍔', '🍦', '☕', '🍺', '🌍', '🐱', '🐶', '🦊', '🐨', '🦁', '🦄', '🐝', '🍀', '🌸'
   ];
 
-  // 滚动到底部
   const scrollToBottom = () => {
     if (viewportRef.current) {
       viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
@@ -1100,10 +1304,13 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
   const handlePreviewClose = () => setPreviewMedia(null);
 
-  // 查询在线状态
   useEffect(() => {
     let interval: any;
     const checkOnline = async () => {
+      if (isAiAssistantConversation) {
+        setIsOnline(true);
+        return;
+      }
       const otherUserId = getOtherUserId();
       if (otherUserId && !isGroupConversation(conversation)) {
         try {
@@ -1122,9 +1329,28 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     interval = setInterval(checkOnline, 10000); // 10s polling
 
     return () => clearInterval(interval);
-  }, [conversation]);
+  }, [conversation, isAiAssistantConversation]);
 
-  // 初始化加载
+  useEffect(() => {
+    if (!isGroupConversation(conversation)) {
+      setGroupBotSettings(defaultGroupBotSettings);
+      setShowBotConfig(false);
+      return;
+    }
+
+    try {
+      const saved = window.localStorage.getItem(getGroupBotSettingsStorageKey());
+      if (saved) {
+        setGroupBotSettings({ ...defaultGroupBotSettings, ...JSON.parse(saved) });
+      } else {
+        setGroupBotSettings(defaultGroupBotSettings);
+      }
+    } catch (error) {
+      console.error('Failed to load group bot settings:', error);
+      setGroupBotSettings(defaultGroupBotSettings);
+    }
+  }, [conversation.conversationId]);
+
   useEffect(() => {
     loadMessages();
   }, [conversation.conversationId]);
@@ -1137,11 +1363,11 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     });
   }, []);
 
-  // 消息更新时自动滚动且标记已读
+  // 娑堟伅鏇存柊鏃惰嚜鍔ㄦ粴鍔ㄤ笖鏍囪宸茶
   useEffect(() => {
     scrollToBottom();
 
-    // 如果有对方的消息，标记为已读
+    // 濡傛灉鏈夊鏂圭殑娑堟伅锛屾爣璁颁负宸茶
     if (messages.length > 0 && !chatLoading) {
       const lastOtherMsg = [...messages].reverse().find(m => m.fromAccountId.toString() !== user?.userId);
       if (lastOtherMsg && lastOtherMsg.msgId > 0) {
@@ -1153,7 +1379,6 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     }
   }, [messages, chatLoading]);
 
-  // 工具栏点击辅助：点击其他工具时关闭表情
   const handleToolAction = (action: () => void) => {
     setShowEmojiPicker(false);
     action();
@@ -1170,7 +1395,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         />
       )}
 
-      {/* 顶部导航栏 */}
+      {/* 椤堕儴瀵艰埅鏍?*/}
       <div className="chatroom-header">
         <div className="chatroom-header-left">
           <div
@@ -1182,12 +1407,14 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
           <div className="room-info">
             <h2 className="room-name">{getRoomName()}</h2>
             <div className="room-status">
-              {isGroupConversation(conversation) ? (
-                <span>{conversation.members?.length || 0} 位成员 · {getSocketStatusText()}</span>
+              {isAiAssistantConversation ? (
+                <span>AI 鍦ㄧ嚎 路 鏀寔闂瓟銆乄ebhook銆丮arkdown/Card 鍥炲</span>
+              ) : isGroupConversation(conversation) ? (
+                <span>{conversation.members?.length || 0} 浣嶆垚鍛?路 {getSocketStatusText()}</span>
               ) : (
                 <>
                   <span className={`status-indicator ${isOnline ? 'online' : 'offline'}`}></span>
-                  {isOnline ? '在线' : '离线'} · {getSocketStatusText()}
+                  {isOnline ? '鍦ㄧ嚎' : '绂荤嚎'} 路 {getSocketStatusText()}
                 </>
               )}
             </div>
@@ -1195,6 +1422,21 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         </div>
 
         <div className="chatroom-header-actions">
+          {isGroupConversation(conversation) && (
+            <button
+              className="action-icon-btn"
+              onClick={() => setShowBotConfig(true)}
+              title="机器人配置"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 8V4H8"></path>
+                <rect x="4" y="8" width="16" height="12" rx="2"></rect>
+                <path d="M9 16h6"></path>
+                <path d="M9 12h.01"></path>
+                <path d="M15 12h.01"></path>
+              </svg>
+            </button>
+          )}
           {isGroupConversation(conversation) && onStartMeeting && getGroupParticipants().length > 0 && (
             <>
               <button
@@ -1223,7 +1465,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
               </button>
             </>
           )}
-          {getOtherUserId() && onVideoCall && (
+          {!isAiAssistantConversation && getOtherUserId() && onVideoCall && (
             <>
               <button
                 className="action-icon-btn"
@@ -1233,7 +1475,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
                   conversation.conversationId,
                   'VOICE_CALL'
                 )}
-                title="语音通话"
+                title="璇煶閫氳瘽"
               >
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
@@ -1247,7 +1489,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
                   conversation.conversationId,
                   'VIDEO_CALL'
                 )}
-                title="视频通话"
+                title="瑙嗛閫氳瘽"
               >
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                   <polygon points="23 7 16 12 23 17 23 7"></polygon>
@@ -1256,7 +1498,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
               </button>
             </>
           )}
-          <button className="action-icon-btn" title="更多">
+          <button className="action-icon-btn" title="鏇村">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="1"></circle>
               <circle cx="12" cy="5" r="1"></circle>
@@ -1266,7 +1508,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         </div>
       </div>
 
-      {/* 消息列表 */}
+      {/* 娑堟伅鍒楄〃 */}
       <div className="messages-viewport" ref={viewportRef} onClick={() => setShowEmojiPicker(false)}>
         {socketConnectionState !== 'connected' && (
           <div className={`socket-status-banner ${socketConnectionState}`}>
@@ -1302,7 +1544,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
       {showParticipantPicker && (
         <ParticipantPicker
-          title="发起多人会议"
+          title="鍙戣捣澶氫汉浼氳"
           members={getGroupParticipants()}
           onConfirm={(selectedIds) => startMeetingFromChat(selectedIds)}
           onCancel={() => setShowParticipantPicker(false)}
@@ -1317,7 +1559,57 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         />
       )}
 
-      {/* 表情包选择器 */}
+      {/* 琛ㄦ儏鍖呴€夋嫨鍣?*/}
+      {showBotConfig && isGroupConversation(conversation) && (
+        <div className="modal-overlay">
+          <div className="modal-content bot-config-modal">
+            <div className="modal-header">
+              <h3>群机器人配置</h3>
+              <button className="close-btn" onClick={() => setShowBotConfig(false)}>×</button>
+            </div>
+            <div className="modal-body bot-config-body">
+              <label className="bot-switch-row">
+                <div>
+                  <div className="bot-switch-title">启用群机器人</div>
+                  <div className="bot-switch-desc">群成员使用 `@机器人`、`@AI助手` 时自动触发回复。</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={groupBotSettings.enabled}
+                  onChange={(e) => setGroupBotSettings((prev) => ({ ...prev, enabled: e.target.checked }))}
+                />
+              </label>
+              <div className="bot-config-grid">
+                <label>
+                  <span>群提示词</span>
+                  <textarea
+                    value={groupBotSettings.promptTemplate}
+                    onChange={(e) => setGroupBotSettings((prev) => ({ ...prev, promptTemplate: e.target.value }))}
+                    rows={4}
+                  />
+                </label>
+                <label>
+                  <span>Webhook 提示</span>
+                  <textarea
+                    value={groupBotSettings.webhookHint}
+                    onChange={(e) => setGroupBotSettings((prev) => ({ ...prev, webhookHint: e.target.value }))}
+                    rows={3}
+                  />
+                </label>
+              </div>
+              <div className="bot-config-tips">
+                <div className="bot-config-tip">支持 Markdown、HTML、Card 类型回复在当前消息气泡中渲染。</div>
+                <div className="bot-config-tip">{groupBotSettings.webhookHint}</div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setShowBotConfig(false)}>取消</button>
+              <button className="btn-primary" onClick={saveGroupBotSettings}>保存配置</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showEmojiPicker && (
         <div className="emoji-picker-popover">
           <div className="emoji-grid">
@@ -1334,7 +1626,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         </div>
       )}
 
-      {/* 桌面分享选择器弹窗 */}
+      {/* 妗岄潰鍒嗕韩閫夋嫨鍣ㄥ脊绐?*/}
       {showScreenPicker && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -1365,12 +1657,12 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
               >
                 开始分享
               </button>
-            </div>
           </div>
+        </div>
         </div>
       )}
 
-      {/* 媒体预览 Modal - Enhanced with Glassmorphism */}
+      {/* 濯掍綋棰勮 Modal - Enhanced with Glassmorphism */}
       {previewMedia && (
         <div className="media-preview-overlay" onClick={handlePreviewClose}>
           <div className="media-preview-container" onClick={e => e.stopPropagation()}>
@@ -1403,12 +1695,12 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         </div>
       )}
 
-      {/* 输入区域 */}
+      {/* 杈撳叆鍖哄煙 */}
       <div className="message-input-bar">
         <div className="toolbar-premium">
           <button
             className="tool-action-btn"
-            title="表情"
+            title="琛ㄦ儏"
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
           >
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1420,7 +1712,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
           </button>
           <button
             className="tool-action-btn"
-            title="上传图片"
+            title="涓婁紶鍥剧墖"
             onClick={() => handleToolAction(() => handleFileSelect(true))}
           >
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1441,7 +1733,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
           </button>
           <button
             className="tool-action-btn"
-            title="屏幕分享"
+            title="灞忓箷鍒嗕韩"
             onClick={() => handleToolAction(startScreenShare)}
           >
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1453,7 +1745,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
           <div className="toolbar-divider"></div>
           <button
             className={`tool-action-btn ${isRecording ? 'recording' : ''}`}
-            title={isRecording ? '停止录音' : '语音消息'}
+            title={isRecording ? '鍋滄褰曢煶' : '璇煶娑堟伅'}
             onClick={() => {
               setShowEmojiPicker(false);
               if (isRecording) stopRecording();
@@ -1478,7 +1770,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         <div className="input-row-modern">
           <textarea
             className="textarea-modern"
-            placeholder="键入消息..."
+            placeholder={isAiAssistantConversation ? '直接向 AI 助手提问...' : '键入消息...'}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onFocus={() => setShowEmojiPicker(false)}
@@ -1497,13 +1789,13 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
           >
             发送
           </button>
-        </div>
       </div>
+    </div>
     </div>
   );
 };
 
-// 根据字符串生成颜色的辅助函数
+// 鏍规嵁瀛楃涓茬敓鎴愰鑹茬殑杈呭姪鍑芥暟
 const getColorFromString = (str: string): string => {
   const colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
   let hash = 0;

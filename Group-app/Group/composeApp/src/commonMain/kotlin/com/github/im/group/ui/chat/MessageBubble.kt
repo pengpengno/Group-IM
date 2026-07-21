@@ -237,9 +237,7 @@ private fun VoiceMessageContent(
     messageViewModel: ChatRoomViewModel,
     isOwnMessage: Boolean
 ) {
-    val cachedMeta = remember(msg.content) {
-        msg.fileMeta ?: messageViewModel.getCachedFileMeta(msg.content)
-    }
+    val cachedMeta = msg.fileMeta ?: messageViewModel.getCachedFileMeta(msg.content)
     val meta by produceState<FileMeta?>(initialValue = cachedMeta, key1 = msg.content) {
         value = cachedMeta ?: messageViewModel.getFileMessageMetaAsync(msg)
     }
@@ -283,9 +281,7 @@ private fun FileMessageContent(
     messageViewModel: ChatRoomViewModel,
     isOwnMessage: Boolean
 ) {
-    val cachedMeta = remember(message.content) {
-        message.fileMeta ?: messageViewModel.getCachedFileMeta(message.content)
-    }
+    val cachedMeta = message.fileMeta ?: messageViewModel.getCachedFileMeta(message.content)
     val meta by produceState<FileMeta?>(initialValue = cachedMeta, key1 = message.content) {
         value = cachedMeta ?: messageViewModel.getFileMessageMetaAsync(message)
     }

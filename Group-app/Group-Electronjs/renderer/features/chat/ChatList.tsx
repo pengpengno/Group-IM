@@ -12,6 +12,7 @@ interface ChatListProps {
 }
 
 type GroupModalMode = 'create' | 'add-members' | null;
+const AI_ASSISTANT_CONVERSATION_ID = -20260720;
 
 const flattenUsers = (nodes: OrgTreeNode[]): ApiUser[] => {
   const users: ApiUser[] = [];
@@ -272,6 +273,24 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
         </div>
 
         <div className="conversations-scroll">
+          <div
+            className={`chat-item-premium ai-assistant-entry ${activeConversationId === AI_ASSISTANT_CONVERSATION_ID ? 'active' : ''}`}
+            onClick={() => handleSelectConversation(AI_ASSISTANT_CONVERSATION_ID)}
+          >
+            <div className="chat-item-avatar ai-assistant-avatar">AI</div>
+            <div className="chat-item-info">
+              <div className="chat-item-top">
+                <span className="chat-item-name">
+                  AI 助手
+                  <span className="chat-item-tag">机器人</span>
+                </span>
+                <span className="chat-item-time">随时可用</span>
+              </div>
+              <div className="chat-item-bottom">
+                <span className="chat-item-msg">支持问答、用户查询、Webhook 帮助、Markdown/Card 回复</span>
+              </div>
+            </div>
+          </div>
           {filteredConversations.length === 0 ? (
             <div className="empty-chats">
               <div className="empty-icon">会话</div>

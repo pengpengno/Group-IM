@@ -25,6 +25,7 @@ import com.github.im.group.repository.FilesRepository
 import com.github.im.group.repository.FriendRequestRepository
 import com.github.im.group.repository.MessageSyncRepository
 import com.github.im.group.repository.OrganizationRepository
+import com.github.im.group.repository.SettingsRepository
 import com.github.im.group.repository.UserRepository
 import com.github.im.group.sdk.AndroidAudioPlayer
 import com.github.im.group.sdk.AndroidFilePicker
@@ -45,6 +46,7 @@ import com.github.im.group.viewmodel.ChatRoomViewModel
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.ContactsViewModel
 import com.github.im.group.viewmodel.MeetingsViewModel
+import com.github.im.group.viewmodel.SettingsViewModel
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
 import okio.FileSystem
@@ -69,6 +71,7 @@ val appmodule = module {
     single<WebRTCManager> { AndroidWebRTCManager(androidContext(), get()) }
     single { AndroidPushEndpointRegistrar(androidContext()) }
     single<NotificationPreferenceStore> { AndroidNotificationPreferenceStore(androidContext()) }
+    single { SettingsRepository(get(), get()) }
     single { UserRepository(get()) }
     single { ConversationRepository(get(),get()) }
     single { ChatMessageRepository(get(),get()) }
@@ -202,5 +205,9 @@ val appmodule = module {
     // 注册MeetingsViewModel
     viewModel {
         MeetingsViewModel()
+    }
+
+    viewModel {
+        SettingsViewModel(get())
     }
 }
