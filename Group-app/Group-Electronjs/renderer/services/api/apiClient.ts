@@ -217,6 +217,20 @@ export const pushAPI = {
   }
 };
 
+export const systemConfigAPI = {
+  getMediaPolicy: async () => {
+    return http.get('/api/system-config/media-policy');
+  },
+
+  getAdminGroups: async () => {
+    return http.get('/api/system-config/admin/groups');
+  },
+
+  updateMediaConfig: async (values: Record<string, string>) => {
+    return http.put('/api/system-config/admin/media', { values });
+  }
+};
+
 export const fileAPI = {
   // POST /api/files/uploadId
   getUploadId: async (request: { size: number; fileName: string; duration?: number }) => {

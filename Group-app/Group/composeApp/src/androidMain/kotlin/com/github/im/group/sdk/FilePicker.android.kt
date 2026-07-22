@@ -3,6 +3,8 @@ package com.github.im.group.sdk
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.ManagedActivityResultLauncher
@@ -29,6 +31,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -201,7 +204,7 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
      * 从 PickedFile 读取文件内容为字节数组
      */
     override suspend fun readFileBytes(file: com.github.im.group.sdk.File): ByteArray = withContext(Dispatchers.IO) {
-        return@withContext when (file.data) {
+        val rawBytes = when (file.data) {
             is FileData.Bytes -> file.data.data
             is FileData.Path -> {
                 try {
@@ -218,6 +221,60 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
             FileData.None -> {
                 throw Exception("PickedFile 中没有数据")
             }
+        }
+
+        return@withContext compressImageBytesIfNeeded(file, rawBytes)
+    }
+
+    private fun compressImageBytesIfNeeded(file: com.github.im.group.sdk.File, bytes: ByteArray): ByteArray {
+        val mimeType = file.mimeType?.lowercase().orEmpty()
+        val lowerName = file.name.lowercase()
+        val isCompressibleImage = (mimeType.startsWith("image/") ||
+            lowerName.endsWith(".jpg") ||
+            lowerName.endsWith(".jpeg") ||
+            lowerName.endsWith(".png") ||
+            lowerName.endsWith(".webp") ||
+            lowerName.endsWith(".heic") ||
+            lowerName.endsWith(".heif")) &&
+            !lowerName.endsWith(".gif") &&
+            !lowerName.endsWith(".svg")
+
+        if (!isCompressibleImage || bytes.size <= 350 * 1024) {
+            return bytes
+        }
+
+        return runCatching {
+            val sourceBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return bytes
+            val maxEdge = 1600
+            val largestEdge = maxOf(sourceBitmap.width, sourceBitmap.height)
+            val scale = if (largestEdge > maxEdge) maxEdge.toFloat() / largestEdge.toFloat() else 1f
+            val targetWidth = maxOf(1, (sourceBitmap.width * scale).toInt())
+            val targetHeight = maxOf(1, (sourceBitmap.height * scale).toInt())
+            val resizedBitmap = if (scale < 1f) {
+                Bitmap.createScaledBitmap(sourceBitmap, targetWidth, targetHeight, true)
+            } else {
+                sourceBitmap
+            }
+
+            val output = ByteArrayOutputStream()
+            val compressFormat = if (mimeType == "image/png" || lowerName.endsWith(".png")) {
+                Bitmap.CompressFormat.PNG
+            } else {
+                Bitmap.CompressFormat.JPEG
+            }
+            val quality = if (compressFormat == Bitmap.CompressFormat.PNG) 100 else 82
+            resizedBitmap.compress(compressFormat, quality, output)
+
+            if (resizedBitmap !== sourceBitmap) {
+                resizedBitmap.recycle()
+            }
+            sourceBitmap.recycle()
+
+            val compressedBytes = output.toByteArray()
+            if (compressedBytes.isNotEmpty() && compressedBytes.size < bytes.size) compressedBytes else bytes
+        }.getOrElse {
+            Napier.w("compress image before upload failed: ${file.name}", it)
+            bytes
         }
     }
 

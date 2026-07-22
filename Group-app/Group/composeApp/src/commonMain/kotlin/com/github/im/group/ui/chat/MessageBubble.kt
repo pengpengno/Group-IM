@@ -48,6 +48,7 @@ import com.github.im.group.api.MeetingMessagePayLoad
 import com.github.im.group.db.entities.FileStatus
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
+import com.github.im.group.manager.getPreviewUrl
 import com.github.im.group.manager.toFile
 import com.github.im.group.manager.toPreviewFile
 import com.github.im.group.model.MessageItem
@@ -294,6 +295,9 @@ private fun FileMessageContent(
 
     when (message.type) {
         MessageType.IMAGE, MessageType.VIDEO -> {
+            val previewImagePath = remember(resolvedMeta, message.type) {
+                resolvedMeta.takeIf { it.fileStatus == FileStatus.NORMAL }?.getPreviewUrl()
+            }
             val resolvedFile = remember(resolvedMeta) {
                 resolvedMeta.let { fileMeta ->
                     messageViewModel.getFile(fileMeta.fileId)
@@ -316,7 +320,11 @@ private fun FileMessageContent(
             }
 
             if (resolvedMeta.fileStatus == FileStatus.NORMAL) {
-                MediaMessage(file = resolvedFile, onDownloadFile = messageViewModel::downloadFileMessage)
+                MediaMessage(
+                    file = resolvedFile,
+                    previewImagePath = if (message.type == MessageType.VIDEO) previewImagePath else null,
+                    onDownloadFile = messageViewModel::downloadFileMessage
+                )
             } else {
                 UploadingMediaBubble(
                     file = resolvedFile,

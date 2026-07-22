@@ -36,7 +36,14 @@ class AudioPlaybackManager(private val audioPlayer: AudioPlayer) {
     /**
      * 播放语音
      */
-    fun play(messageId: String, audioPath: String, senderName: String, duration: Long, sessionName: String? = null) {
+    fun play(
+        messageId: String,
+        audioPath: String,
+        senderName: String,
+        duration: Long,
+        sessionName: String? = null,
+        startPositionMillis: Long = 0L
+    ) {
         // 如果正在播放同一个音频，且是同一个消息，则切换播放/暂停
         if (_playbackState.value.messageId == messageId && _playbackState.value.audioPath == audioPath) {
             if (audioPlayer.isPlaying) {
@@ -56,11 +63,15 @@ class AudioPlaybackManager(private val audioPlayer: AudioPlayer) {
             senderName = senderName,
             audioPath = audioPath,
             duration = duration,
+            currentPosition = startPositionMillis.coerceIn(0L, duration),
             isPlaying = true,
             sessionName = sessionName
         )
         
         audioPlayer.play(audioPath)
+        if (startPositionMillis > 0L) {
+            audioPlayer.seekTo(startPositionMillis.coerceIn(0L, duration))
+        }
         startPolling()
     }
 

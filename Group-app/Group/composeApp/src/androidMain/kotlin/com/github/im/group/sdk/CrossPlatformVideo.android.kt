@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
@@ -67,6 +69,7 @@ actual fun CrossPlatformVideo(
     VideoThumbnail(
         file = file,
         modifier = modifier,
+        previewImagePath = null,
         onClick = {
             VideoPlayerManager.play(file)
         },
@@ -82,15 +85,24 @@ actual fun CrossPlatformVideo(
 actual fun VideoThumbnail(
     file: File,
     modifier: Modifier,
+    previewImagePath: String?,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?
 ) {
     val context = LocalContext.current
     var thumbnailBitmap by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
     var thumbnailLoadError by remember { mutableStateOf(false) }
+    val remotePreviewImagePath = remember(previewImagePath) {
+        previewImagePath?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+    }
 
     // 异步加载缩略图（带缓存）
-    LaunchedEffect(file.path) {
+    LaunchedEffect(file.path, remotePreviewImagePath) {
+        if (remotePreviewImagePath != null) {
+            thumbnailBitmap = null
+            thumbnailLoadError = false
+            return@LaunchedEffect
+        }
         withContext(Dispatchers.IO) {
             val thumbnailPath = when (val data = file.data) {
                 is FileData.Path -> data.path
@@ -156,7 +168,25 @@ actual fun VideoThumbnail(
             contentAlignment = Alignment.Center
         ) {
             // 显示缩略图
-            if (thumbnailBitmap != null) {
+            if (remotePreviewImagePath != null) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(remotePreviewImagePath)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+
+                Icon(
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(Color.Black.copy(0.6f), CircleShape)
+                )
+            } else if (thumbnailBitmap != null) {
                 Image(
                     bitmap = thumbnailBitmap!!,
                     contentDescription = null,

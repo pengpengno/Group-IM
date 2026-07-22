@@ -177,6 +177,67 @@
   color: #0f172a;
 }
 
+.settings-field input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.settings-config-group {
+  display: grid;
+  gap: 16px;
+}
+
+.settings-label-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.settings-label-row code {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 12px;
+}
+
+.settings-field small {
+  color: #64748b;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.settings-save-btn {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #0f766e, #0891b2);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings-save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.settings-status-text {
+  color: #0f766e;
+  font-weight: 600;
+}
+
 .settings-checklist {
   margin: 18px 0 0;
   padding-left: 18px;

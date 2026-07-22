@@ -20,6 +20,12 @@ class AndroidVoiceRecorder(
     private val voiceFileManager: VoiceFileManager
 ) : VoiceRecorder {
 
+    companion object {
+        private const val MIN_RECORDING_DURATION_MS = 600L
+        private const val VOICE_SAMPLE_RATE_HZ = 16_000
+        private const val VOICE_BIT_RATE = 32_000
+    }
+
     private var outputFile: File? = null
     private var recorder: MediaRecorder? = null
     private var startTime: Long = 0
@@ -38,9 +44,12 @@ class AndroidVoiceRecorder(
         outputFile = File(absolutePath)
 
         recorder = MediaRecorder(context).apply {
-            setAudioSource(MediaRecorder.AudioSource.MIC)
+            // Voice communication enables the platform's speech-oriented audio path where available.
+            setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            setAudioSamplingRate(VOICE_SAMPLE_RATE_HZ)
+            setAudioEncodingBitRate(VOICE_BIT_RATE)
             setOutputFile(outputFile!!.absolutePath)
             prepare()
             start()
@@ -82,8 +91,12 @@ class AndroidVoiceRecorder(
         return try {
             recorder.stop()
             recorder.release()
-            val bytes = outputFile?.readBytes() ?: return null
             duration = System.currentTimeMillis() - startTime
+            if (duration < MIN_RECORDING_DURATION_MS) {
+                outputFile?.delete()
+                return null
+            }
+            val bytes = outputFile?.readBytes() ?: return null
             val file = File(
                 name = outputFile!!.name,
                 path = outputFile!!.absolutePath,

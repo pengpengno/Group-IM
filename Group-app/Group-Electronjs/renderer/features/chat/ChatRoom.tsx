@@ -74,12 +74,58 @@ const defaultGroupBotSettings: GroupBotSettings = {
 };
 
 const localMediaCache = new Map<string, string>();
+const localVoiceUploadCache = new Map<string, { blob: Blob; duration: number }>();
 
 /**
  * Centralize file-id extraction so list thumbnails and preview modals can share
  * the same cached blob URL instead of downloading the same media twice.
  */
 const getMediaCacheKey = (url: string) => url || '';
+
+const canCompressBrowserImage = (file: File) => {
+  if (!file.type.startsWith('image/')) return false;
+  const lowerName = file.name.toLowerCase();
+  return !lowerName.endsWith('.gif') && !lowerName.endsWith('.svg');
+};
+
+const compressImageForUpload = async (file: File): Promise<File> => {
+  if (!canCompressBrowserImage(file) || file.size <= 350 * 1024) {
+    return file;
+  }
+
+  const bitmap = await createImageBitmap(file);
+  try {
+    const maxEdge = 1600;
+    const largestEdge = Math.max(bitmap.width, bitmap.height);
+    const scale = largestEdge > maxEdge ? maxEdge / largestEdge : 1;
+    const targetWidth = Math.max(1, Math.round(bitmap.width * scale));
+    const targetHeight = Math.max(1, Math.round(bitmap.height * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return file;
+    }
+    context.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+
+    const targetType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, targetType, 0.82)
+    );
+    if (!blob || blob.size >= file.size) {
+      return file;
+    }
+
+    const nextName = targetType === file.type
+      ? file.name
+      : file.name.replace(/\.[^.]+$/, '.jpg');
+    return new File([blob], nextName, { type: targetType, lastModified: file.lastModified });
+  } finally {
+    bitmap.close();
+  }
+};
 
 const IMAGE_EXTENSION_PATTERN = /\.(jpg|jpeg|png|gif|webp|bmp|heic|heif|avif|svg)$/i;
 const VIDEO_EXTENSION_PATTERN = /\.(mp4|mov|mkv|avi|webm|m4v|3gp)$/i;
@@ -169,12 +215,22 @@ const useAuthenticatedMedia = (
 /**
  * Beautiful Custom Audio Player
  */
+const createWaveformBars = (seed: string, count = 34) => {
+  let value = Array.from(seed).reduce((sum, char) => ((sum * 31) + char.charCodeAt(0)) >>> 0, 7);
+  return Array.from({ length: count }, (_, index) => {
+    value = (value * 1664525 + 1013904223) >>> 0;
+    const contour = Math.sin((index / Math.max(1, count - 1)) * Math.PI) * 0.24;
+    return Math.min(1, 0.24 + contour + ((value >>> 16) / 0xffff) * 0.56);
+  });
+};
+
 const CustomAudioPlayer: React.FC<{
   url: string;
   token?: string;
   localSrc?: string;
   pending?: boolean;
-}> = ({ url, token, localSrc, pending = false }) => {
+  failed?: boolean;
+}> = ({ url, token, localSrc, pending = false, failed = false }) => {
   const { mediaSrc, loading } = useAuthenticatedMedia(url, token, {
     preferredSrc: localSrc,
     disableRemoteFetch: pending && !!localSrc
@@ -182,44 +238,94 @@ const CustomAudioPlayer: React.FC<{
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [waveform, setWaveform] = useState(() => createWaveformBars(`${url}:${localSrc || ''}`));
+
+  useEffect(() => {
+    if (!mediaSrc || !window.AudioContext) return;
+    let cancelled = false;
+    const context = new AudioContext();
+    void fetch(mediaSrc)
+      .then(response => response.arrayBuffer())
+      .then(buffer => context.decodeAudioData(buffer))
+      .then(audioBuffer => {
+        if (cancelled) return;
+        const samples = audioBuffer.getChannelData(0);
+        const bars = 34;
+        const bucketSize = Math.max(1, Math.floor(samples.length / bars));
+        const peaks = Array.from({ length: bars }, (_, index) => {
+          const start = index * bucketSize;
+          const end = Math.min(samples.length, start + bucketSize);
+          let peak = 0;
+          for (let sampleIndex = start; sampleIndex < end; sampleIndex += 1) {
+            peak = Math.max(peak, Math.abs(samples[sampleIndex]));
+          }
+          return peak;
+        });
+        const maxPeak = Math.max(...peaks, 0.01);
+        setWaveform(peaks.map(peak => Math.max(0.16, Math.min(1, peak / maxPeak))));
+      })
+      .catch(() => {
+        // Some codecs cannot be decoded by Web Audio. The player remains usable with the fallback bars.
+      })
+      .finally(() => void context.close());
+    return () => {
+      cancelled = true;
+      void context.close();
+    };
+  }, [mediaSrc]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.pause();
     } else {
-      audioRef.current.play();
+      void audioRef.current.play().catch(() => setIsPlaying(false));
     }
     setIsPlaying(!isPlaying);
   };
 
   const onTimeUpdate = () => {
     if (!audioRef.current) return;
-    const p = (audioRef.current.currentTime / audioRef.current.duration) * 100;
-    setProgress(p);
+    const total = audioRef.current.duration;
+    if (Number.isFinite(total) && total > 0) {
+      setProgress((audioRef.current.currentTime / total) * 100);
+    }
   };
 
-  if (loading) return <div className="audio-skeleton">{pending ? 'Preparing audio...' : 'Loading audio...'}</div>;
+  const seek = (event: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const nextProgress = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+    audio.currentTime = audio.duration * nextProgress;
+    setProgress(nextProgress * 100);
+  };
+
+  if (loading) return <div className="audio-skeleton">{pending ? '正在准备语音…' : '正在加载语音…'}</div>;
 
   return (
-    <div className="custom-audio-player">
+    <div className={`custom-audio-player ${pending ? 'is-uploading' : ''} ${failed ? 'is-failed' : ''}`}>
       <audio
         ref={audioRef}
         src={mediaSrc}
         onTimeUpdate={onTimeUpdate}
+        onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
         onEnded={() => setIsPlaying(false)}
       />
-      <button className="audio-play-btn" onClick={togglePlay}>
+      <button className="audio-play-btn" onClick={togglePlay} disabled={failed} aria-label={isPlaying ? '暂停语音' : '播放语音'}>
         {isPlaying ? (
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
         ) : (
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
         )}
       </button>
-      <div className="audio-progress-bar">
-        <div className="audio-progress-fill" style={{ width: `${progress}%` }}></div>
+      <div className="audio-waveform" onClick={seek} role="slider" aria-label="语音播放进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
+        {waveform.map((height, index) => (
+          <span key={index} className={index / waveform.length * 100 <= progress ? 'played' : ''} style={{ height: `${Math.round(height * 100)}%` }} />
+        ))}
       </div>
-      <span className="audio-time-label">Voice</span>
+      <span className="audio-time-label">{failed ? '重试中断' : pending ? '发送中' : duration ? `${Math.ceil(duration)}″` : '语音'}</span>
     </div>
   );
 };
@@ -531,16 +637,25 @@ const MessageBubble: React.FC<{
         );
       }
       case MessageType.VIDEO: {
+        const previewUrl = getPreviewUrl(message.content, 480, 75);
         const url = getFileUrl(message.content);
         return (
           <div className="msg-media-container msg-video-container" onClick={() => onImageClick && onImageClick(url, 'VIDEO')}>
-            <AuthenticatedVideo
-              url={url}
-              token={token}
-              className="msg-img-preview"
-              localSrc={localPreviewUrl}
-              pending={isAttachmentPending}
-            />
+            {isAttachmentPending ? (
+              <AuthenticatedVideo
+                url={url}
+                token={token}
+                className="msg-img-preview"
+                localSrc={localPreviewUrl}
+                pending={isAttachmentPending}
+              />
+            ) : (
+              <AuthenticatedImage
+                url={previewUrl}
+                token={token}
+                className="msg-img-preview"
+              />
+            )}
             <div className="video-overlay-play">
               <svg viewBox="0 0 24 24" width="40" height="40" fill="white"><path d="M8 5v14l11-7z" /></svg>
             </div>
@@ -571,6 +686,7 @@ const MessageBubble: React.FC<{
             token={token}
             localSrc={localPreviewUrl}
             pending={isAttachmentPending}
+            failed={attachmentStatus === 'failed'}
           />
         );
       }
@@ -676,10 +792,16 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
   // Recording State
   const [isRecording, setIsRecording] = useState(false);
+  const [isVoiceFinalizing, setIsVoiceFinalizing] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [recordingLevel, setRecordingLevel] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<any>(null);
+  const recordingStartedAtRef = useRef(0);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingAudioContextRef = useRef<AudioContext | null>(null);
+  const recordingAnimationFrameRef = useRef<number | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -947,6 +1069,37 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   };
 
   const handleResendMessage = (message: MessageDTO) => {
+    const cachedVoice = message.type === MessageType.VOICE
+      ? localVoiceUploadCache.get(message.content)
+      : undefined;
+    if (cachedVoice && message.attachmentStatus === 'failed') {
+      const api = getElectronAPI();
+      dispatch(updateMessageAttachmentState({
+        conversationId: message.conversationId,
+        clientMsgId: message.clientMsgId,
+        patch: { attachmentStatus: 'uploading', sendingStatus: 'sending' }
+      }));
+      void api.uploadFile(cachedVoice.blob as any, message.content, cachedVoice.duration)
+        .then(result => {
+          if (!result || !(result.id || result.fileMeta)) throw new Error('Voice upload did not return file metadata');
+          dispatch(updateMessageAttachmentState({
+            conversationId: message.conversationId,
+            clientMsgId: message.clientMsgId,
+            patch: { attachmentStatus: 'ready', sendingStatus: 'success', payload: result.fileMeta }
+          }));
+          showToast('语音已重新发送');
+        })
+        .catch(error => {
+          console.error('Voice retry upload error:', error);
+          dispatch(updateMessageAttachmentState({
+            conversationId: message.conversationId,
+            clientMsgId: message.clientMsgId,
+            patch: { attachmentStatus: 'failed', sendingStatus: 'failed' }
+          }));
+          showToast('重试失败，请检查网络后再试');
+        });
+      return;
+    }
     logChatRoom('resend-message-dispatch', {
       clientMsgId: message.clientMsgId,
       msgId: message.msgId,
@@ -973,15 +1126,19 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
       if (result.canceled) return;
 
+      const preparedBrowserFile = result.file && isImage
+        ? await compressImageForUpload(result.file)
+        : result.file;
+
       showToast('鍑嗗涓婁紶...', 'info' as any);
 
       // 1. 鑾峰彇鏂囦欢鍏冩暟鎹苟鐢宠 UploadId
       let fileName = '';
       let fileSize = 0;
 
-      if (result.file) {
-        fileName = result.file.name;
-        fileSize = result.file.size;
+      if (preparedBrowserFile) {
+        fileName = preparedBrowserFile.name;
+        fileSize = preparedBrowserFile.size;
       } else if (result.filePaths && result.filePaths.length > 0) {
         // Electron 鐜
         fileName = (result as any).fileName || result.filePaths[0].split(/[\\/]/).pop() || 'file';
@@ -999,7 +1156,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       }
 
       const fileId = idRes.id;
-      const mimeType = result.file?.type || (result as any).mimeType || '';
+      const mimeType = preparedBrowserFile?.type || (result as any).mimeType || '';
       const isImageFile = isImage || isImageAttachment(fileName, mimeType);
       const isVideoFile = isVideoAttachment(fileName, mimeType);
       const messageType = isImageFile ? MessageType.IMAGE : isVideoFile ? MessageType.VIDEO : MessageType.FILE;
@@ -1009,9 +1166,8 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       let localPreviewUrl: string | undefined;
 
       // Cache local file preview to avoid redundant download
-      if (result.file) {
-        localPreviewUrl = URL.createObjectURL(result.file);
-        localMediaCache.set(fileId, localPreviewUrl);
+      if (preparedBrowserFile) {
+        localPreviewUrl = URL.createObjectURL(preparedBrowserFile);
       } else if (result.filePaths && result.filePaths.length > 0) {
         if ((isImageFile || isVideoFile) && api.readFileAsDataURL) {
           api.readFileAsDataURL(result.filePaths[0]).then(dataUrl => {
@@ -1062,7 +1218,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       showToast('姝ｅ湪鍚庡彴涓婁紶鏂囦欢...', 'info' as any);
 
       // 2. Background Upload
-      const fileToUpload = result.file || result.filePaths[0];
+      const fileToUpload = preparedBrowserFile || result.filePaths[0];
       api.uploadFile(fileToUpload, fileId).then((uploadRes) => {
         if (uploadRes && (uploadRes.id || uploadRes.fileMeta)) {
           dispatch(updateMessageAttachmentState({
@@ -1105,28 +1261,95 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   };
 
   // Voice Recording Logic
+  const playVoiceCue = (kind: 'start' | 'stop' | 'error') => {
+    try {
+      const AudioContextConstructor = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextConstructor) return;
+      const context = new AudioContextConstructor();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const now = context.currentTime;
+      const frequency = kind === 'start' ? 660 : kind === 'stop' ? 440 : 220;
+      oscillator.frequency.setValueAtTime(frequency, now);
+      if (kind === 'start') oscillator.frequency.linearRampToValueAtTime(880, now + 0.08);
+      if (kind === 'stop') oscillator.frequency.linearRampToValueAtTime(330, now + 0.1);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.055, now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start(now);
+      oscillator.stop(now + 0.14);
+      oscillator.onended = () => void context.close();
+    } catch {
+      // Feedback is intentionally best-effort: recording must never depend on audio output permissions.
+    }
+  };
+
+  const releaseRecordingResources = () => {
+    if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+    if (recordingAnimationFrameRef.current !== null) cancelAnimationFrame(recordingAnimationFrameRef.current);
+    recordingIntervalRef.current = null;
+    recordingAnimationFrameRef.current = null;
+    recordingStreamRef.current?.getTracks().forEach(track => track.stop());
+    recordingStreamRef.current = null;
+    if (recordingAudioContextRef.current) void recordingAudioContextRef.current.close();
+    recordingAudioContextRef.current = null;
+    setRecordingLevel(0);
+  };
+
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+        showToast('当前设备不支持语音录制');
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
       const recorder = new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
+      recordingStreamRef.current = stream;
       audioChunksRef.current = [];
+      recordingStartedAtRef.current = Date.now();
+
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 128;
+      audioContext.createMediaStreamSource(stream).connect(analyser);
+      recordingAudioContextRef.current = audioContext;
+      const samples = new Uint8Array(analyser.fftSize);
+      const readLevel = () => {
+        analyser.getByteTimeDomainData(samples);
+        const energy = samples.reduce((sum, sample) => sum + Math.abs(sample - 128), 0) / samples.length;
+        setRecordingLevel(Math.min(1, energy / 28));
+        recordingAnimationFrameRef.current = requestAnimationFrame(readLevel);
+      };
+      readLevel();
 
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
 
       recorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const mimeType = recorder.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         const api = getElectronAPI();
-        const duration = recordingTime * 1000; // ms
+        const duration = Math.max(0, Date.now() - recordingStartedAtRef.current);
+        releaseRecordingResources();
+        setIsVoiceFinalizing(false);
 
-        showToast('姝ｅ湪澶勭悊璇煶...', 'info' as any);
+        if (duration < 500 || audioBlob.size === 0) {
+          playVoiceCue('error');
+          showToast('语音太短，按住或录制至少 1 秒');
+          return;
+        }
+
+        showToast('语音已录好，正在秒速发送…', 'info' as any);
 
         try {
           // 1. 鑾峰彇 UploadId
           const idRes = await api.getUploadId({
-            fileName: `voice_${Date.now()}.webm`,
+            fileName: `voice_${Date.now()}.${mimeType.includes('ogg') ? 'ogg' : 'webm'}`,
             size: audioBlob.size,
             duration: duration
           });
@@ -1137,6 +1360,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
           }
 
           const fileId = idRes.id;
+          localVoiceUploadCache.set(fileId, { blob: audioBlob, duration });
 
           // Cache local audio preview URL to avoid redundant download
           const localUrl = URL.createObjectURL(audioBlob);
@@ -1162,7 +1386,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
               clientMsgId,
               sendingStatus: 'sending',
               localPreviewUrl: localUrl,
-              localFileName: `voice_${Date.now()}.webm`,
+              localFileName: `voice_${Date.now()}.${mimeType.includes('ogg') ? 'ogg' : 'webm'}`,
               localFileSize: audioBlob.size,
               localMimeType: audioBlob.type,
               attachmentStatus: 'uploading'
@@ -1190,7 +1414,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
                   sendingStatus: 'failed'
                 }
               }));
-              showToast('璇煶涓婁紶澶辫触');
+            showToast('璇煶涓婁紶澶辫触');
             }
           }).catch(err => {
             console.error('Background voice upload error:', err);
@@ -1202,19 +1426,19 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
                 sendingStatus: 'failed'
               }
             }));
+            showToast('发送未完成，语音气泡会保留失败状态');
           });
         } catch (err) {
           console.error('Audio upload error:', err);
           showToast('无法发送语音消息');
         }
 
-        // Stop all tracks
-        stream.getTracks().forEach(t => t.stop());
       };
 
-      recorder.start();
+      recorder.start(250);
       setIsRecording(true);
       setRecordingTime(0);
+      playVoiceCue('start');
 
       recordingIntervalRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
@@ -1222,17 +1446,22 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
     } catch (err) {
       console.error('Failed to start recording:', err);
-      showToast('无法访问麦克风，请检查权限');
+      releaseRecordingResources();
+      playVoiceCue('error');
+      showToast('无法访问麦克风，请检查系统权限');
     }
   };
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      setIsVoiceFinalizing(true);
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      clearInterval(recordingIntervalRef.current);
+      playVoiceCue('stop');
     }
   };
+
+  useEffect(() => () => releaseRecordingResources(), []);
 
   const formatRecordingTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -1744,19 +1973,23 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
           </button>
           <div className="toolbar-divider"></div>
           <button
-            className={`tool-action-btn ${isRecording ? 'recording' : ''}`}
-            title={isRecording ? '鍋滄褰曢煶' : '璇煶娑堟伅'}
+            className={`tool-action-btn voice-record-button ${isRecording ? 'recording' : ''}`}
+            title={isVoiceFinalizing ? '正在处理语音' : isRecording ? '结束并发送语音' : '录制语音消息'}
+            disabled={isVoiceFinalizing}
             onClick={() => {
               setShowEmojiPicker(false);
               if (isRecording) stopRecording();
-              else startRecording();
+              else if (!isVoiceFinalizing) startRecording();
             }}
           >
             {isRecording ? (
               <div className="recording-indicator">
                 <span className="rec-dot"></span>
+                <span className="recording-level" style={{ transform: `scaleX(${0.2 + recordingLevel * 0.8})` }}></span>
                 <span className="rec-time">{formatRecordingTime(recordingTime)}</span>
               </div>
+            ) : isVoiceFinalizing ? (
+              <div className="voice-sending-spinner" aria-label="正在处理语音"></div>
             ) : (
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>

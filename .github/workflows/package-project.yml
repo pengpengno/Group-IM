@@ -1,32 +1,37 @@
-name: Build and Deploy
+name: Build, Deploy and Release
 
 on:
   push:
     branches: [main, master]
-    tags: ["v*"]
+    # Supports the existing numeric tags (for example 1.0 and 2.0), as well as v2.0.
+    tags: ["v*", "[0-9]*"]
+
+# Required for creating a GitHub Release and uploading its assets with GITHUB_TOKEN.
+permissions:
+  contents: write
 
 jobs:
-  # ==========================================
-  # 阶段一：构建 (Build)
-  # ==========================================
-  build:
+  # The deployment pipeline is intentionally limited to branch pushes.  A release
+  # tag must package artifacts, but must not deploy them to the production host.
+  build-images:
+    if: github.ref_type == 'branch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Server Image
+      - name: Build server image
         run: docker build -f ./deploy/dockerfiles/Dockerfile -t groupim-server:deploy .
 
-      - name: Build Web Image
+      - name: Build web image
         run: docker build -f ./deploy/dockerfiles/Dockerfile.web -t groupim-web:deploy .
 
-      - name: Export Images
+      - name: Export deployment images
         run: |
           mkdir -p release-bundle
           docker image save groupim-server:deploy | gzip > release-bundle/groupim-server-deploy.tar.gz
           docker image save groupim-web:deploy | gzip > release-bundle/groupim-web-deploy.tar.gz
 
-      - name: Upload Deployment Bundle Artifact
+      - name: Upload deployment bundle
         uses: actions/upload-artifact@v4
         with:
           name: deploy-images-${{ github.sha }}
@@ -34,29 +39,26 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-  # ==========================================
-  # 阶段二：部署 (Deploy)
-  # ==========================================
   deploy:
+    if: github.ref_type == 'branch'
     runs-on: ubuntu-latest
-    needs: build
+    needs: build-images
     steps:
-      - name: Download Deployment Bundle Artifact
+      - name: Download deployment bundle
         uses: actions/download-artifact@v4
         with:
           name: deploy-images-${{ github.sha }}
           path: release-bundle
 
-      - name: Prepare Remote Directories
+      - name: Prepare remote directories
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_IP }}
           username: deploy
           key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            mkdir -p /opt/app/incoming
+          script: mkdir -p /opt/app/incoming
 
-      - name: Upload Deployment Bundle to ECS
+      - name: Upload deployment bundle to ECS
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -86,13 +88,70 @@ jobs:
               docker-compose up -d
             fi
 
-  # ==========================================
-  # 阶段三：通知 (Notify)
-  # ==========================================
-  notify:
+  release:
+    # Create a GitHub Release for tags such as 2.0, 2.0.0, or v2.0.
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
-    needs: [build, deploy]
-    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build server JAR
+        run: mvn --batch-mode --no-transfer-progress -pl server -am clean package -DskipTests
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build installable Android APK
+        working-directory: Group-app/Group
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          chmod +x gradlew
+          ./gradlew :composeApp:assembleDebug \
+            -PversionName="${TAG#v}" \
+            -PversionCode="${GITHUB_RUN_NUMBER}"
+
+      - name: Assemble release files
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-bundle
+          SERVER_JAR=$(find server/target -maxdepth 1 -type f -name '*.jar' ! -name 'original-*.jar' | head -n 1)
+          APK=$(find Group-app/Group/composeApp/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)
+          test -n "$SERVER_JAR" && test -f "$SERVER_JAR"
+          test -n "$APK" && test -f "$APK"
+          cp "$SERVER_JAR" "release-bundle/groupim-server-${TAG}.jar"
+          cp "$APK" "release-bundle/groupim-android-${TAG}-debug.apk"
+          (
+            cd release-bundle
+            sha256sum * > SHA256SUMS.txt
+          )
+
+      - name: Create GitHub Release and upload artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" \
+            --title "Group-IM $TAG" \
+            --generate-notes \
+            release-bundle/*
+
+  notify:
+    if: always() && github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    needs: [build-images, deploy]
     steps:
       - name: Send DingTalk notification
         env:
@@ -102,21 +161,15 @@ jobs:
           GITHUB_BRANCH: ${{ github.ref_name }}
           GITHUB_AUTHOR: ${{ github.actor }}
         run: |
-          if [[ "${{ needs.build.result }}" == "success" && "${{ needs.deploy.result }}" == "success" ]]; then
-            STATUS="✅ 部署成功"
-          elif [[ "${{ needs.build.result }}" == "cancelled" || "${{ needs.deploy.result }}" == "cancelled" ]]; then
-            STATUS="⚠️ 部署被取消"
+          if [[ "${{ needs.build-images.result }}" == "success" && "${{ needs.deploy.result }}" == "success" ]]; then
+            STATUS="✅ Deployment succeeded"
+          elif [[ "${{ needs.build-images.result }}" == "cancelled" || "${{ needs.deploy.result }}" == "cancelled" ]]; then
+            STATUS="⚠️ Deployment cancelled"
           else
-            STATUS="❌ 部署失败"
+            STATUS="❌ Deployment failed"
           fi
 
-          MESSAGE="【IM 系统更新】\n部署状态：$STATUS\n分支：$GITHUB_BRANCH\n提交人：$GITHUB_AUTHOR\nCommit: $GITHUB_COMMIT\n提交信息：$GITHUB_COMMIT_MESSAGE"
-
-          curl -s -X POST "$DINGTALK_WEBHOOK" \
+          MESSAGE="Group-IM update\nStatus: $STATUS\nBranch: $GITHUB_BRANCH\nAuthor: $GITHUB_AUTHOR\nCommit: $GITHUB_COMMIT\nMessage: $GITHUB_COMMIT_MESSAGE"
+          curl -sS -X POST "$DINGTALK_WEBHOOK" \
             -H 'Content-Type: application/json' \
-            -d "{
-                  \"msgtype\": \"text\",
-                  \"text\": {
-                    \"content\": \"$MESSAGE\"
-                  }
-                }"
+            -d "{\"msgtype\":\"text\",\"text\":{\"content\":\"$MESSAGE\"}}"

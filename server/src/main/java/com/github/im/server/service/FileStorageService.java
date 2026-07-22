@@ -37,7 +37,9 @@ import java.io.*;
 import java.net.MalformedURLException;
 import java.nio.file.*;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -50,6 +52,7 @@ import java.util.stream.StreamSupport;
 public class FileStorageService {
 
     private final FileUploadProperties properties;
+    private final SystemConfigService systemConfigService;
     private final StorageStrategy storageStrategy;
     private final FileResourceRepository repository;
     private final MediaFileResourceRepository mediaFileResourceRepository;
@@ -367,6 +370,7 @@ public class FileStorageService {
                 });
                 Float mediaDuration = duration != null ? duration.floatValue() : 0.0f;
                 mediaResource.setDuration(mediaDuration);
+                mediaResource.setThumbnail(ensureMediaThumbnail(fileResource, mediaResource));
                 // 如果是图片文件，生成缩略图
                 if (isImageFile(fileResource.getExtension())) {
                     // 这里可以调用图片处理服务生成缩略图 TODO
@@ -440,17 +444,19 @@ public class FileStorageService {
     }
 
     private int sanitizePreviewWidth(Integer width) {
+        SystemConfigService.MediaRuntimePolicy preview = systemConfigService.getMediaRuntimePolicy();
         if (width == null) {
-            return 480;
+            return preview.getPreviewDefaultWidth();
         }
-        return Math.max(160, Math.min(width, 1600));
+        return Math.max(preview.getPreviewMinWidth(), Math.min(width, preview.getPreviewMaxWidth()));
     }
 
     private int sanitizePreviewQuality(Integer quality) {
+        SystemConfigService.MediaRuntimePolicy preview = systemConfigService.getMediaRuntimePolicy();
         if (quality == null) {
-            return 75;
+            return preview.getPreviewDefaultQuality();
         }
-        return Math.max(40, Math.min(quality, 95));
+        return Math.max(preview.getPreviewMinQuality(), Math.min(quality, preview.getPreviewMaxQuality()));
     }
 
     private File buildOrReuseImagePreview(FileResource fileResource, int previewWidth, int previewQuality) throws IOException {
@@ -521,5 +527,163 @@ public class FileStorageService {
             return "png";
         }
         return "jpg";
+    }
+
+    private boolean isVideoFile(String extension) {
+        if (extension == null) return false;
+        String ext = extension.toLowerCase();
+        return ext.equals("mp4") || ext.equals("avi") || ext.equals("mov") ||
+            ext.equals("wmv") || ext.equals("mkv") || ext.equals("flv") ||
+            ext.equals("webm") || ext.equals("m4v") || ext.equals("3gp");
+    }
+
+    private boolean isAudioFile(String extension) {
+        if (extension == null) return false;
+        String ext = extension.toLowerCase();
+        return ext.equals("mp3") || ext.equals("wav") || ext.equals("flac") ||
+            ext.equals("aac") || ext.equals("ogg") || ext.equals("m4a") ||
+            ext.equals("wma") || ext.equals("opus");
+    }
+
+    private String ensureMediaThumbnail(FileResource sourceFile, MediaFileResource mediaResource) throws IOException {
+        SystemConfigService.MediaRuntimePolicy mediaPolicy = systemConfigService.getMediaRuntimePolicy();
+        if (!mediaPolicy.isThumbnailEnabled()) {
+            return mediaResource.getThumbnail();
+        }
+        String existingThumbnailId = mediaResource.getThumbnail();
+        if (existingThumbnailId != null && !existingThumbnailId.isBlank()) {
+            try {
+                FileResource existingThumbnail = getFile(UUID.fromString(existingThumbnailId));
+                if (existingThumbnail.getStatus() == FileStatus.NORMAL) {
+                    File thumbnailFile = loadFile(existingThumbnail);
+                    if (thumbnailFile.exists() && thumbnailFile.isFile()) {
+                        return existingThumbnail.getId().toString();
+                    }
+                }
+            } catch (Exception ex) {
+                log.warn("Thumbnail {} for file {} is invalid, regenerating",
+                    existingThumbnailId, sourceFile.getId(), ex);
+            }
+        }
+
+        if (!isVideoFile(sourceFile.getExtension()) && !isAudioFile(sourceFile.getExtension())) {
+            return existingThumbnailId;
+        }
+
+        BufferedImage thumbnailImage = createMediaPosterImage(sourceFile);
+        FileResource thumbnailResource = persistDerivedImageResource(sourceFile, thumbnailImage, "jpg", "image/jpeg");
+        return thumbnailResource.getId().toString();
+    }
+
+    private BufferedImage createMediaPosterImage(FileResource sourceFile) {
+        boolean video = isVideoFile(sourceFile.getExtension());
+        SystemConfigService.MediaRuntimePolicy mediaPolicy = systemConfigService.getMediaRuntimePolicy();
+        int width = Math.max(240, mediaPolicy.getThumbnailWidth());
+        int height = Math.max(160, mediaPolicy.getThumbnailHeight());
+        BufferedImage poster = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = poster.createGraphics();
+        try {
+            graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            GradientPaint background = new GradientPaint(
+                0, 0, video ? new Color(33, 45, 70) : new Color(46, 39, 62),
+                width, height, video ? new Color(12, 16, 27) : new Color(20, 18, 30)
+            );
+            graphics.setPaint(background);
+            graphics.fillRect(0, 0, width, height);
+
+            graphics.setColor(new Color(255, 255, 255, 30));
+            graphics.fillRoundRect(36, 36, width - 72, height - 72, 32, 32);
+
+            graphics.setColor(Color.WHITE);
+            graphics.setFont(new Font("SansSerif", Font.BOLD, 64));
+            graphics.drawString(video ? "\u25B6" : "\u266B", 72, 138);
+
+            graphics.setFont(new Font("SansSerif", Font.BOLD, 28));
+            graphics.drawString(video ? "VIDEO" : "AUDIO", 72, 206);
+
+            graphics.setFont(new Font("SansSerif", Font.PLAIN, 24));
+            graphics.drawString(compactDisplayText(sourceFile.getOriginalName(), 34), 72, 258);
+
+            graphics.setColor(new Color(255, 255, 255, 220));
+            graphics.setFont(new Font("SansSerif", Font.PLAIN, 18));
+            graphics.drawString(buildPosterMetaLine(sourceFile), 72, 296);
+        } finally {
+            graphics.dispose();
+        }
+        return poster;
+    }
+
+    private String buildPosterMetaLine(FileResource sourceFile) {
+        String extension = Optional.ofNullable(sourceFile.getExtension()).orElse("").toUpperCase();
+        String sizeLabel = humanReadableSize(sourceFile.getSize());
+        if (extension.isBlank()) {
+            return sizeLabel;
+        }
+        return extension + "  " + sizeLabel;
+    }
+
+    private String compactDisplayText(String text, int maxLength) {
+        if (text == null || text.isBlank()) {
+            return "media";
+        }
+        if (text.length() <= maxLength) {
+            return text;
+        }
+        return text.substring(0, Math.max(0, maxLength - 1)) + "\u2026";
+    }
+
+    private String humanReadableSize(long size) {
+        if (size < 1024) {
+            return size + " B";
+        }
+        double value = size;
+        String[] units = {"KB", "MB", "GB"};
+        int unitIndex = -1;
+        while (value >= 1024 && unitIndex + 1 < units.length) {
+            value = value / 1024.0;
+            unitIndex++;
+        }
+        return String.format("%.1f %s", value, units[Math.max(0, unitIndex)]);
+    }
+
+    private FileResource persistDerivedImageResource(FileResource sourceFile,
+                                                     BufferedImage image,
+                                                     String format,
+                                                     String contentType) throws IOException {
+        UUID derivedId = UUID.randomUUID();
+        String extension = format.equalsIgnoreCase("jpg") ? "jpg" : format.toLowerCase();
+        String relativePath = buildDerivedStoragePath(derivedId, extension);
+        Path targetPath = baseDir.resolve(relativePath).normalize();
+        Files.createDirectories(targetPath.getParent());
+        SystemConfigService.MediaRuntimePolicy mediaPolicy = systemConfigService.getMediaRuntimePolicy();
+        writePreviewImage(image, extension, targetPath, mediaPolicy.getThumbnailQuality());
+
+        String hash;
+        try (InputStream inputStream = Files.newInputStream(targetPath)) {
+            hash = DigestUtils.md5DigestAsHex(inputStream);
+        }
+
+        FileResource thumbnailResource = new FileResource();
+        thumbnailResource.setId(derivedId);
+        thumbnailResource.setOriginalName(
+            Optional.ofNullable(sourceFile.getOriginalName()).orElse("media") + ".preview." + extension
+        );
+        thumbnailResource.setExtension(extension);
+        thumbnailResource.setContentType(contentType);
+        thumbnailResource.setSize(Files.size(targetPath));
+        thumbnailResource.setStoragePath(relativePath);
+        thumbnailResource.setStorageType(com.github.im.server.model.enums.StorageType.LOCAL);
+        thumbnailResource.setHash(hash);
+        thumbnailResource.setUploadTime(LocalDateTime.now());
+        thumbnailResource.setStatus(FileStatus.NORMAL);
+        thumbnailResource.setRemark("derived-preview:" + sourceFile.getId());
+        return repository.save(thumbnailResource);
+    }
+
+    private String buildDerivedStoragePath(UUID derivedId, String extension) {
+        return DateTimeFormatter.ofPattern("yyyy/MM/dd")
+            .format(LocalDate.now()) + "/" + derivedId + "." + extension;
     }
 }

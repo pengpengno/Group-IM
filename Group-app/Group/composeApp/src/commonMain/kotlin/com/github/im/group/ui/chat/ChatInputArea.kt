@@ -457,17 +457,25 @@ fun VoiceControlOverlayWithRipple(amplitude: Int = 50) {
                 .shadow(8.dp, RoundedCornerShape(12.dp))
                 .padding(horizontal = 28.dp, vertical = 22.dp)
         ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(120.dp)) {
-                Box(
-                    modifier = Modifier
-                        .size(totalRipple.dp)
-                        .background(Color(0xFF4CAF50).copy(alpha = 0.2f), shape = CircleShape)
-                )
-                Icon(
-                    imageVector = Icons.Default.Mic,
-                    contentDescription = null,
-                    tint = Color(0xFF4CAF50),
-                    modifier = Modifier.size(42.dp)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(120.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(totalRipple.dp)
+                            .background(Color(0xFF4CAF50).copy(alpha = 0.2f), shape = CircleShape)
+                    )
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = null,
+                        tint = Color(0xFF4CAF50),
+                        modifier = Modifier.size(42.dp)
+                    )
+                }
+                Text(
+                    text = "松开发送 · 上滑取消",
+                    color = Color.White.copy(alpha = 0.88f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -585,4 +593,3 @@ fun VoiceRecordButton(
         Text(text = label, color = textColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
     }
 }
-

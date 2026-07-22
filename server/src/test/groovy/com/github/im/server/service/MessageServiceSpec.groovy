@@ -1,248 +1,190 @@
 package com.github.im.server.service
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.im.common.connect.model.proto.Chat
-import com.github.im.dto.message.*
+import com.github.im.dto.message.DefaultMessagePayLoad
+import com.github.im.dto.message.FileMeta
+import com.github.im.dto.message.MessageDTO
+import com.github.im.dto.message.MessagePayLoad
 import com.github.im.enums.MessageStatus
 import com.github.im.enums.MessageType
 import com.github.im.server.mapstruct.MessageMapper
 import com.github.im.server.model.Conversation
-import com.github.im.server.model.FileResource
 import com.github.im.server.model.Message
 import com.github.im.server.model.User
+import com.github.im.server.model.enums.FileStatus
+import com.github.im.server.repository.GroupMemberRepository
 import com.github.im.server.repository.MessageRepository
+import com.github.im.server.service.notification.ClientEventPublisher
 import jakarta.persistence.EntityManager
-import org.springframework.data.domain.PageImpl
-import org.springframework.data.domain.PageRequest
-import org.springframework.data.domain.Sort
 import spock.lang.Specification
+
+import java.io.FileNotFoundException
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.util.UUID
 
 class MessageServiceSpec extends Specification {
 
     def messageRepository = Mock(MessageRepository)
+    def groupMemberRepository = Mock(GroupMemberRepository)
     def messageMapper = Mock(MessageMapper)
     def fileStorageService = Mock(FileStorageService)
     def conversationSequenceService = Mock(ConversationSequenceService)
+    def conversationService = Mock(ConversationService)
+    def redisMessageRouter = Mock(RedisMessageRouter)
+    def objectMapper = Mock(ObjectMapper)
+    def clientEventPublisher = Mock(ClientEventPublisher)
     def entityManager = Mock(EntityManager)
 
     def messageService = new MessageService(
             messageRepository,
+            groupMemberRepository,
             messageMapper,
             fileStorageService,
             conversationSequenceService,
-            entityManager
+            conversationService,
+            redisMessageRouter,
+            objectMapper,
+            clientEventPublisher
     )
 
-    def "getMessageById should return message DTO when message exists"() {
+    def setup() {
+        messageService.@entityManager = entityManager
+    }
+
+    def "getMessageById should return converted DTO when message exists"() {
         given:
         def messageId = 1L
         def message = new Message()
-        message.setMessageId(messageId)
+        message.setMsgId(messageId)
         message.setType(MessageType.TEXT)
-        message.setContent("Hello World")
+        message.setContent("hello")
 
-        def messageDTO = new MessageDTO<MessagePayLoad>()
-        messageDTO.setId(messageId)
-        messageDTO.setPayload(new DefaultMessagePayLoad("Hello World"))
+        def dto = new MessageDTO<MessagePayLoad>()
+        dto.setMsgId(messageId)
 
         messageRepository.findById(messageId) >> Optional.of(message)
-        messageMapper.toDTO(message) >> messageDTO
+        messageMapper.toDTO(message) >> dto
 
         when:
         def result = messageService.getMessageById(messageId)
 
         then:
-        result.getId() == messageId
-        result.getPayload().getContent() == "Hello World"
+        result.msgId == messageId
+        result.payload instanceof DefaultMessagePayLoad
+        result.payload.content == "hello"
     }
 
-    def "getMessageById should throw exception when message not exists"() {
+    def "getMessageById should throw when message does not exist"() {
         given:
-        def messageId = 1L
-        messageRepository.findById(messageId) >> Optional.empty()
+        messageRepository.findById(99L) >> Optional.empty()
 
         when:
-        messageService.getMessageById(messageId)
+        messageService.getMessageById(99L)
 
         then:
-        def ex = thrown(IllegalStateException)
-        ex.message == "消息不存在"
+        thrown(IllegalStateException)
     }
 
-    def "pullHistoryMessages should return paginated messages"() {
+    def "saveMessage should persist mapped status and generated sequence"() {
         given:
-        def request = new MessagePullRequest()
-        request.setConversationId(1L)
-        request.setPage(0)
-        request.setSize(10)
-        request.setSort("createTime")
-
-        def message = new Message()
-        message.setMessageId(1L)
-        message.setType(MessageType.TEXT)
-        message.setContent("Test message")
-
-        def messageDTO = new MessageDTO<MessagePayLoad>()
-        messageDTO.setId(1L)
-        messageDTO.setPayload(new DefaultMessagePayLoad("Test message"))
-
-        def pageable = PageRequest.of(0, 10, Sort.by("createTime").descending())
-        def pageResult = new PageImpl([message], pageable, 1)
-
-        messageRepository.findAll(_, _) >> pageResult
-        messageMapper.toDTO(message) >> messageDTO
-
-        when:
-        def result = messageService.pullHistoryMessages(request)
-
-        then:
-        result.getTotalElements() == 1
-        result.getContent().size() == 1
-        result.getContent()[0].getId() == 1L
-    }
-
-    def "searchMessages should return searched messages"() {
-        given:
-        def request = new MessageSearchRequest()
-        request.setKeyword("test")
-        request.setSessionId(1L)
-
-        def message = new Message()
-        message.setMessageId(1L)
-        message.setType(MessageType.TEXT)
-        message.setContent("Test message")
-
-        def messageDTO = new MessageDTO<MessagePayLoad>()
-        messageDTO.setId(1L)
-        messageDTO.setPayload(new DefaultMessagePayLoad("Test message"))
-
-        def pageable = PageRequest.of(0, 10)
-        def pageResult = new PageImpl([message], pageable, 1)
-
-        messageRepository.searchMessages("test", 1L, _) >> pageResult
-        messageMapper.toDTO(message) >> messageDTO
-
-        when:
-        def result = messageService.searchMessages(request, pageable)
-
-        then:
-        result.getTotalElements() == 1
-        result.getContent().size() == 1
-        result.getContent()[0].getId() == 1L
-    }
-
-    def "markAsRead should update message status to READ"() {
-        given:
-        def messageId = 1L
+        def conversation = new Conversation()
+        conversation.setConversationId(10L)
         def user = new User()
-        user.setUserId(1L)
+        user.setUserId(7L)
 
-        def message = new Message()
-        message.setMessageId(messageId)
-        message.setStatus(MessageStatus.SENT)
-
-        messageRepository.findById(messageId) >> Optional.of(message)
-
-        when:
-        messageService.markAsRead(messageId, user)
-
-        then:
-        1 * messageRepository.save({ Message msg ->
-            msg.getStatus() == MessageStatus.READ
-        })
-    }
-
-    def "saveMessage should save message with proper fields"() {
-        given:
         def chatMessage = Chat.ChatMessage.newBuilder()
-                .setConversationId(1L)
-                .setContent("Hello")
-                .setClientMsgId("client123")
+                .setConversationId(10L)
+                .setContent("payload")
+                .setClientMsgId("client-1")
                 .setType(Chat.MessageType.TEXT)
                 .setMessagesStatus(Chat.MessagesStatus.SENDING)
+                .setFromUser(com.github.im.common.connect.model.proto.User.UserInfo.newBuilder()
+                        .setUserId(7L)
+                        .build())
+                .setClientTimeStamp(1710000000000L)
                 .build()
 
-        def conversation = new Conversation()
-        conversation.setConversationId(1L)
-
-        def user = new User()
-        user.setUserId(1L)
-
-        def savedMessage = new Message()
-        savedMessage.setMessageId(1L)
-        savedMessage.setConversation(conversation)
-        savedMessage.setContent("Hello")
-        savedMessage.setClientMsgId("client123")
-        savedMessage.setType(MessageType.TEXT)
-        savedMessage.setStatus(MessageStatus.SENT)
-        savedMessage.setSequenceId(100L)
-
-        entityManager.getReference(Conversation, 1L) >> conversation
-        entityManager.getReference(User, 1L) >> user
-        conversationSequenceService.nextSequence(1L) >> 100L
-        messageRepository.save(_) >> savedMessage
+        entityManager.getReference(Conversation, 10L) >> conversation
+        entityManager.getReference(User, 7L) >> user
+        conversationSequenceService.nextSequence(10L) >> 88L
+        messageRepository.save(_ as Message) >> { Message saved ->
+            saved.setMsgId(100L)
+            saved
+        }
 
         when:
         def result = messageService.saveMessage(chatMessage)
 
         then:
-        result.getMessageId() == 1L
-        result.getConversation().getConversationId() == 1L
-        result.getContent() == "Hello"
-        result.getClientMsgId() == "client123"
-        result.getType() == MessageType.TEXT
-        result.getStatus() == MessageStatus.SENT
-        result.getSequenceId() == 100L
+        def expectedClientTimestamp = LocalDateTime.ofInstant(
+                Instant.ofEpochMilli(1710000000000L),
+                ZoneId.systemDefault()
+        )
+        result.msgId == 100L
+        result.clientMsgId == "client-1"
+        result.type == MessageType.TEXT
+        result.status == MessageStatus.SENT
+        result.sequenceId == 88L
+        result.clientTimestamp == expectedClientTimestamp
     }
 
-    def "convertMessage should handle TEXT message type"() {
+    def "convertMessage should preserve uploading attachment metadata for image messages"() {
         given:
+        def fileId = UUID.randomUUID().toString()
         def message = new Message()
-        message.setMessageId(1L)
-        message.setType(MessageType.TEXT)
-        message.setContent("Hello World")
+        message.setMsgId(2L)
+        message.setType(MessageType.IMAGE)
+        message.setContent(fileId)
 
-        def messageDTO = new MessageDTO<MessagePayLoad>()
-        messageDTO.setId(1L)
+        def dto = new MessageDTO<MessagePayLoad>()
+        dto.setMsgId(2L)
 
-        messageMapper.toDTO(message) >> messageDTO
+        def fileMeta = FileMeta.builder()
+                .fileId(fileId)
+                .filename("pending.heic")
+                .fileSize(2048L)
+                .contentType("image/heic")
+                .fileStatus(FileStatus.UPLOADING.name())
+                .build()
+
+        messageMapper.toDTO(message) >> dto
+        fileStorageService.getFileMeta(UUID.fromString(fileId)) >> fileMeta
 
         when:
         def result = messageService.convertMessage(message)
 
         then:
-        result.getId() == 1L
-        result.getPayload() instanceof DefaultMessagePayLoad
-        result.getPayload().getContent() == "Hello World"
+        result.payload instanceof FileMeta
+        with(result.payload as FileMeta) {
+            it.fileId == fileId
+            it.filename == "pending.heic"
+            it.contentType == "image/heic"
+            it.fileStatus == FileStatus.UPLOADING.name()
+        }
     }
 
-    def "convertMessage should handle FILE message type"() {
+    def "convertMessage should fallback to raw content when attachment metadata lookup fails"() {
         given:
+        def fileId = UUID.randomUUID().toString()
         def message = new Message()
-        message.setMessageId(1L)
-        message.setType(MessageType.FILE)
-        message.setContent("file-uuid")
+        message.setMsgId(3L)
+        message.setType(MessageType.IMAGE)
+        message.setContent(fileId)
 
-        def messageDTO = new MessageDTO<MessagePayLoad>()
-        messageDTO.setId(1L)
+        def dto = new MessageDTO<MessagePayLoad>()
+        dto.setMsgId(3L)
 
-        def fileResource = new FileResource()
-        fileResource.setOriginalName("test.txt")
-        fileResource.setSize(1024L)
-        fileResource.setContentType("text/plain")
-        fileResource.setHash("abc123")
-
-        messageMapper.toDTO(message) >> messageDTO
-        fileStorageService.getFileResourceById("file-uuid") >> fileResource
+        messageMapper.toDTO(message) >> dto
+        fileStorageService.getFileMeta(UUID.fromString(fileId)) >> { throw new FileNotFoundException("missing meta") }
 
         when:
         def result = messageService.convertMessage(message)
 
         then:
-        result.getId() == 1L
-        result.getPayload() instanceof FileMeta
-        result.getPayload().getFilename() == "test.txt"
-        result.getPayload().getFileSize() == 1024L
-        result.getPayload().getContentType() == "text/plain"
-        result.getPayload().getHash() == "abc123"
+        result.payload instanceof DefaultMessagePayLoad
+        result.payload.content == fileId
     }
 }

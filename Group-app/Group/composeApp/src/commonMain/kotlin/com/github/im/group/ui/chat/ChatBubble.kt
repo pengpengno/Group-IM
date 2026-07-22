@@ -75,8 +75,6 @@ import com.github.im.group.viewmodel.ChatRoomViewModel
 import io.github.aakira.napier.Napier
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
-import kotlin.math.abs
-import kotlin.math.sin
 
 /**
  * 从文件路径中提取文件ID
@@ -127,6 +125,7 @@ fun MediaMessage(
     file: com.github.im.group.sdk.File,
     modifier: Modifier = Modifier,
     size: androidx.compose.ui.unit.Dp = 160.dp,
+    previewImagePath: String? = null,
     mediaList: List<com.github.im.group.sdk.File>? = null,
     currentIndex: Int = 0,
     onDownloadFile: ((String) -> Unit)? = null,
@@ -154,6 +153,7 @@ fun MediaMessage(
             MediaFileView(
                 file = file,
                 modifier = modifier.size(size),
+                previewImagePath = previewImagePath,
                 onDownloadFile = onDownloadFile,
                 onShowMenu = onShowMenu
             )
@@ -215,7 +215,8 @@ fun VoiceMessage(
     }
 
     // 根据时长动态计算宽度
-    val bubbleWidth = (140 + (content.duration / 1000) * 5).dp.coerceIn(160.dp, 260.dp)
+    val durationSeconds = ((content.duration.coerceAtLeast(1_000) + 999) / 1_000)
+    val bubbleWidth = (140 + durationSeconds * 5).dp.coerceIn(160.dp, 260.dp)
 
     Row(
         modifier = Modifier
@@ -254,6 +255,7 @@ fun VoiceMessage(
             VoiceWaveform(
                 playbackPosition = playbackPosition,
                 isOwnMessage = isOwnMessage,
+                waveformSeed = "$messageId:$audioPath",
                 onSeek = { position ->
                     playbackPosition = position
                 },
@@ -263,14 +265,20 @@ fun VoiceMessage(
                         manager.seekTo(seekTarget)
                     } else {
                         // 如果没在播放，先开始播放再拖动
-                        manager.play(messageId, audioPath, senderName, content.duration.toLong())
+                        manager.play(
+                            messageId = messageId,
+                            audioPath = audioPath,
+                            senderName = senderName,
+                            duration = content.duration.toLong(),
+                            startPositionMillis = (position * content.duration).toLong()
+                        )
                     }
                 }
             )
         }
 
         Text(
-            text = "${content.duration / 1000}\"",
+            text = "${durationSeconds}\"",
             style = MaterialTheme.typography.labelMedium,
             color = if (isOwnMessage) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -286,11 +294,21 @@ fun VoiceMessage(
 fun VoiceWaveform(
     playbackPosition: Float,
     isOwnMessage: Boolean,
+    waveformSeed: String,
     onSeek: (Float) -> Unit,
     onSeekFinished: (Float) -> Unit
 ) {
     val barColorActive = if (isOwnMessage) Color.White else MaterialTheme.colorScheme.primary
     val barColorInactive = if (isOwnMessage) Color.White.copy(alpha = 0.4f) else Color.LightGray
+    val waveform = remember(waveformSeed) {
+        var value = waveformSeed.fold(7) { acc, char -> acc * 31 + char.code }
+        List(35) { index ->
+            value = value * 1_103_515_245 + 12_345
+            val noise = ((value ushr 16) and 0x7fff) / 32767f
+            val contour = if (index in 4..30) 0.14f else 0f
+            (0.22f + contour + noise * 0.58f).coerceIn(0.18f, 1f)
+        }
+    }
 
     Canvas(
         modifier = Modifier
@@ -314,16 +332,14 @@ fun VoiceWaveform(
     ) {
         val width = size.width
         val height = size.height
-        val barCount = 35
+        val barCount = waveform.size
         val barWidth = 3.dp.toPx()
-        val gap = (width - (barCount * barWidth)) / (barCount - 1)
+        val gap = ((width - (barCount * barWidth)) / (barCount - 1)).coerceAtLeast(1.dp.toPx())
         val centerY = height / 2
 
         for (i in 0 until barCount) {
             val progressRatio = i.toFloat() / barCount
-            val waveFactor = abs(sin(progressRatio * 4f) * 0.4f + sin(progressRatio * 10f) * 0.6f)
-            val barHeight =
-                (height * 0.3f + height * 0.7f * waveFactor).coerceIn(4.dp.toPx(), height)
+            val barHeight = (height * waveform[i]).coerceIn(4.dp.toPx(), height)
 
             val x = i * (barWidth + gap)
             val isPlayed = progressRatio <= playbackPosition

@@ -94,8 +94,29 @@ group:
     path: /app/storage
   file:
     upload:
-      chunk-temp-path: /tmp/chunk-storage
-      base-path: uploads
+      # Temporary directory for chunked uploads before merge.
+      chunk-temp-path: ${GROUP_FILE_UPLOAD_CHUNK_TEMP_PATH:/tmp/chunk-storage}
+      # Root directory for persisted uploaded files.
+      base-path: ${GROUP_FILE_UPLOAD_BASE_PATH:uploads}
+      preview:
+        # Default width used when clients do not request a specific preview size.
+        default-width: ${GROUP_FILE_UPLOAD_PREVIEW_DEFAULT_WIDTH:480}
+        # Safety bounds for preview resize requests.
+        min-width: ${GROUP_FILE_UPLOAD_PREVIEW_MIN_WIDTH:160}
+        max-width: ${GROUP_FILE_UPLOAD_PREVIEW_MAX_WIDTH:1600}
+        # Default quality used when clients do not request a specific quality.
+        default-quality: ${GROUP_FILE_UPLOAD_PREVIEW_DEFAULT_QUALITY:75}
+        # Safety bounds for preview quality requests.
+        min-quality: ${GROUP_FILE_UPLOAD_PREVIEW_MIN_QUALITY:40}
+        max-quality: ${GROUP_FILE_UPLOAD_PREVIEW_MAX_QUALITY:95}
+      thumbnail:
+        # Whether to persist generated poster thumbnails for audio/video files.
+        enabled: ${GROUP_FILE_UPLOAD_THUMBNAIL_ENABLED:true}
+        # Output dimensions of generated poster thumbnails.
+        width: ${GROUP_FILE_UPLOAD_THUMBNAIL_WIDTH:640}
+        height: ${GROUP_FILE_UPLOAD_THUMBNAIL_HEIGHT:360}
+        # Output quality of generated poster thumbnails.
+        quality: ${GROUP_FILE_UPLOAD_THUMBNAIL_QUALITY:82}
   
   # 系统初始化配置
   system:

@@ -108,15 +108,18 @@ fun FileMeta.toFile(): File {
     )
 }
 
-fun FileMeta.toPreviewFile(): File {
+fun FileMeta.getPreviewUrl(width: Int = 480, quality: Int = 75): String {
     val baseUrl = ProxyConfig.getBaseUrl()
-    val previewUrl = "$baseUrl/api/files/preview/$fileId?width=480&quality=75"
+    return "$baseUrl/api/files/preview/$fileId?width=$width&quality=$quality"
+}
+
+fun FileMeta.toPreviewFile(): File {
     return File(
         name = this.fileName,
         path = "",
         mimeType = this.contentType,
         size = this.size,
-        data = FileData.Path(previewUrl)
+        data = FileData.Path(getPreviewUrl())
     )
 }
 

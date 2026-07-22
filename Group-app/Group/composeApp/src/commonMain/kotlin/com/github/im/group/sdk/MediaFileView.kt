@@ -37,6 +37,7 @@ fun MediaFileView(
     file: File,
     modifier: Modifier = Modifier,
     size: Dp = 120.dp,
+    previewImagePath: String? = null,
     onDownloadFile: ((String) -> Unit)? = null,  // 以函数式方式传递下载功能
     onShowMenu: ((File) -> Unit)? = null,        // 显示菜单的回调
     onClick: (() -> Unit)? = null                // 点击回调，用于自定义处理
@@ -47,6 +48,7 @@ fun MediaFileView(
                 file = file,
                 modifier = modifier,
                 size = size,
+                previewImagePath = previewImagePath,
                 onShowMenu = onShowMenu,
                 onClick = onClick
             )
@@ -120,6 +122,7 @@ private fun VideoMediaView(
     file: File,
     modifier: Modifier,
     size: Dp,
+    previewImagePath: String? = null,
     onShowMenu: ((File) -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
@@ -127,6 +130,7 @@ private fun VideoMediaView(
     VideoThumbnail(
         file = file,
         modifier = modifier.size(size),
+        previewImagePath = previewImagePath,
         onClick = {
             if (onClick != null) {
                 onClick()
@@ -297,6 +301,7 @@ fun extractFileIdFromPath(path: String): String {
 expect fun VideoThumbnail(
     file: File,
     modifier: Modifier = Modifier,
+    previewImagePath: String? = null,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null
 )
