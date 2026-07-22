@@ -3,6 +3,7 @@ package com.github.im.group.manager
 import com.github.im.common.connect.model.proto.MessageType
 import com.github.im.group.api.FileApi
 import com.github.im.group.api.FileMeta
+import com.github.im.group.config.MediaPolicyRuntime
 import com.github.im.group.config.ProxyConfig
 import com.github.im.group.db.entities.FileStatus
 import com.github.im.group.repository.FilesRepository
@@ -108,9 +109,12 @@ fun FileMeta.toFile(): File {
     )
 }
 
-fun FileMeta.getPreviewUrl(width: Int = 480, quality: Int = 75): String {
+fun FileMeta.getPreviewUrl(width: Int? = null, quality: Int? = null): String {
     val baseUrl = ProxyConfig.getBaseUrl()
-    return "$baseUrl/api/files/preview/$fileId?width=$width&quality=$quality"
+    val policy = MediaPolicyRuntime.current()
+    val resolvedWidth = width ?: policy.previewDefaultWidth
+    val resolvedQuality = quality ?: policy.previewDefaultQuality
+    return "$baseUrl/api/files/preview/$fileId?width=$resolvedWidth&quality=$resolvedQuality"
 }
 
 fun FileMeta.toPreviewFile(): File {

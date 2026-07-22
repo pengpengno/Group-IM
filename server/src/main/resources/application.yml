@@ -98,6 +98,15 @@ group:
       chunk-temp-path: ${GROUP_FILE_UPLOAD_CHUNK_TEMP_PATH:/tmp/chunk-storage}
       # Root directory for persisted uploaded files.
       base-path: ${GROUP_FILE_UPLOAD_BASE_PATH:uploads}
+      upload:
+        # Whether clients should compress oversized images before upload.
+        compression-enabled: ${GROUP_FILE_UPLOAD_UPLOAD_COMPRESSION_ENABLED:true}
+        # Minimum image size in KB before client-side compression should start.
+        compress-min-size-kb: ${GROUP_FILE_UPLOAD_UPLOAD_COMPRESS_MIN_SIZE_KB:350}
+        # Long-edge limit used by clients when downscaling large upload images.
+        max-image-edge: ${GROUP_FILE_UPLOAD_UPLOAD_MAX_IMAGE_EDGE:1600}
+        # JPEG quality hint used by clients for upload compression.
+        jpeg-quality: ${GROUP_FILE_UPLOAD_UPLOAD_JPEG_QUALITY:82}
       preview:
         # Default width used when clients do not request a specific preview size.
         default-width: ${GROUP_FILE_UPLOAD_PREVIEW_DEFAULT_WIDTH:480}

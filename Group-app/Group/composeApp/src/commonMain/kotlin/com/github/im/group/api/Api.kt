@@ -486,6 +486,15 @@ object WebrtcApi {
     }
 }
 
+object SystemConfigApi {
+    suspend fun getMediaPolicy(): com.github.im.group.config.MediaPolicy {
+        return ProxyApi.request<Unit, ApiResponse<com.github.im.group.config.MediaPolicy>>(
+            hmethod = HttpMethod.Get,
+            path = "/api/system-config/media-policy"
+        ).data ?: com.github.im.group.config.MediaPolicy()
+    }
+}
+
 object PushApi {
     suspend fun listEndpoints(): List<PushEndpointDTO> {
         return ProxyApi.request<Unit, ApiResponse<List<PushEndpointDTO>>>(

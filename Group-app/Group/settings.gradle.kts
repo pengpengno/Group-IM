@@ -1,66 +1,48 @@
 rootProject.name = "Group"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
+// CI uses only official repositories. Local development may use Aliyun as a
+// fallback; override it with -PuseAliyunMirror=true or -PuseAliyunMirror=false.
+val useAliyunMirror = providers.gradleProperty("useAliyunMirror").orNull?.toBoolean()
+    ?: System.getenv("CI") != "true"
+
 pluginManagement {
     repositories {
-        // 国内镜像（作为补充，不作为主源）
-        maven("https://maven.aliyun.com/repository/google")
-        maven("https://maven.aliyun.com/repository/public")
+
 
         google()
-
-        // Kotlin / Compose / Gradle plugins
         mavenCentral()
         gradlePluginPortal()
-
-        // JetBrains Compose
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev/")
 
-
+        if (useAliyunMirror) {
+            maven("https://maven.aliyun.com/repository/google")
+            maven("https://maven.aliyun.com/repository/public")
+        }
     }
 }
 
 dependencyResolutionManagement {
-
     repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
 
     repositories {
-//        // ---- Node.js distribution (给 kotlin js 用) ----
-//        ivy("https://nodejs.org/dist/") {
-//            patternLayout {
-//                artifact("v[revision]/[artifact]-v[revision]-[classifier].[ext]")
-//            }
-//            metadataSources {
-//                artifact()
-//            }
-//        }
-//
-//        // ---------- Yarn distribution ----------
-//        ivy("https://github.com/yarnpkg/yarn/releases/download/") {
-//            name = "yarn-dist"
-//            patternLayout {
-//                artifact("v[revision]/yarn-v[revision].tar.gz")
-//            }
-//            metadataSources {
-//                artifact()
-//            }
-//        }
+        // Node/Yarn Ivy repositories can be enabled here if Kotlin/JS needs them.
+        // ivy("https://nodejs.org/dist/") { ... }
+        // ivy("https://github.com/yarnpkg/yarn/releases/download/") { ... }
 
-        // ⭐⭐⭐ aapt2 / AGP 必须
+        // aapt2 / Android Gradle Plugin dependencies.
         google()
-
-        // 主仓库
         mavenCentral()
-
-        // JetBrains Compose
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev/")
 
-        // 国内镜像（兜底）
-        maven("https://maven.aliyun.com/repository/google")
-        maven("https://maven.aliyun.com/repository/public")
+        if (useAliyunMirror) {
+            // Local fallback mirrors are deliberately excluded from CI.
+            maven("https://maven.aliyun.com/repository/google")
+            maven("https://maven.aliyun.com/repository/public")
+        }
 
-        // snapshots（你用 WebRTC / 实验性库才留）
-//        maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+        // Add a snapshots repository only when a dependency explicitly requires it.
+        // maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
     }
 }
 

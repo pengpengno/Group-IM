@@ -1,6 +1,7 @@
 package com.github.im.group.sdk
 
 import androidx.compose.runtime.Composable
+import com.github.im.group.config.MediaPolicyRuntime
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
@@ -218,6 +219,7 @@ private fun guessMimeType(fileName: String, extension: String): String? {
 }
 
 private fun compressImageBytesIfNeeded(fileName: String, mimeType: String?, bytes: ByteArray): ByteArray {
+    val policy = MediaPolicyRuntime.current()
     val lowerName = fileName.lowercase()
     val normalizedMime = mimeType?.lowercase().orEmpty()
     val isCompressibleImage = (
@@ -232,7 +234,7 @@ private fun compressImageBytesIfNeeded(fileName: String, mimeType: String?, byte
         !lowerName.endsWith(".gif") &&
         !lowerName.endsWith(".svg")
 
-    if (!isCompressibleImage || bytes.size <= 350 * 1024) {
+    if (!policy.uploadCompressionEnabled || !isCompressibleImage || bytes.size <= policy.uploadCompressMinSizeKb * 1024) {
         return bytes
     }
 
@@ -240,7 +242,7 @@ private fun compressImageBytesIfNeeded(fileName: String, mimeType: String?, byte
     val sourceWidth = sourceImage.size.width
     val sourceHeight = sourceImage.size.height
     val largestEdge = max(sourceWidth, sourceHeight)
-    val maxEdge = 1600.0
+    val maxEdge = policy.uploadMaxImageEdge.toDouble()
     val scale = if (largestEdge > maxEdge) maxEdge / largestEdge else 1.0
     val targetWidth = max(1.0, sourceWidth * scale)
     val targetHeight = max(1.0, sourceHeight * scale)
@@ -257,7 +259,7 @@ private fun compressImageBytesIfNeeded(fileName: String, mimeType: String?, byte
     val encoded = if (normalizedMime == "image/png" || lowerName.endsWith(".png")) {
         UIImagePNGRepresentation(resizedImage ?: sourceImage)
     } else {
-        UIImageJPEGRepresentation(resizedImage ?: sourceImage, 0.82)
+        UIImageJPEGRepresentation(resizedImage ?: sourceImage, policy.uploadJpegQuality.toDouble() / 100.0)
     } ?: return bytes
 
     val compressedBytes = encoded.toByteArray()

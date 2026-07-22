@@ -23,6 +23,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.github.im.group.androidContext
+import com.github.im.group.config.MediaPolicyRuntime
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -227,6 +228,7 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
     }
 
     private fun compressImageBytesIfNeeded(file: com.github.im.group.sdk.File, bytes: ByteArray): ByteArray {
+        val policy = MediaPolicyRuntime.current()
         val mimeType = file.mimeType?.lowercase().orEmpty()
         val lowerName = file.name.lowercase()
         val isCompressibleImage = (mimeType.startsWith("image/") ||
@@ -239,13 +241,13 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
             !lowerName.endsWith(".gif") &&
             !lowerName.endsWith(".svg")
 
-        if (!isCompressibleImage || bytes.size <= 350 * 1024) {
+        if (!policy.uploadCompressionEnabled || !isCompressibleImage || bytes.size <= policy.uploadCompressMinSizeKb * 1024) {
             return bytes
         }
 
         return runCatching {
             val sourceBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return bytes
-            val maxEdge = 1600
+            val maxEdge = policy.uploadMaxImageEdge
             val largestEdge = maxOf(sourceBitmap.width, sourceBitmap.height)
             val scale = if (largestEdge > maxEdge) maxEdge.toFloat() / largestEdge.toFloat() else 1f
             val targetWidth = maxOf(1, (sourceBitmap.width * scale).toInt())
@@ -262,7 +264,7 @@ class AndroidFilePicker(private val context: Context) : FilePicker {
             } else {
                 Bitmap.CompressFormat.JPEG
             }
-            val quality = if (compressFormat == Bitmap.CompressFormat.PNG) 100 else 82
+            val quality = if (compressFormat == Bitmap.CompressFormat.PNG) 100 else policy.uploadJpegQuality
             resizedBitmap.compress(compressFormat, quality, output)
 
             if (resizedBitmap !== sourceBitmap) {

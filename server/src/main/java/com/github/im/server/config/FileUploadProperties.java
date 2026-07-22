@@ -31,6 +31,11 @@ public class FileUploadProperties {
      */
     private Thumbnail thumbnail = new Thumbnail();
 
+    /**
+     * Client upload optimization hints exposed to web/mobile clients.
+     */
+    private Upload upload = new Upload();
+
     @Data
     public static class Preview {
         /** Default width used when clients omit the width parameter. */
@@ -57,5 +62,17 @@ public class FileUploadProperties {
         private int height = 360;
         /** Output quality of generated poster thumbnails. */
         private int quality = 82;
+    }
+
+    @Data
+    public static class Upload {
+        /** Whether clients should try to compress large images before upload. */
+        private boolean compressionEnabled = true;
+        /** Minimum image size in KB before compression is attempted. */
+        private int compressMinSizeKb = 350;
+        /** Maximum long edge for client-side upload image resizing. */
+        private int maxImageEdge = 1600;
+        /** JPEG quality hint used by clients during upload compression. */
+        private int jpegQuality = 82;
     }
 }

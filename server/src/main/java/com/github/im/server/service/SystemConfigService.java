@@ -33,6 +33,10 @@ public class SystemConfigService {
     public static final String KEY_MEDIA_THUMBNAIL_WIDTH = "media.thumbnail.width";
     public static final String KEY_MEDIA_THUMBNAIL_HEIGHT = "media.thumbnail.height";
     public static final String KEY_MEDIA_THUMBNAIL_QUALITY = "media.thumbnail.quality";
+    public static final String KEY_MEDIA_UPLOAD_COMPRESSION_ENABLED = "media.upload.compressionEnabled";
+    public static final String KEY_MEDIA_UPLOAD_COMPRESS_MIN_SIZE_KB = "media.upload.compressMinSizeKb";
+    public static final String KEY_MEDIA_UPLOAD_MAX_IMAGE_EDGE = "media.upload.maxImageEdge";
+    public static final String KEY_MEDIA_UPLOAD_JPEG_QUALITY = "media.upload.jpegQuality";
 
     private final SystemConfigItemRepository repository;
     private final FileUploadProperties fileUploadProperties;
@@ -92,6 +96,10 @@ public class SystemConfigService {
         private final int thumbnailWidth;
         private final int thumbnailHeight;
         private final int thumbnailQuality;
+        private final boolean uploadCompressionEnabled;
+        private final int uploadCompressMinSizeKb;
+        private final int uploadMaxImageEdge;
+        private final int uploadJpegQuality;
     }
 
     private Map<String, ConfigDefinition> definitions;
@@ -175,7 +183,11 @@ public class SystemConfigService {
             getBoolean(KEY_MEDIA_THUMBNAIL_ENABLED),
             getInt(KEY_MEDIA_THUMBNAIL_WIDTH),
             getInt(KEY_MEDIA_THUMBNAIL_HEIGHT),
-            getInt(KEY_MEDIA_THUMBNAIL_QUALITY)
+            getInt(KEY_MEDIA_THUMBNAIL_QUALITY),
+            getBoolean(KEY_MEDIA_UPLOAD_COMPRESSION_ENABLED),
+            getInt(KEY_MEDIA_UPLOAD_COMPRESS_MIN_SIZE_KB),
+            getInt(KEY_MEDIA_UPLOAD_MAX_IMAGE_EDGE),
+            getInt(KEY_MEDIA_UPLOAD_JPEG_QUALITY)
         );
     }
 
@@ -247,11 +259,37 @@ public class SystemConfigService {
         if (!(minQuality <= defaultQuality && defaultQuality <= maxQuality)) {
             throw new IllegalArgumentException("Preview quality policy must satisfy min <= default <= max");
         }
+
+        validateRange(
+            Integer.parseInt(values.get(KEY_MEDIA_UPLOAD_COMPRESS_MIN_SIZE_KB)),
+            32,
+            20 * 1024,
+            "Upload compression min size KB must stay between 32 and 20480"
+        );
+        validateRange(
+            Integer.parseInt(values.get(KEY_MEDIA_UPLOAD_MAX_IMAGE_EDGE)),
+            320,
+            4096,
+            "Upload max image edge must stay between 320 and 4096"
+        );
+        validateRange(
+            Integer.parseInt(values.get(KEY_MEDIA_UPLOAD_JPEG_QUALITY)),
+            30,
+            100,
+            "Upload JPEG quality must stay between 30 and 100"
+        );
+    }
+
+    private void validateRange(int value, int min, int max, String message) {
+        if (value < min || value > max) {
+            throw new IllegalArgumentException(message);
+        }
     }
 
     private Map<String, ConfigDefinition> buildDefinitions() {
         FileUploadProperties.Preview preview = fileUploadProperties.getPreview();
         FileUploadProperties.Thumbnail thumbnail = fileUploadProperties.getThumbnail();
+        FileUploadProperties.Upload upload = fileUploadProperties.getUpload();
 
         Map<String, ConfigDefinition> map = new LinkedHashMap<>();
         map.put(KEY_MEDIA_PREVIEW_DEFAULT_WIDTH, new ConfigDefinition(
@@ -303,6 +341,26 @@ public class SystemConfigService {
             KEY_MEDIA_THUMBNAIL_QUALITY, GROUP_MEDIA, ValueType.INTEGER, "Thumbnail quality",
             "Encoding quality used when the server saves generated poster thumbnails.",
             String.valueOf(thumbnail.getQuality()), true, value -> value >= 30 && value <= 100
+        ));
+        map.put(KEY_MEDIA_UPLOAD_COMPRESSION_ENABLED, new ConfigDefinition(
+            KEY_MEDIA_UPLOAD_COMPRESSION_ENABLED, GROUP_MEDIA, ValueType.BOOLEAN, "Upload compression enabled",
+            "Whether clients should compress oversized image uploads before sending them.",
+            String.valueOf(upload.isCompressionEnabled()), true, null
+        ));
+        map.put(KEY_MEDIA_UPLOAD_COMPRESS_MIN_SIZE_KB, new ConfigDefinition(
+            KEY_MEDIA_UPLOAD_COMPRESS_MIN_SIZE_KB, GROUP_MEDIA, ValueType.INTEGER, "Upload compression threshold (KB)",
+            "Clients start compressing images when the source file exceeds this size in KB.",
+            String.valueOf(upload.getCompressMinSizeKb()), true, value -> value >= 32 && value <= 20 * 1024
+        ));
+        map.put(KEY_MEDIA_UPLOAD_MAX_IMAGE_EDGE, new ConfigDefinition(
+            KEY_MEDIA_UPLOAD_MAX_IMAGE_EDGE, GROUP_MEDIA, ValueType.INTEGER, "Upload image max edge",
+            "Clients resize large images so the longest edge stays within this limit before upload.",
+            String.valueOf(upload.getMaxImageEdge()), true, value -> value >= 320 && value <= 4096
+        ));
+        map.put(KEY_MEDIA_UPLOAD_JPEG_QUALITY, new ConfigDefinition(
+            KEY_MEDIA_UPLOAD_JPEG_QUALITY, GROUP_MEDIA, ValueType.INTEGER, "Upload JPEG quality",
+            "JPEG quality hint clients use after resizing upload images.",
+            String.valueOf(upload.getJpegQuality()), true, value -> value >= 30 && value <= 100
         ));
         return map;
     }

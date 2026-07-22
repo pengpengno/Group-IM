@@ -8,6 +8,7 @@ import com.github.im.group.api.FriendshipDTO
 import com.github.im.group.api.LoginApi
 import com.github.im.group.api.UnauthorizedException
 import com.github.im.group.api.UserApi
+import com.github.im.group.config.MediaPolicyRuntime
 import com.github.im.group.manager.LoginStateManager
 import com.github.im.group.model.UserInfo
 import com.github.im.group.repository.UserRepository
@@ -73,6 +74,7 @@ class UserViewModel(
                         // 登录成功，更新当前用户信息
                         _currentLocalUserInfo.value = state.userInfo
                         loadCompanies()
+                        viewModelScope.launch { MediaPolicyRuntime.refresh() }
                     }
                     else -> {
                         // 登录失败，更新当前用户信息
@@ -233,6 +235,7 @@ class UserViewModel(
             GlobalCredentialProvider.currentToken = userInfo.token
             GlobalCredentialProvider.currentUserId = userInfo.userId
             GlobalCredentialProvider.companyId = userInfo.currentLoginCompanyId
+            MediaPolicyRuntime.refresh()
 
             // 通知登录状态管理器用户已登录
             loginStateManager.setLoggedIn(userInfo)
@@ -322,6 +325,7 @@ class UserViewModel(
                 GlobalCredentialProvider.currentToken = userInfo.token
                 GlobalCredentialProvider.currentUserId = userInfo.userId
                 GlobalCredentialProvider.companyId = userInfo.currentLoginCompanyId
+                MediaPolicyRuntime.refresh()
 
                 loginStateManager.setLoggedIn(userInfo)
                 userRepository.updateToAuthenticated(userInfo)

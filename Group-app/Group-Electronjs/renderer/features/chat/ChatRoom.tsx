@@ -5,6 +5,7 @@ import ScheduleMeetingDialog from './ScheduleMeetingDialog';
 import { RootState, AppDispatch } from '../../store';
 import { addMessage, fetchMessages, sendMessageViaSocket, updateMessageAttachmentState } from './chatSlice';
 import { BASE_URL, aiBotAPI, authAPI, meetingAPI } from '../../services/api/apiClient';
+import { buildPreviewUrl, getMediaPolicy, loadMediaPolicy } from '../../services/mediaPolicyService';
 import { useAppSelector } from '../../hooks';
 import { getElectronAPI, isElectronEnvironment } from '../../services/api/electronAPI';
 import { socketService } from '../../services/socketService';
@@ -89,13 +90,14 @@ const canCompressBrowserImage = (file: File) => {
 };
 
 const compressImageForUpload = async (file: File): Promise<File> => {
-  if (!canCompressBrowserImage(file) || file.size <= 350 * 1024) {
+  const policy = getMediaPolicy();
+  if (!policy.uploadCompressionEnabled || !canCompressBrowserImage(file) || file.size <= policy.uploadCompressMinSizeKb * 1024) {
     return file;
   }
 
   const bitmap = await createImageBitmap(file);
   try {
-    const maxEdge = 1600;
+    const maxEdge = policy.uploadMaxImageEdge;
     const largestEdge = Math.max(bitmap.width, bitmap.height);
     const scale = largestEdge > maxEdge ? maxEdge / largestEdge : 1;
     const targetWidth = Math.max(1, Math.round(bitmap.width * scale));
@@ -112,7 +114,7 @@ const compressImageForUpload = async (file: File): Promise<File> => {
 
     const targetType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
     const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, targetType, 0.82)
+      canvas.toBlob(resolve, targetType, policy.uploadJpegQuality / 100)
     );
     if (!blob || blob.size >= file.size) {
       return file;
@@ -609,8 +611,8 @@ const MessageBubble: React.FC<{
 
   const renderContent = () => {
     const getFileUrl = (fileId: string) => `${BASE_URL}/api/files/download/${fileId}`;
-    const getPreviewUrl = (fileId: string, width = 480, quality = 75) =>
-      `${BASE_URL}/api/files/preview/${fileId}?width=${width}&quality=${quality}`;
+    const getPreviewUrl = (fileId: string, width?: number, quality?: number) =>
+      buildPreviewUrl(BASE_URL, fileId, width, quality);
     const type = message.type.toUpperCase();
     const botCard = parseBotCard(message.content);
 
@@ -1579,6 +1581,10 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       setGroupBotSettings(defaultGroupBotSettings);
     }
   }, [conversation.conversationId]);
+
+  useEffect(() => {
+    void loadMediaPolicy();
+  }, []);
 
   useEffect(() => {
     loadMessages();
