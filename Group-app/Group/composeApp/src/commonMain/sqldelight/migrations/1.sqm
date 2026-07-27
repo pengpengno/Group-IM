@@ -1,0 +1,5 @@
+ALTER TABLE ConversationUiPreference
+ADD COLUMN is_muted INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE ConversationUiPreference
+ADD COLUMN mute_until INTEGER NOT NULL DEFAULT 0;

@@ -1,6 +1,7 @@
 package com.github.im.group.ui.chat
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -40,6 +42,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -83,29 +86,34 @@ fun MessageBubble(
 
     var showMenu by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
+    val ownBubbleColor = Color(0xFF3B82F6)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp),
+            .padding(vertical = 8.dp),
         horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start
     ) {
         if (!isOwnMessage) {
             if (showAvatar) {
                 UserAvatar(username = msg.userInfo.username, size = 36)
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
             } else {
-                Spacer(modifier = Modifier.width(44.dp))
+                Spacer(modifier = Modifier.width(46.dp))
             }
         }
 
-        Column(horizontalAlignment = if (isOwnMessage) Alignment.End else Alignment.Start) {
+        Column(
+            modifier = Modifier.widthIn(max = 270.dp),
+            horizontalAlignment = if (isOwnMessage) Alignment.End else Alignment.Start
+        ) {
             if (showAvatar && !isOwnMessage && msg.userInfo.username.isNotEmpty()) {
                 Text(
                     text = msg.userInfo.username,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF64748B),
+                    modifier = Modifier.padding(start = 2.dp, bottom = 4.dp)
                 )
             }
 
@@ -115,21 +123,38 @@ fun MessageBubble(
                 }
 
                 Box {
+                    MaterialTheme(
+                        colorScheme = if (isOwnMessage) {
+                            MaterialTheme.colorScheme.copy(
+                                primaryContainer = ownBubbleColor,
+                                onPrimaryContainer = Color.White
+                            )
+                        } else {
+                            MaterialTheme.colorScheme
+                        }
+                    ) {
                     Surface(
-                        color = if (isOwnMessage) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                        color = if (isOwnMessage) {
+                            ownBubbleColor
+                        } else {
+                            Color.White
+                        },
+                        contentColor = if (isOwnMessage) Color.White else Color(0xFF0F172A),
                         shape = RoundedCornerShape(
-                            topStart = if (isOwnMessage) 12.dp else 4.dp,
-                            topEnd = if (isOwnMessage) 4.dp else 12.dp,
-                            bottomStart = 12.dp,
-                            bottomEnd = 12.dp
+                            topStart = 18.dp,
+                            topEnd = 18.dp,
+                            bottomStart = if (isOwnMessage) 18.dp else 5.dp,
+                            bottomEnd = if (isOwnMessage) 5.dp else 18.dp
                         ),
-                        tonalElevation = if (isOwnMessage) 1.dp else 0.5.dp,
+                        border = if (isOwnMessage) null else BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        tonalElevation = 0.dp,
+                        shadowElevation = if (isOwnMessage) 1.dp else 0.dp,
                         modifier = Modifier.combinedClickable(
                             onLongClick = { showMenu = true },
                             onClick = {}
                         )
                     ) {
-                        Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                        Box(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
                             when (msg.type) {
                                 MessageType.TEXT -> BotCardMessage(
                                     rawText = msg.content,
@@ -154,6 +179,7 @@ fun MessageBubble(
                                 )
                             }
                         }
+                    }
                     }
 
                     DropdownMenu(
@@ -186,17 +212,17 @@ fun MessageBubble(
                 }
             }
 
-            if (isOwnMessage) {
-                Row(
-                    modifier = Modifier.padding(top = 2.dp),
+            Row(
+                    modifier = Modifier.padding(top = 4.dp, start = 2.dp, end = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = formatMessageTime(msg.clientTime ?: msg.time),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        color = Color(0xFF94A3B8)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    if (isOwnMessage) {
+                    Spacer(modifier = Modifier.width(5.dp))
                     val statusIcon = when (msg.status) {
                         MessageStatus.SENT -> Icons.Default.Check
                         MessageStatus.READ -> Icons.Default.CheckCircle
@@ -213,12 +239,12 @@ fun MessageBubble(
                             },
                         tint = when (msg.status) {
                             MessageStatus.FAILED -> MaterialTheme.colorScheme.error
-                            MessageStatus.READ -> MaterialTheme.colorScheme.primary
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            MessageStatus.READ -> Color(0xFF3B82F6)
+                            else -> Color(0xFF94A3B8)
                         }
                     )
+                    }
                 }
-            }
         }
     }
 }

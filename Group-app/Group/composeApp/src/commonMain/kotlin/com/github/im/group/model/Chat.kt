@@ -132,7 +132,7 @@ data class MessageWrapper(
 
     override val time: LocalDateTime =
         when {
-            messageDto?.timestamp != null && messageDto.timestamp != "null" -> LocalDateTime.parse(messageDto.timestamp)
+            messageDto?.timestamp != null && messageDto.timestamp != "null" -> parseMessageTime(messageDto.timestamp)
             message?.serverTimeStamp != null -> {
                 val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(message.serverTimeStamp)
                 instant.toLocalDateTime(TimeZone.currentSystemDefault())
@@ -163,6 +163,16 @@ data class MessageWrapper(
             messageDto?.fromAccount != null -> messageDto.fromAccount
             else -> throw IllegalArgumentException("message or messageDto must not be null")
         }
+}
+
+/** Accept both server UTC instants and local ISO date-times used by older messages. */
+private fun parseMessageTime(timestamp: String): LocalDateTime {
+    return runCatching {
+        kotlinx.datetime.Instant.parse(timestamp).toLocalDateTime(TimeZone.currentSystemDefault())
+    }.getOrElse {
+        runCatching { LocalDateTime.parse(timestamp) }
+            .getOrElse { LocalDateTime.parse("1970-01-01T00:00:00") }
+    }
 }
 
 fun accountInfoTransForm ( accountInfo: com.github.im.common.connect.model.proto.UserInfo) : UserInfo{

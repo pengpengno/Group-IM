@@ -45,7 +45,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
@@ -274,16 +273,15 @@ fun ChatRoomScreen(
 
             Surface(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)),
-                color = Color.White,
+                    .fillMaxSize(),
+                color = Color(0xFFF8FAFC),
                 tonalElevation = 0.dp
             ) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     reverseLayout = true,
-                    contentPadding = PaddingValues(bottom = 116.dp, top = 20.dp, start = 12.dp, end = 12.dp),
+                    contentPadding = PaddingValues(bottom = 116.dp, top = 16.dp, start = 16.dp, end = 16.dp),
                     verticalArrangement = Arrangement.Top
                 ) {
                     items(
