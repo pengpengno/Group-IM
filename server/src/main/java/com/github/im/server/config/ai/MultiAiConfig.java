@@ -20,10 +20,10 @@ import java.util.HashMap;
 @Slf4j
 public class MultiAiConfig {
 
-    @Value("${spring.ai.deepseek.api-key:#{null}}")
+    @Value("${spring.ai.deepseek.api-key:${DEEPSEEK_API_KEY:#{null}}}")
     private String deepSeekApiKey;
 
-    @Value("${spring.ai.deepseek.base-url:https://api.deepseek.com}")
+    @Value("${spring.ai.deepseek.base-url:${DEEPSEEK_BASE_URL:https://api.deepseek.com}}")
     private String deepSeekBaseUrl;
 
     @Value("${spring.ai.groq.api-key:#{null}}")
@@ -55,13 +55,13 @@ public class MultiAiConfig {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "spring.ai.deepseek.api-key")
+    @ConditionalOnProperty(name = {"spring.ai.enabled", "spring.ai.deepseek.api-key"}, havingValue = "true")
     public OpenAiApi deepSeekApi() {
         return new OpenAiApi(deepSeekBaseUrl, new SimpleApiKey(deepSeekApiKey), null, null, null, null, null, null);
     }
 
     @Bean("deepSeekChatClient")
-    @ConditionalOnProperty(name = "spring.ai.deepseek.api-key")
+    @ConditionalOnProperty(name = {"spring.ai.enabled", "spring.ai.deepseek.api-key"}, havingValue = "true")
     public ChatClient deepSeekChatClient(OpenAiApi deepSeekApi) {
         return ChatClient.builder(new OpenAiChatModel(deepSeekApi, null, null, null, null)).build();
     }
