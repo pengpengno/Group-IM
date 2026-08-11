@@ -19,7 +19,7 @@ import { MessageType } from '../../types';
 
 type SocketConnectionState = 'disconnected' | 'connecting' | 'reconnecting' | 'connected';
 
-// 瀹氫箟 Electron 鎺ュ彛鎵╁睍 (闃叉 TS 鎶ラ敊)
+// Electron 预加载脚本注入的桥接能力；Web 端通过环境判断安全降级。
 declare global {
   interface Window {
     electronAPI: any;
@@ -548,7 +548,10 @@ const BotCard: React.FC<{ card: BotCardData; isOwnMessage: boolean }> = ({ card,
 };
 
 /**
- * 瀹炴椂娑堟伅閫氳繃 socket 杩涘叆鑱婂ぉ椤垫椂锛屼笉涓€瀹氫細闄勫甫瀹屾暣鐨?fromAccount銆? * 杩欓噷浼樺厛浣跨敤娑堟伅閲岀殑鍙戦€佽€呬俊鎭紝缂哄け鏃跺啀閫€鍥炲埌浼氳瘽鎴愬憳鍒楄〃锛? * 杩欐牱椤甸潰鍙互绗竴鏃堕棿鎶娾€滄槸璋佸彂鏉ョ殑鈥濇覆鏌撳嚭鏉ワ紝鑰屼笉鏄樉绀烘垚闂彿銆? */
+ * 实时消息可能在进入聊天页时不附带完整的 fromAccount。
+ * 优先使用消息本身携带的发送者信息，缺失时再回退到会话成员列表，
+ * 这样可以立即渲染发送者，而不是显示问号。
+ */
 const resolveMessageSenderDisplay = (
   message: MessageDTO,
   conversation: ConversationRes
@@ -695,7 +698,7 @@ const MessageBubble: React.FC<{
       case MessageType.MEETING: {
         const payload = parseMeetingPayload(message);
         const category = payload?.category || 'MEETING';
-        const title = payload?.title || (category === 'VIDEO_CALL' ? '瑙嗛閫氳瘽' : category === 'VOICE_CALL' ? '璇煶閫氳瘽' : '浼氳');
+        const title = payload?.title || (category === 'VIDEO_CALL' ? '视频通话' : category === 'VOICE_CALL' ? '语音通话' : '会议');
         const count = payload?.participantCount ?? payload?.participantIds?.length ?? 0;
         const roomId = payload?.roomId;
         const isScheduled = payload?.action === 'SCHEDULE';
@@ -827,13 +830,15 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     });
   };
 
-  // 鑾峰彇浼氳瘽鍚嶇О
+  // 会话名称统一由工具函数解析，兼容私聊、群聊和 AI 会话。
   const getRoomName = () => {
     return getConversationDisplayName(conversation, user?.userId);
   };
 
   /**
-   * 绉佽亰鍦烘櫙涓嬬粺涓€瑙ｆ瀽鈥滃鏂圭敤鎴封€濄€?   * 鍚庣画澶村儚銆佸湪绾跨姸鎬併€佹嫧鎵撻煶瑙嗛閮戒粠杩欓噷鍙栧€硷紝閬垮厤鍚勫閲嶅鏌?members銆?   */
+   * 私聊场景统一解析“对方用户”。头像、在线状态和音视频呼叫均从这里取值，
+   * 避免在多个调用点重复遍历 members。
+   */
   const getOtherUser = () => {
     if (isGroupConversation(conversation)) {
       return null;
@@ -893,7 +898,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       fromAccountId: -20260721,
       fromAccount: {
         userId: -20260721,
-        username: 'AI 鍔╂墜',
+        username: 'AI 助手',
         email: 'ai-assistant@local.group',
         phoneNumber: ''
       },
@@ -984,7 +989,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       setShowParticipantPicker(false);
     } catch (err: any) {
       console.error('Failed to create meeting:', err);
-      showToast(err?.message || '鍒涘缓浼氳澶辫触');
+      showToast(err?.message || '创建会议失败');
     }
   };
 
@@ -996,15 +1001,15 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         scheduledAt: data.scheduledAt,
         participantIds: data.participantIds.map(id => Number(id))
       });
-      showToast('浼氳棰勫畾鎴愬姛', 'success' as any);
+      showToast('会议预定成功', 'success' as any);
       setShowScheduleMeeting(false);
     } catch (err: any) {
       console.error('Failed to schedule meeting:', err);
-      showToast(err?.message || '棰勫畾浼氳澶辫触');
+      showToast(err?.message || '预定会议失败');
     }
   };
 
-  // 鍔犺浇娑堟伅
+  // 加载当前会话消息；AI 会话使用独立的数据来源。
   const loadMessages = async () => {
     if (isAiAssistantConversation) {
       return;
@@ -1132,9 +1137,9 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         ? await compressImageForUpload(result.file)
         : result.file;
 
-      showToast('鍑嗗涓婁紶...', 'info' as any);
+      showToast('正在准备上传…', 'info' as any);
 
-      // 1. 鑾峰彇鏂囦欢鍏冩暟鎹苟鐢宠 UploadId
+      // 1. 读取文件元数据并申请 UploadId，后续消息使用该 ID 关联附件。
       let fileName = '';
       let fileSize = 0;
 
@@ -1142,7 +1147,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         fileName = preparedBrowserFile.name;
         fileSize = preparedBrowserFile.size;
       } else if (result.filePaths && result.filePaths.length > 0) {
-        // Electron 鐜
+        // Electron 环境从本地文件路径读取文件名与大小。
         fileName = (result as any).fileName || result.filePaths[0].split(/[\\/]/).pop() || 'file';
         fileSize = (result as any).fileSize || 0;
       }
@@ -1217,7 +1222,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       }));
 
       scrollToBottom();
-      showToast('姝ｅ湪鍚庡彴涓婁紶鏂囦欢...', 'info' as any);
+      showToast('正在后台上传文件…', 'info' as any);
 
       // 2. Background Upload
       const fileToUpload = preparedBrowserFile || result.filePaths[0];
@@ -1231,7 +1236,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
               payload: uploadRes.fileMeta
             }
           }));
-          showToast('鏂囦欢涓婁紶瀹屾垚', 'success' as any);
+          showToast('文件上传完成', 'success' as any);
         } else {
           dispatch(updateMessageAttachmentState({
             conversationId: conversation.conversationId,
@@ -1241,7 +1246,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
               sendingStatus: 'failed'
             }
           }));
-          showToast('鏂囦欢涓婁紶澶辫触锛屾秷鎭凡鍙戦€佷絾鏃犳硶鏌ョ湅');
+          showToast('文件上传失败，消息已发送但附件暂不可查看');
         }
       }).catch(err => {
         console.error('Background upload error:', err);
@@ -1489,7 +1494,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         // Web fallback using getDisplayMedia
         if (navigator.mediaDevices && (navigator.mediaDevices as any).getDisplayMedia) {
           const stream = await (navigator.mediaDevices as any).getDisplayMedia({ video: true });
-          showToast('妗岄潰鍒嗕韩宸插紑鍚?(浠呴瑙?', 'success' as any);
+          showToast('桌面共享已开启（仅预览）', 'success' as any);
           // Stop immediately as it is just a demo for now without real RTC signaling
           stream.getTracks().forEach((track: any) => track.stop());
         } else {
@@ -1598,11 +1603,11 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     });
   }, []);
 
-  // 娑堟伅鏇存柊鏃惰嚜鍔ㄦ粴鍔ㄤ笖鏍囪宸茶
+  // 收到新消息后滚动到底部，并将对方消息标记为已读。
   useEffect(() => {
     scrollToBottom();
 
-    // 濡傛灉鏈夊鏂圭殑娑堟伅锛屾爣璁颁负宸茶
+    // 仅处理对方已落库的消息，避免为本地草稿发送已读回执。
     if (messages.length > 0 && !chatLoading) {
       const lastOtherMsg = [...messages].reverse().find(m => m.fromAccountId.toString() !== user?.userId);
       if (lastOtherMsg && lastOtherMsg.msgId > 0) {
@@ -1630,7 +1635,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         />
       )}
 
-      {/* 椤堕儴瀵艰埅鏍?*/}
+      {/* 聊天顶部信息栏：展示会话名称、成员或在线状态与快捷操作。 */}
       <div className="chatroom-header">
         <div className="chatroom-header-left">
           <div
@@ -1643,13 +1648,13 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
             <h2 className="room-name">{getRoomName()}</h2>
             <div className="room-status">
               {isAiAssistantConversation ? (
-                <span>AI 鍦ㄧ嚎 路 鏀寔闂瓟銆乄ebhook銆丮arkdown/Card 鍥炲</span>
+                <span>AI 在线 · 支持问答、Webhook、Markdown/Card 回复</span>
               ) : isGroupConversation(conversation) ? (
-                <span>{conversation.members?.length || 0} 浣嶆垚鍛?路 {getSocketStatusText()}</span>
+                <span>{conversation.members?.length || 0} 位成员 · {getSocketStatusText()}</span>
               ) : (
                 <>
                   <span className={`status-indicator ${isOnline ? 'online' : 'offline'}`}></span>
-                  {isOnline ? '鍦ㄧ嚎' : '绂荤嚎'} 路 {getSocketStatusText()}
+                  {isOnline ? '在线' : '离线'} · {getSocketStatusText()}
                 </>
               )}
             </div>
@@ -1724,7 +1729,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
                   conversation.conversationId,
                   'VIDEO_CALL'
                 )}
-                title="瑙嗛閫氳瘽"
+                title="视频通话"
               >
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                   <polygon points="23 7 16 12 23 17 23 7"></polygon>
@@ -1779,7 +1784,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
 
       {showParticipantPicker && (
         <ParticipantPicker
-          title="鍙戣捣澶氫汉浼氳"
+          title="发起多人会议"
           members={getGroupParticipants()}
           onConfirm={(selectedIds) => startMeetingFromChat(selectedIds)}
           onCancel={() => setShowParticipantPicker(false)}
@@ -2034,7 +2039,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   );
 };
 
-// 鏍规嵁瀛楃涓茬敓鎴愰鑹茬殑杈呭姪鍑芥暟
+// 根据会话名称生成稳定的头像背景色，保证同一会话在列表与详情中保持一致。
 const getColorFromString = (str: string): string => {
   const colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
   let hash = 0;

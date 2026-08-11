@@ -8,6 +8,7 @@ services:
       - "${NGINX_TCP_PORT:-8088}:8088"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - /opt/app/releases:/opt/app/releases:ro
       #  tls 证书
       # - ./nginx-tls.conf:/etc/nginx/nginx.conf:ro
       # - ./ssl:/etc/nginx/ssl:ro
@@ -184,6 +185,16 @@ services:
       # - WEBRTC_TURN_SERVER_URL=turn:${COTURN_EXTERNAL_IP:-8.145.54.215}:3478
       - WEBRTC_TURN_SERVER_USERNAME=${COTURN_USER_NAME:-pengpeng}
       - WEBRTC_TURN_SERVER_CREDENTIAL=${COTURN_PASSWORD:-pengpeng123}
+      # Android release metadata served by /api/app-updates/android.
+      - GROUP_APP_UPDATE_ANDROID_ENABLED=${GROUP_APP_UPDATE_ANDROID_ENABLED:-false}
+      - GROUP_APP_UPDATE_ANDROID_VERSION_CODE=${GROUP_APP_UPDATE_ANDROID_VERSION_CODE:-0}
+      - GROUP_APP_UPDATE_ANDROID_VERSION_NAME=${GROUP_APP_UPDATE_ANDROID_VERSION_NAME:-}
+      - GROUP_APP_UPDATE_ANDROID_APK_URL=${GROUP_APP_UPDATE_ANDROID_APK_URL:-}
+      - GROUP_APP_UPDATE_ANDROID_SHA256=${GROUP_APP_UPDATE_ANDROID_SHA256:-}
+      - GROUP_APP_UPDATE_ANDROID_SIZE_BYTES=${GROUP_APP_UPDATE_ANDROID_SIZE_BYTES:-0}
+      - GROUP_APP_UPDATE_ANDROID_CHANGELOG=${GROUP_APP_UPDATE_ANDROID_CHANGELOG:-}
+      - GROUP_APP_UPDATE_ANDROID_FORCE_UPDATE=${GROUP_APP_UPDATE_ANDROID_FORCE_UPDATE:-false}
+      - GROUP_APP_UPDATE_ANDROID_MIN_SUPPORTED_VERSION_CODE=${GROUP_APP_UPDATE_ANDROID_MIN_SUPPORTED_VERSION_CODE:-0}
     volumes:
       - ./logs/app:/app/logs
       - ./uploads:/app/uploads

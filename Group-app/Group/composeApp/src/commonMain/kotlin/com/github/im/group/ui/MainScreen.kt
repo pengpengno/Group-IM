@@ -23,9 +23,11 @@ import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Contacts
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.Contacts
+import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -75,6 +77,7 @@ import com.github.im.group.manager.LoginStateManager
 import com.github.im.group.ui.chat.ChatUI
 import com.github.im.group.ui.chat.GlobalAudioBar
 import com.github.im.group.ui.contacts.ContactsUI
+import com.github.im.group.ui.workbench.WorkbenchUI
 import com.github.im.group.ui.profile.ProfileUI
 import com.github.im.group.ui.video.DraggableVideoWindow
 import com.github.im.group.viewmodel.ChatViewModel
@@ -137,6 +140,7 @@ fun ChatMainScreen(
     
     val bottomNavItems = listOf(
         BottomNavItem("消息", Icons.AutoMirrored.Outlined.Chat, Icons.AutoMirrored.Filled.Chat),
+        BottomNavItem("工作台", Icons.Outlined.Dashboard, Icons.Filled.Dashboard),
         BottomNavItem("联系人", Icons.Outlined.Contacts, Icons.Filled.Contacts),
         BottomNavItem("我的", Icons.Outlined.Person, Icons.Filled.Person)
     )
@@ -218,7 +222,8 @@ fun ChatMainScreen(
             is LoginState.AuthenticationFailed -> if ((loginState as LoginState.AuthenticationFailed).isNetworkError) "网络异常" else displayTitle
             else -> displayTitle
         }
-        1 -> "联系人"
+        1 -> "工作台"
+        2 -> "联系人"
         else -> "个人中心"
     }
     
@@ -481,8 +486,14 @@ fun ChatMainScreen(
                             }
                             when (selectedItem) {
                                 0 -> ChatUI(navHostController = navHostController)
-                                1 -> ContactsUI(navHostController = navHostController)
-                                2 -> ProfileUI(navHostController = navHostController)
+                                1 -> WorkbenchUI(
+                                    onOpenChats = { selectedItem = 0 },
+                                    onOpenContacts = { selectedItem = 2 },
+                                    onOpenMeetings = { navHostController.navigate(Meetings) },
+                                    onOpenSettings = { navHostController.navigate(Settings) }
+                                )
+                                2 -> ContactsUI(navHostController = navHostController)
+                                3 -> ProfileUI(navHostController = navHostController)
                             }
                         }
                         

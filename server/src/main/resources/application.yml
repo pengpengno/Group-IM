@@ -88,6 +88,18 @@ tcp:
 
 # 系统配置（统一在 group 前缀下）
 group:
+  app-update:
+    android:
+      # Release automation must set these values together. The endpoint stays disabled by default.
+      enabled: ${GROUP_APP_UPDATE_ANDROID_ENABLED:false}
+      version-code: ${GROUP_APP_UPDATE_ANDROID_VERSION_CODE:0}
+      version-name: ${GROUP_APP_UPDATE_ANDROID_VERSION_NAME:}
+      apk-url: ${GROUP_APP_UPDATE_ANDROID_APK_URL:}
+      sha256: ${GROUP_APP_UPDATE_ANDROID_SHA256:}
+      size-bytes: ${GROUP_APP_UPDATE_ANDROID_SIZE_BYTES:0}
+      changelog: ${GROUP_APP_UPDATE_ANDROID_CHANGELOG:}
+      force-update: ${GROUP_APP_UPDATE_ANDROID_FORCE_UPDATE:false}
+      min-supported-version-code: ${GROUP_APP_UPDATE_ANDROID_MIN_SUPPORTED_VERSION_CODE:0}
   # 文件存储配置
   storage:
     type: local

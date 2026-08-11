@@ -17,4 +17,5 @@
 <paths>
     <files-path name="files" path="."/>
     <external-files-path name="external_files" path="." />
+    <external-path name="app_updates" path="Download/Group/updates/" />
 </paths>

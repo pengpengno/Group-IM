@@ -16,6 +16,8 @@ import com.github.im.group.notification.FirebaseBootstrap
 import com.github.im.group.ui.video.CallNotificationAction
 import com.github.im.group.ui.video.CallNotificationCenter
 import com.github.im.group.ui.video.CallNotificationEvent
+import com.github.im.group.update.AndroidAppUpdateService
+import com.github.im.group.update.AppUpdateService
 import com.google.firebase.messaging.FirebaseMessaging
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.MainScope
@@ -52,6 +54,10 @@ class MainActivity : ComponentActivity() {
         val configManager: ConfigManager = koin.get()
         MainScope().launch {
             configManager.initialize()
+            (koin.get<AppUpdateService>() as? AndroidAppUpdateService)?.apply {
+                refresh()
+                checkForUpdate()
+            }
             // 监听配置变化并更新 ProxyConfig (向下兼容)
             if (GlobalCredentialProvider.storage.getUserInfo() != null) {
                 notificationPermissionHelper.ensureNotificationPermission()

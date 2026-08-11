@@ -62,6 +62,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.github.im.group.config.AppEnvironment
 import com.github.im.group.repository.NetworkSettingsDraft
+import com.github.im.group.update.AppUpdatePhase
+import com.github.im.group.update.AppUpdateUiState
 import com.github.im.group.viewmodel.ChatViewModel
 import com.github.im.group.viewmodel.SettingsViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -192,6 +194,18 @@ fun SettingsUI(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            uiState.appUpdate?.let { updateState ->
+                SettingsSection(title = "App Update") {
+                    AppUpdateSettings(
+                        state = updateState,
+                        onCheck = settingsViewModel::checkForAppUpdate,
+                        onDownloadOrInstall = settingsViewModel::downloadOrInstallUpdate,
+                        onAutoDownloadChanged = settingsViewModel::setAutoDownloadOnWifi
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             SettingsSection(title = "About") {
                 SettingItem(
                     icon = Icons.Default.Info,
@@ -203,9 +217,66 @@ fun SettingsUI(
                 SettingItem(
                     icon = Icons.Default.Update,
                     title = "Current version",
-                    description = "v1.0.5",
+                    description = uiState.appUpdate?.currentVersion?.let { "v$it" } ?: "Unavailable on this platform",
                     onClick = { }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppUpdateSettings(
+    state: AppUpdateUiState,
+    onCheck: () -> Unit,
+    onDownloadOrInstall: () -> Unit,
+    onAutoDownloadChanged: (Boolean) -> Unit
+) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        val update = state.update
+        Text(
+            text = when (state.phase) {
+                AppUpdatePhase.CHECKING -> "Checking for updates…"
+                AppUpdatePhase.AVAILABLE -> update?.let { "Version ${it.versionName} is available" } ?: "No update available"
+                AppUpdatePhase.DOWNLOADING -> "Downloading update in the background"
+                AppUpdatePhase.READY_TO_INSTALL -> "Update is ready to install"
+                AppUpdatePhase.FAILED -> "Update failed"
+                else -> "Current version ${state.currentVersion}"
+            },
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold
+        )
+        update?.changelog?.takeIf { it.isNotBlank() }?.let { changelog ->
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(changelog, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        state.message?.let { message ->
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+        if (state.phase == AppUpdatePhase.DOWNLOADING && state.totalBytes > 0) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                "${state.downloadedBytes / 1024 / 1024} MB / ${state.totalBytes / 1024 / 1024} MB",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Auto-download on Wi‑Fi", style = MaterialTheme.typography.bodyLarge)
+                Text("Downloads are verified before the installer is opened.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked = state.autoDownloadOnWifi, onCheckedChange = onAutoDownloadChanged)
+        }
+        Spacer(modifier = Modifier.height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = onCheck, enabled = state.phase != AppUpdatePhase.CHECKING) { Text("Check now") }
+            if (update != null) {
+                Button(onClick = onDownloadOrInstall, enabled = state.phase != AppUpdatePhase.CHECKING) {
+                    Text(if (state.phase == AppUpdatePhase.READY_TO_INSTALL) "Install update" else "Download")
+                }
             }
         }
     }

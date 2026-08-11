@@ -89,9 +89,21 @@ jobs:
             fi
 
   release:
-    # Create a GitHub Release for tags such as 2.0, 2.0.0, or v2.0.
+    # A tag creates a signed APK, publishes it atomically to /opt/app/releases,
+    # and updates the server-side manifest consumed by Android clients.
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
+    environment: production
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST || secrets.SERVER_IP }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER || 'deploy' }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY || secrets.SERVER_SSH_KEY }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      APP_PUBLIC_BASE_URL: ${{ vars.APP_PUBLIC_BASE_URL }}
+      APP_UPDATE_PUBLIC_BASE_URL: ${{ vars.APP_UPDATE_PUBLIC_BASE_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -111,15 +123,68 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build installable Android APK
+      - name: Validate Android release configuration
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_USER"
+          test -n "$DEPLOY_SSH_KEY"
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          case "$APP_PUBLIC_BASE_URL" in https://*) ;; *) exit 1 ;; esac
+          case "$APP_UPDATE_PUBLIC_BASE_URL" in https://*) ;; *) exit 1 ;; esac
+
+      - name: Restore release keystore
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/group-im-release.p12"
+
+      - name: Build signed Android release APK
         working-directory: Group-app/Group
         env:
           TAG: ${{ github.ref_name }}
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/group-im-release.p12
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
           chmod +x gradlew
-          ./gradlew :composeApp:assembleDebug \
+          ./gradlew :composeApp:assembleRelease \
             -PversionName="${TAG#v}" \
             -PversionCode="${GITHUB_RUN_NUMBER}"
+
+          BUILD_TOOLS_VERSION="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V | tail -1)"
+          APK="$(find composeApp/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$APK" && test -f "$APK"
+          "$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner" verify --print-certs "$APK"
+
+      - name: Prepare APK publication metadata
+        id: apk
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION_NAME="${TAG#v}"
+          APK_FILE="group-im-${VERSION_NAME}.apk"
+          APK="$(find Group-app/Group/composeApp/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$APK" && test -f "$APK"
+          mkdir -p release-upload release-bundle
+          cp "$APK" "release-upload/${APK_FILE}.part"
+          cp "$APK" "release-bundle/$APK_FILE"
+          SHA256="$(sha256sum "$APK" | awk '{print $1}')"
+          SIZE_BYTES="$(stat -c%s "$APK")"
+          UPDATE_URL="${APP_UPDATE_PUBLIC_BASE_URL%/}/$APK_FILE"
+          {
+            echo "version_name=$VERSION_NAME"
+            echo "apk_file=$APK_FILE"
+            echo "sha256=$SHA256"
+            echo "size_bytes=$SIZE_BYTES"
+            echo "update_url=$UPDATE_URL"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Assemble release files
         env:
@@ -128,15 +193,69 @@ jobs:
           set -euo pipefail
           mkdir -p release-bundle
           SERVER_JAR=$(find server/target -maxdepth 1 -type f -name '*.jar' ! -name 'original-*.jar' | head -n 1)
-          APK=$(find Group-app/Group/composeApp/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)
           test -n "$SERVER_JAR" && test -f "$SERVER_JAR"
-          test -n "$APK" && test -f "$APK"
           cp "$SERVER_JAR" "release-bundle/groupim-server-${TAG}.jar"
-          cp "$APK" "release-bundle/groupim-android-${TAG}-debug.apk"
           (
             cd release-bundle
             sha256sum * > SHA256SUMS.txt
           )
+
+      - name: Prepare APK directory on server
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.DEPLOY_SSH_KEY }}
+          script: mkdir -p /opt/app/releases /opt/app/release-upload
+
+      - name: Upload APK atomically
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.DEPLOY_SSH_KEY }}
+          source: release-upload
+          target: /opt/app
+          overwrite: true
+
+      - name: Publish APK and activate update metadata
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          APK_FILE: ${{ steps.apk.outputs.apk_file }}
+          VERSION_NAME: ${{ steps.apk.outputs.version_name }}
+          VERSION_CODE: ${{ github.run_number }}
+          SHA256: ${{ steps.apk.outputs.sha256 }}
+          SIZE_BYTES: ${{ steps.apk.outputs.size_bytes }}
+          UPDATE_URL: ${{ steps.apk.outputs.update_url }}
+          APP_PUBLIC_BASE_URL: ${{ env.APP_PUBLIC_BASE_URL }}
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.DEPLOY_SSH_KEY }}
+          envs: APK_FILE,VERSION_NAME,VERSION_CODE,SHA256,SIZE_BYTES,UPDATE_URL,APP_PUBLIC_BASE_URL
+          script: |
+            set -euo pipefail
+            cd /opt/app
+            test -s "release-upload/${APK_FILE}.part"
+            mv -f "release-upload/${APK_FILE}.part" "releases/${APK_FILE}"
+            touch .env
+            update_env() {
+              sed -i "/^$1=/d" .env
+              printf '%s=%s\n' "$1" "$2" >> .env
+            }
+            update_env GROUP_APP_UPDATE_ANDROID_ENABLED true
+            update_env GROUP_APP_UPDATE_ANDROID_VERSION_CODE "$VERSION_CODE"
+            update_env GROUP_APP_UPDATE_ANDROID_VERSION_NAME "$VERSION_NAME"
+            update_env GROUP_APP_UPDATE_ANDROID_APK_URL "$UPDATE_URL"
+            update_env GROUP_APP_UPDATE_ANDROID_SHA256 "$SHA256"
+            update_env GROUP_APP_UPDATE_ANDROID_SIZE_BYTES "$SIZE_BYTES"
+            update_env GROUP_APP_UPDATE_ANDROID_CHANGELOG "Release ${VERSION_NAME}"
+            if docker compose version >/dev/null 2>&1; then
+              docker compose up -d --no-deps --force-recreate server
+            else
+              docker-compose up -d --no-deps --force-recreate server
+            fi
+            curl --fail --silent --show-error "${APP_PUBLIC_BASE_URL%/}/api/app-updates/android?packageName=com.github.im.group&versionCode=1" > /dev/null
 
       - name: Create GitHub Release and upload artifacts
         env:

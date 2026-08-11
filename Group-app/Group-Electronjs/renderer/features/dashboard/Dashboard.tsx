@@ -13,6 +13,7 @@ import MeetingList from '../chat/MeetingList';
 import ContactsScreen from '../contacts/ContactsScreen';
 import AdminPanel from '../admin/AdminPanel';
 import SettingsScreen from '../settings/SettingsScreen';
+import Workbench from '../workbench/Workbench';
 import { createPrivateChat, setActiveConversation } from '../chat/chatSlice';
 import { authAPI } from '../../services/api/apiClient';
 import { requestAndSyncBrowserNotifications } from '../../services/notificationEndpointService';
@@ -454,6 +455,19 @@ const Dashboard: React.FC = () => {
                         <span>Chats</span>
                     </div>
                     <div
+                        className={`nav-item ${activeTab === 'workbench' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('workbench')}
+                        title={isSidebarCollapsed ? '工作台' : ''}
+                    >
+                        <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+                            <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+                            <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+                            <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+                        </svg>
+                        <span>工作台</span>
+                    </div>
+                    <div
                         className={`nav-item ${activeTab === 'meetings' ? 'active' : ''}`}
                         onClick={() => setActiveTab('meetings')}
                         title={isSidebarCollapsed ? 'Meetings' : ''}
@@ -646,6 +660,13 @@ const Dashboard: React.FC = () => {
                                 )}
                             </div>
                         </div>
+                    )}
+
+                    {activeTab === 'workbench' && (
+                        <Workbench
+                            userName={user?.username}
+                            onNavigate={setActiveTab}
+                        />
                     )}
 
                     {activeTab === 'meetings' && (

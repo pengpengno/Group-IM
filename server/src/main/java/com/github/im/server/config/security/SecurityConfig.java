@@ -100,6 +100,7 @@ public class SecurityConfig  {
                                 "/api/users/import",
                                 "/api/users/login",
                                 "/api/auth/logout",
+                                "/api/app-updates/android",
                                 "/api/mcp/**",
                                 "/mcp/**",
                                 "/static/**",

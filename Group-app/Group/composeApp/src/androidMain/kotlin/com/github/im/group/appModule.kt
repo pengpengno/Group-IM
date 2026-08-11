@@ -49,6 +49,8 @@ import com.github.im.group.viewmodel.MeetingsViewModel
 import com.github.im.group.viewmodel.SettingsViewModel
 import com.github.im.group.viewmodel.UserViewModel
 import com.github.im.group.viewmodel.VoiceViewModel
+import com.github.im.group.update.AndroidAppUpdateService
+import com.github.im.group.update.AppUpdateService
 import okio.FileSystem
 import okio.Path.Companion.toPath
 import org.koin.android.ext.koin.androidContext
@@ -70,6 +72,7 @@ val appmodule = module {
     single { AndroidMeetingSignalingClient() }
     single<WebRTCManager> { AndroidWebRTCManager(androidContext(), get()) }
     single { AndroidPushEndpointRegistrar(androidContext()) }
+    single<AppUpdateService> { AndroidAppUpdateService(androidContext()) }
     single<NotificationPreferenceStore> { AndroidNotificationPreferenceStore(androidContext()) }
     single { SettingsRepository(get(), get()) }
     single { UserRepository(get()) }
@@ -208,6 +211,6 @@ val appmodule = module {
     }
 
     viewModel {
-        SettingsViewModel(get())
+        SettingsViewModel(get(), getOrNull())
     }
 }

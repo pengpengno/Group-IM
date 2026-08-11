@@ -7,6 +7,8 @@ import com.github.im.group.manager.MessageNotificationPreferences
 import com.github.im.group.repository.LocalNetworkSettings
 import com.github.im.group.repository.NetworkSettingsDraft
 import com.github.im.group.repository.SettingsRepository
+import com.github.im.group.update.AppUpdateService
+import com.github.im.group.update.AppUpdateUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,11 +27,13 @@ data class SettingsUiState(
     ),
     val networkDraft: NetworkSettingsDraft = NetworkSettingsDraft(),
     val isSavingNetwork: Boolean = false,
-    val isNetworkDirty: Boolean = false
+    val isNetworkDirty: Boolean = false,
+    val appUpdate: AppUpdateUiState? = null
 )
 
 class SettingsViewModel(
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val appUpdateService: AppUpdateService? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -47,6 +51,13 @@ class SettingsViewModel(
                         snapshot.network.toDraft()
                     }
                 )
+            }
+        }
+        appUpdateService?.let { service ->
+            viewModelScope.launch {
+                service.state.collect { update ->
+                    _uiState.value = _uiState.value.copy(appUpdate = update)
+                }
             }
         }
     }
@@ -117,6 +128,10 @@ class SettingsViewModel(
             )
         }
     }
+
+    fun checkForAppUpdate() = appUpdateService?.checkForUpdate()
+    fun downloadOrInstallUpdate() = appUpdateService?.downloadOrInstall()
+    fun setAutoDownloadOnWifi(enabled: Boolean) = appUpdateService?.setAutoDownloadOnWifi(enabled)
 
     private fun updateNetworkDraft(transform: NetworkSettingsDraft.() -> NetworkSettingsDraft) {
         val updatedDraft = _uiState.value.networkDraft.transform()
