@@ -60,6 +60,12 @@ android {
         }
     }
 
+    // androidx.lifecycle's lint detector crashes with the project's Kotlin 2.1 analysis API.
+    // Keep lint enabled; disable only the crashing detector until the dependency catches up.
+    lint {
+        disable += "NullSafeMutableLiveData"
+    }
+
     packaging {
         resources {
             excludes += "META-INF/{AL2.0,LGPL2.1}"
