@@ -252,10 +252,28 @@ jobs:
             update_env GROUP_APP_UPDATE_ANDROID_CHANGELOG "Release ${VERSION_NAME}"
             if docker compose version >/dev/null 2>&1; then
               docker compose up -d --no-deps --force-recreate server
+              compose_cmd="docker compose"
             else
               docker-compose up -d --no-deps --force-recreate server
+              compose_cmd="docker-compose"
             fi
-            curl --fail --silent --show-error "${APP_PUBLIC_BASE_URL%/}/api/app-updates/android?packageName=com.github.im.group&versionCode=1" > /dev/null
+
+            update_endpoint="${APP_PUBLIC_BASE_URL%/}/api/app-updates/android?packageName=com.github.im.group&versionCode=1"
+            ready=false
+            for attempt in $(seq 1 30); do
+              if curl --fail --silent --show-error --connect-timeout 3 --max-time 10 "$update_endpoint" > /dev/null; then
+                ready=true
+                break
+              fi
+              echo "Update endpoint is not ready yet (attempt ${attempt}/30); waiting 3 seconds."
+              sleep 3
+            done
+            if [ "$ready" != "true" ]; then
+              echo "Update endpoint did not become ready: $update_endpoint"
+              $compose_cmd ps
+              $compose_cmd logs --tail=200 server
+              exit 1
+            fi
 
       - name: Create GitHub Release and upload artifacts
         env:
