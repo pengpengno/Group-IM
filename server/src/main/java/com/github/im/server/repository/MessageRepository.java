@@ -10,8 +10,10 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface MessageRepository extends JpaRepository<Message, Long> , JpaSpecificationExecutor<Message> {
+    Optional<Message> findByConversation_ConversationIdAndClientMsgId(Long conversationId, String clientMsgId);
 
     @Query("""
         SELECT m FROM Message m 

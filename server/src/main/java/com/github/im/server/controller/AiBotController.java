@@ -8,6 +8,15 @@ import com.github.im.enums.MessageType;
 import com.github.im.server.ai.BotReply;
 import com.github.im.server.ai.MessageRouter;
 import com.github.im.server.config.ai.AiProperties;
+import com.github.im.server.model.User;
+import com.github.im.server.service.BotIdentityService;
+import com.github.im.server.service.MessageService;
+import com.github.im.server.service.ConversationService;
+import com.github.im.server.service.ConversationBotConfigService;
+import com.github.im.server.repository.GroupMemberRepository;
+import com.github.im.server.repository.MessageRepository;
+import com.github.im.conversation.ConversationRes;
+import com.github.im.dto.message.MessagePostRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -22,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -42,22 +52,87 @@ public class AiBotController {
     private final MessageRouter messageRouter;
     private final AiProperties aiProperties;
     private final ObjectMapper objectMapper;
+    private final MessageService messageService;
+    private final BotIdentityService botIdentityService;
+    private final ConversationService conversationService;
+    private final GroupMemberRepository groupMemberRepository;
+    private final ConversationBotConfigService conversationBotConfigService;
+    private final MessageRepository messageRepository;
 
     @Autowired
     public AiBotController(
             @Qualifier("aiMessageRouter") MessageRouter messageRouter,
             AiProperties aiProperties,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            MessageService messageService,
+            BotIdentityService botIdentityService,
+            ConversationService conversationService,
+            GroupMemberRepository groupMemberRepository,
+            ConversationBotConfigService conversationBotConfigService,
+            MessageRepository messageRepository
     ) {
         this.messageRouter = messageRouter;
         this.aiProperties = aiProperties;
         this.objectMapper = objectMapper;
+        this.messageService = messageService;
+        this.botIdentityService = botIdentityService;
+        this.conversationService = conversationService;
+        this.groupMemberRepository = groupMemberRepository;
+        this.conversationBotConfigService = conversationBotConfigService;
+        this.messageRepository = messageRepository;
     }
 
     @PostMapping("/message")
-    public ResponseEntity<BotReply> handleMessage(@RequestBody MessageDTO<?> message) {
+    public ResponseEntity<BotReply> handleMessage(@RequestBody MessageDTO<?> message, @AuthenticationPrincipal User user) {
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if (message.getConversationId() == null || message.getConversationId() <= 0) {
+            throw new IllegalArgumentException("conversationId is required");
+        }
+        if (groupMemberRepository.findByConversationIdAndUserId(message.getConversationId(), user.getUserId()).isEmpty()) {
+            throw new SecurityException("You are not a member of this conversation");
+        }
+        // The authenticated principal is authoritative. Never route tool calls with a client-supplied sender id.
+        message.setFromAccountId(user.getUserId());
+        conversationBotConfigService.requireEnabledForGroup(message.getConversationId());
+        User bot = botIdentityService.assistantFor(user);
+        boolean standaloneAssistantConversation = message.getConversationId() != null && message.getConversationId() > 0
+                && groupMemberRepository.findByConversationIdAndUserId(message.getConversationId(), bot.getUserId()).isPresent();
+        if (standaloneAssistantConversation && messageRepository
+                .findByConversation_ConversationIdAndClientMsgId(message.getConversationId(), message.getClientMsgId()).isEmpty()) {
+            MessagePostRequest userMessage = new MessagePostRequest();
+            userMessage.setConversationId(message.getConversationId());
+            userMessage.setType(MessageType.TEXT);
+            userMessage.setClientMsgId(message.getClientMsgId());
+            userMessage.setContent(message.getContent());
+            messageService.sendMessage(userMessage, user);
+        }
         BotReply reply = messageRouter.route(message);
+        if (message.getConversationId() != null && message.getConversationId() > 0) {
+            MessagePostRequest replyMessage = new MessagePostRequest();
+            replyMessage.setConversationId(message.getConversationId());
+            replyMessage.setType("card".equalsIgnoreCase(reply.getMessageType()) ? MessageType.BOT_CARD : MessageType.TEXT);
+            replyMessage.setClientMsgId("bot-" + message.getClientMsgId());
+            replyMessage.setContent(toChatContent(reply));
+            messageService.sendMessage(replyMessage, bot);
+        }
         return ResponseEntity.ok(reply);
+    }
+
+    /** Returns the durable private conversation used by the standalone assistant entry. */
+    @PostMapping("/conversation")
+    public ResponseEntity<ConversationRes> getOrCreateConversation(@AuthenticationPrincipal User user) {
+        User bot = botIdentityService.assistantFor(user);
+        return ResponseEntity.ok(conversationService.createOrGetPrivateChat(user.getUserId(), bot.getUserId()));
+    }
+
+    private String toChatContent(BotReply reply) {
+        if ("card".equalsIgnoreCase(reply.getMessageType()) && reply.getMetadata() != null) {
+            try { return objectMapper.writeValueAsString(reply.getMetadata()); }
+            catch (Exception ignored) { return reply.getContent(); }
+        }
+        return reply.getContent();
     }
 
     @PostMapping("/webhook/{token}")

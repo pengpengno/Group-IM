@@ -110,6 +110,7 @@ export const conversationAPI = {
 };
 
 export const aiBotAPI = {
+  getConversation: async () => http.post('/api/ai-bot/conversation'),
   sendMessage: async (payload: {
     content: string;
     conversationId: number;
@@ -122,6 +123,27 @@ export const aiBotAPI = {
       status: 'SENT',
       timestamp: new Date().toISOString()
     });
+  }
+};
+
+export const conversationBotAPI = {
+  getConfig: async (conversationId: number) => http.get(`/api/bots/conversations/${conversationId}/config`),
+  updateConfig: async (conversationId: number, payload: { enabled: boolean; promptTemplate: string }) => http.put(`/api/bots/conversations/${conversationId}/config`, payload)
+};
+
+export const groupRoleAPI = {
+  list: async (conversationId: number) => http.get(`/api/groups/${conversationId}/members/roles`),
+  updateRole: async (conversationId: number, userId: string | number, role: 'ADMIN' | 'MEMBER') => http.put(`/api/groups/${conversationId}/members/${userId}/role`, { role }),
+  transferOwner: async (conversationId: number, userId: string | number) => http.put(`/api/groups/${conversationId}/owner`, { userId })
+};
+
+export const automationAPI = {
+  listRules: async () => http.get('/api/automation/rules'),
+  createReplyRule: async (payload: { conversationId: number; contains?: string; replyText: string }) => http.post('/api/automation/rules', payload),
+  setRuleEnabled: async (ruleId: string, enabled: boolean) => http.post(`/api/automation/rules/${ruleId}/enable`, { enabled }),
+  listExecutions: async () => http.get('/api/automation/executions'),
+  decideApproval: async (approvalId: string | number, approved: boolean) => {
+    return http.post(`/api/automation/approvals/${approvalId}/decision`, { approved });
   }
 };
 

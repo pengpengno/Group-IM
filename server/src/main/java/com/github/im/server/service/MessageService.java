@@ -31,6 +31,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -61,6 +62,7 @@ public class MessageService {
     private final RedisMessageRouter redisMessageRouter;
     private final ObjectMapper objectMapper;
     private final ClientEventPublisher clientEventPublisher;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -280,6 +282,9 @@ public class MessageService {
         List<User> members = conversationService.getMembersByGroupId0(conversationId);
         pushToMembers(members, chatMessage.getFromUser().getUserId(), newBaseMessage);
         clientEventPublisher.publishChatMessageCreated(savedMessage, savedMessage.getFromAccountId(), members);
+        applicationEventPublisher.publishEvent(new com.github.im.server.event.MessageCreatedEvent(
+                savedMessage.getMsgId(), conversationId, savedMessage.getFromAccountId().getUserId(),
+                savedMessage.getFromAccountId().getUsername(), savedMessage.getContent()));
 
         return convertMessage(savedMessage);
     }
@@ -340,6 +345,15 @@ public class MessageService {
         try {
             switch (type) {
                 case TEXT:
+                    // Compatibility for messages created by older desktop builds.  Those builds
+                    // could persist a file UUID as TEXT, so the UI had no way to enter its
+                    // attachment renderer and displayed the UUID verbatim.
+                    FileMeta legacyAttachment = resolveLegacyAttachment(message.getContent());
+                    if (legacyAttachment != null) {
+                        dto.setType(resolveAttachmentMessageType(legacyAttachment));
+                        dto.setPayload(legacyAttachment);
+                        return dto;
+                    }
                     dto.setPayload(new DefaultMessagePayLoad(message.getContent()));
                     return dto;
                 case MEETING:
@@ -363,6 +377,26 @@ public class MessageService {
         dto.setPayload(new DefaultMessagePayLoad(message.getContent()));
         return dto;
 
+    }
+
+    /**
+     * A UUID alone is not normally an attachment.  Treat it as one only when it
+     * resolves to a stored file, keeping ordinary UUID text messages unchanged.
+     */
+    private FileMeta resolveLegacyAttachment(String content) {
+        try {
+            return fileStorageService.getFileMeta(UUID.fromString(content));
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private MessageType resolveAttachmentMessageType(FileMeta fileMeta) {
+        String contentType = fileMeta.getContentType() == null ? "" : fileMeta.getContentType().toLowerCase();
+        if (contentType.startsWith("image/")) return MessageType.IMAGE;
+        if (contentType.startsWith("video/")) return MessageType.VIDEO;
+        if (contentType.startsWith("audio/")) return MessageType.VOICE;
+        return MessageType.FILE;
     }
 
     private MeetingMessagePayLoad parseMeetingPayload(String content) {

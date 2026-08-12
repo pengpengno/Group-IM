@@ -9,5 +9,7 @@ public enum MessageType {
     VIDEO,
     IMAGE,
     MEDIA,
-    MEETING
+    MEETING,
+    /** Versioned robot action card JSON stored in Message.content. */
+    BOT_CARD
 }

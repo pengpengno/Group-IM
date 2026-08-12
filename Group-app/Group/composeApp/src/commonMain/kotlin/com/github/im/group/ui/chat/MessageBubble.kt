@@ -161,6 +161,12 @@ fun MessageBubble(
                                     isOwnMessage = isOwnMessage,
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                                 )
+                                MessageType.BOT_CARD -> BotCardMessage(
+                                    rawText = msg.content,
+                                    isOwnMessage = isOwnMessage,
+                                    isStructuredCard = true,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                )
                                 MessageType.VOICE -> VoiceMessageContent(msg, messageViewModel, isOwnMessage)
                                 MessageType.MEETING -> {
                                     val payload = extractMeetingPayload(msg)

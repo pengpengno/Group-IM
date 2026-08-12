@@ -53,7 +53,6 @@ import androidx.navigation.compose.rememberNavController
 import com.github.im.group.api.ConversationType
 import com.github.im.group.api.MeetingApi
 import com.github.im.group.api.MeetingCreateRequest
-import com.github.im.group.bot.AI_ASSISTANT_SUBTITLE
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.manager.AppRuntimeState
 import com.github.im.group.model.UserInfo
@@ -97,6 +96,7 @@ fun ChatRoomScreen(
     var conversationId by remember { mutableStateOf<Long?>(null) }
     var remoteUser by remember { mutableStateOf<UserInfo?>(chatUiState.friend) }
     var showUserSelector by remember { mutableStateOf(false) }
+    var showAutomationCenter by remember { mutableStateOf(false) }
 
     val isBotConversation = chatUiState.isBotSession
     val isGroupConversation = chatUiState.conversation?.conversationType == ConversationType.GROUP
@@ -254,6 +254,8 @@ fun ChatRoomScreen(
                         showVideoCall = true
                     }
                 },
+                onOpenAutomation = { showAutomationCenter = true },
+                showAutomationAction = chatUiState.canManageGroupAutomation,
                 showVideoCallAction = !chatUiState.isBotSession
             )
         }
@@ -515,6 +517,10 @@ fun ChatRoomScreen(
                 }
             }
         }
+    }
+
+    if (showAutomationCenter && conversationId != null) {
+        AutomationCenterDialog(conversationId = conversationId!!, onDismiss = { showAutomationCenter = false })
     }
 
     if (showVideoCall && remoteUser != null) {

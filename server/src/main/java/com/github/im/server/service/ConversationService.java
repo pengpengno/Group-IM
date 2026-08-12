@@ -12,6 +12,7 @@ import com.github.im.server.mapstruct.ConversationMapper;
 import com.github.im.dto.user.UserInfo;
 import com.github.im.server.repository.GroupMemberRepository;
 import com.github.im.server.repository.UserRepository;
+import com.github.im.server.model.enums.ConversationMemberRole;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -90,6 +91,7 @@ public class ConversationService {
                         .conversation(reference)
                         .user(userRepository.getReferenceById(member.getUserId()))
                         .joinedAt(LocalDateTime.now())
+                        .role(member.getUserId().equals(createUserId) ? ConversationMemberRole.OWNER : ConversationMemberRole.MEMBER)
                         .build())
                 .toList());
         groupMemberRepository.saveAll(groupMembers);
@@ -140,10 +142,12 @@ public class ConversationService {
             ConversationMember conversationMember1 = ConversationMember.builder()
                     .conversation(savedConversation)
                     .user( userRepository.getReferenceById(userId1))
+                    .role(ConversationMemberRole.MEMBER)
                     .build();
             ConversationMember conversationMember2 = ConversationMember.builder()
                     .conversation(savedConversation)
                     .user( userRepository.getReferenceById(userId2))
+                    .role(ConversationMemberRole.MEMBER)
                     .build();
             groupMemberRepository.saveAll(List.of(conversationMember1, conversationMember2));
             // 添加成员

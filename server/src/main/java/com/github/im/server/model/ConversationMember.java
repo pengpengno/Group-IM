@@ -6,6 +6,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.springframework.data.annotation.CreatedDate;
 
 import java.time.LocalDateTime;
+import com.github.im.server.model.enums.ConversationMemberRole;
 
 @Entity
 @Table(name = "conversation_members")
@@ -50,6 +51,10 @@ public class ConversationMember {
      */
     private Long lastReadSequenceId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private ConversationMemberRole role = ConversationMemberRole.MEMBER;
+
 //
 //    @PreUpdate
 //    protected void onUpdate() {
@@ -63,6 +68,7 @@ public class ConversationMember {
         if (this.lastReadSequenceId == null) {
             this.lastReadSequenceId = 0L;
         }
+        if (this.role == null) this.role = ConversationMemberRole.MEMBER;
     }
 }
 

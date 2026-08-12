@@ -101,8 +101,6 @@ public class SecurityConfig  {
                                 "/api/users/login",
                                 "/api/auth/logout",
                                 "/api/app-updates/android",
-                                "/api/mcp/**",
-                                "/mcp/**",
                                 "/static/**",
                                 "/socket.io/**",
                                 "/ws/**",  // 信令服务器

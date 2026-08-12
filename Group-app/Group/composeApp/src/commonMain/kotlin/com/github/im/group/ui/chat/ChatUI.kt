@@ -69,7 +69,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavHostController
-import com.github.im.group.bot.AI_ASSISTANT_CONVERSATION_ID
+import com.github.im.group.api.AiBotApi
+import com.github.im.group.ui.botConversation
 import com.github.im.group.api.FriendshipDTO
 import com.github.im.group.model.UserInfo
 import com.github.im.group.ui.UserAvatar
@@ -274,7 +275,11 @@ fun ChatUI(
                         showCreateGroupDialog = true
                     },
                     onOpenAssistant = {
-                        navHostController.navigate(conversation(AI_ASSISTANT_CONVERSATION_ID))
+                        scope.launch {
+                            runCatching { AiBotApi.getConversation() }
+                                .onSuccess { navHostController.navigate(botConversation(it.conversationId)) }
+                                .onFailure { Napier.e("open durable assistant conversation failed", it) }
+                        }
                     },
                     onMarkAllRead = {
                         chatViewModel.markAllConversationsRead()

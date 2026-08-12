@@ -12,10 +12,6 @@ import com.github.im.group.api.FileApi
 import com.github.im.group.api.FileMeta
 import com.github.im.group.api.MessageDTO
 import com.github.im.group.api.UserApi
-import com.github.im.group.bot.AI_ASSISTANT_CONVERSATION_ID
-import com.github.im.group.bot.aiAssistantUser
-import com.github.im.group.bot.buildAiAssistantConversation
-import com.github.im.group.bot.isAiAssistantConversationId
 import com.github.im.group.db.entities.MessageStatus
 import com.github.im.group.db.entities.MessageType
 import com.github.im.group.manager.ConversationListCoordinator
@@ -69,6 +65,7 @@ data class ChatUiState(
     val messages: List<MessageItem> = emptyList(),
     val isBotSession: Boolean = false,
     val isBotResponding: Boolean = false,
+    val canManageGroupAutomation: Boolean = false,
     val isInitializing: Boolean = false,
     val isRefreshing: Boolean = false,
     val isLoadingHistory: Boolean = false,
@@ -122,6 +119,8 @@ class ChatRoomViewModel(
     val fileDownloadStates: StateFlow<Map<String, FileDownloadState>> = _fileDownloadStates.asStateFlow()
 
     private var activeConversationId: Long? = null
+    private var groupBotEnabled: Boolean = true
+    private var groupBotPromptTemplate: String = ""
     private var activeRoomRequestId: Long = 0L
     private var refreshJob: Job? = null
     private var loadHistoryJob: Job? = null
@@ -174,16 +173,10 @@ class ChatRoomViewModel(
 
         viewModelScope.launch {
             when (room.type) {
-                ChatRoomType.CONVERSATION -> {
-                    if (isAiAssistantConversationId(room.roomId)) {
-                        bindBotConversation(requestId)
-                    } else {
-                        bindExistingConversation(room.roomId, requestId)
-                    }
-                }
+                ChatRoomType.CONVERSATION -> bindExistingConversation(room.roomId, requestId)
 
                 ChatRoomType.CREATE_PRIVATE -> preparePrivateConversation(room.roomId, requestId)
-                ChatRoomType.BOT -> bindBotConversation(requestId)
+                ChatRoomType.BOT -> bindBotConversation(room.roomId, requestId)
             }
         }
     }
@@ -445,7 +438,6 @@ class ChatRoomViewModel(
     }
 
     fun withdrawMessage(message: MessageItem) {
-        if (isAiAssistantConversationId(message.conversationId)) return
         viewModelScope.launch {
             try {
                 ChatApi.withdrawMessage(message.id)
@@ -557,23 +549,35 @@ class ChatRoomViewModel(
     private suspend fun bindExistingConversation(conversationId: Long, requestId: Long) {
         val localConversation = conversationRepository.getLocalConversation(conversationId)
         bindConversation(conversationId, requestId, localConversation)
+        if (uiState.value.conversation?.conversationType == ConversationType.GROUP) {
+            groupBotEnabled = false
+            runCatching { AiBotApi.getGroupBotConfig(conversationId) }.onSuccess { config ->
+                groupBotEnabled = config.enabled; groupBotPromptTemplate = config.promptTemplate
+            }.onFailure { groupBotEnabled = false }
+            val currentUserId = userRepository.getLocalUserInfo()?.userId
+            runCatching { AiBotApi.listGroupRoles(conversationId) }.onSuccess { roles ->
+                val role = roles.firstOrNull { it.userId == currentUserId?.toString() }?.role
+                _uiState.update { it.copy(canManageGroupAutomation = role == "OWNER" || role == "ADMIN") }
+            }
+        } else {
+            _uiState.update { it.copy(canManageGroupAutomation = false) }
+        }
     }
 
-    private suspend fun bindBotConversation(requestId: Long) {
+    private suspend fun bindBotConversation(conversationId: Long, requestId: Long) {
         if (!isRequestActive(requestId)) return
-        val currentUser = userRepository.getLocalUserInfo() ?: return
-        val assistantConversation = buildAiAssistantConversation(currentUser)
+        val assistantConversation = ConversationApi.getConversation(conversationId)
         conversationRepository.saveConversation(assistantConversation)
-        conversationRepository.markConversationActive(AI_ASSISTANT_CONVERSATION_ID)
-        activeConversationId = AI_ASSISTANT_CONVERSATION_ID
-        val savedPosition = conversationRepository.getChatScrollPosition(AI_ASSISTANT_CONVERSATION_ID)
+        conversationRepository.markConversationActive(conversationId)
+        activeConversationId = conversationId
+        val savedPosition = conversationRepository.getChatScrollPosition(conversationId)
         withContext(Dispatchers.Default) {
-            messageStore.loadLocal(AI_ASSISTANT_CONVERSATION_ID, 50)
+            messageStore.loadLocal(conversationId, 50)
         }
         _uiState.update {
             it.copy(
                 conversation = assistantConversation,
-                friend = aiAssistantUser(),
+                friend = assistantConversation.members.firstOrNull { it.userId != userRepository.getLocalUserInfo()?.userId },
                 isBotSession = true,
                 isBotResponding = false,
                 isInitializing = false,
@@ -583,7 +587,7 @@ class ChatRoomViewModel(
             )
         }
         conversationListCoordinator.notifyConversationChanged(
-            conversationId = AI_ASSISTANT_CONVERSATION_ID,
+            conversationId = conversationId,
             moveToTop = false
         )
     }
@@ -592,18 +596,18 @@ class ChatRoomViewModel(
     private fun sendBotText(content: String) {
         viewModelScope.launch {
             val currentUser = userRepository.getLocalUserInfo() ?: return@launch
-            conversationRepository.saveConversation(buildAiAssistantConversation(currentUser))
-            conversationRepository.markConversationActive(AI_ASSISTANT_CONVERSATION_ID)
+            val conversationId = activeConversationId ?: return@launch
+            conversationRepository.markConversationActive(conversationId)
 
             val userMessage = createLocalTextMessage(
-                conversationId = AI_ASSISTANT_CONVERSATION_ID,
+                conversationId = conversationId,
                 sender = currentUser,
                 content = content
             )
             messageStore.saveOrUpdate(userMessage)
             _uiState.update { it.copy(isBotResponding = true, error = null) }
             conversationListCoordinator.notifyConversationChanged(
-                conversationId = AI_ASSISTANT_CONVERSATION_ID,
+                conversationId = conversationId,
                 moveToTop = true
             )
             triggerScrollToLatest()
@@ -611,33 +615,21 @@ class ChatRoomViewModel(
             runCatching {
                 AiBotApi.sendMessage(
                     content = content,
-                    conversationId = AI_ASSISTANT_CONVERSATION_ID,
+                    conversationId = conversationId,
                     fromAccountId = currentUser.userId,
                     clientMsgId = userMessage.clientMsgId
                 )
             }.onSuccess { reply ->
-                val botMessage = createLocalTextMessage(
-                    conversationId = AI_ASSISTANT_CONVERSATION_ID,
-                    sender = aiAssistantUser(),
-                    content = renderBotReplyContent(reply)
-                )
-                messageStore.saveOrUpdate(botMessage)
                 conversationListCoordinator.notifyConversationChanged(
-                    conversationId = AI_ASSISTANT_CONVERSATION_ID,
+                    conversationId = conversationId,
                     moveToTop = true
                 )
                 triggerScrollToLatest()
             }.onFailure { error ->
                 Napier.e("ai assistant reply failed", error)
-                val fallbackMessage = createLocalTextMessage(
-                    conversationId = AI_ASSISTANT_CONVERSATION_ID,
-                    sender = aiAssistantUser(),
-                    content = "AI 助手暂时不可用：${error.message ?: "请稍后重试"}"
-                )
-                messageStore.saveOrUpdate(fallbackMessage)
                 _uiState.update { it.copy(error = error.message ?: "AI 助手暂时不可用") }
                 conversationListCoordinator.notifyConversationChanged(
-                    conversationId = AI_ASSISTANT_CONVERSATION_ID,
+                    conversationId = conversationId,
                     moveToTop = true
                 )
                 triggerScrollToLatest()
@@ -682,7 +674,7 @@ class ChatRoomViewModel(
     private fun shouldTriggerGroupBot(content: String): Boolean {
         val conversation = uiState.value.conversation ?: return false
         if (conversation.conversationType != ConversationType.GROUP) return false
-        return extractMentionPrompt(content).isNotBlank()
+        return groupBotEnabled && extractMentionPrompt(content).isNotBlank()
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -698,18 +690,12 @@ class ChatRoomViewModel(
 
             runCatching {
                 AiBotApi.sendMessage(
-                    content = prompt,
+                    content = if (groupBotPromptTemplate.isBlank()) prompt else "$groupBotPromptTemplate\n\n用户问题：$prompt",
                     conversationId = conversationId,
                     fromAccountId = currentUser.userId,
                     clientMsgId = "group-bot-${Uuid.random()}"
                 )
             }.onSuccess { reply ->
-                val botMessage = createLocalTextMessage(
-                    conversationId = conversationId,
-                    sender = aiAssistantUser(),
-                    content = renderBotReplyContent(reply)
-                )
-                messageStore.saveOrUpdate(botMessage)
                 conversationListCoordinator.notifyConversationChanged(
                     conversationId = conversationId,
                     moveToTop = true
@@ -717,12 +703,6 @@ class ChatRoomViewModel(
                 triggerScrollToLatest()
             }.onFailure { error ->
                 Napier.e("group ai mention reply failed", error)
-                val fallbackMessage = createLocalTextMessage(
-                    conversationId = conversationId,
-                    sender = aiAssistantUser(),
-                    content = "AI 助手暂时无法响应这次 @ 提问：${error.message ?: "请稍后重试"}"
-                )
-                messageStore.saveOrUpdate(fallbackMessage)
                 triggerScrollToLatest()
             }
 

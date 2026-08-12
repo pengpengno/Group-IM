@@ -45,6 +45,7 @@ enum class MessageType {
     VIDEO,
     IMAGE,
     MEETING,
+    BOT_CARD,
     ;
 
     /**

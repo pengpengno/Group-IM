@@ -17,6 +17,7 @@ const Workbench: React.FC<WorkbenchProps> = ({ userName, onNavigate }) => {
     { title: '在线会议', description: '进入会议列表，发起或加入音视频会议', tab: 'meetings', icon: '🎥' },
     { title: '组织通讯录', description: '查找同事并快速开始沟通', tab: 'contacts', icon: '👥' },
     { title: '个人设置', description: '管理通知、账号与客户端偏好', tab: 'settings', icon: '⚙️' }
+    , { title: '自动化规则', description: '配置群内自动回复并查看执行情况', tab: 'automation', icon: '⚡' }
   ];
 
   return (

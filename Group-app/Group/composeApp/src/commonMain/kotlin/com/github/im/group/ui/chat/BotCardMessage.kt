@@ -12,7 +12,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -21,6 +25,8 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.github.im.group.viewmodel.ChatRoomViewModel
+import com.github.im.group.api.AiBotApi
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -33,9 +39,10 @@ private val botCardJson = Json { ignoreUnknownKeys = true }
 fun BotCardMessage(
     rawText: String,
     isOwnMessage: Boolean,
+    isStructuredCard: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val card = remember(rawText) { parseBotCard(rawText) }
+    val card = remember(rawText, isStructuredCard) { parseBotCard(rawText, isStructuredCard) }
     if (card == null) {
         RichTextMessage(rawText = rawText, isOwnMessage = isOwnMessage, modifier = modifier)
         return
@@ -43,6 +50,38 @@ fun BotCardMessage(
 
     val uriHandler = LocalUriHandler.current
     val clipboardManager = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
+    var pending by remember(rawText) { mutableStateOf(false) }
+    var decision by remember(rawText) { mutableStateOf<String?>(null) }
+    val approvalId = card.approvalId ?: card.actions.firstOrNull { it.approvalId.isNotBlank() }?.approvalId
+    if (!approvalId.isNullOrBlank()) {
+        if (decision != null) {
+            Text(if (decision == "APPROVED") "已批准，等待安全执行器处理。" else "已拒绝本次操作。", modifier = modifier.padding(12.dp))
+        } else {
+            AutomationProposalCard(
+                proposal = AutomationProposalUi(card.title.ifBlank { "需确认的自动化操作" }, card.summary),
+                pending = pending,
+                onApprove = {
+                    scope.launch {
+                        pending = true
+                        runCatching { AiBotApi.decideApproval(approvalId, true) }
+                            .onSuccess { decision = it.status }
+                        pending = false
+                    }
+                },
+                onDecline = {
+                    scope.launch {
+                        pending = true
+                        runCatching { AiBotApi.decideApproval(approvalId, false) }
+                            .onSuccess { decision = it.status }
+                        pending = false
+                    }
+                },
+                modifier = modifier
+            )
+        }
+        return
+    }
     val containerColor = if (isOwnMessage) {
         MaterialTheme.colorScheme.primaryContainer
     } else {
@@ -134,14 +173,15 @@ fun BotCardMessage(
     }
 }
 
-private fun parseBotCard(rawText: String): BotCardModel? {
-    if (!rawText.startsWith(ChatRoomViewModel.BOT_CARD_PREFIX)) return null
-    val jsonText = rawText.removePrefix(ChatRoomViewModel.BOT_CARD_PREFIX).trim()
+private fun parseBotCard(rawText: String, isStructuredCard: Boolean): BotCardModel? {
+    if (!isStructuredCard && !rawText.startsWith(ChatRoomViewModel.BOT_CARD_PREFIX)) return null
+    val jsonText = if (isStructuredCard) rawText.trim() else rawText.removePrefix(ChatRoomViewModel.BOT_CARD_PREFIX).trim()
     val json = runCatching { botCardJson.parseToJsonElement(jsonText) }.getOrNull() as? JsonObject ?: return null
 
     return BotCardModel(
         title = json["title"]?.jsonPrimitive?.contentOrNull.orEmpty(),
         summary = json["summary"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+        approvalId = json["approvalId"]?.jsonPrimitive?.contentOrNull,
         sections = (json["sections"] as? JsonArray).orEmpty().mapNotNull { item ->
             val obj = item as? JsonObject ?: return@mapNotNull null
             BotCardSection(
@@ -155,6 +195,7 @@ private fun parseBotCard(rawText: String): BotCardModel? {
                 label = obj["label"]?.jsonPrimitive?.contentOrNull ?: "操作",
                 url = obj["url"]?.jsonPrimitive?.contentOrNull.orEmpty(),
                 value = obj["value"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                , approvalId = obj["approvalId"]?.jsonPrimitive?.contentOrNull.orEmpty()
             )
         }
     )
@@ -163,6 +204,7 @@ private fun parseBotCard(rawText: String): BotCardModel? {
 private data class BotCardModel(
     val title: String,
     val summary: String,
+    val approvalId: String?,
     val sections: List<BotCardSection>,
     val actions: List<BotCardAction>
 )
@@ -175,5 +217,6 @@ private data class BotCardSection(
 private data class BotCardAction(
     val label: String,
     val url: String,
-    val value: String
+    val value: String,
+    val approvalId: String
 )

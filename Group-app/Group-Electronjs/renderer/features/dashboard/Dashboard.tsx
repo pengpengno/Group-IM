@@ -14,14 +14,13 @@ import ContactsScreen from '../contacts/ContactsScreen';
 import AdminPanel from '../admin/AdminPanel';
 import SettingsScreen from '../settings/SettingsScreen';
 import Workbench from '../workbench/Workbench';
+import { AutomationCenter } from '../automation/AutomationCenter';
 import { createPrivateChat, setActiveConversation } from '../chat/chatSlice';
 import { authAPI } from '../../services/api/apiClient';
 import { requestAndSyncBrowserNotifications } from '../../services/notificationEndpointService';
 import './Dashboard.css';
 import { useVideoCall } from '../video-call/useVideoCall';
 import { meetingAPI } from '../../services/api/apiClient';
-
-const AI_ASSISTANT_CONVERSATION_ID = -20260720;
 
 const Dashboard: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
@@ -50,25 +49,8 @@ const Dashboard: React.FC = () => {
     const { state: callState, startMeeting, joinMeeting } = useVideoCall();
 
     const { activeConversationId, conversations } = useSelector((state: RootState) => state.chat);
+    const [automationConversationId, setAutomationConversationId] = useState<number | null>(null);
     const activeConversation = React.useMemo(() => {
-        if (activeConversationId === AI_ASSISTANT_CONVERSATION_ID) {
-            return {
-                conversationId: AI_ASSISTANT_CONVERSATION_ID,
-                conversationType: 'PRIVATE_CHAT' as any,
-                groupName: 'AI 助手',
-                name: 'AI 助手',
-                description: '支持问答、机器人配置、Webhook 与富文本消息',
-                members: [
-                    {
-                        userId: -20260721,
-                        username: 'AI 助手',
-                        email: 'ai-assistant@local.group',
-                        phoneNumber: ''
-                    }
-                ],
-                createAt: new Date().toISOString()
-            };
-        }
         return conversations.find(c => c.conversation.conversationId === activeConversationId)?.conversation;
     }, [activeConversationId, conversations]);
 
@@ -667,6 +649,17 @@ const Dashboard: React.FC = () => {
                             userName={user?.username}
                             onNavigate={setActiveTab}
                         />
+                    )}
+
+                    {activeTab === 'automation' && (
+                        <div className="meetings-view-container" style={{ height: '100%', background: '#f9fafb', padding: 24 }}>
+                            {(() => {
+                                const groups = conversations.map(item => item.conversation).filter(item => item.conversationType === 'GROUP');
+                                const selectedId = automationConversationId ?? groups[0]?.conversationId;
+                                if (!selectedId) return <div className="empty-state"><h3>暂无可配置的群聊</h3><p>请先创建或加入一个群聊。</p></div>;
+                                return <><label style={{ display: 'block', marginBottom: 16 }}>规则作用群聊　<select value={selectedId} onChange={(event) => setAutomationConversationId(Number(event.target.value))}>{groups.map(group => <option key={group.conversationId} value={group.conversationId}>{group.groupName || `群聊 ${group.conversationId}`}</option>)}</select></label><AutomationCenter conversationId={selectedId} onClose={() => setActiveTab('workbench')} /></>;
+                            })()}
+                        </div>
                     )}
 
                     {activeTab === 'meetings' && (

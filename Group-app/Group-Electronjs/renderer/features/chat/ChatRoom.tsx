@@ -4,7 +4,9 @@ import ParticipantPicker from './ParticipantPicker';
 import ScheduleMeetingDialog from './ScheduleMeetingDialog';
 import { RootState, AppDispatch } from '../../store';
 import { addMessage, fetchMessages, sendMessageViaSocket, updateMessageAttachmentState } from './chatSlice';
-import { BASE_URL, aiBotAPI, authAPI, meetingAPI } from '../../services/api/apiClient';
+import { BASE_URL, aiBotAPI, authAPI, automationAPI, conversationBotAPI, groupRoleAPI, meetingAPI } from '../../services/api/apiClient';
+import { AutomationProposalCard } from '../automation/AutomationProposalCard';
+import { AutomationCenter } from '../automation/AutomationCenter';
 import { buildPreviewUrl, getMediaPolicy, loadMediaPolicy } from '../../services/mediaPolicyService';
 import { useAppSelector } from '../../hooks';
 import { getElectronAPI, isElectronEnvironment } from '../../services/api/electronAPI';
@@ -44,23 +46,17 @@ type MessageSenderDisplay = {
   avatarSeed: string;
 };
 
-type AiBotReplyDto = {
-  content?: string;
-  messageType?: string;
-  metadata?: Record<string, any> | null;
-};
-
 type BotCardData = {
   title?: string;
   summary?: string;
+  approvalId?: string;
+  expiresAt?: string;
   sections?: Array<{ title?: string; text?: string }>;
-  actions?: Array<{ label?: string; url?: string; value?: string }>;
+  actions?: Array<{ label?: string; url?: string; value?: string; approvalId?: string }>;
 };
 
 const BOT_CARD_PREFIX = '[[BOT_CARD]]';
 const BOT_TRIGGER_PATTERN = /^@(机器人|AI助手|AI\s*助手)\s*/i;
-const AI_ASSISTANT_CONVERSATION_ID = -20260720;
-const GROUP_BOT_SETTINGS_KEY = 'group.bot.settings';
 
 type GroupBotSettings = {
   enabled: boolean;
@@ -415,13 +411,13 @@ const parseMeetingPayload = (message: MessageDTO): MeetingMessagePayload | null 
   return null;
 };
 
-const parseBotCard = (content: string): BotCardData | null => {
-  if (!content?.startsWith(BOT_CARD_PREFIX)) {
+const parseBotCard = (content: string, explicitCard = false): BotCardData | null => {
+  if (!explicitCard && !content?.startsWith(BOT_CARD_PREFIX)) {
     return null;
   }
 
   try {
-    return JSON.parse(content.slice(BOT_CARD_PREFIX.length)) as BotCardData;
+    return JSON.parse(explicitCard ? content : content.slice(BOT_CARD_PREFIX.length)) as BotCardData;
   } catch {
     return null;
   }
@@ -504,6 +500,36 @@ const renderRichText = (content: string): React.ReactNode => {
 };
 
 const BotCard: React.FC<{ card: BotCardData; isOwnMessage: boolean }> = ({ card, isOwnMessage }) => {
+  const [pending, setPending] = useState(false);
+  const [decision, setDecision] = useState<'approved' | 'declined' | null>(null);
+  const approvalId = card.actions?.find((action) => action.approvalId)?.approvalId ?? card.approvalId;
+
+  const decideApproval = async (approved: boolean) => {
+    if (!approvalId || pending || decision) return;
+    setPending(true);
+    try {
+      await automationAPI.decideApproval(approvalId, approved);
+      setDecision(approved ? 'approved' : 'declined');
+    } catch (error) {
+      console.error('Failed to decide automation approval:', error);
+    } finally {
+      setPending(false);
+    }
+  };
+
+  if (approvalId) {
+    return decision ? (
+      <div className="bot-card-status">{decision === 'approved' ? '已批准，等待安全执行器处理。' : '已拒绝本次操作。'}</div>
+    ) : (
+      <AutomationProposalCard
+        proposal={{ title: card.title || '需确认的自动化操作', summary: card.summary || '', expiresAt: card.expiresAt }}
+        pending={pending}
+        onApprove={() => void decideApproval(true)}
+        onDecline={() => void decideApproval(false)}
+      />
+    );
+  }
+
   return (
     <div className={`bot-card ${isOwnMessage ? 'own' : ''}`}>
       {card.title && <div className="bot-card-title">{card.title}</div>}
@@ -617,7 +643,7 @@ const MessageBubble: React.FC<{
     const getPreviewUrl = (fileId: string, width?: number, quality?: number) =>
       buildPreviewUrl(BASE_URL, fileId, width, quality);
     const type = message.type.toUpperCase();
-    const botCard = parseBotCard(message.content);
+    const botCard = parseBotCard(message.content, String(message.type).toUpperCase() === 'BOT_CARD');
 
     if (botCard) {
       return <BotCard card={botCard} isOwnMessage={isOwnMessage} />;
@@ -793,6 +819,8 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
   const [showParticipantPicker, setShowParticipantPicker] = useState(false);
   const [showScheduleMeeting, setShowScheduleMeeting] = useState(false);
   const [showBotConfig, setShowBotConfig] = useState(false);
+  const [showAutomationCenter, setShowAutomationCenter] = useState(false);
+  const [canManageGroupBots, setCanManageGroupBots] = useState(false);
   const [groupBotSettings, setGroupBotSettings] = useState<GroupBotSettings>(defaultGroupBotSettings);
 
   // Recording State
@@ -817,7 +845,8 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     email: user.email || '',
     phoneNumber: user.phoneNumber || ''
   } : undefined;
-  const isAiAssistantConversation = conversation.conversationId === AI_ASSISTANT_CONVERSATION_ID;
+  const isAiAssistantConversation = (conversation.members || []).some((member: any) => String(member.email || '').endsWith('@local.group')
+      && String(member.username || '').startsWith('ai-assistant-'));
 
   const logChatRoom = (scope: string, details?: Record<string, unknown>) => {
     console.log('[ChatRoom]', {
@@ -868,8 +897,6 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     setToast({ message, type });
   };
 
-  const getGroupBotSettingsStorageKey = () => `${GROUP_BOT_SETTINGS_KEY}.${conversation.conversationId}`;
-
   const shouldTriggerBotReply = (content: string) =>
     isGroupConversation(conversation) &&
     groupBotSettings.enabled &&
@@ -883,33 +910,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
     return trimmed.replace(BOT_TRIGGER_PATTERN, '').trim();
   };
 
-  const toBotRenderableContent = (reply: AiBotReplyDto): string => {
-    if ((reply.messageType || '').toLowerCase() === 'card' && reply.metadata) {
-      return `${BOT_CARD_PREFIX}${JSON.stringify(reply.metadata)}`;
-    }
-    return reply.content?.trim() || '我暂时没有组织出合适的回复。';
-  };
-
-  const appendLocalBotReply = (content: string) => {
-    dispatch(addMessage({
-      msgId: -(Date.now()),
-      conversationId: conversation.conversationId,
-      content,
-      fromAccountId: -20260721,
-      fromAccount: {
-        userId: -20260721,
-        username: 'AI 助手',
-        email: 'ai-assistant@local.group',
-        phoneNumber: ''
-      },
-      type: MessageType.TEXT,
-      timestamp: Date.now(),
-      clientMsgId: `web-bot-${Date.now()}`,
-      sendingStatus: 'success'
-    }));
-  };
-
-  const requestBotReply = async (sourceContent: string) => {
+  const requestBotReply = async (sourceContent: string, sourceClientMsgId: string) => {
     const prompt = extractBotPrompt(sourceContent);
     if (!prompt || !currentUserId) {
       return;
@@ -920,24 +921,24 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       : prompt;
 
     try {
-      const response = await aiBotAPI.sendMessage({
+      await aiBotAPI.sendMessage({
         content: requestContent,
         conversationId: conversation.conversationId,
         fromAccountId: currentUserId,
-        clientMsgId: window.crypto?.randomUUID?.() || `web-ai-${Date.now()}`
+        // Reuse the user message id so a standalone assistant persists that same
+        // message exactly once instead of creating a second local/server copy.
+        clientMsgId: sourceClientMsgId
       });
-      const reply = (response.data?.data || response.data) as AiBotReplyDto;
-      appendLocalBotReply(toBotRenderableContent(reply));
       scrollToBottom();
     } catch (error) {
       console.error('Failed to request bot reply:', error);
-      appendLocalBotReply(isAiAssistantConversation ? 'AI 助手暂时无法响应，请稍后重试。' : 'AI 助手暂时无法响应这次 @ 提问，请稍后重试。');
+      showToast(isAiAssistantConversation ? 'AI 助手暂时无法响应，请稍后重试。' : 'AI 助手暂时无法响应这次 @ 提问，请稍后重试。');
     }
   };
 
-  const saveGroupBotSettings = () => {
+  const saveGroupBotSettings = async () => {
     try {
-      window.localStorage.setItem(getGroupBotSettingsStorageKey(), JSON.stringify(groupBotSettings));
+      await conversationBotAPI.updateConfig(conversation.conversationId, groupBotSettings);
       showToast('群机器人配置已保存', 'success' as any);
       setShowBotConfig(false);
     } catch (error) {
@@ -1052,7 +1053,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
           clientMsgId,
           sendingStatus: 'success'
         }));
-        void requestBotReply(content);
+        void requestBotReply(content, clientMsgId);
         scrollToBottom();
         return;
       }
@@ -1066,7 +1067,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       }));
 
       if (shouldTriggerBotReply(content)) {
-        void requestBotReply(content);
+        void requestBotReply(content, clientMsgId);
       }
 
       scrollToBottom();
@@ -1574,18 +1575,23 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
       return;
     }
 
-    try {
-      const saved = window.localStorage.getItem(getGroupBotSettingsStorageKey());
-      if (saved) {
-        setGroupBotSettings({ ...defaultGroupBotSettings, ...JSON.parse(saved) });
-      } else {
-        setGroupBotSettings(defaultGroupBotSettings);
-      }
-    } catch (error) {
-      console.error('Failed to load group bot settings:', error);
-      setGroupBotSettings(defaultGroupBotSettings);
-    }
+    let active = true;
+    void conversationBotAPI.getConfig(conversation.conversationId)
+      .then((response) => { if (active) setGroupBotSettings({ ...defaultGroupBotSettings, ...(response.data?.data || response.data) }); })
+      .catch((error) => { console.error('Failed to load group bot settings:', error); if (active) setGroupBotSettings(defaultGroupBotSettings); });
+    return () => { active = false; };
   }, [conversation.conversationId]);
+
+  useEffect(() => {
+    if (!isGroupConversation(conversation) || !currentUserId) { setCanManageGroupBots(false); return; }
+    let active = true;
+    void groupRoleAPI.list(conversation.conversationId).then((response) => {
+      const roles = response.data?.data || response.data || [];
+      const current = roles.find((item: any) => String(item.userId) === String(currentUserId));
+      if (active) setCanManageGroupBots(['OWNER', 'ADMIN'].includes(current?.role));
+    }).catch(() => { if (active) setCanManageGroupBots(false); });
+    return () => { active = false; };
+  }, [conversation.conversationId, currentUserId]);
 
   useEffect(() => {
     void loadMediaPolicy();
@@ -1662,7 +1668,12 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
         </div>
 
         <div className="chatroom-header-actions">
-          {isGroupConversation(conversation) && (
+          {isGroupConversation(conversation) && canManageGroupBots && (
+            <button className="action-icon-btn" onClick={() => setShowAutomationCenter(true)} title="自动化中心" aria-label="自动化中心">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16M4 12h10M4 17h16" /><path d="m16 10 3 2-3 2" /></svg>
+            </button>
+          )}
+          {isGroupConversation(conversation) && canManageGroupBots && (
             <button
               className="action-icon-btn"
               onClick={() => setShowBotConfig(true)}
@@ -1844,9 +1855,15 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ conversation, onVideoCall, onStartM
             </div>
             <div className="modal-footer">
               <button className="btn-secondary" onClick={() => setShowBotConfig(false)}>取消</button>
-              <button className="btn-primary" onClick={saveGroupBotSettings}>保存配置</button>
+              <button className="btn-primary" onClick={() => void saveGroupBotSettings()}>保存配置</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {showAutomationCenter && isGroupConversation(conversation) && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="自动化中心">
+          <div className="modal-content bot-config-modal"><div className="modal-body bot-config-body"><AutomationCenter conversationId={conversation.conversationId} onClose={() => setShowAutomationCenter(false)} /></div></div>
         </div>
       )}
 

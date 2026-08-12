@@ -1,7 +1,6 @@
 package com.github.im.group.viewmodel
 
-import com.github.im.group.bot.buildAiAssistantConversation
-import com.github.im.group.bot.isAiAssistantConversation
+import com.github.im.group.api.AiBotApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.im.group.api.ChatApi
@@ -344,6 +343,7 @@ class ChatViewModel(
             MessageType.VIDEO -> "[视频]"
             MessageType.IMAGE -> "[图片]"
             MessageType.MEETING -> "[会议]"
+            MessageType.BOT_CARD -> "[机器人卡片]"
         }
     }
 
@@ -528,22 +528,12 @@ class ChatViewModel(
     }
 
     private suspend fun ensureAssistantConversation() {
-        val currentUser = userRepository.getLocalUserInfo() ?: return
-        conversationRepository.saveConversation(buildAiAssistantConversation(currentUser))
+        runCatching { AiBotApi.getConversation() }.onSuccess { conversationRepository.saveConversation(it) }
     }
 
     private suspend fun includeAssistantConversation(
         items: List<ConversationDisplayState>
     ): List<ConversationDisplayState> {
-        val currentUser = userRepository.getLocalUserInfo()
-        val assistantConversation = buildAiAssistantConversation(currentUser)
-        val assistantState = createConversationDisplayState(
-            conversation = assistantConversation,
-            currentUserId = activeUserId ?: currentUser?.userId ?: 0L,
-            preference = conversationRepository.getConversationUiPreference(assistantConversation.conversationId)
-        )
-        return sortConversations(
-            items.filterNot { it.conversation.isAiAssistantConversation() } + assistantState
-        )
+        return sortConversations(items)
     }
 }

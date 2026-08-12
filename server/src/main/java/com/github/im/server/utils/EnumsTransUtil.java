@@ -42,6 +42,8 @@ public class EnumsTransUtil {
                 return com.github.im.common.connect.model.proto.Chat.MessageType.VOICE;
             case MEETING:
                 return com.github.im.common.connect.model.proto.Chat.MessageType.MEETING;
+            case BOT_CARD:
+                return com.github.im.common.connect.model.proto.Chat.MessageType.BOT_CARD;
             default:
                 // 默认转换为文本消息类型
                 return com.github.im.common.connect.model.proto.Chat.MessageType.TEXT;
@@ -116,6 +118,8 @@ public class EnumsTransUtil {
                 return MessageType.IMAGE;
             case VOICE:
                 return MessageType.VOICE;
+            case BOT_CARD:
+                return MessageType.BOT_CARD;
             // 对于未处理的消息类型，默认为TEXT，确保总是有返回值
             default:
                 return MessageType.TEXT;

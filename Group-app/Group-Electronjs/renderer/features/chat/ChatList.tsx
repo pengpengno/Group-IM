@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { fetchConversations, setActiveConversation, createGroupConversation, addConversationMembers } from './chatSlice';
 import { fetchOrgStructure } from '../contacts/contactsSlice';
-import { authAPI } from '../../services/api/apiClient';
+import { aiBotAPI, authAPI } from '../../services/api/apiClient';
 import { ConversationDisplayState, ApiUser, OrgTreeNode, ConversationRes } from '../../types';
 import './ChatList.css';
 
@@ -12,7 +12,6 @@ interface ChatListProps {
 }
 
 type GroupModalMode = 'create' | 'add-members' | null;
-const AI_ASSISTANT_CONVERSATION_ID = -20260720;
 
 const flattenUsers = (nodes: OrgTreeNode[]): ApiUser[] => {
   const users: ApiUser[] = [];
@@ -151,6 +150,17 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
     dispatch(setActiveConversation(id));
   };
 
+  const openAssistant = async () => {
+    try {
+      const response = await aiBotAPI.getConversation();
+      const conversation = (response.data?.data || response.data) as ConversationRes;
+      dispatch(fetchConversations(String(user?.userId || '')));
+      dispatch(setActiveConversation(conversation.conversationId));
+    } catch (error) {
+      console.error('Failed to open durable AI assistant conversation', error);
+    }
+  };
+
   const openGroupModal = async (mode: Exclude<GroupModalMode, null>) => {
     setGroupModalMode(mode);
     setSelectedMemberIds([]);
@@ -274,8 +284,8 @@ const ChatList: React.FC<ChatListProps> = ({ onVideoCallStart }) => {
 
         <div className="conversations-scroll">
           <div
-            className={`chat-item-premium ai-assistant-entry ${activeConversationId === AI_ASSISTANT_CONVERSATION_ID ? 'active' : ''}`}
-            onClick={() => handleSelectConversation(AI_ASSISTANT_CONVERSATION_ID)}
+            className="chat-item-premium ai-assistant-entry"
+            onClick={() => void openAssistant()}
           >
             <div className="chat-item-avatar ai-assistant-avatar">AI</div>
             <div className="chat-item-info">
