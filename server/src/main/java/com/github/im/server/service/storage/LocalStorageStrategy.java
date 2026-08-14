@@ -8,6 +8,7 @@ import org.springframework.util.FileSystemUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -76,7 +77,12 @@ public class LocalStorageStrategy implements StorageStrategy {
         Path finalPath = baseDir.resolve(relative).normalize();
         Files.createDirectories(finalPath.getParent());
 
-        Path sessionDir = chunkTempDir.resolve(fileHash).normalize();
+        // Chunks are written under the reserved file id, not the content hash.
+        // Using the same key here is essential for an interrupted upload to resume.
+        Path sessionDir = chunkTempDir.resolve(clientId.toString()).normalize();
+        if (!Files.isDirectory(sessionDir)) {
+            throw new FileNotFoundException("Upload session does not exist: " + clientId);
+        }
         try (var out = Files.newOutputStream(finalPath, StandardOpenOption.CREATE)) {
             Files.list(sessionDir)
                     .filter(p -> p.getFileName().toString().endsWith(".part"))
@@ -94,6 +100,11 @@ public class LocalStorageStrategy implements StorageStrategy {
         String hash;
         try (InputStream is = Files.newInputStream(finalPath)) {
             hash = calculateFileHash(is);
+        }
+
+        if (!hash.equalsIgnoreCase(fileHash)) {
+            Files.deleteIfExists(finalPath);
+            throw new IOException("Merged file hash verification failed");
         }
 
         // 清理临时分片
