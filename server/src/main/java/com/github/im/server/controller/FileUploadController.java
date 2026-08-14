@@ -93,8 +93,11 @@ public class FileUploadController {
      */
     @GetMapping("/upload/check")
     @SneakyThrows
-    public ResponseEntity<ChunkCheckResponse> check(@RequestParam("fileHash") String fileHash) {
-        List<Integer> uploadedChunks = fileStorageService.getUploadedChunks(fileHash);
+    public ResponseEntity<ChunkCheckResponse> check(@RequestParam("fileHash") String fileHash,
+                                                    @RequestParam(value = "fileId", required = false) UUID fileId) {
+        List<Integer> uploadedChunks = fileId == null
+                ? fileStorageService.getUploadedChunks(fileHash)
+                : fileStorageService.getUploadedChunks(fileId);
         return ResponseEntity.ok(new ChunkCheckResponse(fileHash, uploadedChunks));
     }
 

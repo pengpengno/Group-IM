@@ -16,7 +16,7 @@ import SettingsScreen from '../settings/SettingsScreen';
 import Workbench from '../workbench/Workbench';
 import { AutomationCenter } from '../automation/AutomationCenter';
 import { createPrivateChat, setActiveConversation } from '../chat/chatSlice';
-import { authAPI } from '../../services/api/apiClient';
+import { authAPI, automationAPI } from '../../services/api/apiClient';
 import { requestAndSyncBrowserNotifications } from '../../services/notificationEndpointService';
 import './Dashboard.css';
 import { useVideoCall } from '../video-call/useVideoCall';
@@ -50,11 +50,18 @@ const Dashboard: React.FC = () => {
 
     const { activeConversationId, conversations } = useSelector((state: RootState) => state.chat);
     const [automationConversationId, setAutomationConversationId] = useState<number | null>(null);
+    const [manageableAutomationGroups, setManageableAutomationGroups] = useState<Array<{ conversationId: string; groupName?: string }>>([]);
     const activeConversation = React.useMemo(() => {
         return conversations.find(c => c.conversation.conversationId === activeConversationId)?.conversation;
     }, [activeConversationId, conversations]);
 
     const electronAPI = getElectronAPI();
+
+    useEffect(() => {
+        void automationAPI.listManageableConversations()
+            .then(response => setManageableAutomationGroups(response.data?.data || response.data || []))
+            .catch(() => setManageableAutomationGroups([]));
+    }, [user?.userId]);
 
     const handleLogout = () => {
         dispatch(logout());
@@ -654,10 +661,10 @@ const Dashboard: React.FC = () => {
                     {activeTab === 'automation' && (
                         <div className="meetings-view-container" style={{ height: '100%', background: '#f9fafb', padding: 24 }}>
                             {(() => {
-                                const groups = conversations.map(item => item.conversation).filter(item => item.conversationType === 'GROUP');
+                                const groups = manageableAutomationGroups;
                                 const selectedId = automationConversationId ?? groups[0]?.conversationId;
                                 if (!selectedId) return <div className="empty-state"><h3>暂无可配置的群聊</h3><p>请先创建或加入一个群聊。</p></div>;
-                                return <><label style={{ display: 'block', marginBottom: 16 }}>规则作用群聊　<select value={selectedId} onChange={(event) => setAutomationConversationId(Number(event.target.value))}>{groups.map(group => <option key={group.conversationId} value={group.conversationId}>{group.groupName || `群聊 ${group.conversationId}`}</option>)}</select></label><AutomationCenter conversationId={selectedId} onClose={() => setActiveTab('workbench')} /></>;
+                                return <><label style={{ display: 'block', marginBottom: 16 }}>规则作用群聊　<select value={selectedId} onChange={(event) => setAutomationConversationId(Number(event.target.value))}>{groups.map(group => <option key={group.conversationId} value={group.conversationId}>{group.groupName || `群聊 ${group.conversationId}`}</option>)}</select></label><AutomationCenter conversationId={Number(selectedId)} onClose={() => setActiveTab('workbench')} /></>;
                             })()}
                         </div>
                     )}

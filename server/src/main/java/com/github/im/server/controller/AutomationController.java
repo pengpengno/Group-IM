@@ -8,6 +8,10 @@ import com.github.im.server.service.AutomationRuleService;
 import com.github.im.server.model.AutomationRule;
 import com.github.im.server.model.AutomationExecution;
 import com.github.im.server.repository.AutomationExecutionRepository;
+import com.github.im.server.repository.GroupMemberRepository;
+import com.github.im.server.model.ConversationMember;
+import com.github.im.server.model.enums.ConversationMemberRole;
+import com.github.im.enums.ConversationType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,6 +28,17 @@ public class AutomationController {
     private final AutomationApprovalService approvalService;
     private final AutomationRuleService ruleService;
     private final AutomationExecutionRepository executionRepository;
+    private final GroupMemberRepository memberRepository;
+
+    /** Only returns groups where the current actor can manage automation. */
+    @GetMapping("/manageable-conversations")
+    public ResponseEntity<List<ManageableConversationResponse>> manageableConversations(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(memberRepository.findByUserId(user.getUserId()).stream()
+                .filter(member -> member.getConversation().getConversationType() == ConversationType.GROUP)
+                .filter(member -> member.getRole() == ConversationMemberRole.OWNER || member.getRole() == ConversationMemberRole.ADMIN)
+                .map(this::toManageableConversation)
+                .toList());
+    }
 
     @PostMapping("/rules")
     public ResponseEntity<RuleResponse> createRule(@RequestBody CreateReplyRuleRequest request, @AuthenticationPrincipal User user) {
@@ -101,4 +116,8 @@ public class AutomationController {
                 execution.getStatus().name(), execution.getResultSummary(), execution.getCreatedAt());
     }
     public record ExecutionResponse(String executionId, String actionType, String summary, String status, String resultSummary, LocalDateTime createdAt) { }
+    private ManageableConversationResponse toManageableConversation(ConversationMember member) {
+        return new ManageableConversationResponse(String.valueOf(member.getConversation().getConversationId()), member.getConversation().getGroupName());
+    }
+    public record ManageableConversationResponse(String conversationId, String groupName) { }
 }

@@ -177,6 +177,15 @@ public class FileStorageService {
     @SneakyThrows
     public List<Integer> getUploadedChunks(String fileHash) throws IOException {
         Path sessionDir = chunkTempDir.resolve(fileHash).normalize();
+        return listUploadedChunks(sessionDir);
+    }
+
+    /** Upload chunks are stored by fileId; use this overload for resumable clients. */
+    public List<Integer> getUploadedChunks(UUID fileId) throws IOException {
+        return listUploadedChunks(chunkTempDir.resolve(fileId.toString()).normalize());
+    }
+
+    private List<Integer> listUploadedChunks(Path sessionDir) throws IOException {
         if (!Files.exists(sessionDir)) {
             return List.of();
         }

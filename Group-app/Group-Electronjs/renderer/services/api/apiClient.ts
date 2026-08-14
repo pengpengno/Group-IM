@@ -138,6 +138,7 @@ export const groupRoleAPI = {
 };
 
 export const automationAPI = {
+  listManageableConversations: async () => http.get('/api/automation/manageable-conversations'),
   listRules: async () => http.get('/api/automation/rules'),
   createReplyRule: async (payload: { conversationId: number; contains?: string; replyText: string }) => http.post('/api/automation/rules', payload),
   setRuleEnabled: async (ruleId: string, enabled: boolean) => http.post(`/api/automation/rules/${ruleId}/enable`, { enabled }),
