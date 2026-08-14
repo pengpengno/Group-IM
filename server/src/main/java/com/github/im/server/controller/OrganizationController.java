@@ -6,6 +6,7 @@ import com.github.im.server.exception.BusinessException;
 import com.github.im.server.model.User;
 import com.github.im.server.service.OrganizationService;
 import com.github.im.server.service.CompanyService;
+import com.github.im.server.service.SafeTenantSchemaSyncService;
 import com.github.im.server.web.ApiResponse;
 import com.github.im.server.web.ResponseUtil;
 import jakarta.validation.Valid;
@@ -36,6 +37,8 @@ public class OrganizationController {
     
     @Autowired
     private CompanyService companyService;
+    @Autowired
+    private SafeTenantSchemaSyncService safeTenantSchemaSyncService;
 //
 //    /**
 //     * 获取组织架构
@@ -223,6 +226,28 @@ public class OrganizationController {
             log.error("Schema同步失败", e);
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR.value(), "Schema同步失败: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/company/schema-sync/status")
+    public ResponseEntity<ApiResponse<Object>> schemaSyncStatus(@RequestParam(required = false) List<Long> companyIds,
+                                                                  @AuthenticationPrincipal User user) {
+        if (!isAdminUser(user)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "无权限"));
+        }
+        return ResponseUtil.success(safeTenantSchemaSyncService.status(companyIds));
+    }
+
+    @PostMapping("/company/schema-sync/apply")
+    public ResponseEntity<ApiResponse<Object>> applySafeSchemaSync(@RequestBody(required = false) List<Long> companyIds,
+                                                                     @AuthenticationPrincipal User user) {
+        if (!isAdminUser(user)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(HttpStatus.FORBIDDEN.value(), "无权限"));
+        }
+        try {
+            return ResponseUtil.success(safeTenantSchemaSyncService.sync(companyIds));
+        } catch (BusinessException exception) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(HttpStatus.CONFLICT.value(), exception.getMessage()));
         }
     }
     

@@ -178,6 +178,12 @@ export const orgAPI = {
   // POST /api/organization/company/sync-schema
   syncSchema: async (companyIds?: number[]) => {
     return http.post('/api/organization/company/sync-schema', companyIds);
+  },
+  getSchemaSyncStatus: async (companyIds?: number[]) => {
+    return http.get('/api/organization/company/schema-sync/status', { params: companyIds?.length ? { companyIds } : undefined });
+  },
+  applySafeSchemaSync: async (companyIds?: number[]) => {
+    return http.post('/api/organization/company/schema-sync/apply', companyIds);
   }
 };
 

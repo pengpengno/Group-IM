@@ -4,9 +4,10 @@ import { orgAPI, authAPI } from '../../services/api/apiClient';
 import { RootState } from '../../store';
 import { CompanyDTO } from '../../types';
 import './AdminPanel.css';
+import SchemaMigrationConsole from './SchemaMigrationConsole';
 
 const AdminPanel: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'tenants' | 'users' | 'add-user'>('tenants');
+  const [activeTab, setActiveTab] = useState<'tenants' | 'users' | 'add-user' | 'schema'>('tenants');
   const [companies, setCompanies] = useState<CompanyDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -174,6 +175,18 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const submitSchemaSync = async (all: boolean, ids?: number[]) => {
+    setLoading(true);
+    try {
+      const response = await orgAPI.applySafeSchemaSync(all ? undefined : ids);
+      if (response.data?.code !== 200) {
+        throw new Error(response.data?.message || 'Schema 同步请求失败');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="admin-panel">
       <div className="admin-nav">
@@ -194,6 +207,12 @@ const AdminPanel: React.FC = () => {
           onClick={() => setActiveTab('add-user')}
         >
           添加用户
+        </button>
+        <button
+          className={activeTab === 'schema' ? 'active' : ''}
+          onClick={() => setActiveTab('schema')}
+        >
+          Schema 迁移
         </button>
       </div>
 
@@ -379,6 +398,9 @@ const AdminPanel: React.FC = () => {
               </button>
             </form>
           </div>
+        )}
+        {activeTab === 'schema' && (
+          <SchemaMigrationConsole companies={companies} loading={loading} onSync={submitSchemaSync} />
         )}
       </div>
     </div>
