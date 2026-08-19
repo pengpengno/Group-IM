@@ -7,7 +7,7 @@
 - 文档状态：ACTIVE
 - 基线日期：2026-08-19
 - 唯一开发主线：`master`
-- 当前基线提交：`cdd6ffed21b562b912a01bc8e7abd04eeb1ac3b2`
+- 当前基线提交：`c0a61180e63af437042b81ce65d49da599fe04cb`
 - 仓库：`pengpengno/Group-IM`
 - 治理规则：`doc/development/REPOSITORY_GOVERNANCE.md`
 - 贡献指南：`CONTRIBUTING.md`
@@ -54,7 +54,7 @@ PR #5 已建立：
 
 - #6：保护 `master` 并设置 required checks；
 - #7：部署 workflow 移除历史 `main` trigger；
-- #8：补齐 Backend PR CI；
+- #8：补齐 Backend PR CI，当前实现分支为 `ci/8-backend-pr-validation`；
 - #9：补齐 Electron/Web PR CI。
 
 当前 `master` Branch Protection 仍未启用，因此 #6 为 P0。
@@ -108,13 +108,14 @@ PR #5 已建立：
 | 音视频会议 | IN_PROGRESS | Meeting 服务、通知、多端入口存在 | 协作联动和可靠性 |
 | AI 助手 | IN_PROGRESS | 服务端 AI/Bot/持久化能力持续演进 | 工具治理和可观测性 |
 | 群自动化 | IN_PROGRESS | 规则、执行、管理入口存在 | 审批、审计、规则模型 |
-| Workbench | IN_PROGRESS | Web/Electron + Android Shell 已存在 | #12/#13 后进入 Overview |
+| Workbench | IN_PROGRESS | Web/Electron + Android Shell 已存在，正式 Feature Design 已合并 | #12/#13 后进入 Overview |
 | OA Task | PLANNED | 正式领域设计已形成 | #12 + #13 后进入 Backend |
 | OA Approval | PLANNED | 轻量串行审批设计已形成 | Task 平台闭环后实现 |
 | OA Calendar | PLANNED | Meeting/Task 聚合方向已形成 | 后续迭代 |
 | OA Announcement | PLANNED | Target/Receipt/通知方向已形成 | 后续迭代 |
 | OA Report | PLANNED | Roadmap 能力 | Workbench V1 后评估 |
 | 数据库迁移治理 | IN_PROGRESS | Safe Sync/冲突检测存在 | #12 |
+| Backend PR CI | IN_PROGRESS | #8 正在新增 Java 21 Maven compile/test 门禁 | 验证后设为 required check |
 | 仓库工程治理 | IN_PROGRESS | PR #5 已建立治理基线 | #6/#7/#8/#9 |
 
 ---
@@ -136,7 +137,7 @@ PR #5 已建立：
 
 ### 正式 Feature Design
 
-Issue #10 / PR #11 正在把 2026-08-06 的 v0.1 Draft 升级为当前正式设计：
+Issue #10 / PR #11 已完成并合入 `master`：
 
 - `doc/features/workbench/README.md`
 - `doc/features/workbench/task.md`
@@ -165,7 +166,7 @@ Issue #10 / PR #11 正在把 2026-08-06 的 v0.1 Draft 升级为当前正式设�
 依赖关系：
 
 ```text
-#10 Formal Design
+#10 Formal Design (merged)
  ├── #12 Versioned Tenant Migration
  ├── #13 Workbench Platform Foundation
  └── #14 Structured OA Card / ClientEvent Protocol
@@ -331,12 +332,12 @@ Workbench 是第一套按新规范正式整理的 Feature Design。历史文档�
 
 - #6 master protection；
 - #7 remove `main` deploy trigger；
-- #8 backend PR CI；
+- #8 backend PR CI（IN_PROGRESS）；
 - #9 Electron/Web PR CI。
 
 ### P1 — Workbench Design / Foundation
 
-- #10 正式 Feature Design；
+- #10 正式 Feature Design（IMPLEMENTED / PR #11）；
 - #12 Versioned Tenant Migration；
 - #13 Workbench Platform Foundation；
 - #14 Structured OA Card / ClientEvent Protocol。
@@ -364,7 +365,7 @@ Workbench 是第一套按新规范正式整理的 Feature Design。历史文档�
 ## 12. 当前主要风险
 
 1. #6 未完成前，`master` 仍存在直接 push 风险；
-2. 后端/Electron PR CI 待 #8/#9；
+2. #8 正在建立 Backend PR CI，#9 Electron/Web PR CI 尚未开始；
 3. #12 未完成前，Workbench 新业务表没有正式可执行的统一迁移路径；
 4. 当前 `ClientEventType` 尚无 OA 事件；
 5. `BOT_CARD` 是机器人语义，#14 未完成前不能随意复用为 OA 卡片；
@@ -377,12 +378,22 @@ Workbench 是第一套按新规范正式整理的 Feature Design。历史文档�
 
 ## 13. 变更记录
 
-### 2026-08-19 — Issue #10 / PR #11 — Workbench Formal Feature Design
+### 2026-08-19 — Issue #8 — Backend PR Validation
 
 状态：`IN_PROGRESS`
 
+- 新增独立 Backend PR workflow；
+- Java 21 / Maven cache；
+- 对 `pom.xml`、`common/**`、`entity/**`、`server/**` 相关 PR 执行；
+- 先编译 `server` 及依赖模块，再执行后端测试；
+- CI 验证通过后应作为 #6 Branch Protection 的 required check 候选。
+
+### 2026-08-19 — Issue #10 / PR #11 — Workbench Formal Feature Design
+
+状态：`IMPLEMENTED`
+
 - 完整重新审阅 2026-08-06 v0.1 Draft；
-- 新基线为 `master@cdd6ffe`；
+- 设计基线已通过 PR #11 合入 `master`；
 - Web/Electron 和 Android Workbench Shell 改为“已实现事实”；
 - 建立 Workbench Feature Design、Task、Approval、Platform Integration、Roadmap；
 - 增加 ADR-0002、ADR-0003；
