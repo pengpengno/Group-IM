@@ -74,15 +74,21 @@ public class MigrationRunRepository {
                 plan.blocked() ? plan.blockedReason() : null);
     }
 
-    public void markItemSucceeded(UUID runId, TenantTarget target, TenantMigrationPlan plan, long durationMs) {
+    public void markItemSucceeded(
+            UUID runId,
+            TenantTarget target,
+            String fromVersion,
+            TenantMigrationPlan result,
+            long durationMs
+    ) {
         jdbc.update(
                 "UPDATE public.schema_migration_run_item SET status='SUCCEEDED', from_version=?, target_version=?, " +
                         "pending_count=?, completed_at=NOW(), duration_ms=?, error_message=NULL " +
                         "WHERE run_id=? AND company_id=?",
-                plan.currentVersion(), plan.targetVersion(), plan.pendingCount(), durationMs,
+                fromVersion, result.targetVersion(), result.pendingCount(), durationMs,
                 runId, target.companyId()
         );
-        upsertState(target, plan.currentVersion(), plan.targetVersion(), TenantSchemaStateStatus.UP_TO_DATE, runId, null);
+        upsertState(target, result.currentVersion(), result.targetVersion(), TenantSchemaStateStatus.UP_TO_DATE, runId, null);
     }
 
     public void markItemFailed(UUID runId, TenantTarget target, String errorMessage, long durationMs) {
