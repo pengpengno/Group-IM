@@ -21,7 +21,8 @@ public class TenantCatalogRepository {
 
     public List<TenantTarget> findAllActive() {
         return jdbc.query(
-                "SELECT company_id, name, schema_name, active FROM public.company WHERE active = TRUE ORDER BY company_id",
+                "SELECT company_id, name, schema_name, active FROM public.company " +
+                        "WHERE active = TRUE AND LOWER(schema_name) <> 'public' ORDER BY company_id",
                 (rs, rowNum) -> new TenantTarget(
                         rs.getLong("company_id"),
                         rs.getString("name"),
@@ -39,7 +40,7 @@ public class TenantCatalogRepository {
         MapSqlParameterSource params = new MapSqlParameterSource("ids", companyIds);
         List<TenantTarget> targets = jdbc.query(
                 "SELECT company_id, name, schema_name, active FROM public.company " +
-                        "WHERE active = TRUE AND company_id IN (:ids) ORDER BY company_id",
+                        "WHERE active = TRUE AND LOWER(schema_name) <> 'public' AND company_id IN (:ids) ORDER BY company_id",
                 params,
                 (rs, rowNum) -> new TenantTarget(
                         rs.getLong("company_id"),
@@ -50,7 +51,7 @@ public class TenantCatalogRepository {
         );
         if (targets.size() != companyIds.size()) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "MIGRATION_INVALID_COMPANY_SCOPE",
-                    "部分 companyId 不存在或未激活，拒绝创建 migration run");
+                    "部分 companyId 不存在、未激活或属于 public，拒绝创建 tenant migration run");
         }
         return targets;
     }
