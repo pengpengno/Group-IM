@@ -1,0 +1,62 @@
+name: Repository Governance
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+    branches: [master]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR governance requirements
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const failures = [];
+
+            const body = pr.body || '';
+            const issueReference = /(?:fix(?:e[sd])?|close[sd]?|resolve[sd]?|related\s+to)\s+#\d+/i;
+            if (!issueReference.test(body)) {
+              failures.push('PR 描述必须使用 `Fixes #123` / `Closes #123` / `Resolves #123` / `Related to #123` 明确关联 Issue。');
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: pr.number,
+              per_page: 100
+            });
+
+            const changed = files.map(file => file.filename);
+            if (!changed.includes('doc/PROJECT_MASTER.md')) {
+              failures.push('每个 PR 必须同步修改 `doc/PROJECT_MASTER.md`。');
+            }
+
+            if (pr.base.ref !== 'master') {
+              failures.push('PR 必须以 `master` 为目标分支。');
+            }
+
+            const branchPattern = /^(feature|fix|refactor|docs|chore|hotfix)\/\d+-[a-z0-9][a-z0-9._-]*$/i;
+            if (!branchPattern.test(pr.head.ref) && !pr.head.ref.startsWith('dependabot/') && !pr.head.ref.startsWith('imgbot')) {
+              failures.push(`分支名 \`${pr.head.ref}\` 不符合治理命名规范，例如 \`feature/12-workbench-task\`。`);
+            }
+
+            if (failures.length > 0) {
+              core.setFailed('Repository governance check failed:\n- ' + failures.join('\n- '));
+              return;
+            }
+
+            core.info('Repository governance checks passed.');
+            core.info(`Issue linkage: OK`);
+            core.info(`PROJECT_MASTER update: OK`);
+            core.info(`Base branch: ${pr.base.ref}`);
+            core.info(`Head branch: ${pr.head.ref}`);
