@@ -1,0 +1,69 @@
+name: Feature Request
+description: 新功能、业务能力或可验收增强。
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: 目标
+      description: 要解决什么用户/业务问题？
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: 范围
+      description: 本 Issue 包含什么，不包含什么？
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 主要模块
+      options:
+        - Server / Backend
+        - Electron / Web
+        - Android / KMP
+        - IM / Chat
+        - Meeting
+        - Workbench / OA
+        - AI / Automation
+        - Organization / Tenant
+        - File
+        - Database / Migration
+        - CI / Deployment
+        - Documentation / Governance
+        - Cross-cutting
+    validations:
+      required: true
+
+  - type: textarea
+    id: design
+    attributes:
+      label: 初步设计 / 用户流程
+      description: 可描述页面、API、状态机、数据模型或交互流程。
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: 依赖与影响
+      description: 关联模块、Issue、数据库、多端、权限、迁移或协议影响。
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: followup
+    attributes:
+      label: 拆分建议
+      description: 若需要多个 PR，请列出建议 Task / 子 Issue。
