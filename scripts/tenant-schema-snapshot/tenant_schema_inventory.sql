@@ -103,6 +103,36 @@ trigger_rows AS (
       AND c.relname NOT IN ('flyway_schema_history', 'tenant_schema_metadata')
     ORDER BY c.relname, t.tgname
 ),
+routine_rows AS (
+    SELECT
+        proc.proname AS routine_name,
+        CASE proc.prokind
+            WHEN 'p' THEN 'PROCEDURE'
+            ELSE 'FUNCTION'
+        END AS routine_kind,
+        pg_get_function_identity_arguments(proc.oid) AS identity_arguments,
+        pg_get_function_result(proc.oid) AS result_type,
+        lang.lanname AS language,
+        pg_get_functiondef(proc.oid) AS definition
+    FROM pg_proc proc
+    JOIN pg_namespace n ON n.oid = proc.pronamespace
+    JOIN pg_language lang ON lang.oid = proc.prolang
+    JOIN params p ON p.schema_name = n.nspname
+    WHERE proc.prokind IN ('f', 'p')
+    ORDER BY proc.proname, pg_get_function_identity_arguments(proc.oid)
+),
+domain_rows AS (
+    SELECT
+        typ.typname AS domain_name,
+        format_type(typ.typbasetype, typ.typtypmod) AS base_type,
+        typ.typnotnull AS not_null,
+        typ.typdefault AS default_expression
+    FROM pg_type typ
+    JOIN pg_namespace n ON n.oid = typ.typnamespace
+    JOIN params p ON p.schema_name = n.nspname
+    WHERE typ.typtype = 'd'
+    ORDER BY typ.typname
+),
 enum_rows AS (
     SELECT
         typ.typname AS type_name,
@@ -125,6 +155,8 @@ SELECT jsonb_pretty(
         'views', COALESCE((SELECT jsonb_agg(to_jsonb(r) ORDER BY r.view_name) FROM view_rows r), '[]'::jsonb),
         'sequences', COALESCE((SELECT jsonb_agg(to_jsonb(r) ORDER BY r.sequence_name) FROM sequence_rows r), '[]'::jsonb),
         'triggers', COALESCE((SELECT jsonb_agg(to_jsonb(r) ORDER BY r.table_name, r.trigger_name) FROM trigger_rows r), '[]'::jsonb),
+        'routines', COALESCE((SELECT jsonb_agg(to_jsonb(r) ORDER BY r.routine_name, r.identity_arguments) FROM routine_rows r), '[]'::jsonb),
+        'domains', COALESCE((SELECT jsonb_agg(to_jsonb(r) ORDER BY r.domain_name) FROM domain_rows r), '[]'::jsonb),
         'enum_labels', COALESCE((SELECT jsonb_agg(to_jsonb(r) ORDER BY r.type_name, r.sort_order) FROM enum_rows r), '[]'::jsonb)
     )
 )::text;
