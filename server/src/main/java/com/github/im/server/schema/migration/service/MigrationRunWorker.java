@@ -41,9 +41,16 @@ public class MigrationRunWorker {
                     TenantMigrationPlan plan = migrationExecutor.plan(target.schemaName());
                     runRepository.markItemPlanned(runId, target, plan, elapsedMillis(startedNanos));
                 } else {
+                    TenantMigrationPlan before = migrationExecutor.plan(target.schemaName());
                     runRepository.markItemRunning(runId, target);
                     TenantMigrationPlan result = migrationExecutor.apply(target.schemaName());
-                    runRepository.markItemSucceeded(runId, target, result, elapsedMillis(startedNanos));
+                    runRepository.markItemSucceeded(
+                            runId,
+                            target,
+                            before.currentVersion(),
+                            result,
+                            elapsedMillis(startedNanos)
+                    );
                 }
             } catch (Exception exception) {
                 runRepository.markItemFailed(runId, target, safeMessage(exception), elapsedMillis(startedNanos));
