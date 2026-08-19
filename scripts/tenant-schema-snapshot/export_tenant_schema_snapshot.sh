@@ -75,7 +75,18 @@ if payload.get("format_version") != 1:
     raise SystemExit("unexpected inventory format_version")
 if payload.get("schema") != expected_schema:
     raise SystemExit("inventory schema does not match requested tenant")
-for required_key in ("tables", "columns", "constraints", "indexes", "views", "sequences", "triggers", "enum_labels"):
+for required_key in (
+    "tables",
+    "columns",
+    "constraints",
+    "indexes",
+    "views",
+    "sequences",
+    "triggers",
+    "routines",
+    "domains",
+    "enum_labels",
+):
     if not isinstance(payload.get(required_key), list):
         raise SystemExit(f"inventory field must be an array: {required_key}")
 PY
