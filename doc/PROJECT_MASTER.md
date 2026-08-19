@@ -7,8 +7,8 @@
 - 文档状态：ACTIVE
 - 基线日期：2026-08-19
 - 唯一开发主线：`master`
-- 当前基线提交：`2405e3cf54ca2f8facc47c65c7f2aeaff8346198`
-- 当前变更：Issue #25 — Core Tenant Baseline Migrations（`feature/25-core-tenant-baseline`）
+- 当前基线提交：`b8b0d093c224ff577ae953ae52839aca4d0c9f57`
+- 当前数据库阶段：#25 Core Tenant Baseline 已实现；下一执行项 #20 New Tenant Provisioning / #21 Existing Tenant Baseline & Validate
 - 仓库：`pengpengno/Group-IM`
 - 治理规则：`doc/development/REPOSITORY_GOVERNANCE.md`
 - 贡献指南：`CONTRIBUTING.md`
@@ -47,7 +47,8 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 - #17：HealthCheckTest 基础设施隔离修复；
 - PR #23 / #18：ADR-0004 与 canonical tenant migration architecture；
 - PR #24 / #19：Tenant Migration Runtime；
-- PR #27 / #26：离线只读 trusted tenant schema snapshot / inventory tooling。
+- PR #27 / #26：离线只读 trusted tenant schema snapshot / inventory tooling；
+- PR #33 / #25：Core Tenant Baseline Migrations，canonical baseline version `2026081906`。
 
 待完成：
 
@@ -88,8 +89,9 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 - ADR-0004 固定 Flyway 版本化 migration 为未来唯一新表发布路径；
 - PR #24 建立 Migration Runtime；
 - PR #27 建立只读 trusted tenant snapshot/inventory 工具；
-- #32 已完成一份 PostgreSQL 14.13 测试环境 schema-only evidence 的私有审核，结论为 `READY_FOR_BASELINE_WITH_NORMALIZATION`；
-- #25 正在把 reviewed contract 固化为 tenant migrations `V2026081902`–`V2026081906`，canonical core baseline version 为 `2026081906`。
+- #32 已完成 PostgreSQL 14.13 测试环境 schema-only evidence 的私有审核，结论为 `READY_FOR_BASELINE_WITH_NORMALIZATION`；
+- PR #33 / #25 已把 reviewed contract 固化为 tenant migrations `V2026081902`–`V2026081906`，canonical core baseline version 为 `2026081906`；
+- PostgreSQL 16 Testcontainers 已证明真正空 tenant 可只依赖 Flyway 构建完整 core schema。
 
 ---
 
@@ -100,7 +102,7 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 | 模块 | 状态 | 当前事实 | 下一阶段 |
 | --- | --- | --- | --- |
 | 登录 / 鉴权 | STABLE | JWT/Spring Security 主链路存在 | RBAC 细化 |
-| 多公司 / 多租户 | IN_PROGRESS | Schema 多租户 + Safe Sync + legacy public clone + Migration Runtime + reviewed core baseline WIP | #25 → #20/#21 |
+| 多公司 / 多租户 | IN_PROGRESS | Schema 多租户 + Safe Sync + legacy public clone + Migration Runtime + core baseline 2026081906 | #20/#21 |
 | 单聊 / 群聊 | STABLE | 核心 IM 主链路存在 | 一致性、搜索、治理 |
 | 联系人 / 组织 | STABLE | 公司/部门/员工能力存在 | 权限与批量治理 |
 | 文件 | IN_PROGRESS | 上传/分片存在 | 资源级权限与可靠性 |
@@ -114,11 +116,11 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 | OA Announcement | PLANNED | Target/Receipt/通知方向已形成 | 后续迭代 |
 | OA Report | PLANNED | Roadmap 能力 | Workbench V1 后评估 |
 | Tenant Migration Architecture | STABLE | ADR-0004 / PR #23 已合并 | 持续随 migration 演进 |
-| Tenant Migration Runtime | STABLE | #19 / PR #24：PLAN/APPLY/retry/control plane/Flyway/lock/Testcontainers | #25 core baseline |
+| Tenant Migration Runtime | STABLE | #19 / PR #24：PLAN/APPLY/retry/control plane/Flyway/lock/Testcontainers | #20/#21 |
 | Trusted Tenant Schema Snapshot | STABLE | #26 / PR #27 tooling + #32 reviewed private capture | 按需用于 drift review |
-| Core Tenant Schema Baseline | IN_PROGRESS | #25：18 tables / 3 views / 17 identity sequences / 65 constraints / 26 indexes contract | CI → #20/#21 |
+| Core Tenant Schema Baseline | STABLE | #25 / PR #33：18 tables / 3 views / 17 identity sequences / 65 constraints / 26 indexes，version 2026081906 | #20/#21 |
 | Backend PR CI | STABLE | PR #16 已合并并实际通过 compile + test | #6 required check |
-| 仓库工程治理 | IN_PROGRESS | PR #5 + #16 + #23 + #24 + #27 | #6/#7/#9/#22 |
+| 仓库工程治理 | IN_PROGRESS | PR #5 + #16 + #23 + #24 + #27 + #33 | #6/#7/#9/#22 |
 
 ---
 
@@ -162,7 +164,7 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
        ↓
 #32 Trusted Snapshot Review ✅
        ↓
-#25 Core Tenant Baseline Migrations ← IN_PROGRESS
+#25 Core Tenant Baseline ✅ PR #33
       ├────────────────────┐
       ↓                    ↓
 #20 New Tenant          #21 Existing Tenant
@@ -204,20 +206,9 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 
 ### Issue #19 / PR #24 — Migration Runtime
 
-实现：
+状态：`IMPLEMENTED`
 
-- `flyway-core` + PostgreSQL Flyway driver；
-- `spring.flyway.enabled=false`；
-- public / tenant migration resources；
-- public 显式 bootstrap；
-- `schema_migration_run` / `schema_migration_run_item` / `tenant_schema_state`；
-- schema validator / inspector；
-- PostgreSQL advisory lock；
-- PLAN / APPLY / failed-tenant retry；
-- bounded worker；
-- `/api/admin/schema-migrations/**`；
-- 集中的 `MigrationAdminAuthorizer`；
-- PostgreSQL Testcontainers 集成测试。
+实现 Flyway public/tenant runtime、显式 public bootstrap、run/item/state control plane、PLAN/APPLY/retry、schema validator/inspector、PostgreSQL advisory lock、bounded worker、admin API 与 PostgreSQL Testcontainers 集成测试。
 
 安全行为：
 
@@ -234,36 +225,26 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 
 状态：`IMPLEMENTED`
 
-离线只读工具可从管理员确认健康的 tenant 生成：
-
-- deterministic catalog inventory：tables / columns / constraints / indexes / views / sequences / triggers / routines / domains / enums；
-- `pg_dump --schema-only` SQL reference；
-- SHA-256 manifest；
-- 数据库名仅 fingerprint，不输出凭据；
-- `flyway_schema_history` / `tenant_schema_metadata` 排除出 core baseline evidence；
-- 输出目录拒绝 Git worktree，避免误提交真实环境结构。
-
-工具通过 PostgreSQL Testcontainers 专用 CI 验证。输出仍只是 #25 的**审阅输入**，不会未经 normalization/review 自动执行。
+离线只读工具可生成 deterministic catalog inventory、`pg_dump --schema-only` reference 与 SHA-256 manifest；排除 migration runtime 自有表，并拒绝把 raw output 写入 Git worktree。工具输出始终只是人工审阅输入。
 
 ### Issue #32 — Trusted Snapshot Review
 
 状态：`COMPLETED`
 
-- reviewed source：PostgreSQL 14.13 disposable test tenant，raw DDL 私有提供；
-- peer tenant 对比发现 `messages.content` 与 `meetings.scheduled_at` drift；
+- PostgreSQL 14.13 disposable test tenant raw DDL 私有提供；
+- peer tenant drift review 完成；
 - canonical normalization：`messages.content=TEXT`、`meetings.scheduled_at=timestamp(6)`；
-- DB message type contract 补入当前代码已有 `BOT_CARD`；
-- company/company_user/users 继续是 public global identity 的 tenant projections；
+- DB message type contract 包含当前代码已有 `BOT_CARD`；
 - raw snapshot 不进入 public repository。
 
-### Issue #25 — Core Tenant Baseline Migrations
+### Issue #25 / PR #33 — Core Tenant Baseline Migrations
 
-状态：`IN_PROGRESS`
+状态：`IMPLEMENTED`
 
 Canonical baseline version：`2026081906`。
 
 ```text
-V2026081901  tenant_schema_metadata (existing)
+V2026081901  tenant_schema_metadata
 V2026081902  automation/collaboration tables
 V2026081903  file/friendship/meeting tables
 V2026081904  message/status/config/user tables
@@ -271,19 +252,22 @@ V2026081905  PK/UNIQUE/FK relationships
 V2026081906  tenant identity views
 ```
 
-Reviewed contract：
+Canonical contract：
 
 - 18 core tenant tables；
 - 3 tenant identity views；
 - 17 identity sequences；
 - 65 core constraints；
 - 26 PK/UNIQUE backing indexes；
+- `messages.content=TEXT`；
+- `meetings.scheduled_at=timestamp(6) without time zone`；
+- `messages_type_check` 包含 `BOT_CARD`；
 - global identity FKs 指向 `public.users`；
 - identity views 通过 tenant schema name 绑定，不写死 companyId。
 
-`CoreTenantBaselineIntegrationTest` 必须从空 schema 只通过 Flyway 建立并核对该 contract；Hibernate 不参与补结构。
+`CoreTenantBaselineIntegrationTest` 已在 PostgreSQL 16 证明空 schema 只通过 Flyway 可建立并核对该 contract。Hibernate 不参与补结构。
 
-Scope boundary：#25 不修改 `CompanyService.save()`，不切换 legacy clone，不 baseline 既有 tenant，也不切 `ddl-auto`。这些分别留给 #20/#21 和后续 staged rollout。
+Scope boundary 保持不变：#25 不修改 `CompanyService.save()`，不切换 legacy clone，不 baseline 既有 tenant，也不切 `ddl-auto`；这些分别留给 #20/#21 和后续 staged rollout。
 
 ---
 
@@ -297,21 +281,20 @@ JDK 21
 → mvn -B -ntp -pl server -am test
 ```
 
-### #25 Testcontainers Gate
+### Core Tenant Baseline Gate：STABLE
 
-`CoreTenantBaselineIntegrationTest`：
+`CoreTenantBaselineIntegrationTest` 在 PostgreSQL 16 上验证：
 
-1. PostgreSQL 16；
-2. 建立最小 public global identity contract；
-3. 建立真正空 tenant schema；
-4. Flyway 执行 tenant migrations 到 `2026081906`；
-5. 核对 18 tables / 3 views / 17 sequences / 65 constraints / 26 indexes；
-6. 核对 `messages.content=TEXT`；
-7. 核对 `meetings.scheduled_at=timestamp(6)`；
-8. 核对 `messages_type_check` 包含 `BOT_CARD`；
-9. 核对 tenant identity views 只暴露该 tenant 对应 company/user。
+1. 最小 public global identity contract；
+2. 真正空 tenant schema；
+3. Flyway migrate 到 `2026081906`；
+4. 18 tables / 3 views / 17 sequences / 65 constraints / 26 indexes；
+5. `messages.content=TEXT`；
+6. `meetings.scheduled_at=timestamp(6)`；
+7. `messages_type_check` 包含 `BOT_CARD`；
+8. tenant identity views 只暴露当前 tenant company/user。
 
-`MigrationRuntimeIntegrationTest` 同步验证 PLAN/APPLY 看到 6 个 tenant migrations，APPLY target 为 `2026081906`，并保持 legacy non-empty/no-history tenant 阻断与 advisory lock 语义。
+`MigrationRuntimeIntegrationTest` 同步验证 PLAN pending count = 6、APPLY target `2026081906`、repeat APPLY 幂等、legacy tenant 阻断与 advisory lock。
 
 #22 仍跟踪 Maven duplicate dependency 技术债，不与 migration 工作混合处理。
 
@@ -394,9 +377,9 @@ PROJECT_MASTER current facts
   - #19 Runtime：IMPLEMENTED / PR #24；
   - #26 Trusted Tenant Schema Snapshot Tooling：IMPLEMENTED / PR #27；
   - #32 Trusted Snapshot Collection / Review：COMPLETED；
-  - #25 Core Tenant Baseline Migrations：IN_PROGRESS；
-  - #20 New Tenant Provisioning：depends #25；
-  - #21 Existing Tenant Baseline/Validate：depends #25；
+  - #25 Core Tenant Baseline Migrations：IMPLEMENTED / PR #33；
+  - #20 New Tenant Provisioning：NEXT；
+  - #21 Existing Tenant Baseline/Validate：NEXT；
 - #13 Workbench Platform Foundation；
 - #14 Structured OA Card / ClientEvent Protocol：DESIGN ACCEPTED，implementation #28/#29/#30。
 
@@ -414,29 +397,29 @@ Calendar → Announcement → Android OA → Report / AI Office。
 
 1. #6 未完成前，GitHub 尚未强制阻止 direct push `master`；
 2. #9 未完成前，Electron/Web 缺独立 PR build gate；
-3. #25 合并前，空 tenant core baseline 仍未成为 master 的正式版本事实；
-4. #20 未完成前，新 tenant 仍依赖 public clone；
-5. #21 未完成前，老 tenant 不能安全进入统一 Flyway baseline；
-6. #22 Maven duplicate dependencies 尚未清理；
-7. Workbench protocol 实现必须遵守 client-first rollout gate；
-8. MigrationAdminAuthorizer 仍是 configured-admin 兼容桥接，未来需真正 SYSTEM_ADMIN/RBAC；
-9. company switch 必须清理 Workbench client state；
-10. 附件下载必须增加业务资源授权。
+3. #20 未完成前，新 tenant 仍依赖 public clone，而不是直接从空 schema 运行 Flyway；
+4. #21 未完成前，老 tenant 仍没有安全、显式的 baseline/validate 流程；
+5. #22 Maven duplicate dependencies 尚未清理；
+6. Workbench protocol 实现必须遵守 client-first rollout gate；
+7. MigrationAdminAuthorizer 仍是 configured-admin 兼容桥接，未来需真正 SYSTEM_ADMIN/RBAC；
+8. company switch 必须清理 Workbench client state；
+9. 附件下载必须增加业务资源授权。
 
 ---
 
 ## 14. 变更记录
 
-### 2026-08-19 — Issue #25 — Core Tenant Baseline Migrations
+### 2026-08-19 — Issue #25 / PR #33 — Core Tenant Baseline Migrations
 
-状态：`IN_PROGRESS`
+状态：`IMPLEMENTED`
 
+- merge commit：`b8b0d093c224ff577ae953ae52839aca4d0c9f57`；
 - 消费 #32 reviewed private schema evidence；
 - 固定 baseline version `2026081906`；
 - 建立 18 core tables、3 identity views、17 identity sequences、65 constraints、26 PK/UNIQUE indexes 的 versioned contract；
 - normalize `messages.content`、`meetings.scheduled_at` 和 `BOT_CARD` DB contract；
-- identity views 改为 schema-relative，不复制 source companyId；
-- 新增 empty-schema PostgreSQL Testcontainers contract test；
+- identity views schema-relative，不复制 source companyId；
+- PostgreSQL 16 Testcontainers empty-schema contract 全绿；
 - 保持 #20/#21 生命周期边界不变。
 
 ### 2026-08-19 — Issue #32 — Trusted Tenant Schema Snapshot Review
@@ -470,8 +453,7 @@ Calendar → Announcement → Android OA → Report / AI Office。
 - 建立 non-empty/no-history legacy tenant baseline 阻断；
 - 建立 PostgreSQL advisory lock；
 - 建立 bounded worker 和 admin API；
-- 建立真实 PostgreSQL Testcontainers multi-tenant integration test；
-- 发现正式 provisioning 前还需要 trusted schema evidence 与 #25 core tenant baseline。
+- 建立真实 PostgreSQL Testcontainers multi-tenant integration test。
 
 ### 2026-08-19 — Issue #18 / PR #23 — Tenant Migration Architecture
 
