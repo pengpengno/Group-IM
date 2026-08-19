@@ -1,0 +1,43 @@
+name: Backend PR Validation
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'pom.xml'
+      - 'common/**'
+      - 'entity/**'
+      - 'server/**'
+      - '.github/workflows/backend.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Maven compile and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Compile backend modules
+        run: mvn -B -ntp -pl server -am -DskipTests compile
+
+      - name: Run backend tests
+        run: mvn -B -ntp -pl server -am test
