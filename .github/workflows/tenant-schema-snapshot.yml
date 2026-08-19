@@ -1,0 +1,45 @@
+name: Tenant Schema Snapshot Validation
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'scripts/tenant-schema-snapshot/**'
+      - 'server/src/test/java/com/github/im/server/schema/migration/TenantSchemaInventorySqlIntegrationTest.java'
+      - '.github/workflows/tenant-schema-snapshot.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tenant-schema-snapshot-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Shell and PostgreSQL inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate snapshot shell syntax
+        run: bash -n scripts/tenant-schema-snapshot/export_tenant_schema_snapshot.sh
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Run tenant inventory PostgreSQL test
+        run: >-
+          mvn -B -ntp -pl server -am
+          -Dtest=TenantSchemaInventorySqlIntegrationTest
+          -Dsurefire.failIfNoSpecifiedTests=false
+          test
