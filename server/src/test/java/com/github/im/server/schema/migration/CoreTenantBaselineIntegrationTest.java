@@ -75,8 +75,10 @@ class CoreTenantBaselineIntegrationTest {
         assertEquals(EXPECTED_IDENTITY_VIEWS, relationNames(dataSource, "v"));
         assertEquals(17, scalarInt(dataSource, """
                 SELECT count(*)
-                FROM information_schema.sequences
-                WHERE sequence_schema = 'baseline_tenant'
+                FROM pg_class sequence_row
+                JOIN pg_namespace namespace_row ON namespace_row.oid = sequence_row.relnamespace
+                WHERE namespace_row.nspname = 'baseline_tenant'
+                  AND sequence_row.relkind = 'S'
                 """));
         assertEquals(65, scalarInt(dataSource, """
                 SELECT count(*)
