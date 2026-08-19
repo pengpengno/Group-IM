@@ -54,7 +54,7 @@ PR #5 已建立：
 
 - #6：保护 `master` 并设置 required checks；
 - #7：部署 workflow 移除历史 `main` trigger；
-- #8：补齐 Backend PR CI，当前实现分支为 `ci/8-backend-pr-validation`；
+- #8：补齐 Backend PR CI，当前实现分支为 `chore/8-backend-pr-validation`；
 - #9：补齐 Electron/Web PR CI。
 
 当前 `master` Branch Protection 仍未启用，因此 #6 为 P0。
