@@ -35,6 +35,11 @@ spring:
         format_sql: true
         multiTenancy: SCHEMA
 
+  # Flyway is invoked explicitly per schema by the migration runtime.
+  # Never let Spring Boot automatically migrate only the default/public schema on startup.
+  flyway:
+    enabled: false
+
   servlet:
     multipart:
       max-file-size: 100MB
@@ -88,6 +93,11 @@ tcp:
 
 # 系统配置（统一在 group 前缀下）
 group:
+  schema-migration:
+    public-location: ${GROUP_SCHEMA_MIGRATION_PUBLIC_LOCATION:classpath:db/migration/public}
+    tenant-location: ${GROUP_SCHEMA_MIGRATION_TENANT_LOCATION:classpath:db/migration/tenant}
+    max-concurrency: ${GROUP_SCHEMA_MIGRATION_MAX_CONCURRENCY:2}
+
   app-update:
     android:
       # Release automation must set these values together. The endpoint stays disabled by default.
