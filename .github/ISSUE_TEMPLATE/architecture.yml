@@ -1,0 +1,54 @@
+name: Architecture / Technical Debt
+description: 架构决策、跨模块技术债、数据库/协议/平台级调整。
+title: "arch: "
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context / 背景
+      description: 当前问题是什么，为什么现在需要决策？
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints / 约束
+      description: 多租户、性能、安全、兼容、运维、人员或时间约束。
+    validations:
+      required: true
+
+  - type: textarea
+    id: options
+    attributes:
+      label: Options / 备选方案
+      description: 至少列出主要可选方案及优缺点。
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Decision / 建议决策
+      description: 当前推荐方案及理由。
+    validations:
+      required: true
+
+  - type: textarea
+    id: consequences
+    attributes:
+      label: Consequences / 影响
+      description: 对代码、数据库、API、客户端、部署和维护的影响。
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      placeholder: |
+        - [ ] ADR 已新增或更新
+        - [ ] PROJECT_MASTER 已同步
+        - [ ] 实施任务已拆分为后续 Issue
+    validations:
+      required: true
