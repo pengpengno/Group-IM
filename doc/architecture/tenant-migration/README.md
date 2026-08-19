@@ -3,8 +3,8 @@
 > 状态：CURRENT / CANONICAL  
 > 架构决策：`ADR-0004-versioned-tenant-schema-migrations.md`  
 > Epic：#12  
-> 当前阶段：#19 Migration Runtime — IMPLEMENTED / PR #24  
-> 下一阶段：#26 Trusted Schema Snapshot → #25 Core Tenant Baseline
+> 当前阶段：#26 Trusted Schema Snapshot Tooling — IMPLEMENTED / PR #27  
+> 下一阶段：#32 Trusted Snapshot Collection / Review → #25 Core Tenant Baseline
 
 本文是 Group-IM **当前租户数据库迁移设计入口**。如果历史文档、PR 评论或旧实现蓝图与本文或 ADR-0004 冲突，以 ADR-0004 和本文为准。
 
@@ -126,7 +126,7 @@ tenant_schema_metadata
 
 它用于验证 Migration Runtime 能从空 tenant schema 建立 Flyway history 和执行 versioned DDL。
 
-**它不是 Group-IM 核心 tenant baseline。** Chat、Meeting、File、Automation 等现有业务结构尚未被 versioned baseline 覆盖。
+**它不是 Group-IM 核心 tenant baseline。** Chat、Meeting、File、Automation 等现有业务结构由 #25 固化。
 
 ---
 
@@ -290,7 +290,9 @@ GET  /api/admin/schema-migrations/tenants
 
 ---
 
-## 10. Trusted Snapshot — #26
+## 10. Trusted Snapshot — #26 / PR #27
+
+状态：`IMPLEMENTED`
 
 #25 不能只根据 JPA Entity 手写 baseline，因为 legacy provisioning 的数据库事实还包含：
 
@@ -301,22 +303,25 @@ GET  /api/admin/schema-migrations/tenants
 - sequences；
 - 可能没有完整反映在 annotations 中的结构细节。
 
-因此下一阶段 #26：
+因此 #26 建立离线、只读、可审阅 snapshot/inventory 工具：
 
-> 对一个管理员确认健康的 tenant 做**离线、只读 schema snapshot/inventory**。
+```text
+scripts/tenant-schema-snapshot/
+├── export_tenant_schema_snapshot.sh
+└── tenant_schema_inventory.sql
+```
 
-目标输出：
+输出：
 
-1. machine-readable inventory：tables/views/columns/types/nullability/defaults/constraints/indexes/sequences/view definitions；
-2. schema-only SQL reference；
-3. source schema、timestamp、fingerprint；
-4. 不包含运行数据和 credentials。
+1. deterministic machine-readable inventory：tables/views/columns/types/nullability/defaults/constraints/indexes/sequences/triggers/routines/domains/enums；
+2. `pg_dump --schema-only` SQL reference；
+3. SHA-256 manifest，数据库名仅记录 fingerprint；
+4. 不包含运行数据和 credentials；
+5. `flyway_schema_history` / `tenant_schema_metadata` 排除出 core baseline evidence。
 
-推荐评估：
+工具拒绝将输出写入 Git worktree；raw trusted-environment snapshot 不直接进入 public repository。
 
-- PostgreSQL catalog deterministic inventory；
-- `pg_dump --schema-only --schema=<trusted_tenant>`；
-- 两者结合交叉核对。
+操作与审核流程见：`schema-snapshot.md`。真实环境采集与 drift review 由 #32 跟踪。
 
 生成物是**审阅输入**，不能未经 normalization/review 自动变成 executable migration。
 
@@ -324,7 +329,7 @@ GET  /api/admin/schema-migrations/tenants
 
 ## 11. Core Tenant Baseline — #25
 
-依赖：#19 + #26。
+依赖：#19 + #26 tooling + #32 trusted capture/review。
 
 目标：
 
@@ -345,7 +350,7 @@ Testcontainers 必须验证：
 ```text
 empty schema
   -> all baseline migrations
-  -> compare structure with #26 inventory contract
+  -> compare structure with reviewed trusted contract
 ```
 
 不允许依赖 Hibernate `ddl-auto=update` 在测试后补齐剩余结构。
@@ -354,7 +359,7 @@ empty schema
 
 ## 12. New Tenant Lifecycle — #20
 
-依赖：#19 + #26 + #25。
+依赖：#19 + #25。
 
 ```text
 Company metadata created as unavailable
@@ -374,7 +379,7 @@ activate company
 
 ## 13. Existing Tenant Baseline — #21
 
-依赖：#19 + #26 + #25。
+依赖：#19 + #25。
 
 ```text
 read-only structure inspection
@@ -406,7 +411,9 @@ SafeTenantSchemaSyncService = diagnostic / conservative compatibility
 ```text
 #19 runtime ✅
   ↓
-#26 trusted snapshot
+#26 snapshot tooling ✅
+  ↓
+#32 trusted capture/review
   ↓
 #25 core baseline
   ↓
@@ -427,15 +434,16 @@ production validate
 
 ## 15. Testing Gate
 
-PR #24 合并前已通过：
+PR #27 验证：
 
 - Repository Governance；
-- Backend Maven compile；
-- Backend Maven test；
-- PostgreSQL Testcontainers；
+- Backend Maven compile/test；
+- Tenant Schema Snapshot Validation；
 - KMP APK。
 
-`MigrationRuntimeIntegrationTest` 验证：
+`TenantSchemaInventorySqlIntegrationTest` 使用真实 PostgreSQL Testcontainers 验证 enum/domain/sequence/identity/table/PK/UK/FK/CHECK/index/view/function/trigger，并验证 migration runtime tables 被排除。
+
+`MigrationRuntimeIntegrationTest` 继续验证：
 
 1. public bootstrap explicit baseline + migration；
 2. bootstrap 幂等；
@@ -459,8 +467,9 @@ PR #24 合并前已通过：
 │
 ├── #18 Architecture Contract / ADR-0004  ✅
 ├── #19 Migration Runtime                 ✅ PR #24
-├── #26 Trusted Schema Snapshot           ⏭ NEXT
-├── #25 Core Tenant Baseline              depends #26
+├── #26 Trusted Schema Snapshot Tooling   ✅ PR #27
+├── #32 Trusted Snapshot Capture/Review   → operational input
+├── #25 Core Tenant Baseline              → NEXT
 ├── #20 New Tenant Provisioning           depends #25
 └── #21 Existing Tenant Baseline/Validate depends #25
 ```
@@ -472,7 +481,9 @@ PR #24 合并前已通过：
        ↓
 #19 ✅
        ↓
-#26
+#26 ✅
+       ↓
+#32 capture/review
        ↓
 #25
       ├─→ #20
