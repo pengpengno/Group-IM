@@ -113,13 +113,20 @@ class MigrationRuntimeIntegrationTest {
         assertNotNull(companyBPlan.errorMessage());
         assertTrue(companyBPlan.errorMessage().contains("baseline"));
 
+        assertFalse(tableExists("company_a", "flyway_schema_history"), "PLAN must not create tenant history");
+        assertFalse(tableExists("company_a", "tenant_schema_metadata"), "PLAN must not execute tenant DDL");
+        assertFalse(tableExists("company_b", "tenant_schema_metadata"), "PLAN must not alter legacy tenants");
+
         var applyAccepted = migrationRunService.createRun(
                 new MigrationRunRequest(MigrationMode.APPLY, List.of(1L), false),
                 9001L
         );
         MigrationRunSnapshot applyRun = migrationRunService.getRun(applyAccepted.runId());
         assertEquals(MigrationRunStatus.SUCCEEDED, applyRun.status());
-        assertEquals(MigrationItemStatus.SUCCEEDED, item(applyRun, 1L).status());
+        MigrationRunSnapshot.Item firstApplyItem = item(applyRun, 1L);
+        assertEquals(MigrationItemStatus.SUCCEEDED, firstApplyItem.status());
+        assertNull(firstApplyItem.fromVersion());
+        assertEquals("2026081901", firstApplyItem.targetVersion());
         assertTrue(tableExists("company_a", "tenant_schema_metadata"));
         assertTrue(tableExists("company_a", "flyway_schema_history"));
         assertFalse(tableExists("company_b", "tenant_schema_metadata"));
@@ -130,7 +137,10 @@ class MigrationRuntimeIntegrationTest {
         );
         MigrationRunSnapshot secondApplyRun = migrationRunService.getRun(secondApplyAccepted.runId());
         assertEquals(MigrationRunStatus.SUCCEEDED, secondApplyRun.status());
-        assertEquals(0, item(secondApplyRun, 1L).pendingCount(), "repeat APPLY must be idempotent");
+        MigrationRunSnapshot.Item secondApplyItem = item(secondApplyRun, 1L);
+        assertEquals(0, secondApplyItem.pendingCount(), "repeat APPLY must be idempotent");
+        assertEquals("2026081901", secondApplyItem.fromVersion());
+        assertEquals("2026081901", secondApplyItem.targetVersion());
 
         var blockedAccepted = migrationRunService.createRun(
                 new MigrationRunRequest(MigrationMode.APPLY, List.of(2L), false),
