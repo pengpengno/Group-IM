@@ -1,390 +1,246 @@
 # Tenant Schema Migration — Current Design
 
 > 状态：CURRENT / CANONICAL  
-> 架构决策：`ADR-0004-versioned-tenant-schema-migrations.md`  
+> ADR：`ADR-0004-versioned-tenant-schema-migrations.md`  
 > Epic：#12  
-> 当前阶段：#26 Trusted Schema Snapshot Tooling — IMPLEMENTED / PR #27  
-> 下一阶段：#32 Trusted Snapshot Collection / Review → #25 Core Tenant Baseline
+> 当前阶段：#25 Core Tenant Baseline — IN_PROGRESS  
+> Canonical core baseline version：`2026081906`
 
-本文是 Group-IM **当前租户数据库迁移设计入口**。如果历史文档、PR 评论或旧实现蓝图与本文或 ADR-0004 冲突，以 ADR-0004 和本文为准。
-
----
-
-## 1. 当前代码事实
-
-### Tenant boundary
-
-Group-IM 使用 PostgreSQL schema 作为公司租户边界。HTTP 请求通常通过当前登录用户/公司解析 schema，但数据库迁移属于后台/控制面能力，不依赖 HTTP `TenantContextFilter` 或 ThreadLocal 决定目标 schema。
-
-### New company provisioning
-
-当前 `CompanyService.save()` 仍然：
-
-```text
-save company
-  -> SELECT public.create_or_sync_company_schema(schemaName, companyId)
-```
-
-legacy database function 会创建 schema，并从 public 复制/建立：
-
-- all non-system tenant tables；
-- company/company_user/users tenant views；
-- foreign keys；
-- ordinary indexes；
-- CHECK constraints。
-
-**状态：LEGACY / COMPATIBILITY。**
-
-#19 的首个 tenant migration 只建立 migration metadata，不能替代完整 Group-IM tenant core schema。
-
-### Safe Schema Sync
-
-`SafeTenantSchemaSyncService` 当前可以检测结构差异，并自动补 nullable 且无 default 的缺失字段；它不会创建缺失整表、修改冲突字段、表达版本化数据 migration 或完整管理 index/constraint lifecycle。
-
-**状态：TRANSITIONAL SAFETY TOOL。**
-
-### Hibernate
-
-```yaml
-spring.jpa.hibernate.ddl-auto: update
-```
-
-**状态：TECHNICAL DEBT / NOT MIGRATION SOURCE OF TRUTH。**
-
-#21 完成 tenant coverage 前不直接切生产 `validate`。
+本文是 Group-IM 当前租户数据库迁移设计入口。冲突时以 ADR-0004、本文件和 `doc/PROJECT_MASTER.md` 的 current facts 为准。
 
 ---
 
-## 2. Implemented Runtime Architecture
+## 1. 当前事实
 
-PR #24 / #19 已建立：
+- PostgreSQL schema 是 tenant boundary；
+- Migration Runtime 已由 #19 / PR #24 建立；
+- `spring.flyway.enabled=false`，普通应用启动不自动 migrate 全 tenant；
+- `CompanyService.save()` 仍调用 `public.create_or_sync_company_schema(...)`；
+- `SafeTenantSchemaSyncService` 仍是 transitional drift/compatibility tool；
+- `spring.jpa.hibernate.ddl-auto` 仍是 `update`；
+- #26 / PR #27 已提供 trusted schema snapshot/inventory tooling；
+- #32 已完成 PostgreSQL 14.13 test tenant schema evidence review，结果为 `READY_FOR_BASELINE_WITH_NORMALIZATION`；
+- #25 正在把 reviewed contract 固化为 immutable tenant migrations。
+
+#25 不切换新公司 provisioning，不 baseline 旧 tenant，也不修改 `ddl-auto`。这些分别属于 #20、#21 和后续 staged rollout。
+
+---
+
+## 2. Migration Runtime Contract
 
 ```text
 Git versioned migrations
         ↓
- Public Flyway scope          Tenant Flyway scope
-        ↓                           ↓
-public.flyway_schema_history   tenant_a.flyway_schema_history
-        ↓                      tenant_b.flyway_schema_history
-control plane                        ...
-        ↓
-MigrationRunService
-        ↓
-MigrationRunWorker (bounded)
+TenantFlywayFactory(defaultSchema = tenant)
         ↓
 TenantMigrationExecutor
         ↓
-Postgres advisory lock
+PostgreSQL advisory lock
         ↓
 PLAN / APPLY / RETRY
 ```
 
-核心原则：
-
-1. Flyway history 是每个 schema 的版本事实；
-2. public control tables 是运行/状态/审计投影；
-3. `spring.flyway.enabled=false`，不让 Spring Boot 启动自动迁移 public；
-4. 不在普通应用启动时自动迁移全部 tenant；
-5. 后台 migration 显式指定 schema；
-6. 同 tenant 使用 advisory lock；
-7. 一个 tenant 失败不回滚其他已经成功 tenant；
-8. migration 文件发布后不可修改，变化使用新版本。
-
----
-
-## 3. Migration Resources
-
-当前：
-
-```text
-server/src/main/resources/db/migration/
-├── public/
-│   └── V2026081901__create_schema_migration_control_plane.sql
-└── tenant/
-    └── V2026081901__create_tenant_schema_metadata.sql
-```
-
-### public scope
-
-`V2026081901` 建立：
-
-```text
-schema_migration_run
-schema_migration_run_item
-tenant_schema_state
-```
-
-public 本身是历史非空 schema，因此首次**显式** bootstrap 使用 public-only baseline `2026081900`，随后执行 control-plane migration。这个规则不能复制到 tenant。
-
-### tenant scope
-
-`V2026081901` 只建立：
-
-```text
-tenant_schema_metadata
-```
-
-它用于验证 Migration Runtime 能从空 tenant schema 建立 Flyway history 和执行 versioned DDL。
-
-**它不是 Group-IM 核心 tenant baseline。** Chat、Meeting、File、Automation 等现有业务结构由 #25 固化。
-
----
-
-## 4. Control Plane
-
-### `schema_migration_run`
-
-一次管理员 PLAN/APPLY 请求，状态：
-
-```text
-QUEUED
-RUNNING
-SUCCEEDED
-PARTIAL_FAILED
-FAILED
-```
-
-### `schema_migration_run_item`
-
-每 tenant 记录：company/schema、from/target version、pending count、status、duration、safe error。
-
-### `tenant_schema_state`
-
-快速投影：
-
-```text
-UNKNOWN
-UP_TO_DATE
-PENDING
-MIGRATING
-FAILED
-DRIFTED
-DISABLED
-```
-
-它不是 migration history 的唯一来源。
-
----
-
-## 5. PLAN / APPLY / RETRY
-
-### PLAN
-
-只读：
-
-- 检查 schema；
-- 检查 business tables / Flyway history；
-- 读取 Flyway info；
-- 列出 pending migrations；
-- **不创建 tenant Flyway history**；
-- **不执行 tenant DDL**。
-
-非空且没有 Flyway history 的 tenant 被报告：
-
-```text
-blocked = true
-state = DRIFTED
-requires explicit baseline/preflight (#21)
-```
-
-### APPLY
-
-- 不允许 public；
-- 获取 tenant advisory lock；
-- 空 schema 或已有可信 Flyway history 才执行；
-- 保存真实 pre-apply `from_version` 与最终 `target_version`；
-- 非空/no-history tenant 直接拒绝，不自动 baseline。
-
-### RETRY
-
-只重试失败的 APPLY tenant，不重跑成功项。
-
-### BASELINE
-
-由 #21 实现，并以 #25 固定的 core tenant baseline contract 为 expected structure。禁止 blind `baselineOnMigrate(true)`。
-
----
-
-## 6. Target Resolution
-
-目标来自 fully-qualified：
-
-```sql
-public.company
-```
-
-支持：
-
-```json
-{ "mode": "PLAN", "companyIds": [1, 2], "allActive": false }
-```
-
-或：
-
-```json
-{ "mode": "PLAN", "companyIds": [], "allActive": true }
-```
-
 规则：
 
-- explicit IDs 与 allActive 不能同时使用；
-- 空 scope 拒绝；
-- inactive/unknown company 拒绝；
-- `schema_name=public` 永远不作为 tenant target。
+1. `<tenant>.flyway_schema_history` 是 tenant version authority；
+2. PLAN 只读，不创建 history、不执行 DDL；
+3. APPLY 只允许空 schema 或已有可信 Flyway history 的 schema；
+4. non-empty + no-history tenant 必须走 #21 explicit baseline/preflight；
+5. 同 tenant 并发 APPLY 用 advisory lock；
+6. migration 发布后不可修改，只能新增版本。
 
 ---
 
-## 7. Concurrency
-
-`MigrationRunWorker` 使用 bounded executor，默认：
-
-```yaml
-group.schema-migration.max-concurrency: 2
-```
-
-配置限制为 1–8。
-
-同 tenant 使用 session-level PostgreSQL advisory lock：
+## 3. Tenant Migration Versions
 
 ```text
-pg_try_advisory_lock(hashtext(namespace), hashtext(schemaName))
+server/src/main/resources/db/migration/tenant/
+
+V2026081901__create_tenant_schema_metadata.sql
+V2026081902__create_core_automation_and_collaboration_tables.sql
+V2026081903__create_core_file_and_meeting_tables.sql
+V2026081904__create_core_message_and_user_tables.sql
+V2026081905__add_core_tenant_keys_and_relationships.sql
+V2026081906__create_tenant_identity_views.sql
 ```
 
-第二执行者收到 `MIGRATION_TENANT_LOCKED`。
-
----
-
-## 8. Public Bootstrap
-
-显式管理员 API：
-
-```http
-POST /api/admin/schema-migrations/bootstrap
-```
+空 tenant 完整 APPLY 后 current version 必须为：
 
 ```text
-check public Flyway history
-  ↓
-if absent: explicit public baseline 2026081900
-  ↓
-run db/migration/public
-  ↓
-verify current version
+2026081906
 ```
-
-不会扫描/迁移 tenant。
 
 ---
 
-## 9. Admin API
+## 4. Reviewed Core Tenant Contract
 
-```http
-POST /api/admin/schema-migrations/bootstrap
-POST /api/admin/schema-migrations/runs
-GET  /api/admin/schema-migrations/runs/{runId}
-POST /api/admin/schema-migrations/runs/{runId}/retry
-GET  /api/admin/schema-migrations/tenants
-```
-
-仓库暂时没有真实 SYSTEM_ADMIN authority。#19 使用 `MigrationAdminAuthorizer` 集中 configured-admin 兼容逻辑；未来 RBAC 只替换该 authorizer，不改 migration service contract。
-
----
-
-## 10. Trusted Snapshot — #26 / PR #27
-
-状态：`IMPLEMENTED`
-
-#25 不能只根据 JPA Entity 手写 baseline，因为 legacy provisioning 的数据库事实还包含：
-
-- view definitions；
-- DB-level defaults / identity；
-- PK/UK/FK/CHECK；
-- indexes；
-- sequences；
-- 可能没有完整反映在 annotations 中的结构细节。
-
-因此 #26 建立离线、只读、可审阅 snapshot/inventory 工具：
+#32 的私有 schema-only evidence 与 peer tenant drift review 固定以下 contract：
 
 ```text
-scripts/tenant-schema-snapshot/
-├── export_tenant_schema_snapshot.sh
-└── tenant_schema_inventory.sql
+18 core tenant tables
+3 tenant identity views
+17 identity sequences
+65 core constraints
+26 PK/UNIQUE backing indexes
 ```
 
-输出：
+18 个 core tables：
 
-1. deterministic machine-readable inventory：tables/views/columns/types/nullability/defaults/constraints/indexes/sequences/triggers/routines/domains/enums；
-2. `pg_dump --schema-only` SQL reference；
-3. SHA-256 manifest，数据库名仅记录 fingerprint；
-4. 不包含运行数据和 credentials；
-5. `flyway_schema_history` / `tenant_schema_metadata` 排除出 core baseline evidence。
+```text
+approval_requests
+automation_executions
+automation_rules
+conversation_bot_configs
+conversation_members
+conversations
+departments
+file_resource
+friendships
+media_file_resource
+meeting_participants
+meetings
+messages
+status_updates
+system_config_item
+upload_chunk_record
+user_departments
+user_privacy_settings
+```
 
-工具拒绝将输出写入 Git worktree；raw trusted-environment snapshot 不直接进入 public repository。
-
-操作与审核流程见：`schema-snapshot.md`。真实环境采集与 drift review 由 #32 跟踪。
-
-生成物是**审阅输入**，不能未经 normalization/review 自动变成 executable migration。
+Migration runtime 自有的 `flyway_schema_history` 和 `tenant_schema_metadata` 不计入 core object counts。
 
 ---
 
-## 11. Core Tenant Baseline — #25
+## 5. Canonical Normalization
 
-依赖：#19 + #26 tooling + #32 trusted capture/review。
-
-目标：
-
-> 从真正空 schema 开始，只运行 immutable versioned tenant migrations，就能得到当前 Group-IM 核心业务要求的完整 tenant schema。
-
-必须覆盖/确认：
-
-- tenant-managed tables；
-- global/public-only objects；
-- global identity views；
-- PK/UK/FK/CHECK；
-- indexes；
-- sequences/identity；
-- expected baseline version/fingerprint。
-
-Testcontainers 必须验证：
+Reviewed tenant 之间存在 drift，因此 baseline 不复制任何一个历史 tenant，而是 normalization：
 
 ```text
-empty schema
-  -> all baseline migrations
-  -> compare structure with reviewed trusted contract
+messages.content
+  -> TEXT
+
+meetings.scheduled_at
+  -> timestamp(6) without time zone
+
+messages.type CHECK
+  -> TEXT / FILE / VOICE / VIDEO / IMAGE / MEDIA / MEETING / BOT_CARD
 ```
 
-不允许依赖 Hibernate `ddl-auto=update` 在测试后补齐剩余结构。
+依据：
+
+- active tenant 已存在长度超过 255 的 message payload；
+- 当前 `Message` entity 明确使用 TEXT；
+- public / peer tenant meeting timestamp 使用显式 precision 6；
+- 当前 Java `MessageType` 已有 `BOT_CARD`，旧 snapshot CHECK 已落后于代码。
 
 ---
 
-## 12. New Tenant Lifecycle — #20
+## 6. Global Identity / Tenant Views
 
-依赖：#19 + #25。
+Global identity authority：
 
 ```text
-Company metadata created as unavailable
+public.company
+public.company_user
+public.users
+```
+
+Tenant 只建立 projections：
+
+```text
+company      VIEW
+company_user VIEW
+users        VIEW
+```
+
+禁止把 snapshot 中捕获的 companyId 或 source schema name 写进 migration。
+
+`V2026081906` 在 Flyway 当前 tenant schema 中创建 views，并通过 `public.company.schema_name = tenant schema name` 固定 tenant binding。`company_user` 从 public membership 投影；`users` 只暴露属于当前 tenant 的 global users。
+
+---
+
+## 7. Keys / Relationships
+
+`V2026081905` 保留 reviewed legacy constraint names，便于 #21 做 deterministic drift compare。
+
+包含：
+
+- tenant → tenant FKs，例如 messages → conversations；
+- tenant → public users FKs；
+- PK / UNIQUE constraints；
+- enum-like CHECK constraints；
+- reviewed PK/UNIQUE backing index contract。
+
+#25 不复制任何业务 row data。
+
+---
+
+## 8. Testcontainers Gate
+
+`CoreTenantBaselineIntegrationTest` 必须在 PostgreSQL 16 上验证：
+
+```text
+minimal public global identity contract
+        ↓
+CREATE truly empty tenant schema
+        ↓
+Flyway migrate 2026081901..2026081906
+        ↓
+assert current version = 2026081906
+```
+
+精确断言：
+
+- 18 core table names；
+- 3 identity view names；
+- 17 core sequences；
+- 65 core constraints；
+- 26 core indexes；
+- `messages.content=TEXT`；
+- `meetings.scheduled_at=timestamp(6)`；
+- `messages_type_check` 包含 `BOT_CARD`；
+- identity views 不泄漏另一 tenant 的 company/user。
+
+`MigrationRuntimeIntegrationTest` 同步验证：
+
+- empty tenant PLAN pending count = 6；
+- APPLY target version = `2026081906`；
+- repeat APPLY 幂等；
+- legacy non-empty/no-history tenant 继续被拒绝；
+- advisory lock 行为不变。
+
+Hibernate 不参与 baseline test 后补结构。
+
+---
+
+## 9. #20 New Tenant Provisioning
+
+#25 合并后 #20 才能把生命周期切换为：
+
+```text
+create company metadata as unavailable
         ↓
 CREATE SCHEMA
         ↓
-run complete tenant migrations
+Flyway migrate to required version
         ↓
-verify target version / core schema
+verify core schema
         ↓
 activate company
 ```
 
-#25 完成前，legacy `create_or_sync_company_schema` 必须继续作为兼容路径。
+#20 前 legacy public clone 保留。
 
 ---
 
-## 13. Existing Tenant Baseline — #21
+## 10. #21 Existing Tenant Baseline / Validate
 
-依赖：#19 + #25。
+#25 合并后 #21 使用 `2026081906` contract：
 
 ```text
-read-only structure inspection
+read-only inspect existing tenant
         ↓
-compare with #25 baseline contract
+compare with canonical core contract
         ↓
 BASELINE_READY / DRIFTED / CONFLICT / ERROR
         ↓
@@ -393,118 +249,57 @@ explicit authorized baseline
 normal Flyway migration
 ```
 
-#19 只负责识别 `non-empty + no history = BLOCKED`，不会猜测 baseline version。
+禁止 blind `baselineOnMigrate(true)`。
 
 ---
 
-## 14. Safe Sync and Hibernate
-
-过渡期：
-
-```text
-Flyway Migration Runtime = authoritative versioned change
-SafeTenantSchemaSyncService = diagnostic / conservative compatibility
-```
-
-目标顺序：
+## 11. Safe Sync / Hibernate Rollout
 
 ```text
 #19 runtime ✅
   ↓
 #26 snapshot tooling ✅
   ↓
-#32 trusted capture/review
+#32 reviewed evidence ✅
   ↓
-#25 core baseline
+#25 core baseline 2026081906
   ↓
-#20 new tenants on migrations
+#20 new tenant migration provisioning
   +
-#21 old tenants baselined / drift resolved
+#21 existing tenant baseline/validate
   ↓
-all active tenants >= required version
+all active tenants covered
   ↓
-staging validate
+staging ddl-auto=validate
   ↓
-production validate
+production ddl-auto=validate
 ```
 
-`ddl-auto` 当前保持 `update`。
+当前仍保持 `ddl-auto=update`。
 
 ---
 
-## 15. Testing Gate
-
-PR #27 验证：
-
-- Repository Governance；
-- Backend Maven compile/test；
-- Tenant Schema Snapshot Validation；
-- KMP APK。
-
-`TenantSchemaInventorySqlIntegrationTest` 使用真实 PostgreSQL Testcontainers 验证 enum/domain/sequence/identity/table/PK/UK/FK/CHECK/index/view/function/trigger，并验证 migration runtime tables 被排除。
-
-`MigrationRuntimeIntegrationTest` 继续验证：
-
-1. public bootstrap explicit baseline + migration；
-2. bootstrap 幂等；
-3. PLAN 不创建 tenant history；
-4. PLAN 不执行 tenant DDL；
-5. allActive 排除 public；
-6. APPLY company A 不改变 company B；
-7. history 写入；
-8. repeat APPLY 幂等；
-9. from/target version 正确；
-10. legacy non-empty/no-history tenant 被拒绝；
-11. legacy table 保持不变；
-12. advisory lock 互斥。
-
----
-
-## 16. Issue Roadmap
+## 12. Roadmap
 
 ```text
-#12 Tenant Migration Epic
-│
-├── #18 Architecture Contract / ADR-0004  ✅
-├── #19 Migration Runtime                 ✅ PR #24
-├── #26 Trusted Schema Snapshot Tooling   ✅ PR #27
-├── #32 Trusted Snapshot Capture/Review   → operational input
-├── #25 Core Tenant Baseline              → NEXT
-├── #20 New Tenant Provisioning           depends #25
-└── #21 Existing Tenant Baseline/Validate depends #25
+#18 Architecture ✅ PR #23
+#19 Runtime ✅ PR #24
+#26 Snapshot Tooling ✅ PR #27
+#32 Snapshot Review ✅
+#25 Core Tenant Baseline ← IN_PROGRESS
+├─ #20 New Tenant Provisioning
+└─ #21 Existing Tenant Baseline/Validate
 ```
 
-```text
-#8 Backend CI ✅
-       ↓
-#18 ✅
-       ↓
-#19 ✅
-       ↓
-#26 ✅
-       ↓
-#32 capture/review
-       ↓
-#25
-      ├─→ #20
-      └─→ #21
-       ↓
-#12 complete
-       ↓
-#13 Workbench Platform Foundation
-```
+#20 与 #21 完成后才能考虑退役 legacy public clone 与 Safe Sync write path。
 
 ---
 
-## 17. Historical Documents
+## 13. Historical Inputs
 
-以下文件保留为 Historical Design Input：
+历史文档继续保留：
 
 - `doc/部署运维/租户Schema版本与迁移机制方案.md`
 - `doc/部署运维/租户Schema迁移代码设计.md`
 
-冲突优先级：
-
-> ADR-0004 > 本文 > 已合并实现 > 历史文档。
-
-每个 #19/#26/#25/#20/#21 PR 都必须同步更新本文和 `doc/PROJECT_MASTER.md`。
+它们是 Historical Design Input，不覆盖 ADR-0004 或本 canonical README。

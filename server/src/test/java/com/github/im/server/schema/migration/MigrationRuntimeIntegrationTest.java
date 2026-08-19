@@ -46,11 +46,39 @@ class MigrationRuntimeIntegrationTest {
         dataSource = pgDataSource;
 
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
-            statement.execute("CREATE TABLE public.company (" +
-                    "company_id BIGINT PRIMARY KEY, " +
-                    "name VARCHAR(255) NOT NULL, " +
-                    "schema_name VARCHAR(128) NOT NULL UNIQUE, " +
-                    "active BOOLEAN NOT NULL DEFAULT TRUE)");
+            statement.execute("""
+                    CREATE TABLE public.company (
+                        company_id BIGINT PRIMARY KEY,
+                        active BOOLEAN NOT NULL DEFAULT TRUE,
+                        created_at TIMESTAMP(6) WITHOUT TIME ZONE,
+                        name VARCHAR(255) NOT NULL,
+                        schema_name VARCHAR(255) NOT NULL UNIQUE,
+                        updated_at TIMESTAMP(6) WITHOUT TIME ZONE
+                    )
+                    """);
+            statement.execute("""
+                    CREATE TABLE public.users (
+                        user_id BIGINT PRIMARY KEY,
+                        created_at TIMESTAMP(6) WITHOUT TIME ZONE,
+                        email VARCHAR(255),
+                        force_password_change BOOLEAN,
+                        password_hash VARCHAR(255),
+                        phone_number VARCHAR(255),
+                        primary_company_id BIGINT,
+                        refresh_token VARCHAR(255),
+                        updated_at TIMESTAMP(6) WITHOUT TIME ZONE,
+                        user_status VARCHAR(255),
+                        username VARCHAR(255)
+                    )
+                    """);
+            statement.execute("""
+                    CREATE TABLE public.company_user (
+                        id BIGINT PRIMARY KEY,
+                        company_id BIGINT NOT NULL REFERENCES public.company(company_id),
+                        status VARCHAR(255),
+                        user_id BIGINT NOT NULL REFERENCES public.users(user_id)
+                    )
+                    """);
             statement.execute("CREATE SCHEMA company_a");
             statement.execute("CREATE SCHEMA company_b");
             statement.execute("CREATE TABLE company_b.legacy_business_table(id BIGINT PRIMARY KEY)");
@@ -105,7 +133,8 @@ class MigrationRuntimeIntegrationTest {
 
         MigrationRunSnapshot.Item companyAPlan = item(planRun, 1L);
         assertEquals(MigrationItemStatus.PLANNED, companyAPlan.status());
-        assertEquals(1, companyAPlan.pendingCount());
+        assertEquals(6, companyAPlan.pendingCount());
+        assertEquals("2026081906", companyAPlan.targetVersion());
         assertNull(companyAPlan.errorMessage());
 
         MigrationRunSnapshot.Item companyBPlan = item(planRun, 2L);
@@ -126,9 +155,11 @@ class MigrationRuntimeIntegrationTest {
         MigrationRunSnapshot.Item firstApplyItem = item(applyRun, 1L);
         assertEquals(MigrationItemStatus.SUCCEEDED, firstApplyItem.status());
         assertNull(firstApplyItem.fromVersion());
-        assertEquals("2026081901", firstApplyItem.targetVersion());
+        assertEquals("2026081906", firstApplyItem.targetVersion());
         assertTrue(tableExists("company_a", "tenant_schema_metadata"));
         assertTrue(tableExists("company_a", "flyway_schema_history"));
+        assertTrue(tableExists("company_a", "messages"));
+        assertTrue(tableExists("company_a", "meetings"));
         assertFalse(tableExists("company_b", "tenant_schema_metadata"));
 
         var secondApplyAccepted = migrationRunService.createRun(
@@ -139,8 +170,8 @@ class MigrationRuntimeIntegrationTest {
         assertEquals(MigrationRunStatus.SUCCEEDED, secondApplyRun.status());
         MigrationRunSnapshot.Item secondApplyItem = item(secondApplyRun, 1L);
         assertEquals(0, secondApplyItem.pendingCount(), "repeat APPLY must be idempotent");
-        assertEquals("2026081901", secondApplyItem.fromVersion());
-        assertEquals("2026081901", secondApplyItem.targetVersion());
+        assertEquals("2026081906", secondApplyItem.fromVersion());
+        assertEquals("2026081906", secondApplyItem.targetVersion());
 
         var blockedAccepted = migrationRunService.createRun(
                 new MigrationRunRequest(MigrationMode.APPLY, List.of(2L), false),
