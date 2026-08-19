@@ -3,8 +3,9 @@
 > 状态：CURRENT / CANONICAL  
 > ADR：`ADR-0004-versioned-tenant-schema-migrations.md`  
 > Epic：#12  
-> 当前阶段：#25 Core Tenant Baseline — IN_PROGRESS  
-> Canonical core baseline version：`2026081906`
+> 当前阶段：#25 Core Tenant Baseline — IMPLEMENTED / PR #33  
+> Canonical core baseline version：`2026081906`  
+> 下一阶段：#20 New Tenant Provisioning + #21 Existing Tenant Baseline/Validate
 
 本文是 Group-IM 当前租户数据库迁移设计入口。冲突时以 ADR-0004、本文件和 `doc/PROJECT_MASTER.md` 的 current facts 为准。
 
@@ -20,7 +21,7 @@
 - `spring.jpa.hibernate.ddl-auto` 仍是 `update`；
 - #26 / PR #27 已提供 trusted schema snapshot/inventory tooling；
 - #32 已完成 PostgreSQL 14.13 test tenant schema evidence review，结果为 `READY_FOR_BASELINE_WITH_NORMALIZATION`；
-- #25 正在把 reviewed contract 固化为 immutable tenant migrations。
+- #25 / PR #33 已把 reviewed contract 固化为 immutable tenant migrations，并通过 PostgreSQL 16 empty-schema Testcontainers 验证。
 
 #25 不切换新公司 provisioning，不 baseline 旧 tenant，也不修改 `ddl-auto`。这些分别属于 #20、#21 和后续 staged rollout。
 
@@ -177,7 +178,7 @@ users        VIEW
 
 ## 8. Testcontainers Gate
 
-`CoreTenantBaselineIntegrationTest` 必须在 PostgreSQL 16 上验证：
+`CoreTenantBaselineIntegrationTest` 已在 PostgreSQL 16 验证：
 
 ```text
 minimal public global identity contract
@@ -193,7 +194,7 @@ assert current version = 2026081906
 
 - 18 core table names；
 - 3 identity view names；
-- 17 core sequences；
+- 17 core identity sequences；
 - 65 core constraints；
 - 26 core indexes；
 - `messages.content=TEXT`；
@@ -215,7 +216,7 @@ Hibernate 不参与 baseline test 后补结构。
 
 ## 9. #20 New Tenant Provisioning
 
-#25 合并后 #20 才能把生命周期切换为：
+#25 已合并，因此 #20 现在可以把新公司生命周期切换为：
 
 ```text
 create company metadata as unavailable
@@ -229,13 +230,13 @@ verify core schema
 activate company
 ```
 
-#20 前 legacy public clone 保留。
+#20 合并前，legacy `create_or_sync_company_schema` 继续作为兼容路径。
 
 ---
 
 ## 10. #21 Existing Tenant Baseline / Validate
 
-#25 合并后 #21 使用 `2026081906` contract：
+#25 已合并，因此 #21 可以使用 `2026081906` contract：
 
 ```text
 read-only inspect existing tenant
@@ -262,7 +263,7 @@ normal Flyway migration
   ↓
 #32 reviewed evidence ✅
   ↓
-#25 core baseline 2026081906
+#25 core baseline 2026081906 ✅
   ↓
 #20 new tenant migration provisioning
   +
@@ -286,9 +287,9 @@ production ddl-auto=validate
 #19 Runtime ✅ PR #24
 #26 Snapshot Tooling ✅ PR #27
 #32 Snapshot Review ✅
-#25 Core Tenant Baseline ← IN_PROGRESS
-├─ #20 New Tenant Provisioning
-└─ #21 Existing Tenant Baseline/Validate
+#25 Core Tenant Baseline ✅ PR #33
+├─ #20 New Tenant Provisioning ← NEXT
+└─ #21 Existing Tenant Baseline/Validate ← NEXT
 ```
 
 #20 与 #21 完成后才能考虑退役 legacy public clone 与 Safe Sync write path。
