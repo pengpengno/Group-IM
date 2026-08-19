@@ -1,0 +1,87 @@
+name: Bug Report
+description: 报告可复现缺陷；Bug 修复必须先有 Issue。
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢提交问题。请提供可复现信息，修复 PR 将通过 `Fixes #<issue>` 关联本 Issue。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题描述
+      description: 实际发生了什么？
+      placeholder: 清晰描述问题现象。
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 登录...
+        2. 打开...
+        3. 点击...
+        4. 出现...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+      description: 正确行为应该是什么？
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 影响模块
+      options:
+        - Server / Backend
+        - Electron / Web
+        - Android / KMP
+        - IM / Chat
+        - Meeting
+        - Workbench / OA
+        - AI / Automation
+        - Organization / Tenant
+        - File
+        - Database / Migration
+        - CI / Deployment
+        - Documentation / Governance
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: tenant
+    attributes:
+      label: 多租户/权限影响
+      description: 是否只发生在特定公司、角色、schema 或用户权限下？
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境信息
+      placeholder: 分支/版本、OS、客户端、浏览器、部署环境等。
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 日志 / 截图 / 错误信息
+      description: 请注意移除 Token、密码、密钥和隐私数据。
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      placeholder: 修复完成后如何确认问题真正解决？
+    validations:
+      required: true
