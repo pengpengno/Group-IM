@@ -41,21 +41,15 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 
 ### 当前治理状态
 
-PR #5 已建立：
+PR #5 已建立 Issue-driven PR、`PROJECT_MASTER.md`、贡献规范、PR/Issue 模板、Governance CI 和 ADR 机制。
 
-- Issue-driven PR；
-- `PROJECT_MASTER.md`；
-- `CONTRIBUTING.md`；
-- PR/Issue Templates；
-- Governance CI；
-- ADR 机制。
-
-后续治理：
+当前治理工作：
 
 - #6：保护 `master` 并设置 required checks；
 - #7：部署 workflow 移除历史 `main` trigger；
-- #8：补齐 Backend PR CI，当前实现分支为 `chore/8-backend-pr-validation`；
-- #9：补齐 Electron/Web PR CI。
+- #8：Backend PR CI，PR #16 正在自验证；
+- #9：Electron/Web PR CI；
+- #22：清理 `server/pom.xml` 重复 dependency 声明。
 
 当前 `master` Branch Protection 仍未启用，因此 #6 为 P0。
 
@@ -90,7 +84,9 @@ PR #5 已建立：
 - 不删除或修改已有字段；
 - **不自动创建缺失表**。
 
-因此 Workbench 的新业务表必须走正式版本化 tenant migration。该前置工作由 **Issue #12** 跟踪。
+`CompanyService.save()` 当前仍调用 `public.create_or_sync_company_schema(schemaName, companyId)`，从 `public` 现有表结构初始化新 tenant。该路径属于待退役的兼容机制，不再作为未来数据库版本真相。
+
+Workbench 新业务表必须走 #12 Tenant Versioned Migration Epic。
 
 ---
 
@@ -101,7 +97,7 @@ PR #5 已建立：
 | 模块 | 状态 | 当前事实 | 下一阶段 |
 | --- | --- | --- | --- |
 | 登录 / 鉴权 | STABLE | JWT/Spring Security 主链路存在 | RBAC 细化 |
-| 多公司 / 多租户 | IN_PROGRESS | Schema 多租户 + Safe Sync | #12 正式版本化 migration |
+| 多公司 / 多租户 | IN_PROGRESS | Schema 多租户 + Safe Sync + legacy public clone | #12 Migration Epic |
 | 单聊 / 群聊 | STABLE | 核心 IM 主链路存在 | 一致性、搜索、治理 |
 | 联系人 / 组织 | STABLE | 公司/部门/员工能力存在 | 权限与批量治理 |
 | 文件 | IN_PROGRESS | 上传/分片存在 | 资源级权限与可靠性 |
@@ -114,9 +110,9 @@ PR #5 已建立：
 | OA Calendar | PLANNED | Meeting/Task 聚合方向已形成 | 后续迭代 |
 | OA Announcement | PLANNED | Target/Receipt/通知方向已形成 | 后续迭代 |
 | OA Report | PLANNED | Roadmap 能力 | Workbench V1 后评估 |
-| 数据库迁移治理 | IN_PROGRESS | Safe Sync/冲突检测存在 | #12 |
-| Backend PR CI | IN_PROGRESS | #8 正在新增 Java 21 Maven compile/test 门禁 | 验证后设为 required check |
-| 仓库工程治理 | IN_PROGRESS | PR #5 已建立治理基线 | #6/#7/#8/#9 |
+| 数据库迁移治理 | IN_PROGRESS | #12 已拆为 #18/#19/#20/#21 | 先 #18，再 #19 |
+| Backend PR CI | IN_PROGRESS | PR #16；compile 已通过，测试隔离修复 #17 正在自验证 | 全绿后合并并纳入 #6 |
+| 仓库工程治理 | IN_PROGRESS | PR #5 已建立治理基线 | #6/#7/#8/#9/#22 |
 
 ---
 
@@ -150,35 +146,34 @@ Issue #10 / PR #11 已完成并合入 `master`：
 - ADR-0002：Workbench 模块化单体 + tenant domains；
 - ADR-0003：Task-first + lightweight Approval。
 
-### 已建立的实现前置 Issue
+### 实现前置
 
-- **#12** `architecture(database): establish versioned tenant migration path for new business tables`
-  - 解决 tenant 新表、版本、执行、漂移和审计；
-  - 阻塞 Task/Approval 新业务表落库。
-- **#13** `feat(workbench): establish OA platform foundation`
-  - 建立 `workbench/common`、CurrentWorkContext、Permission、Audit、Organization/File Adapter、Job tenant execution；
-  - 依赖 #12 的迁移路径明确。
-- **#14** `architecture(workbench): define structured OA card and client event protocol`
-  - 固定 Workbench Card、ClientEvent、Push、Deep Link、兼容策略；
-  - 不直接把现有机器人 `BOT_CARD` 泛化为 OA；
-  - 阻塞 Task/Approval Card 通知，但不阻塞纯 Backend。
+- #12：Tenant Versioned Migration Epic；
+- #13：Workbench Platform Foundation；
+- #14：Structured OA Card / ClientEvent Protocol。
 
-依赖关系：
+#12 已正式拆解：
 
 ```text
-#10 Formal Design (merged)
- ├── #12 Versioned Tenant Migration
- ├── #13 Workbench Platform Foundation
- └── #14 Structured OA Card / ClientEvent Protocol
-
-#12 + #13
-   ↓
-Overview / Task Backend
-
-Task Backend + #14
-   ↓
-Task Realtime / Push / Card
+#8 Backend CI
+       ↓
+#18 Migration ADR
+       ↓
+#19 Migration Runtime
+      ├─────────────┐
+      ↓             ↓
+#20 New Tenant   #21 Existing Tenant
+ Provisioning       Baseline/Validate
+      └──────┬──────┘
+             ↓
+      #12 Epic Complete
+             ↓
+      #13 Workbench Foundation
+             ↓
+      Overview / Task Backend
 ```
+
+#14 可与 #12 并行，但必须在 Task/Approval 卡片与 Push 实现前完成。
 
 ### Workbench V1 方向
 
@@ -231,27 +226,58 @@ AI/Automation 不能绕过 Workbench Service 直接写 OA 表。
 
 ## 7. 数据库与多租户迁移
 
-### 当前状态：IN_PROGRESS
+### 当前状态：IN_PROGRESS / EPIC DECOMPOSED
 
-当前安全同步用于 drift 检测与保守修复，不是完整新表 migration engine。
+当前 Safe Sync 用于 drift 检测和保守字段修复，不是完整的新表 migration engine。旧 `create_or_sync_company_schema` 仍服务于当前新公司初始化和人工同步，但将进入兼容/退役路径。
 
-**Issue #12 是 Workbench 新表的正式前置。**
+#12 的阶段：
 
-目标：
+- **#18 Migration ADR**：固定 Flyway history、control plane、Safe Sync、baseline、provisioning 和 `ddl-auto` 边界；
+- **#19 Migration Runtime**：Flyway tenant executor、PLAN/APPLY、advisory lock、run/state、管理 API、多 tenant 测试；
+- **#20 New Tenant Provisioning**：`create schema -> migrate -> activate`，停止以 public clone 为新租户主路径；
+- **#21 Existing Tenant Baseline/Validate**：只读 preflight、显式 baseline、drift repair plan、staged `ddl-auto=validate`。
 
-- public/global 与 tenant migration 有明确版本；
-- 新 tenant 自动迁移到 target version；
-- 老 tenant 可批量迁移；
-- migration history 可审计；
-- drift/conflict 在高风险 DDL 前阻断；
-- 后台任务显式切换 tenant，不依赖 HTTP Filter；
-- 完成 baseline 后逐步从 `ddl-auto=update` 转向 `validate`。
+禁止：
 
-Workbench 实现不得创建与仓库迁移治理平行的第二套 migration runner。
+- `baselineOnMigrate(true)` 盲目标记未知 tenant；
+- 启动时无条件迁移全部 tenant；
+- Workbench 自建第二套 migration runner；
+- 在缺少 tenant coverage 证据时直接把生产 `ddl-auto=update` 切成 `validate`。
 
 ---
 
-## 8. 通知与结构化卡片
+## 8. Backend CI 与测试状态
+
+### Issue #8 / PR #16
+
+目标：对后端相关 PR 强制执行 Java 21 Maven compile + test。
+
+Workflow：
+
+```text
+Backend PR Validation
+  → checkout
+  → JDK 21
+  → mvn -pl server -am -DskipTests compile
+  → mvn -pl server -am test
+```
+
+当前自验证结果：
+
+- 后端 4-module reactor compile 已成功；
+- 首次 test 暴露 #17：`HealthCheckTest` 在禁用 JPA Repository 后仍加载完整业务组件图；
+- #17 已改为独立最小 Actuator 测试应用，不扫描 Group-IM Service/Repository/AI；
+- 第二次 test 进一步发现 LDAP health contributor 尝试连接 `localhost:389`；测试上下文现已明确排除 LDAP 自动配置；
+- Workflow 已升级为 `actions/checkout@v5` / `actions/setup-java@v5`；
+- 最新一轮 Backend CI 正在自验证。
+
+### Issue #22
+
+Maven 当前报告 `server/pom.xml` 有重复 dependency：Redis starter、Lettuce、WebSocket starter。它们不阻塞本次编译，但已经单独建 Issue #22，禁止顺手混入 PR #16。
+
+---
+
+## 9. 通知与结构化卡片
 
 当前 `ClientEventType` 只有 Chat/Meeting 事件；Workbench OA 事件尚未实现。
 
@@ -280,7 +306,7 @@ SCHEDULE_REMINDER
 
 ---
 
-## 9. 文档体系
+## 10. 文档体系
 
 ### 项目级
 
@@ -294,9 +320,8 @@ SCHEDULE_REMINDER
 
 - ADR-0001：master single trunk；
 - ADR-0002：Workbench modular monolith + tenant domains；
-- ADR-0003：Task-first + lightweight Approval。
-
-重大长期决策必须新增 ADR，不能只留在 PR 评论。
+- ADR-0003：Task-first + lightweight Approval；
+- ADR-0004：预留给 #18 Tenant Migration Runtime Contract（尚未合并）。
 
 ### 功能级
 
@@ -304,11 +329,11 @@ SCHEDULE_REMINDER
 doc/features/<feature>/
 ```
 
-Workbench 是第一套按新规范正式整理的 Feature Design。历史文档按“触达即整理”渐进迁移，不一次性大规模移动。
+Workbench 是第一套按新规范整理的 Feature Design。历史文档按“触达即整理”渐进迁移。
 
 ---
 
-## 10. PR Definition of Done
+## 11. PR Definition of Done
 
 每个 PR 至少满足：
 
@@ -326,88 +351,90 @@ Workbench 是第一套按新规范正式整理的 Feature Design。历史文档�
 
 ---
 
-## 11. 当前重点 Roadmap
+## 12. 当前重点 Roadmap
 
-### P0 — Repository Governance
+### P0 — Repository / Build Governance
 
 - #6 master protection；
 - #7 remove `main` deploy trigger；
-- #8 backend PR CI（IN_PROGRESS）；
-- #9 Electron/Web PR CI。
+- #8 backend PR CI（PR #16，IN_PROGRESS）；
+- #9 Electron/Web PR CI；
+- #17 HealthCheck test isolation（随 PR #16 修复）；
+- #22 duplicate Maven dependencies。
 
-### P1 — Workbench Design / Foundation
+### P1 — Workbench Foundation
 
-- #10 正式 Feature Design（IMPLEMENTED / PR #11）；
-- #12 Versioned Tenant Migration；
+- #10 Formal Feature Design：IMPLEMENTED / PR #11；
+- #12 Tenant Migration Epic：IN_PROGRESS；
+  - #18 Migration ADR；
+  - #19 Migration Runtime；
+  - #20 New Tenant Provisioning；
+  - #21 Existing Tenant Baseline/Validate；
 - #13 Workbench Platform Foundation；
 - #14 Structured OA Card / ClientEvent Protocol。
 
 ### P1 — Workbench Business
 
-按 `doc/features/workbench/implementation-roadmap.md`：
-
-1. Overview；
-2. Task Backend；
-3. Task Web/Electron；
-4. Task Realtime/Push/Card；
-5. Approval Backend；
-6. Approval Web/Electron。
+按 `doc/features/workbench/implementation-roadmap.md`：Overview → Task Backend → Task Web/Electron → Task Realtime/Push/Card → Approval Backend → Approval Web/Electron。
 
 ### P2 — OA Expansion
 
-- Calendar；
-- Announcement；
-- Android OA 完整对齐；
-- Report / AI Office。
+Calendar → Announcement → Android OA 完整对齐 → Report / AI Office。
 
 ---
 
-## 12. 当前主要风险
+## 13. 当前主要风险
 
 1. #6 未完成前，`master` 仍存在直接 push 风险；
-2. #8 正在建立 Backend PR CI，#9 Electron/Web PR CI 尚未开始；
-3. #12 未完成前，Workbench 新业务表没有正式可执行的统一迁移路径；
-4. 当前 `ClientEventType` 尚无 OA 事件；
-5. `BOT_CARD` 是机器人语义，#14 未完成前不能随意复用为 OA 卡片；
-6. Workbench 新权限不能延续 `username == admin`；
-7. company switch 必须清理 Workbench client state；
-8. 附件下载必须增加业务资源授权；
-9. Java/TypeScript/Kotlin DTO 长期存在漂移风险，接口稳定后应评估 OpenAPI 代码生成。
+2. #8 未合并前，后端 PR 尚无正式 required compile/test 门禁；
+3. #12 未完成前，Workbench 新业务表没有统一可执行 migration 路径；
+4. 当前新租户仍依赖 public schema clone；
+5. #22 表明 Maven model 有重复 dependency 技术债；
+6. `ClientEventType` 尚无 OA 事件，且 `BOT_CARD` 不能直接当 OA 卡片；
+7. Workbench 新权限不能延续 `username == admin`；
+8. company switch 必须清理 Workbench client state；
+9. 附件下载必须增加业务资源授权；
+10. Java/TypeScript/Kotlin DTO 长期存在漂移风险。
 
 ---
 
-## 13. 变更记录
+## 14. 变更记录
 
-### 2026-08-19 — Issue #8 — Backend PR Validation
+### 2026-08-19 — Issue #8 / #17 — Backend PR Validation
 
-状态：`IN_PROGRESS`
+状态：`IN_PROGRESS / SELF-VALIDATING`
 
-- 新增独立 Backend PR workflow；
-- Java 21 / Maven cache；
-- 对 `pom.xml`、`common/**`、`entity/**`、`server/**` 相关 PR 执行；
-- 先编译 `server` 及依赖模块，再执行后端测试；
-- CI 验证通过后应作为 #6 Branch Protection 的 required check 候选。
+- PR #16 新增独立 Backend PR workflow；
+- Java 21 / Maven compile + test；
+- 编译已在 GitHub Actions 实际成功；
+- CI 暴露并跟踪 #17 HealthCheckTest 隔离问题；
+- HealthCheckTest 已改为最小 Actuator 测试上下文并排除 DB/JPA/Redis/LDAP/Security 外部依赖；
+- Actions 升级到 Node 24 兼容 v5；
+- 额外发现 Maven 重复依赖并创建 #22；
+- 全绿后 PR #16 才允许合并，并成为 #6 required-check 候选。
+
+### 2026-08-19 — Issue #12 — Tenant Migration Epic
+
+状态：`IN_PROGRESS / DECOMPOSED`
+
+- 重新核对两份历史 migration 设计与当前 CompanyService/Safe Sync；
+- #12 从巨型实现项拆为 #18 ADR、#19 Runtime、#20 New Tenant、#21 Existing Tenant；
+- 固定“不启动时全量迁移、不盲目 baseline、不直接切 validate”的阶段原则。
 
 ### 2026-08-19 — Issue #10 / PR #11 — Workbench Formal Feature Design
 
 状态：`IMPLEMENTED`
 
 - 完整重新审阅 2026-08-06 v0.1 Draft；
-- 设计基线已通过 PR #11 合入 `master`；
-- Web/Electron 和 Android Workbench Shell 改为“已实现事实”；
 - 建立 Workbench Feature Design、Task、Approval、Platform Integration、Roadmap；
 - 增加 ADR-0002、ADR-0003；
-- 明确 Safe Sync 不负责创建 Workbench 新表；
-- 明确现有 `BOT_CARD` 不直接作为 OA 默认卡片协议；
-- 建立 #12 tenant migration、#13 platform foundation、#14 card/event protocol 三个实现前置 Issue；
-- 后续从旧 PR-0~PR-10 计划转换为真实 Issue 驱动实施。
+- 建立 #12/#13/#14 前置工作；
+- PR #11 已合入 `master`。
 
 ### 2026-08-19 — Issue #4 / PR #5 — Repository Governance
 
 状态：`IMPLEMENTED / FOLLOW-UPS OPEN`
 
 - 固定 `master` 为唯一开发主线；
-- 建立 Issue-driven PR；
-- 建立 `PROJECT_MASTER.md`；
-- 新增 PR/Issue 模板、Governance CI、ADR 机制；
+- 建立 Issue-driven PR、PROJECT_MASTER、PR/Issue 模板、Governance CI、ADR；
 - 后续：#6、#7、#8、#9。
