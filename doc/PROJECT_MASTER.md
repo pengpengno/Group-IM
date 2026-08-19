@@ -8,7 +8,7 @@
 - 基线日期：2026-08-19
 - 唯一开发主线：`master`
 - 当前基线提交：`297eb89582d950db6d64a1ae074aa5c37c26d399`
-- 当前变更：Issue #19 / PR #24，最终 CI 已通过一轮，最后依赖文档同步后重新验证
+- 当前变更：Issue #19 / PR #24 — 本文记录该 PR 合并后的项目状态
 - 仓库：`pengpengno/Group-IM`
 - 治理规则：`doc/development/REPOSITORY_GOVERNANCE.md`
 - 贡献指南：`CONTRIBUTING.md`
@@ -45,7 +45,8 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 - PR #5：Issue-driven PR、PROJECT_MASTER、贡献规范、模板、Governance CI、ADR；
 - PR #16：Backend PR Validation，Java 21 Maven compile + test；
 - #17：HealthCheckTest 基础设施隔离修复；
-- PR #23 / #18：ADR-0004 与 canonical tenant migration architecture。
+- PR #23 / #18：ADR-0004 与 canonical tenant migration architecture；
+- PR #24 / #19：Tenant Migration Runtime（以本 PR 合并为状态边界）。
 
 待完成：
 
@@ -83,8 +84,8 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 - `SafeTenantSchemaSyncService` 是 drift/保守兼容工具，**不创建缺失整表**；
 - `CompanyService.save()` 当前仍调用 `public.create_or_sync_company_schema(...)` 初始化新 tenant；
 - legacy public clone 会复制业务 tables、global identity views、foreign keys、indexes 和 CHECK constraints；
-- ADR-0004 已固定 Flyway 版本化 migration 为未来唯一新表发布路径；
-- PR #24 已实现第一版 Migration Runtime，并通过真实 PostgreSQL Testcontainers CI。
+- ADR-0004 固定 Flyway 版本化 migration 为未来唯一新表发布路径；
+- PR #24 建立第一版 Migration Runtime，并通过真实 PostgreSQL Testcontainers 验证。
 
 ---
 
@@ -95,7 +96,7 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 | 模块 | 状态 | 当前事实 | 下一阶段 |
 | --- | --- | --- | --- |
 | 登录 / 鉴权 | STABLE | JWT/Spring Security 主链路存在 | RBAC 细化 |
-| 多公司 / 多租户 | IN_PROGRESS | Schema 多租户 + Safe Sync + legacy public clone | #26 → #25 → #20/#21 |
+| 多公司 / 多租户 | IN_PROGRESS | Schema 多租户 + Safe Sync + legacy public clone + Migration Runtime | #26 → #25 → #20/#21 |
 | 单聊 / 群聊 | STABLE | 核心 IM 主链路存在 | 一致性、搜索、治理 |
 | 联系人 / 组织 | STABLE | 公司/部门/员工能力存在 | 权限与批量治理 |
 | 文件 | IN_PROGRESS | 上传/分片存在 | 资源级权限与可靠性 |
@@ -108,11 +109,12 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 | OA Calendar | PLANNED | Meeting/Task 聚合方向已形成 | 后续迭代 |
 | OA Announcement | PLANNED | Target/Receipt/通知方向已形成 | 后续迭代 |
 | OA Report | PLANNED | Roadmap 能力 | Workbench V1 后评估 |
-| Tenant Migration Architecture | STABLE | ADR-0004 / PR #23 已合并 | 持续随 runtime 更新 |
-| Tenant Migration Runtime | READY | PR #24 已通过 Governance / Backend / KMP 一轮；最终文档提交后复验 | 合并后 #26 |
-| Core Tenant Schema Baseline | PLANNED | #25；不能仅靠 JPA Entity 反推完整结构 | 先 #26 trusted snapshot |
+| Tenant Migration Architecture | STABLE | ADR-0004 / PR #23 已合并 | 持续随 migration 演进 |
+| Tenant Migration Runtime | STABLE | #19 / PR #24：PLAN/APPLY/retry/control plane/Flyway/lock/Testcontainers | #26 trusted snapshot |
+| Trusted Tenant Schema Snapshot | PLANNED | #26：离线只读 inventory/schema-only snapshot | 为 #25 提供可信输入 |
+| Core Tenant Schema Baseline | PLANNED | #25：不能只靠 JPA Entity 反推完整结构 | 依赖 #26 |
 | Backend PR CI | STABLE | PR #16 已合并并实际通过 compile + test | #6 required check |
-| 仓库工程治理 | IN_PROGRESS | PR #5 + #16 + #23 | #6/#7/#9/#22 |
+| 仓库工程治理 | IN_PROGRESS | PR #5 + #16 + #23 + #24 | #6/#7/#9/#22 |
 
 ---
 
@@ -150,7 +152,7 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
        ↓
 #18 Migration Architecture ✅
        ↓
-#19 Migration Runtime ✅ CI / PR #24 ready
+#19 Migration Runtime ✅ PR #24
        ↓
 #26 Read-only Trusted Tenant Schema Snapshot
        ↓
@@ -194,15 +196,15 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 9. 旧 tenant 禁止 blind `baselineOnMigrate(true)`；
 10. `ddl-auto=update -> validate` 在 tenant coverage 完成后 staged rollout。
 
-### Issue #19 — Migration Runtime
+### Issue #19 / PR #24 — Migration Runtime
 
-PR #24 已实现并完成一轮 CI 验证：
+实现：
 
 - `flyway-core` + PostgreSQL Flyway driver；
 - `spring.flyway.enabled=false`；
-- public / tenant migration resource；
+- public / tenant migration resources；
 - public 显式 bootstrap；
-- run/item/state control plane；
+- `schema_migration_run` / `schema_migration_run_item` / `tenant_schema_state`；
 - schema validator / inspector；
 - PostgreSQL advisory lock；
 - PLAN / APPLY / failed-tenant retry；
@@ -211,10 +213,10 @@ PR #24 已实现并完成一轮 CI 验证：
 - 集中的 `MigrationAdminAuthorizer`；
 - PostgreSQL Testcontainers 集成测试。
 
-### #19 安全行为
+安全行为：
 
-- public 默认公司不会成为 tenant migration target；
-- PLAN 只读，不创建 tenant Flyway history 和业务 metadata；
+- public 默认公司不成为 tenant migration target；
+- PLAN 只读，不创建 tenant Flyway history 和 tenant metadata；
 - 空 tenant 可 APPLY；
 - 非空且没有 Flyway history 的老 tenant 被 blocked，APPLY 拒绝；
 - 同 tenant 并发 APPLY 使用 advisory lock；
@@ -224,7 +226,7 @@ PR #24 已实现并完成一轮 CI 验证：
 
 ### Issue #26 — Trusted Tenant Schema Snapshot / Inventory
 
-只读工具，用于从可信健康 tenant 产生：
+下一阶段优先做离线只读工具，从管理员确认健康的 tenant 生成：
 
 - tables/views inventory；
 - columns/types/nullability/defaults；
@@ -235,9 +237,9 @@ PR #24 已实现并完成一轮 CI 验证：
 - schema-only SQL reference；
 - source schema / timestamp / fingerprint。
 
-为什么必须有 #26：当前 JPA Entity 并不完整表达 legacy provisioning 中的 views、数据库 defaults、约束和索引；仅靠 Entity 生成 baseline 存在静默漏结构风险。
+为什么必须有 #26：当前 JPA Entity 并不完整表达 legacy provisioning 中的 views、数据库 defaults、约束和索引。仅靠 Entity 反推 baseline 存在静默漏结构风险。
 
-输出只作为 #25 的**审阅输入**，不会未经 normalize/review 自动执行。
+#26 输出只作为 #25 的**审阅输入**，不会未经 normalization/review 自动执行。
 
 ### Issue #25 — Core Tenant Baseline Migrations
 
@@ -247,7 +249,11 @@ PR #24 已实现并完成一轮 CI 验证：
 
 > 从真正空 schema 开始，只通过 immutable versioned tenant migrations，得到现有 Group-IM 核心业务要求的完整 tenant schema。
 
-#25 完成前，#20 不得移除 legacy public clone；#21 也没有可信 expected baseline version/structure。
+#25 完成前：
+
+- #20 不得移除 legacy public clone；
+- #21 没有可信 expected baseline version/structure；
+- Workbench 不创建需要新表的正式业务 migration。
 
 ---
 
@@ -261,13 +267,17 @@ JDK 21
 → mvn -B -ntp -pl server -am test
 ```
 
-### PR #24 已通过的一轮验证
+### PR #24 合并门禁
+
+在最后状态文档提交前，PR #24 已连续通过：
 
 - Repository Governance：SUCCESS；
 - Backend Maven compile：SUCCESS；
 - Backend Maven test：SUCCESS；
 - PostgreSQL Testcontainers：SUCCESS；
 - KMP APK：SUCCESS。
+
+本状态提交仅更新文档；同一门禁再次绿色后执行 Squash Merge。
 
 `MigrationRuntimeIntegrationTest` 验证：
 
@@ -283,8 +293,6 @@ JDK 21
 10. legacy non-empty/no-history tenant 被拒绝；
 11. legacy table 不被修改；
 12. advisory lock 阻止同 tenant 第二执行者。
-
-最后一次依赖文档更新会再次跑同一门禁；全部绿色后才合并。
 
 #22 仍跟踪 Maven duplicate dependency 技术债，不与 #19 混合处理。
 
@@ -365,7 +373,7 @@ PROJECT_MASTER current facts
 - #10 Formal Feature Design：IMPLEMENTED / PR #11；
 - #12 Tenant Migration Epic：IN_PROGRESS；
   - #18 Architecture：IMPLEMENTED / PR #23；
-  - #19 Runtime：READY / PR #24；
+  - #19 Runtime：IMPLEMENTED / PR #24；
   - #26 Trusted Tenant Schema Snapshot：NEXT；
   - #25 Core Tenant Baseline Migrations：depends #26；
   - #20 New Tenant Provisioning：depends #25；
@@ -402,7 +410,7 @@ Calendar → Announcement → Android OA → Report / AI Office。
 
 ### 2026-08-19 — Issue #19 / PR #24 — Tenant Migration Runtime
 
-状态：`READY TO MERGE / FINAL CI RUNNING`
+状态：`IMPLEMENTED`
 
 - 建立 Flyway public/tenant runtime；
 - 建立显式 public bootstrap；
@@ -412,12 +420,12 @@ Calendar → Announcement → Android OA → Report / AI Office。
 - 建立 PostgreSQL advisory lock；
 - 建立 bounded worker 和 admin API；
 - 建立真实 PostgreSQL Testcontainers multi-tenant integration test；
-- 已通过完整 CI 一轮；
+- 通过 Governance、Backend compile/test 和 KMP 门禁；
 - 发现正式 provisioning 前还需要 #26 trusted schema snapshot 与 #25 core tenant baseline。
 
 ### 2026-08-19 — Issue #26 / #25 — Core Tenant Baseline Preparation
 
-状态：`PLANNED / NEXT AFTER #19`
+状态：`PLANNED / NEXT`
 
 - #26：只读导出可信 tenant schema inventory/schema-only snapshot；
 - #25：将该结构固化为 immutable Flyway core tenant baseline；
