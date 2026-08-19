@@ -3,7 +3,7 @@
 > 状态：CURRENT / CANONICAL  
 > 架构决策：`ADR-0004-versioned-tenant-schema-migrations.md`  
 > Epic：#12  
-> 当前阶段：#19 Migration Runtime — READY / FINAL CI  
+> 当前阶段：#19 Migration Runtime — IMPLEMENTED / PR #24  
 > 下一阶段：#26 Trusted Schema Snapshot → #25 Core Tenant Baseline
 
 本文是 Group-IM **当前租户数据库迁移设计入口**。如果历史文档、PR 评论或旧实现蓝图与本文或 ADR-0004 冲突，以 ADR-0004 和本文为准。
@@ -55,9 +55,9 @@ spring.jpa.hibernate.ddl-auto: update
 
 ---
 
-## 2. Current Runtime Architecture
+## 2. Implemented Runtime Architecture
 
-#19 第一版 Runtime：
+PR #24 / #19 已建立：
 
 ```text
 Git versioned migrations
@@ -290,7 +290,7 @@ GET  /api/admin/schema-migrations/tenants
 
 ---
 
-## 10. Why a Trusted Snapshot Is Required — #26
+## 10. Trusted Snapshot — #26
 
 #25 不能只根据 JPA Entity 手写 baseline，因为 legacy provisioning 的数据库事实还包含：
 
@@ -301,11 +301,11 @@ GET  /api/admin/schema-migrations/tenants
 - sequences；
 - 可能没有完整反映在 annotations 中的结构细节。
 
-因此先执行 #26：
+因此下一阶段 #26：
 
-> 对一个管理员确认健康的 tenant 做**只读 schema snapshot/inventory**。
+> 对一个管理员确认健康的 tenant 做**离线、只读 schema snapshot/inventory**。
 
-#26 目标输出：
+目标输出：
 
 1. machine-readable inventory：tables/views/columns/types/nullability/defaults/constraints/indexes/sequences/view definitions；
 2. schema-only SQL reference；
@@ -316,9 +316,9 @@ GET  /api/admin/schema-migrations/tenants
 
 - PostgreSQL catalog deterministic inventory；
 - `pg_dump --schema-only --schema=<trusted_tenant>`；
-- 两者结合用于交叉核对。
+- 两者结合交叉核对。
 
-生成物是**审阅输入**，不能未经 normalization/review 自动变成可执行 migration。
+生成物是**审阅输入**，不能未经 normalization/review 自动变成 executable migration。
 
 ---
 
@@ -404,7 +404,7 @@ SafeTenantSchemaSyncService = diagnostic / conservative compatibility
 目标顺序：
 
 ```text
-#19 runtime
+#19 runtime ✅
   ↓
 #26 trusted snapshot
   ↓
@@ -421,13 +421,13 @@ staging validate
 production validate
 ```
 
-#19 中 `ddl-auto` 保持 `update`。
+`ddl-auto` 当前保持 `update`。
 
 ---
 
 ## 15. Testing Gate
 
-PR #24 已通过过一轮：
+PR #24 合并前已通过：
 
 - Repository Governance；
 - Backend Maven compile；
@@ -450,8 +450,6 @@ PR #24 已通过过一轮：
 11. legacy table 保持不变；
 12. advisory lock 互斥。
 
-最终依赖文档提交后再次运行相同门禁，绿色才合并。
-
 ---
 
 ## 16. Issue Roadmap
@@ -460,7 +458,7 @@ PR #24 已通过过一轮：
 #12 Tenant Migration Epic
 │
 ├── #18 Architecture Contract / ADR-0004  ✅
-├── #19 Migration Runtime                 ✅ CI / PR #24 ready
+├── #19 Migration Runtime                 ✅ PR #24
 ├── #26 Trusted Schema Snapshot           ⏭ NEXT
 ├── #25 Core Tenant Baseline              depends #26
 ├── #20 New Tenant Provisioning           depends #25
@@ -472,7 +470,7 @@ PR #24 已通过过一轮：
        ↓
 #18 ✅
        ↓
-#19 ✅ CI
+#19 ✅
        ↓
 #26
        ↓
