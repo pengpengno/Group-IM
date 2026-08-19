@@ -188,7 +188,7 @@ class CoreTenantBaselineIntegrationTest {
                      FROM pg_class relation
                      JOIN pg_namespace namespace_row ON namespace_row.oid = relation.relnamespace
                      WHERE namespace_row.nspname = ?
-                       AND relation.relkind = ?
+                       AND relation.relkind::text = ?
                        AND relation.relname NOT IN ('flyway_schema_history', 'tenant_schema_metadata')
                      ORDER BY relation.relname
                      """)) {
