@@ -6,13 +6,14 @@ import com.github.im.dto.workbench.overview.WorkbenchCompanySummaryDTO;
 import com.github.im.dto.workbench.overview.WorkbenchOverviewDTO;
 import com.github.im.dto.workbench.overview.WorkbenchQuickAppDTO;
 import com.github.im.dto.workbench.overview.WorkbenchScheduleSummaryDTO;
-import com.github.im.dto.workbench.overview.WorkbenchTaskSummaryDTO;
 import com.github.im.dto.workbench.overview.WorkbenchTodoSummaryDTO;
 import com.github.im.server.model.enums.MeetingParticipantStatus;
 import com.github.im.server.model.enums.MeetingStatus;
 import com.github.im.server.workbench.common.context.CurrentWorkContext;
 import com.github.im.server.workbench.common.permission.WorkbenchPermission;
 import com.github.im.server.workbench.common.permission.WorkbenchPermissionService;
+import com.github.im.server.workbench.task.service.TaskOverviewProjection;
+import com.github.im.server.workbench.task.service.TaskOverviewQueryService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +37,7 @@ public class WorkbenchOverviewService {
             );
 
     private static final List<WorkbenchQuickAppDTO> QUICK_APPS = List.of(
+            new WorkbenchQuickAppDTO("TASK", "任务"),
             new WorkbenchQuickAppDTO("MEETING", "会议"),
             new WorkbenchQuickAppDTO("CONTACTS", "通讯录"),
             new WorkbenchQuickAppDTO("AUTOMATION", "自动化"),
@@ -44,25 +46,30 @@ public class WorkbenchOverviewService {
 
     private final WorkbenchPermissionService permissionService;
     private final MeetingOverviewRepository meetingOverviewRepository;
+    private final TaskOverviewQueryService taskOverviewQueryService;
     private final Clock clock;
 
     public WorkbenchOverviewService(
             WorkbenchPermissionService permissionService,
             MeetingOverviewRepository meetingOverviewRepository,
+            TaskOverviewQueryService taskOverviewQueryService,
             Clock workbenchClock
     ) {
         this.permissionService = permissionService;
         this.meetingOverviewRepository = meetingOverviewRepository;
+        this.taskOverviewQueryService = taskOverviewQueryService;
         this.clock = workbenchClock;
     }
 
     @Transactional(readOnly = true)
     public WorkbenchOverviewDTO getOverview() {
         CurrentWorkContext context = permissionService.require(WorkbenchPermission.VIEW_WORKBENCH);
-        LocalDate today = LocalDate.now(clock);
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDate today = now.toLocalDate();
         LocalDateTime dayStart = today.atStartOfDay();
         LocalDateTime dayEnd = today.plusDays(1).atStartOfDay();
 
+        TaskOverviewProjection taskProjection = taskOverviewQueryService.query(context.userId(), now);
         List<WorkbenchScheduleSummaryDTO> schedules = meetingOverviewRepository.findTodayForParticipant(
                         context.userId(),
                         OVERVIEW_PARTICIPANT_STATUSES,
@@ -75,8 +82,13 @@ public class WorkbenchOverviewService {
 
         return new WorkbenchOverviewDTO(
                 new WorkbenchCompanySummaryDTO(context.companyId(), context.companyName()),
-                WorkbenchTodoSummaryDTO.empty(),
-                List.<WorkbenchTaskSummaryDTO>of(),
+                new WorkbenchTodoSummaryDTO(
+                        taskProjection.assignedTaskCount(),
+                        taskProjection.overdueTaskCount(),
+                        0,
+                        0
+                ),
+                taskProjection.recentTasks(),
                 List.<WorkbenchApprovalSummaryDTO>of(),
                 schedules,
                 List.<WorkbenchAnnouncementSummaryDTO>of(),
