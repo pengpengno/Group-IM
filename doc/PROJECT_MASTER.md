@@ -5,9 +5,9 @@
 - 文档状态：ACTIVE
 - 基线日期：2026-08-20
 - 唯一开发主线：`master`
-- 最近完成：#45 / PR #46 Task Backend；#9 / PR #48 Electron/Web CI；#47 / PR #49 Task Web/Electron
-- 当前交付：#28 Workbench structured-card / ClientEvent protocol foundation
-- 当前 emission blockers：#29 Web/Electron card/deep-link；#30 Android card/deep-link；#50 WORKBENCH message storage/core evolution
+- 最近完成：#45 Task Backend；#9 Electron/Web CI；#47 Task Web/Electron；#28 Workbench Protocol
+- 当前交付：#29 Web/Electron Workbench Card + tenant-aware Deep Link
+- 后续 emission blockers：#30 Android consumer；#50 WORKBENCH message storage/core evolution；supported-client rollout policy
 - 仓库：`pengpengno/Group-IM`
 
 ---
@@ -19,7 +19,7 @@ Group-IM 是多租户组织协作 IM/OA 平台。消息是协作主链路，Work
 - `master` 是唯一开发主线；`main` 是 legacy；
 - 所有变更通过 Issue/PR；每个 PR 更新本文；默认 Squash Merge；
 - Workbench 权限禁止 `username == admin`；
-- feature 文件更新必须明确目标 branch；
+- feature 写入必须明确目标 branch；
 - merge gate：Repository Governance + applicable Backend + applicable Electron/Web + KMP + no unresolved review threads。
 
 仍待治理：#6 master protection、#7 legacy `main` deploy trigger、#22 Maven duplicate dependencies。
@@ -42,22 +42,15 @@ managed current target = 2026082002
 - new tenant：inactive → empty schema → Flyway current target → verify → active；
 - existing reviewed tenant：preflight → explicit baseline 1906 → migrate current target → validate/audit；
 - `2026082002` 增加 `wb_task / wb_task_assignee / wb_task_comment / wb_task_activity`；
-- core baseline 1906 不随 managed target 前移；
-- test tenant 数据可清理重建，不阻塞 Workbench 开发。
+- core baseline 1906 不随 managed target 前移。
 
 ### WORKBENCH message storage gate — #50
 
-`2026081906` 的 `messages_type_check` 当前允许：
+`2026081906` 的 `messages_type_check` 当前只允许既有 message types，不包含 WORKBENCH，而且该 CHECK 属于 pinned core constraint fingerprint。
 
-```text
-TEXT / FILE / VOICE / VIDEO / IMAGE / MEDIA / MEETING / BOT_CARD
-```
+#50 负责建立 versioned managed-core evolution，并在 actual WORKBENCH persistence/emission 前通过后续 immutable migration 扩展该 CHECK；未知手工 core ALTER 仍必须 fail closed。
 
-该 CHECK 属于 pinned core constraint fingerprint。#28 不直接 ALTER 它，因为直接加入 WORKBENCH 会让合法 managed tenant 被现有 baseline fingerprint 识别为 core drift。
-
-#50 负责建立 versioned managed-core evolution 机制，并在 actual WORKBENCH Message persistence/emission 前通过后续 immutable migration 扩展 CHECK。
-
-因此当前明确：
+因此：
 
 ```text
 MessageType.WORKBENCH protocol recognition != WORKBENCH persistence enabled
@@ -65,80 +58,35 @@ MessageType.WORKBENCH protocol recognition != WORKBENCH persistence enabled
 
 ---
 
-## 3. Workbench Platform / Overview
+## 3. Workbench Platform / Overview / Task
 
 ### #13 Platform Foundation — COMPLETED
 
-提供：
-
-- `CurrentWorkContext`；
-- stable Workbench errors；
-- fail-closed permission service；
-- Organization/File adapters；
-- Workbench Audit；
-- explicit tenant executor。
+`CurrentWorkContext`、fail-closed permission、Organization/File adapters、Audit、explicit tenant executor 已稳定。
 
 ### #39 Overview — COMPLETED
 
-`GET /api/workbench/overview`：
-
-- tenant 只来自 authenticated current company；
-- response 不暴露 schemaName；
-- today Meeting 使用轻量 projection；
-- Task 上线后接入真实 assigned/overdue/recent Task；
-- 无 Overview write model/cache。
-
----
-
-## 4. Task — Backend + Web/Electron
+`GET /api/workbench/overview` 只使用 authenticated current company，response 不暴露 schemaName；Meeting 使用轻量 projection；Task 上线后接入真实 assigned/overdue/recent projection。
 
 ### #45 / PR #46 Task Backend — COMPLETED
 
 Merge：`6ff1d1f99567e9d203ca1e27e20c47db24551d62`。
 
-能力：
-
-- Task 四表 migration `2026082002`；
-- create/update/list/detail；
-- start/block/resume/complete/reopen/cancel；
-- assignee / comments / activity；
-- resource permission；
-- Activity + Workbench Audit；
-- Overview Task projection。
-
-状态机：
-
-```text
-TODO -> IN_PROGRESS / COMPLETED / CANCELLED
-IN_PROGRESS -> BLOCKED / COMPLETED / CANCELLED
-BLOCKED -> IN_PROGRESS / CANCELLED
-COMPLETED -> IN_PROGRESS
-CANCELLED -> terminal
-```
+能力：Task 四表 migration、create/update/list/detail、状态动作、assignee、comments、activity、resource permission、Audit、Overview Task projection。
 
 ### #47 / PR #49 Task Web/Electron — COMPLETED
 
 Merge：`b590bbd6a18737b504d0c3876a8d12831e3efe15`。
 
-Workbench 现在读取真实 Overview，并在 Workbench shell 内提供 Task Center：
-
-```text
-Overview
-→ create / list / detail
-→ start / block / resume / complete / reopen / cancel
-→ comment / activity
-→ back + refresh Overview
-```
-
-Task 是 Workbench 子视图，不扩散为 Dashboard 顶级 tab。客户端不维护 Task 第二份持久真相；服务端仍是权限/状态权威。
+Workbench shell 已提供真实 Overview + Task Center：create/list/detail/state actions/comment/activity。Task 是 Workbench 子视图，不扩散为 Dashboard 顶级 tab。
 
 ---
 
-## 5. Electron/Web CI — #9 COMPLETED
+## 4. Electron/Web CI — #9 COMPLETED
 
 PR #48 merge：`d5570e0145a549a4869118b957a059a857e0d6ee`。
 
-`.github/workflows/electron-web.yml` 对 Electron/Web 相关 PR 执行：
+Electron/Web 相关 PR 执行：
 
 ```text
 npm ci
@@ -147,121 +95,123 @@ npm run app:build
 npm run web:build
 ```
 
-首次自验证以及 #47 Task Web/Electron 均已通过 Electron main/renderer + Web production bundle。
+已在 #47 实际验证。
 
 ---
 
-## 6. Workbench Notification Protocol — #28 CURRENT
+## 5. Workbench Protocol — #28 COMPLETED
 
-正式文档：
+PR #51 merge：`7f261e881bdc3eb3cebcd1d0468777f647d3ea43`。
 
-- `doc/features/workbench/notification-protocol.md`
-- `doc/architecture/adr/ADR-0005-workbench-structured-card-and-event-protocol.md`
-
-#28 建立协议基础，**不启用任何 Task/Approval domain emission**。
-
-### MessageType
-
-Java enum append：
+已进入 master：
 
 ```text
-WORKBENCH
-```
-
-Proto append-only wire contract：
-
-```text
-TEXT      = 0
-FILE      = 1
-VIDEO     = 3
-VOICE     = 4
-IMAGE     = 6
-MEETING   = 7
-BOT_CARD  = 8
-WORKBENCH = 9
-```
-
-旧编号禁止重排。
-
-Java ↔ Proto mapping 同步覆盖 MEETING / BOT_CARD / WORKBENCH；`MEDIA` 继续沿用既有 TEXT fallback，直到有独立 wire contract。
-
-### Envelope
-
-已建立：
-
-```text
-WorkbenchCategory
-WorkbenchTarget
-WorkbenchCardEnvelope
-WorkbenchEventEnvelope
-WorkbenchProtocol
-WorkbenchCardSerializer
+Java MessageType.WORKBENCH
+Proto WORKBENCH = 9 (append only)
+Java <-> Proto MEETING / BOT_CARD / WORKBENCH mapping
+WorkbenchCardEnvelope / WorkbenchEventEnvelope
 WorkbenchEnvelopeValidator
 WorkbenchDeepLinkFactory
+WorkbenchCardSerializer
 WorkbenchNotificationPolicyKey
+ClientEventType.WORKBENCH_RESOURCE_EVENT
 ```
 
-V1 category：
+Proto 旧 wire number 固定不变；`MEDIA` 继续现有 TEXT fallback。
 
-```text
-TASK / APPROVAL / ANNOUNCEMENT / SCHEDULE / REPORT
-```
-
-`companyId` 仅是 routing hint；schemaName 不进入 envelope；Deep Link 不能作为授权凭证。
-
-### ClientEvent
-
-新增 coarse type：
-
-```text
-WORKBENCH_RESOURCE_EVENT
-```
-
-不为每个 Task/Approval action 新增顶层 event type。
-
-### Rollout gate
-
-```text
-#28 protocol
-→ #29 Web/Electron renderer/deep-link
-→ #30 Android renderer/deep-link
-→ #50 message storage/managed-core evolution
-→ supported-client/min-version rollout gate
-→ actual server WORKBENCH emission
-```
-
-在最后一步前，server 不得持久化或发射 `MessageType.WORKBENCH`，也不做 TEXT + WORKBENCH 双写。
+#28 **没有**启用 Task/Approval emission，也没有修改 `messages_type_check`。
 
 ---
 
-## 7. Client-first Follow-ups
+## 6. Web/Electron Workbench Card + Deep Link — #29 CURRENT
 
-### #29 Web/Electron — OPEN
+实现文档：`doc/features/workbench/workbench-card-electron.md`。
 
-必须实现：
+### Parser / renderer
 
-- V1 card parser/renderer；
-- unknown version/category/action fallback；
-- malformed JSON fallback；
-- tenant-aware `group://workbench/...?...companyId=`；
-- authenticated company switch；
-- switch 后重新 fetch current resource；
-- no direct approve/complete from untrusted card payload；
-- BOT_CARD / MEETING regression。
+Web/Electron 增加独立 `WorkbenchMessageCard`，不复用 BOT_CARD renderer。
 
-Electron/Web CI 已具备。
+V1 parser：
+
+- 只接受 version=1；
+- known category/action；
+- UUID / length / occurredAt 校验；
+- canonical `group://workbench/...?...companyId=`；
+- card category/resource/company 必须与 deep link 三元组一致；
+- additive unknown JSON fields tolerant；
+- malformed / unknown version/category/action / invalid contract 显示安全 fallback，不 crash、不执行 action。
+
+### ChatRoom compatibility bridge
+
+现有大 `ChatRoom.tsx` 不直接重写：
+
+```text
+ChatRoomLegacy.tsx = 原 ChatRoom blob，字节级不变
+ChatRoom.tsx       = thin compatibility wrapper
+```
+
+wrapper 从 Redux 读取真实 `message.type`，只有 `WORKBENCH` message 的默认 text host 通过 React Portal 渲染 `WorkbenchMessageCard`。BOT_CARD / MEETING / file / voice 等仍由 legacy ChatRoom 原逻辑负责。
+
+这是降低回归风险的过渡方案；未来 MessageBubble 拆组件后可删除 bridge。
+
+### Tenant-aware navigation
+
+`WorkbenchNavigationRuntime` 挂在 App 根部：
+
+```text
+card click
+→ canonical deep-link validate
+→ if company differs: verify authenticated membership
+→ POST /api/company/switch/{companyId}
+→ persist returned session
+→ full renderer reload
+→ consume pending deepLink
+→ GET current Task detail
+→ render read-only current Task detail
+```
+
+sessionStorage 只保存 reload 前后的短生命周期 pending deepLink，不保存业务真相。
+
+`companyId` 只是正常 authenticated company switch 的目标，不是 schema/资源授权凭证。
+
+### Resource authority
+
+当前只有 Task 已有稳定 detail API。Task deep link 必须成功执行：
+
+```text
+GET /api/workbench/tasks/{taskId}
+```
+
+客户端才显示当前 Task。展示内容来自 detail response，不来自 immutable card snapshot。
+
+Deep-link detail 面板没有 Complete/Approve 等写动作。退出公司、无权限、资源删除都由 server detail API fail closed 并显示 error notification。
+
+尚未实现 detail UI 的其他 Workbench category 安全提示，不猜测业务状态。
+
+---
+
+## 7. Remaining Client-first Gates
 
 ### #30 Android/KMP — OPEN
 
-必须实现：
+需实现 V1 parser/model、Compose card、unknown/malformed fallback、tenant-aware deep link、authenticated company switch + resource fetch，以及 BOT_CARD/MEETING regression。
 
-- V1 parser/model；
-- Compose Workbench card；
-- safe unknown/malformed fallback；
-- tenant-aware deep-link router；
-- authenticated company switch + resource fetch；
-- BOT_CARD / MEETING regression；
-- KMP APK CI green。
+### #50 DB Storage / Managed Core Evolution — OPEN
+
+需在 immutable 1906 adoption contract 不变的前提下，允许 Flyway history 证明的合法 core evolution，并最终通过新 migration 允许 `messages.type=WORKBENCH`。
+
+### Actual emission — BLOCKED
+
+只有在：
+
+```text
+#29 Web/Electron consumer
++ #30 Android consumer
++ #50 storage
++ supported-client/min-version rollout policy
+```
+
+全部满足后，才允许 Task/Approval 真实 WORKBENCH persistence/emission。禁止 TEXT + WORKBENCH 双写。
 
 ---
 
@@ -269,29 +219,23 @@ Electron/Web CI 已具备。
 
 | 模块 | 状态 | 当前事实 | 下一步 |
 | --- | --- | --- | --- |
-| Workbench Platform | STABLE | #13 完成 | 领域复用 |
+| Workbench Platform | STABLE | #13 | 领域复用 |
 | Workbench Overview | STABLE | #39 + Task projection | events refresh |
 | Tenant Migration | STABLE | baseline 1906 / target 2002 | #50 core evolution |
-| Task Backend | STABLE | #45 / PR #46 | notification integration after gates |
+| Task Backend | STABLE | #45 / PR #46 | notification after gates |
 | Task Web/Electron | STABLE | #47 / PR #49 | #29 card/deep-link |
 | Electron/Web PR CI | STABLE | #9 / PR #48 | #6 required check |
-| Workbench Protocol | IN_PROGRESS | #28 envelope/proto/event | CI / merge |
-| Workbench Web Card | PLANNED | #29 open | after #28 |
-| Workbench Android Card | PLANNED | #30 open | after #28 |
+| Workbench Protocol | STABLE | #28 / PR #51 | client consumers |
+| Workbench Web Card | IN_PROGRESS | #29 parser/renderer/navigation | build/review/merge |
+| Workbench Android Card | PLANNED | #30 open | after #29 |
 | WORKBENCH Message Storage | BLOCKED | #50 open | before emission |
-| OA Approval | PLANNED | design complete | Task notification/client gates后 |
+| OA Approval | PLANNED | design complete | after Task notification gates |
 
 ---
 
 ## 9. CI / Merge Gates
 
-当前 checks：
-
-- Repository Governance；
-- Backend PR Validation；
-- Electron Web PR Validation（applicable paths）；
-- Build KMP APK；
-- no unresolved review threads。
+当前 checks：Repository Governance、Backend PR Validation、Electron Web PR Validation（applicable paths）、Build KMP APK、no unresolved review threads。
 
 #6 仍负责配置 master required checks。
 
@@ -306,26 +250,30 @@ Electron/Web CI 已具备。
 → #45 Task Backend ✅
 → #9 Electron/Web CI ✅
 → #47 Task Web/Electron ✅
-→ #28 Workbench Protocol ← CURRENT
-→ #29 Web/Electron Card + Deep Link
+→ #28 Workbench Protocol ✅
+→ #29 Web/Electron Card + Deep Link ← CURRENT
 → #30 Android Card + Deep Link
 → #50 WORKBENCH Message Storage / Managed Core Evolution
+→ supported-client rollout gate
 → Task Realtime / Push / optional IM Card
 → Approval Backend / UI
-→ Calendar / Announcement / Android OA / Report / AI Office
 ```
 
 ---
 
 ## 11. Change Log
 
-### 2026-08-20 — #28 Workbench Protocol
+### 2026-08-20 — #29 Web/Electron Workbench Card
 
-状态：IN_PROGRESS。Java/Proto WORKBENCH enum、V1 envelope、validator、deep link、ClientEvent contract 已进入工作分支；actual domain emission 继续禁用，并由 #29/#30/#50 rollout gates 阻塞。
+状态：IN_PROGRESS。独立 parser/renderer、ChatRoom compatibility bridge、tenant-aware App navigation runtime、server-refetched read-only Task deep-link detail 已进入 feature branch；server emission 仍禁用。
+
+### 2026-08-20 — #28 / PR #51
+
+状态：COMPLETED，merge `7f261e881bdc3eb3cebcd1d0468777f647d3ea43`。
 
 ### 2026-08-20 — #50 WORKBENCH storage gate
 
-状态：OPEN。解决合法 managed core constraint evolution 与 immutable 1906 baseline fingerprint 的兼容问题。
+状态：OPEN。
 
 ### 2026-08-20 — #47 / PR #49
 
@@ -338,17 +286,5 @@ Electron/Web CI 已具备。
 ### 2026-08-20 — #45 / PR #46
 
 状态：COMPLETED，merge `6ff1d1f99567e9d203ca1e27e20c47db24551d62`。
-
-### 2026-08-20 — #43 / PR #44
-
-状态：COMPLETED，merge `8384ebd69ef203b661f89db98b2169d35b06ec7e`。
-
-### 2026-08-20 — #39 / PR #40
-
-状态：COMPLETED，merge `979f1f9a0efe407efe4981f3880835d40490f9f5`。
-
-### 2026-08-20 — #13 / PR #38
-
-状态：COMPLETED，merge `4c7f3e29379ec44013e7e78d15edece6d6b1a924`。
 
 > Issue 描述为什么做，PR 描述怎么做，代码描述实际怎么运行，PROJECT_MASTER 描述项目现在是什么。
