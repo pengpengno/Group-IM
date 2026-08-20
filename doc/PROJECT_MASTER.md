@@ -1,123 +1,67 @@
 # Group-IM 项目主设计与状态文档
 
 > **Single Source of Truth / 项目唯一事实入口**
->
-> 本文描述 Group-IM 当前是什么、已经实现什么、正在交付什么、下一步是什么。代码、配置、数据库、协议、CI/CD、架构或产品能力变更，必须在同一个 PR 同步更新本文。
 
 - 文档状态：ACTIVE
 - 基线日期：2026-08-20
 - 唯一开发主线：`master`
-- 最近完成：Issue #39 / PR #40 — Workbench Overview API；Issue #41 / PR #42 — master recovery
-- 当前交付：Issue #43 — Core Baseline Fingerprint Scope
-- 下一业务阶段：Workbench Task Backend
+- 最近完成：#39 / PR #40 Workbench Overview；#43 / PR #44 Baseline Fingerprint Scope
+- 当前交付：#45 Workbench Task Backend V1
 - 仓库：`pengpengno/Group-IM`
 
 ---
 
-## 1. 项目目标
+## 1. 项目原则与治理
 
-Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协作主链路，Workbench 承载结构化办公能力，AI / Automation 嵌入会话和业务流程。
+Group-IM 是多租户组织协作 IM/OA 平台。消息是协作主链路，Workbench 承载结构化办公，AI/Automation 不建立第二份业务真相。
 
-长期原则：消息是协作主链路；Workbench 承载 Task/Approval/Schedule/Announcement/Report；AI/Automation 不建立第二份业务真相；多租户、权限、审计、迁移、文件和通知作为平台能力复用。
+- master 唯一开发主线；main legacy；
+- 所有变更通过 Issue/PR；每 PR 更新本文；默认 Squash；
+- 不使用 username == admin 构建新 Workbench 权限；
+- feature 文件更新使用 tree/commit/ref 路径；
+- merge gate：Governance + applicable Backend + KMP + no unresolved threads。
 
----
-
-## 2. 仓库治理
-
-- `master` 是唯一开发主线；`main` 是 legacy；
-- 所有代码/数据库/配置/文档变更通过 PR；
-- Bug 必须有 Issue；重要功能/架构/DB 变更原则上先有 Issue；
-- 每个 PR 更新本文；默认 Squash Merge；
-- branch 必须满足 Governance CI；
-- master 事故不 force-reset/history rewrite，使用可审计 hotfix PR；
-- feature 文件更新使用 tree/commit/ref 路径，避免再次触发默认分支逐文件写入问题。
-
-项目原则：
-
-> Issue 描述为什么做，PR 描述怎么做，代码描述实际怎么运行，PROJECT_MASTER 描述项目现在是什么。
-
-仍待治理：#6 master protection、#7 legacy main deploy trigger、#9 Electron/Web PR CI、#22 Maven duplicate dependencies。
+仍待治理：#6 master protection、#7 legacy main deploy trigger、#9 Electron/Web CI、#22 Maven duplicate dependencies。
 
 ---
 
-## 3. 当前技术事实
-
-### Server / Client
-
-Java 21 + Spring Boot 3.x + Maven；Spring Security/JWT；Spring Data JPA；PostgreSQL schema multi-tenancy；Redis/WebSocket/Spring AI。客户端为 Electron/React/TypeScript 与 Kotlin Multiplatform/Compose Android。
-
-### Tenant migration
+## 2. Tenant Migration
 
 ```text
 core business baseline = 2026081906
-managed current target = 2026082001
+managed current target = 2026082002
 ```
 
-- #12 migration foundation 已完成；
-- new tenant：inactive reservation → empty schema → Flyway → verify → active；
-- existing no-history tenant：read-only preflight → explicit baseline → migrate/validate → audit；
-- default `ddl-auto=update`，validate profile 仅 staged rollout；
-- public clone / Safe Sync 是 deprecated compatibility；
-- 测试 tenant 数据可清理重建，不阻塞功能实现。
+- #12 migration foundation 完成；
+- #43 已把 immutable core fingerprint 与 full tenant inventory 分离；
+- no-history extra object 仍 CONFLICT；Flyway-managed later objects 不制造 false core drift；
+- new tenant：inactive → empty schema → Flyway current target → verify → active；
+- existing reviewed tenant：preflight → baseline 1906 → migrate current target → validate/audit；
+- default ddl-auto=update，validate profile staged；
+- public clone/Safe Sync deprecated compatibility。
 
-### #43 Baseline Fingerprint Scope — CURRENT
+`2026082002` 为 Task V1 migration，新增 `wb_task / wb_task_assignee / wb_task_comment / wb_task_activity`。Core baseline 仍保持 1906，不随 managed target 前移。
 
-Task 新表上线前必须修复 #21 的未来 migration 兼容性。
-
-新契约：
-
-```text
-immutable core fingerprint
-  = 1906 core tables/columns/constraints/indexes
-  + identity views
-  + core-owned sequences
-
-full object inventory
-  = all tenant tables/views/sequences
-```
-
-安全规则：
-
-- **no history legacy tenant**：full inventory 必须没有 baseline 外未知 object；extra => `CONFLICT`；
-- **Flyway-managed tenant**：later managed objects 不参与 core hash，不制造 false conflict；
-- core pinned hashes 必须保持不变；
-- existing history 仍禁止重复 baseline；
-- baseline preflight 不是未来最新业务 schema 的全量 validator，latest schema 由 Flyway history/checksum/pending/validate + migration integration tests 保证。
+测试 tenant 数据可清理重建，不阻塞功能模块实现。
 
 ---
 
-## 4. Workbench 状态
+## 3. Workbench Platform / Overview
 
-| 模块 | 状态 | 当前事实 | 下一步 |
-| --- | --- | --- | --- |
-| Workbench Platform | STABLE | #13 / PR #38 完成 | 领域复用 |
-| Workbench Overview | STABLE | #39 / PR #40 已实现 `GET /api/workbench/overview` | 前端接入/随领域扩展 |
-| Tenant Migration Compatibility | IN_PROGRESS | #43 core fingerprint scope | Task migration gate |
-| OA Task Backend | BLOCKED_BY_43 | Task 正式设计已完成 | #43 后 migration + API |
-| OA Approval | PLANNED | 轻量串行审批设计完成 | Task 闭环后 |
+#13 Platform Foundation 已完成：CurrentWorkContext、stable errors、fail-closed PermissionService、Organization/File adapters、Audit、explicit TenantExecutor。
 
-### Platform Foundation
-
-`workbench.common` 已提供 CurrentWorkContext、stable errors、fail-closed PermissionService、Organization/File adapters、Audit、explicit WorkbenchTenantExecutor。客户端 companyId 不决定 tenant；不使用 `username == admin`。
-
-### Overview
-
-`GET /api/workbench/overview` 已在 PR #40 合并：
-
-- currentCompany 只返回 companyId/name，不暴露 schema；
-- Task/Approval/Announcement 未实现时 zero/empty；
-- todaySchedules 使用 current-user Meeting lightweight projection；
-- participant INVITED/JOINED/LEFT，排除 REJECTED；meeting SCHEDULED/ACTIVE；
-- no cache / no independent write model；
-- Quick Apps 返回 stable key/title。
+#39 Overview 已完成：`GET /api/workbench/overview`，tenant only from current authenticated company；Meeting today projection；不暴露 schema；首版无 cache/write model。
 
 ---
 
-## 5. Task Backend Ready Design
+## 4. Task Backend V1 — #45 CURRENT
 
-正式设计：`doc/features/workbench/task.md`。
+正式设计：
 
-核心表计划：
+- `doc/features/workbench/task.md`
+- `doc/features/workbench/task-backend-v1.md`
+
+### Data model
 
 ```text
 wb_task
@@ -126,34 +70,70 @@ wb_task_comment
 wb_task_activity
 ```
 
-状态：`TODO / IN_PROGRESS / BLOCKED / COMPLETED / CANCELLED`。状态变化必须走 action API，不允许客户端直接 PATCH status。
+Task row 不存 company_id；tenant schema 是边界。User/department/conversation 存 ID，不建跨模块 JPA 强关系。`wb_task.version` 使用 optimistic locking。
 
-权限：feature permission + resource/data permission；owner/creator/assignee/collaborator/department 等均服务端校验。
+### State machine
 
-附件复用 File adapter，仍要求 current tenant + task visibility + relation；知道 fileId 不等于可下载。
+```text
+TODO -> IN_PROGRESS / COMPLETED / CANCELLED
+IN_PROGRESS -> BLOCKED / COMPLETED / CANCELLED
+BLOCKED -> IN_PROGRESS / CANCELLED
+COMPLETED -> IN_PROGRESS
+CANCELLED -> terminal
+```
 
-事务内写 Task/Activity/Audit，通知/Realtime/Card 在 commit 后处理；第一版 Task Backend 不提前 emit WORKBENCH card。
+客户端不能 PATCH status；状态只通过 action API。
+
+### API
+
+Base `/api/workbench/tasks`：create/update/list/detail；start/block/resume/complete/reopen/cancel；assignee add/remove；comment；activities。
+
+### Permission
+
+- feature gate 复用 #13；
+- creator/owner 可 manage；
+- OWNER/COLLABORATOR assignee 可执行工作动作；
+- WATCHER 只 view/comment；
+- creator/owner/any assignee 可 view；
+- owner/assignee 必须由 OrganizationAdapter 验证为当前公司 active member；
+- list 只返回当前用户 creator/owner/assignee 可见任务。
+
+### Activity / Audit
+
+Create/update/workflow/assignee/comment 同步写 Task Activity，并记录 Workbench Audit。通知、Realtime、WORKBENCH Card 留到 after-commit 后续阶段，不在本 PR 提前发射。
+
+### Overview
+
+Task 上线后 Overview 使用真实 Task source：assignedTaskCount、overdueTaskCount、recentTasks；Quick Apps 增加 TASK。Approval/Announcement 继续 zero/empty 直到各自领域实现。
 
 ---
 
-## 6. CI / Merge Gates
+## 5. 模块状态
 
-Backend：
+| 模块 | 状态 | 当前事实 | 下一步 |
+| --- | --- | --- | --- |
+| Workbench Platform | STABLE | #13 完成 | 领域复用 |
+| Workbench Overview | STABLE | #39 完成，Task projection 本 PR 扩展 | Web/Electron |
+| Tenant Migration | STABLE | core 1906 / target 2002 | 后续 OA migrations |
+| OA Task Backend | IN_PROGRESS | #45 migration/domain/API/permission/audit | CI + merge |
+| OA Task Web/Electron | PLANNED | 等 Backend contract | UI |
+| OA Approval | PLANNED | 设计已完成 | Task 闭环后 |
 
-```text
-mvn -B -ntp -pl server -am -DskipTests compile
-mvn -B -ntp -pl server -am test
-```
+---
 
-PR merge gate：Repository Governance + applicable Backend + KMP + no unresolved review threads + PROJECT_MASTER update。
+## 6. CI / Validation
 
-#43 PostgreSQL gate：
+#45 必须通过：
 
-- original core pinned hashes unchanged；
-- later managed table/view/sequence does not alter core fingerprint；
-- no-history extra object remains CONFLICT；
-- managed history tenant with later objects remains core-compatible；
-- repeat baseline rejected。
+- Task state-machine tests；
+- resource policy tests；
+- Task service create/action tests；
+- Overview Task projection tests；
+- PostgreSQL Task migration Testcontainers；
+- new tenant provisioning reaches 2026082002；
+- core fingerprint pinned hashes unchanged；
+- baseline/runtime regression；
+- Governance / Backend / KMP。
 
 ---
 
@@ -162,38 +142,34 @@ PR merge gate：Repository Governance + applicable Backend + KMP + no unresolved
 ```text
 #13 Platform Foundation ✅
 → #39 Overview API ✅
-→ #43 Baseline Fingerprint Scope ← CURRENT
-→ Task Backend
+→ #43 Baseline Scope ✅
+→ #45 Task Backend ← CURRENT
 → Task Web/Electron
 → Task Realtime / Push / WORKBENCH Card
 → Approval Backend / UI
 → Calendar / Announcement / Android OA / Report / AI Office
 ```
 
-#14 structured card protocol design 已接受；server actual WORKBENCH emission 继续受 client-first gate 约束。
+#14 structured card protocol design 已接受；server actual WORKBENCH emission 继续受 client-first gate。
 
 ---
 
-## 8. Repository Incident #41
+## 8. Change Log
 
-#39 开发期间 connector 逐文件更新意外进入 default master。#41 / PR #42 使用正常 hotfix PR 恢复内容，merge `85b78f1236169774aa2befd5bf11f9ccb3b6fd20`；无 force-reset，无公开历史改写。#39 随后从 repaired master 以单一 tree/commit 重建并通过 PR #40 合入。
+### 2026-08-20 — #45 Task Backend V1
 
----
+状态：IN_PROGRESS。Managed target 前进到 `2026082002`，实现 Task 四表、状态机、API、资源权限、Activity/Audit、Overview Task 真数据。
 
-## 9. Change Log
+### 2026-08-20 — #43 / PR #44
 
-### 2026-08-20 — Issue #43
+状态：COMPLETED，merge `8384ebd69ef203b661f89db98b2169d35b06ec7e`。
 
-状态：`IN_PROGRESS`。分离 immutable core fingerprint 与 full tenant inventory，作为 Task migration 前置 gate。
+### 2026-08-20 — #39 / PR #40
 
-### 2026-08-20 — Issue #39 / PR #40
+状态：COMPLETED，merge `979f1f9a0efe407efe4981f3880835d40490f9f5`。
 
-状态：`COMPLETED`，merge `979f1f9a0efe407efe4981f3880835d40490f9f5`。
+### 2026-08-20 — #13 / PR #38
 
-### 2026-08-20 — Issue #13 / PR #38
+状态：COMPLETED，merge `4c7f3e29379ec44013e7e78d15edece6d6b1a924`。
 
-状态：`COMPLETED`，merge `4c7f3e29379ec44013e7e78d15edece6d6b1a924`。
-
-### 2026-08-20 — Issue #12
-
-状态：`COMPLETED`，core baseline `2026081906`，managed target `2026082001`。
+> Issue 描述为什么做，PR 描述怎么做，代码描述实际怎么运行，PROJECT_MASTER 描述项目现在是什么。
