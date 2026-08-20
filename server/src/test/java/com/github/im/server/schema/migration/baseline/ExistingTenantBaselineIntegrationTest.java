@@ -57,11 +57,11 @@ class ExistingTenantBaselineIntegrationTest {
         );
         publicBootstrap.bootstrap();
 
-        createLegacyReadySchema(flywayFactory, "legacy_a");
-        createLegacyReadySchema(flywayFactory, "legacy_b");
-        createLegacyReadySchema(flywayFactory, "drifted_tenant");
-        createLegacyReadySchema(flywayFactory, "conflict_tenant");
-        createLegacyReadySchema(flywayFactory, "extra_no_history");
+        createLegacyCoreSchema(flywayFactory, "legacy_a");
+        createLegacyCoreSchema(flywayFactory, "legacy_b");
+        createLegacyCoreSchema(flywayFactory, "drifted_tenant");
+        createLegacyCoreSchema(flywayFactory, "conflict_tenant");
+        createLegacyCoreSchema(flywayFactory, "extra_no_history");
 
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.execute("ALTER TABLE drifted_tenant.messages ALTER COLUMN content TYPE VARCHAR(255)");
@@ -97,7 +97,7 @@ class ExistingTenantBaselineIntegrationTest {
     }
 
     @Test
-    void preflightBaselinesReadyTenantsRejectsUnsafeAdoptionAndAllowsLaterManagedObjects() throws Exception {
+    void preflightBaselinesLegacyCoreToCurrentTaskTargetAndRejectsUnsafeAdoption() throws Exception {
         List<TenantBaselinePreflightSnapshot> preflight = preflightService.preflight(
                 new TenantBaselinePreflightRequest(List.of(), true),
                 9001L
@@ -133,6 +133,8 @@ class ExistingTenantBaselineIntegrationTest {
         assertEquals(CoreTenantBaselineContract.MANAGED_TARGET_VERSION, second.currentVersion());
         assertTrue(tableExists("legacy_a", "flyway_schema_history"));
         assertTrue(tableExists("legacy_b", "flyway_schema_history"));
+        assertTrue(tableExists("legacy_a", "wb_task"));
+        assertTrue(tableExists("legacy_b", "wb_task_activity"));
         assertEquals("2026081906", scalarString("""
                 SELECT metadata_value
                 FROM legacy_a.tenant_schema_metadata
@@ -273,12 +275,19 @@ class ExistingTenantBaselineIntegrationTest {
         }
     }
 
-    private static void createLegacyReadySchema(TenantFlywayFactory flywayFactory, String schemaName) throws Exception {
+    private static void createLegacyCoreSchema(TenantFlywayFactory flywayFactory, String schemaName) throws Exception {
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.execute("CREATE SCHEMA " + schemaName);
         }
+        // Build with the current migration set so the fixture stays compatible
+        // with Flyway SQL, then remove managed extensions after the immutable
+        // 1906 baseline to simulate a real pre-Flyway legacy core tenant.
         flywayFactory.create(schemaName).migrate();
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("DROP TABLE " + schemaName + ".wb_task_activity");
+            statement.execute("DROP TABLE " + schemaName + ".wb_task_comment");
+            statement.execute("DROP TABLE " + schemaName + ".wb_task_assignee");
+            statement.execute("DROP TABLE " + schemaName + ".wb_task");
             statement.execute("DROP TABLE " + schemaName + ".flyway_schema_history");
             statement.execute("DROP TABLE " + schemaName + ".tenant_schema_metadata");
         }
