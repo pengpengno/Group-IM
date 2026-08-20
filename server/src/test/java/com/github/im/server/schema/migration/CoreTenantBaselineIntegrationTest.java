@@ -69,7 +69,7 @@ class CoreTenantBaselineIntegrationTest {
         flyway.migrate();
 
         assertNotNull(flyway.info().current());
-        assertEquals("2026081906", flyway.info().current().getVersion().getVersion());
+        assertEquals("2026082001", flyway.info().current().getVersion().getVersion());
 
         assertEquals(EXPECTED_CORE_TABLES, relationNames(dataSource, "r"));
         assertEquals(EXPECTED_IDENTITY_VIEWS, relationNames(dataSource, "v"));
@@ -109,6 +109,12 @@ class CoreTenantBaselineIntegrationTest {
                   AND constraint_row.conname = 'messages_type_check'
                 """);
         assertTrue(messageTypeCheck.contains("BOT_CARD"));
+
+        assertEquals("2026081906", scalarString(dataSource, """
+                SELECT metadata_value
+                FROM baseline_tenant.tenant_schema_metadata
+                WHERE metadata_key = 'core_baseline_contract'
+                """));
 
         assertEquals(1, scalarInt(dataSource, "SELECT count(*) FROM baseline_tenant.company"));
         assertEquals("baseline_tenant", scalarString(dataSource,
