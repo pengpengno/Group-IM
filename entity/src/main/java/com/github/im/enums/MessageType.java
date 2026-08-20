@@ -1,7 +1,5 @@
 package com.github.im.enums;
 
-
-
 public enum MessageType {
     TEXT,
     FILE,
@@ -11,5 +9,7 @@ public enum MessageType {
     MEDIA,
     MEETING,
     /** Versioned robot action card JSON stored in Message.content. */
-    BOT_CARD
+    BOT_CARD,
+    /** Versioned Workbench/OA event card JSON stored in Message.content. */
+    WORKBENCH
 }
