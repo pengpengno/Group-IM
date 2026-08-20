@@ -5,8 +5,8 @@
 > Epic：#12  
 > Core baseline：#25 / PR #33 — IMPLEMENTED  
 > Canonical core baseline version：`2026081906`  
-> 当前阶段：#20 New Tenant Provisioning — IN PROGRESS  
-> 并行阶段：#21 Existing Tenant Baseline / Validate
+> New tenant provisioning：#20 / PR #35 — IMPLEMENTED（以本 PR 合并为状态边界）  
+> 当前下一阶段：#21 Existing Tenant Baseline / Validate
 
 本文是 Group-IM 当前租户数据库迁移设计入口。冲突时以 ADR-0004、本文件和 `doc/PROJECT_MASTER.md` 的 current facts 为准。
 
@@ -18,10 +18,14 @@
 - #19 / PR #24 已建立显式 Migration Runtime；
 - #25 / PR #33 已证明空 tenant 可只通过 Flyway 构建完整 core schema；
 - canonical tenant version 为 `2026081906`；
+- #20 / PR #35 已把新公司主路径切换为 migration-backed provisioning；
+- 新 tenant 先以 `active=false` reservation 写入 public.company，Flyway 成功后才激活；
+- password login / company switch 只接受 active company；
+- `CompanyCreatedEvent` 不再承担 tenant DDL；
 - `spring.flyway.enabled=false`，普通应用启动不 migrate 全部 tenant；
 - `spring.jpa.hibernate.ddl-auto` 仍为 `update`；
 - `SafeTenantSchemaSyncService` 仍是 transitional drift/compatibility tool；
-- legacy `public.create_or_sync_company_schema(...)` 仍保留给显式兼容 sync 操作，但 #20 新公司主路径不再依赖它；
+- legacy `public.create_or_sync_company_schema(...)` 仅保留给显式 compatibility sync，不再用于新公司主路径；
 - #21 负责 non-empty + no-Flyway-history 的既有 tenant。
 
 ---
@@ -84,6 +88,8 @@ Canonical normalization：
 
 ## 4. #20 New Tenant Provisioning
 
+状态：`IMPLEMENTED / PR #35`（以本 PR 合并为状态边界）。
+
 新 tenant 生命周期固定为：
 
 ```text
@@ -106,6 +112,8 @@ publish CompanyCreatedEvent
 
 - company metadata reservation 与 tenant DDL/migration 不共享一个长事务；
 - provisioning 未完成时 company 必须保持 `active=false`；
+- password login 和 company switch 只解析 active company；
+- 即使 admin 也不能切换到 inactive/unprovisioned company；
 - `CompanyCreatedEvent` 只在 provisioning 成功后发布，不承担 DDL；
 - public/default company 不走 tenant provisioning；
 - 新 tenant 主路径不调用 `public.create_or_sync_company_schema(...)`。
@@ -149,16 +157,14 @@ Flyway migrate
 activate company
 ```
 
-原因：Flyway 使用独立连接，且 DDL/migration failure 必须留下可解释、可重试的 lifecycle state。
-
-因此采用：
+采用：
 
 1. `CompanyProvisioningTransactionService.reserveInactive(...)`：`REQUIRES_NEW`；
 2. `TenantSchemaProvisioner.provision(...)`：schema creation + Flyway；
 3. `markActive(...)`：`REQUIRES_NEW`；
 4. failure path：`markInactive(...)`，保留 metadata 供显式 retry。
 
-这比“失败就删除所有 metadata/schema”更容易审计，也允许 Flyway partial-history 的合法重试。
+这允许 Flyway partial-history 的合法重试，同时保证失败 company 不进入可用状态。
 
 ---
 
@@ -200,7 +206,7 @@ normal Flyway migrations
 
 禁止 blind `baselineOnMigrate(true)`。
 
-已经在 #20 代码合并前创建的测试 tenant（例如 `dingding`）不能自动被认定为“新 tenant”。如果它包含业务表但没有 `flyway_schema_history`，必须走 #21。
+在 #20 合并前创建的 tenant（例如测试环境的 `dingding`）不能自动认定为“新 tenant”。如果它包含业务表但没有 `flyway_schema_history`，必须走 #21。
 
 ---
 
@@ -208,30 +214,16 @@ normal Flyway migrations
 
 ### Core baseline gate
 
-`CoreTenantBaselineIntegrationTest` 已在 PostgreSQL 16 验证：
-
-- empty schema -> Flyway `2026081906`；
-- 18 tables / 3 views / 17 sequences / 65 constraints / 26 indexes；
-- normalized message/meeting contracts；
-- tenant identity isolation。
+`CoreTenantBaselineIntegrationTest` 已在 PostgreSQL 16 验证：empty schema -> `2026081906`，并核对 18 tables / 3 views / 17 sequences / 65 constraints / 26 indexes、normalized columns/checks 与 tenant identity isolation。
 
 ### New provisioning gate
 
-#20 新增：
+PR #35 新增并通过：
 
-`TenantSchemaProvisionerIntegrationTest`
-
-- missing schema 自动创建；
-- Flyway migrate 到当前 latest；
-- retry 幂等；
-- legacy non-empty/no-history schema 被拒绝。
-
-`CompanyServiceProvisioningSpec`
-
-- migration 前 company 已持久化为 inactive；
-- migration 成功后才 active；
-- migration failure 保持 inactive；
-- CompanyCreatedEvent 只在成功后发布。
+- `TenantSchemaProvisionerIntegrationTest`：missing schema 自动创建、完整 migrate、retry 幂等、legacy no-history 拒绝；
+- `CompanyServiceProvisioningSpec`：成功后才 active，失败保持 inactive；
+- `AuthenticationServiceCompanyAvailabilitySpec`：admin 无法切入 inactive/unprovisioned company；
+- Backend compile/test、Repository Governance、Build KMP APK。
 
 ---
 
@@ -246,9 +238,9 @@ normal Flyway migrations
   ↓
 #25 core baseline 2026081906 ✅
   ↓
-#20 new tenant migration provisioning
-  +
-#21 existing tenant baseline/validate
+#20 new tenant migration provisioning ✅ PR #35
+  ↓
+#21 existing tenant baseline/validate ← NEXT
   ↓
 all active tenants covered
   ↓
@@ -269,11 +261,11 @@ production ddl-auto=validate
 #26 Snapshot Tooling ✅ PR #27
 #32 Snapshot Review ✅
 #25 Core Tenant Baseline ✅ PR #33
-├─ #20 New Tenant Provisioning ← IN PROGRESS
-└─ #21 Existing Tenant Baseline/Validate ← NEXT
+#20 New Tenant Provisioning ✅ PR #35
+#21 Existing Tenant Baseline/Validate ← NEXT
 ```
 
-#20 与 #21 完成后才能考虑退役 legacy public clone 与 Safe Sync write path。
+#21 完成后才能考虑全面退役 legacy public clone 与 Safe Sync write path。
 
 ---
 
