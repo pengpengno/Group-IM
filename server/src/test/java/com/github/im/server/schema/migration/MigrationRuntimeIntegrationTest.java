@@ -116,12 +116,12 @@ class MigrationRuntimeIntegrationTest {
     void runtimeBootstrapsPlansMigratesAndBlocksUnbaselinedLegacyTenant() {
         PublicMigrationBootstrapResult firstBootstrap = publicBootstrap.bootstrap();
         assertTrue(firstBootstrap.baselineCreated());
-        assertEquals("2026081901", firstBootstrap.currentVersion());
+        assertEquals("2026082001", firstBootstrap.currentVersion());
         assertTrue(publicBootstrap.isBootstrapped());
 
         PublicMigrationBootstrapResult secondBootstrap = publicBootstrap.bootstrap();
         assertFalse(secondBootstrap.baselineCreated());
-        assertEquals("2026081901", secondBootstrap.currentVersion());
+        assertEquals("2026082001", secondBootstrap.currentVersion());
 
         var planAccepted = migrationRunService.createRun(
                 new MigrationRunRequest(MigrationMode.PLAN, List.of(), true),
@@ -133,8 +133,8 @@ class MigrationRuntimeIntegrationTest {
 
         MigrationRunSnapshot.Item companyAPlan = item(planRun, 1L);
         assertEquals(MigrationItemStatus.PLANNED, companyAPlan.status());
-        assertEquals(6, companyAPlan.pendingCount());
-        assertEquals("2026081906", companyAPlan.targetVersion());
+        assertEquals(7, companyAPlan.pendingCount());
+        assertEquals("2026082001", companyAPlan.targetVersion());
         assertNull(companyAPlan.errorMessage());
 
         MigrationRunSnapshot.Item companyBPlan = item(planRun, 2L);
@@ -155,7 +155,7 @@ class MigrationRuntimeIntegrationTest {
         MigrationRunSnapshot.Item firstApplyItem = item(applyRun, 1L);
         assertEquals(MigrationItemStatus.SUCCEEDED, firstApplyItem.status());
         assertNull(firstApplyItem.fromVersion());
-        assertEquals("2026081906", firstApplyItem.targetVersion());
+        assertEquals("2026082001", firstApplyItem.targetVersion());
         assertTrue(tableExists("company_a", "tenant_schema_metadata"));
         assertTrue(tableExists("company_a", "flyway_schema_history"));
         assertTrue(tableExists("company_a", "messages"));
@@ -170,8 +170,8 @@ class MigrationRuntimeIntegrationTest {
         assertEquals(MigrationRunStatus.SUCCEEDED, secondApplyRun.status());
         MigrationRunSnapshot.Item secondApplyItem = item(secondApplyRun, 1L);
         assertEquals(0, secondApplyItem.pendingCount(), "repeat APPLY must be idempotent");
-        assertEquals("2026081906", secondApplyItem.fromVersion());
-        assertEquals("2026081906", secondApplyItem.targetVersion());
+        assertEquals("2026082001", secondApplyItem.fromVersion());
+        assertEquals("2026082001", secondApplyItem.targetVersion());
 
         var blockedAccepted = migrationRunService.createRun(
                 new MigrationRunRequest(MigrationMode.APPLY, List.of(2L), false),

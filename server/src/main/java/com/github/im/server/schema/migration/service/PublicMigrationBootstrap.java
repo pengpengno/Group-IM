@@ -47,7 +47,9 @@ public class PublicMigrationBootstrap {
              PreparedStatement statement = connection.prepareStatement(
                      "SELECT to_regclass('public.schema_migration_run') IS NOT NULL " +
                              "AND to_regclass('public.schema_migration_run_item') IS NOT NULL " +
-                             "AND to_regclass('public.tenant_schema_state') IS NOT NULL");
+                             "AND to_regclass('public.tenant_schema_state') IS NOT NULL " +
+                             "AND to_regclass('public.tenant_schema_preflight_state') IS NOT NULL " +
+                             "AND to_regclass('public.tenant_schema_baseline_audit') IS NOT NULL");
              ResultSet resultSet = statement.executeQuery()) {
             return resultSet.next() && resultSet.getBoolean(1);
         } catch (SQLException exception) {
@@ -59,7 +61,7 @@ public class PublicMigrationBootstrap {
     public void requireBootstrapped() {
         if (!isBootstrapped()) {
             throw new BusinessException(HttpStatus.CONFLICT, "MIGRATION_CONTROL_PLANE_NOT_BOOTSTRAPPED",
-                    "migration control plane 尚未初始化，请先执行 public bootstrap");
+                    "migration control plane 尚未初始化或版本过旧，请先执行 public bootstrap");
         }
     }
 

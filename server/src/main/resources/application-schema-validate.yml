@@ -1,0 +1,6 @@
+# Opt-in release gate for staging/canary environments after #21 tenant coverage is proven.
+# Default application.yml remains ddl-auto=update until the rollout gate is satisfied.
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate

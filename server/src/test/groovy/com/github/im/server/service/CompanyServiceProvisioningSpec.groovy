@@ -40,8 +40,8 @@ class CompanyServiceProvisioningSpec extends Specification {
         def active = company(42L, "钉钉", "dingding", true)
         def plan = new TenantMigrationPlan(
                 "dingding",
-                "2026081906",
-                "2026081906",
+                "2026082001",
+                "2026082001",
                 0,
                 List.of(),
                 false,

@@ -3,10 +3,10 @@
 > 状态：CURRENT / CANONICAL  
 > ADR：`ADR-0004-versioned-tenant-schema-migrations.md`  
 > Epic：#12  
-> Core baseline：#25 / PR #33 — IMPLEMENTED  
-> Canonical core baseline version：`2026081906`  
-> New tenant provisioning：#20 / PR #35 — IMPLEMENTED（以本 PR 合并为状态边界）  
-> 当前下一阶段：#21 Existing Tenant Baseline / Validate
+> Core baseline：#25 / PR #33 — `2026081906`  
+> New tenant provisioning：#20 / PR #35 — IMPLEMENTED  
+> Existing tenant baseline：#21 / PR #36 — IMPLEMENTED AT MERGE BOUNDARY  
+> Managed migration target：`2026082001`
 
 本文是 Group-IM 当前租户数据库迁移设计入口。冲突时以 ADR-0004、本文件和 `doc/PROJECT_MASTER.md` 的 current facts 为准。
 
@@ -16,24 +16,21 @@
 
 - PostgreSQL schema 是 tenant boundary；
 - #19 / PR #24 已建立显式 Migration Runtime；
-- #25 / PR #33 已证明空 tenant 可只通过 Flyway 构建完整 core schema；
-- canonical tenant version 为 `2026081906`；
-- #20 / PR #35 已把新公司主路径切换为 migration-backed provisioning；
-- 新 tenant 先以 `active=false` reservation 写入 public.company，Flyway 成功后才激活；
-- password login / company switch 只接受 active company；
-- `CompanyCreatedEvent` 不再承担 tenant DDL；
-- `spring.flyway.enabled=false`，普通应用启动不 migrate 全部 tenant；
-- `spring.jpa.hibernate.ddl-auto` 仍为 `update`；
-- `SafeTenantSchemaSyncService` 仍是 transitional drift/compatibility tool；
-- legacy `public.create_or_sync_company_schema(...)` 仅保留给显式 compatibility sync，不再用于新公司主路径；
-- #21 负责 non-empty + no-Flyway-history 的既有 tenant。
+- #25 / PR #33 固定 core business baseline `2026081906`；
+- #20 / PR #35 把新公司主路径切为 migration-backed provisioning；
+- #21 / PR #36 建立 existing tenant semantic preflight + explicit baseline + audit；
+- `spring.flyway.enabled=false`，普通应用启动不自动 migrate 全 tenant；
+- 默认 `spring.jpa.hibernate.ddl-auto=update`；
+- opt-in `application-schema-validate.yml` 仅用于 staged validate rollout；
+- legacy `create_or_sync_company_schema` / Safe Sync 是 transitional compatibility surface，不是 migration authority；
+- core baseline 与当前 managed target 明确分离：`2026081906` vs `2026082001`。
 
 ---
 
-## 2. Migration Runtime Contract
+## 2. Runtime Contract
 
 ```text
-Git versioned migrations
+Git immutable migrations
         ↓
 TenantFlywayFactory(defaultSchema = tenant)
         ↓
@@ -48,14 +45,16 @@ PLAN / APPLY / RETRY
 
 1. `<tenant>.flyway_schema_history` 是 tenant version authority；
 2. PLAN 只读；
-3. APPLY 只允许空 schema 或已有可信 Flyway history 的 schema；
-4. non-empty + no-history tenant 必须走 #21；
-5. 同 tenant 并发 APPLY 使用 advisory lock；
-6. migration 发布后不可修改，只能新增版本。
+3. normal APPLY 只允许 empty schema 或已有可信 history；
+4. non-empty + no-history tenant 必须先通过 #21；
+5. 同 tenant 使用 advisory lock；
+6. migration 发布后不可修改，只新增版本；
+7. 禁止 blind `baselineOnMigrate(true)`；
+8. public 当前动态结构不充当 expected baseline contract。
 
 ---
 
-## 3. Canonical Tenant Baseline
+## 3. Canonical Core Baseline — `2026081906`
 
 ```text
 V2026081901__create_tenant_schema_metadata.sql
@@ -66,7 +65,7 @@ V2026081905__add_core_tenant_keys_and_relationships.sql
 V2026081906__create_tenant_identity_views.sql
 ```
 
-Reviewed core contract：
+Reviewed contract：
 
 ```text
 18 core tenant tables
@@ -76,202 +75,311 @@ Reviewed core contract：
 26 PK/UNIQUE backing indexes
 ```
 
-Canonical normalization：
+Normalization：
 
 - `messages.content = TEXT`；
 - `meetings.scheduled_at = timestamp(6) without time zone`；
 - `messages.type` CHECK 包含 `BOT_CARD`；
-- tenant identity views 不写死 captured companyId / source schema；
-- global identity authority 继续位于 `public.company` / `public.company_user` / `public.users`。
+- global identity authority 位于 `public.company` / `public.company_user` / `public.users`；
+- tenant identity view 的 legacy hard-coded predicate 与 schema-relative predicate 只按实际隔离行为判断，不以原始 SQL 文本差异判 drift。
 
 ---
 
-## 4. #20 New Tenant Provisioning
-
-状态：`IMPLEMENTED / PR #35`（以本 PR 合并为状态边界）。
-
-新 tenant 生命周期固定为：
+## 4. New Tenant Provisioning — #20 / PR #35
 
 ```text
-validate metadata / uniqueness
-        ↓
-reserve public.company row as active=false
-        ↓   REQUIRES_NEW commit
-create tenant schema if missing
-        ↓
+validate metadata
+  ↓
+reserve public.company active=false (REQUIRES_NEW)
+  ↓
+CREATE SCHEMA if missing
+  ↓
 Flyway APPLY all tenant migrations
-        ↓
-verify pendingCount = 0 and currentVersion exists
-        ↓
-mark public.company active=true
-        ↓   REQUIRES_NEW commit
+  ↓
+verify no pending
+  ↓
+mark active=true (REQUIRES_NEW)
+  ↓
 publish CompanyCreatedEvent
 ```
 
-关键原则：
+允许：missing / empty / Flyway-managed schema。  
+拒绝：business tables + no history → `MIGRATION_BASELINE_REQUIRED` → #21。
 
-- company metadata reservation 与 tenant DDL/migration 不共享一个长事务；
-- provisioning 未完成时 company 必须保持 `active=false`；
-- password login 和 company switch 只解析 active company；
-- 即使 admin 也不能切换到 inactive/unprovisioned company；
-- `CompanyCreatedEvent` 只在 provisioning 成功后发布，不承担 DDL；
-- public/default company 不走 tenant provisioning；
-- 新 tenant 主路径不调用 `public.create_or_sync_company_schema(...)`。
-
-### Retry semantics
-
-`TenantSchemaProvisioner` 只接受四种明确状态：
-
-```text
-schema missing
-  -> CREATE SCHEMA -> migrate
-
-schema exists + empty
-  -> migrate
-
-schema exists + Flyway history
-  -> resume/apply pending migrations
-
-schema exists + business tables + no Flyway history
-  -> reject MIGRATION_BASELINE_REQUIRED -> #21
-```
-
-管理员可显式重试 inactive company：
+Admin retry：
 
 ```http
 POST /api/admin/tenant-provisioning/companies/{companyId}/retry
 ```
 
-Active company 会被拒绝，避免 legacy cloned tenant 静默进入 new-tenant path。
-
 ---
 
-## 5. Transaction Boundary
+## 5. Existing Tenant Preflight — #21 / PR #36
 
-#20 不把以下步骤放在同一个数据库事务里：
+对 tenant schema 本身只做 read-only catalog / projection 行为检查。
 
 ```text
-insert company row
-CREATE SCHEMA
-Flyway migrate
-activate company
+active tenant
+  ↓
+semantic catalog fingerprint
+  ↓
+BASELINE_READY / DRIFTED / CONFLICT / ERROR
 ```
 
-采用：
+### Fingerprint categories
 
-1. `CompanyProvisioningTransactionService.reserveInactive(...)`：`REQUIRES_NEW`；
-2. `TenantSchemaProvisioner.provision(...)`：schema creation + Flyway；
-3. `markActive(...)`：`REQUIRES_NEW`；
-4. failure path：`markInactive(...)`，保留 metadata 供显式 retry。
+- tables；
+- columns：type / nullability / default / identity / generated；
+- constraints：PK / UNIQUE / FK / CHECK；
+- indexes；
+- views：name + output column shape；
+- identity sequences。
 
-这允许 Flyway partial-history 的合法重试，同时保证失败 company 不进入可用状态。
+每个 category 生成 deterministic SHA-256。Canonical hashes 由 PostgreSQL 16 中只运行 immutable migrations 的 schema 固定，测试持续 pin。
+
+### Schema-independent FK normalization
+
+真实 tenant schema 名不能进入 canonical hash。
+
+Constraint fingerprint 规则：
+
+```text
+same tenant FK referenced schema -> <tenant>
+public/global FK referenced schema -> public
+```
+
+因此：
+
+```text
+contract_tenant.conversations -> contract_tenant.messages
+legacy_a.conversations         -> legacy_a.messages
+dingding.conversations         -> dingding.messages
+```
+
+都比较成相同的 `<tenant>` 语义；指向 `public.users` 的 FK 仍保留 `public`，跨边界错误不会被隐藏。
+
+### Identity view validation
+
+`company` / `company_user` / `users` 不比较原始 view SQL，而验证实际行为：
+
+- `company` 只能暴露当前 company；
+- `company_user` 只能暴露当前 company membership；
+- `users` 只能暴露当前 company users。
+
+### Classification
+
+`BASELINE_READY`：core set、所有 pinned category hashes、identity projection behavior 都匹配。  
+`DRIFTED`：核心对象存在，但 column/constraint/index/view/sequence contract 不一致。  
+`CONFLICT`：缺失/额外 core table/view、schema 不存在等结构冲突。  
+`ERROR`：catalog/preflight 执行失败。
+
+Drift/Conflict 仅返回 repair plan；不自动 ALTER/DROP，不从 public 复制覆盖。
 
 ---
 
-## 6. Legacy Compatibility Boundary
+## 6. Explicit Existing-Tenant Baseline
 
-以下旧能力暂时保留：
+Admin API：
+
+```http
+POST /api/admin/schema-migrations/baselines/preflight
+GET  /api/admin/schema-migrations/baselines/states
+POST /api/admin/schema-migrations/baselines/companies/{companyId}
+```
+
+Baseline 请求必须携带 preflight 返回的 `expectedFingerprint`。
+
+```text
+require public control-plane bootstrap
+  ↓
+resolve active company
+  ↓
+advisory lock
+  ↓
+re-run preflight
+  ↓
+require BASELINE_READY + no Flyway history
+  ↓
+require observedFingerprint == expectedFingerprint
+  ↓
+explicit Flyway.baseline(version=2026081906)
+  ↓
+Flyway.migrate()
+  ↓
+V2026082001 + Flyway.validate()
+  ↓
+post-check core fingerprint
+  ↓
+audit success + tenant_schema_state=UP_TO_DATE
+```
+
+任何一步失败都记录 audit。已有 Flyway history 的 tenant 禁止重复 baseline。
+
+---
+
+## 7. Public Control Plane — `V2026082001`
+
+新增：
+
+- `public.tenant_schema_preflight_state`；
+- `public.tenant_schema_baseline_audit`。
+
+Preflight state 记录：classification / baseline version / history flag / fingerprint / category hashes / repair plan / operator / checked time。
+
+Audit 记录：operator / baseline version / expected+observed fingerprint / ATTEMPTED-SUCCEEDED-FAILED / safe error / timestamps。
+
+部署包含 #21 的版本后必须先执行：
+
+```http
+POST /api/admin/schema-migrations/bootstrap
+```
+
+让 public Flyway 达到 `2026082001`，之后 #21 admin API 才可用。
+
+---
+
+## 8. Post-baseline Verification Migration — `2026082001`
+
+Tenant migration：
+
+```text
+V2026082001__record_core_baseline_contract.sql
+```
+
+只确保 `tenant_schema_metadata` 并写：
+
+```text
+migration_runtime = group-im
+core_baseline_contract = 2026081906
+```
+
+它不修改 core business tables。用途是证明 legacy tenant 在显式 baseline `2026081906` 后可以继续执行正常 versioned migration。
+
+```text
+core baseline version  = 2026081906
+managed current target = 2026082001
+```
+
+---
+
+## 9. PostgreSQL Integration Evidence
+
+`CoreTenantBaselineContractFingerprintTest`：
+
+- 从 immutable migrations 构造 canonical schema；
+- pin 六类 deterministic hashes；
+- 验证 view behavior。
+
+`ExistingTenantBaselineIntegrationTest`：
+
+- 两个合规 legacy tenant 无 history → `BASELINE_READY`；
+- 两者显式 baseline `1906` → migrate `2001` → validate；
+- post-fingerprint 保持一致；
+- state 标记 `UP_TO_DATE`；
+- `messages.content` 改为 `varchar(255)` → `DRIFTED`，不建 history、不自动修；
+- 缺失 core table → `CONFLICT`，不建 history、不自动补；
+- success / failed attempts 均写 audit；
+- 已有 history 拒绝重复 baseline。
+
+同时继续回归：
+
+- `MigrationRuntimeIntegrationTest`；
+- `CoreTenantBaselineIntegrationTest`；
+- `TenantSchemaInventorySqlIntegrationTest`；
+- `TenantSchemaProvisionerIntegrationTest`。
+
+---
+
+## 10. Real Tenant Rollout — `dingding`
+
+`钉钉` / schema `dingding` 是 PR #35 合并前创建的 tenant，不能直接当作 migration-backed new tenant。
+
+正确顺序：
+
+```text
+SELECT public.company metadata
+  ↓
+inspect dingding.flyway_schema_history
+  ↓
+deploy #21 / PR #36
+  ↓
+public bootstrap to 2026082001
+  ↓
+POST /baselines/preflight
+  ↓
+BASELINE_READY -> baseline with returned fingerprint
+DRIFTED/CONFLICT -> review repair plan first
+```
+
+`pingduoduo` / `yuansheng` 同理。
+
+---
+
+## 11. Hibernate Validate Staged Rollout
+
+默认：
+
+```yaml
+spring.jpa.hibernate.ddl-auto: update
+```
+
+Opt-in：
+
+```text
+application-schema-validate.yml
+→ ddl-auto: validate
+```
+
+只有满足以下 gate 才启用：
+
+1. 所有 active tenant 有最新 preflight；
+2. 无 `DRIFTED / CONFLICT / ERROR`；
+3. 所有 active tenant 都有 Flyway history 且 current ≥ `2026082001`；
+4. #20 new provisioning 已稳定；
+5. CI 绿；
+6. staging validate；
+7. production canary；
+8. production full rollout。
+
+Rollback 只撤销 validate profile/property 回默认 `update`。禁止删除 Flyway history 或反向改 schema 来“回滚”。
+
+---
+
+## 12. Legacy Compatibility Surface
+
+仍存在：
 
 ```text
 POST /api/organization/company/sync-schema
-  -> CompanyService.syncSchemas(...)
-  -> public.create_or_sync_company_schema(...)
+GET  /api/organization/company/schema-sync/status
+POST /api/organization/company/schema-sync/apply
 ```
 
-它是显式 legacy compatibility operation，不是新公司创建主路径。
-
-退役条件：
-
-- #20 新 tenant provisioning 稳定；
-- #21 所有 active legacy tenants baseline/validate 完成；
-- staging / production tenant coverage 达标。
+这些从 #21 起定义为 `DEPRECATED / TRANSITIONAL COMPATIBILITY`，不是 migration authority。真实 active tenant coverage 完成后再单独删除 legacy write path。
 
 ---
 
-## 7. #21 Existing Tenant Baseline / Validate
-
-#21 使用 `2026081906` contract 对既有 tenant 做只读 preflight：
-
-```text
-inspect existing tenant
-        ↓
-compare with canonical core contract
-        ↓
-BASELINE_READY / DRIFTED / CONFLICT / ERROR
-        ↓
-explicit authorized baseline
-        ↓
-normal Flyway migrations
-```
-
-禁止 blind `baselineOnMigrate(true)`。
-
-在 #20 合并前创建的 tenant（例如测试环境的 `dingding`）不能自动认定为“新 tenant”。如果它包含业务表但没有 `flyway_schema_history`，必须走 #21。
-
----
-
-## 8. Validation Gates
-
-### Core baseline gate
-
-`CoreTenantBaselineIntegrationTest` 已在 PostgreSQL 16 验证：empty schema -> `2026081906`，并核对 18 tables / 3 views / 17 sequences / 65 constraints / 26 indexes、normalized columns/checks 与 tenant identity isolation。
-
-### New provisioning gate
-
-PR #35 新增并通过：
-
-- `TenantSchemaProvisionerIntegrationTest`：missing schema 自动创建、完整 migrate、retry 幂等、legacy no-history 拒绝；
-- `CompanyServiceProvisioningSpec`：成功后才 active，失败保持 inactive；
-- `AuthenticationServiceCompanyAvailabilitySpec`：admin 无法切入 inactive/unprovisioned company；
-- Backend compile/test、Repository Governance、Build KMP APK。
-
----
-
-## 9. Safe Sync / Hibernate Rollout
-
-```text
-#19 runtime ✅
-  ↓
-#26 snapshot tooling ✅
-  ↓
-#32 reviewed evidence ✅
-  ↓
-#25 core baseline 2026081906 ✅
-  ↓
-#20 new tenant migration provisioning ✅ PR #35
-  ↓
-#21 existing tenant baseline/validate ← NEXT
-  ↓
-all active tenants covered
-  ↓
-staging ddl-auto=validate
-  ↓
-production ddl-auto=validate
-```
-
-当前仍保持 `ddl-auto=update`。
-
----
-
-## 10. Roadmap
+## 13. Roadmap
 
 ```text
 #18 Architecture ✅ PR #23
 #19 Runtime ✅ PR #24
 #26 Snapshot Tooling ✅ PR #27
 #32 Snapshot Review ✅
-#25 Core Tenant Baseline ✅ PR #33
+#25 Core Tenant Baseline 2026081906 ✅ PR #33
 #20 New Tenant Provisioning ✅ PR #35
-#21 Existing Tenant Baseline/Validate ← NEXT
+#21 Existing Tenant Baseline / Validate ✅ PR #36 merge boundary
+        ↓
+#12 Tenant Migration Epic 收口
+        ↓
+#13 Workbench Platform Foundation
 ```
-
-#21 完成后才能考虑全面退役 legacy public clone 与 Safe Sync write path。
 
 ---
 
-## 11. Historical Inputs
+## 14. Historical Inputs
 
-以下文件继续保留为 Historical Design Input：
+以下仅为 Historical Design Input：
 
 - `doc/部署运维/租户Schema版本与迁移机制方案.md`
 - `doc/部署运维/租户Schema迁移代码设计.md`

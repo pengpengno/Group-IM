@@ -1,12 +1,7 @@
-package com.github.im.server.schema.migration.provisioning;
+package com.github.im.server.schema.migration.baseline;
 
-import com.github.im.server.exception.BusinessException;
-import com.github.im.server.schema.migration.domain.TenantMigrationPlan;
 import com.github.im.server.schema.migration.service.TenantFlywayFactory;
-import com.github.im.server.schema.migration.service.TenantMigrationExecutor;
-import com.github.im.server.schema.migration.support.PostgresAdvisoryLock;
 import com.github.im.server.schema.migration.support.SchemaNameValidator;
-import com.github.im.server.schema.migration.support.TenantSchemaInspector;
 import org.junit.jupiter.api.Test;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -15,61 +10,43 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.Statement;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Testcontainers
-class TenantSchemaProvisionerIntegrationTest {
+class CoreTenantBaselineContractFingerprintTest {
+
+    private static final String SCHEMA = "contract_tenant";
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
 
     @Test
-    void provisionsEmptyTenantSupportsRetryAndRejectsLegacyClone() throws Exception {
+    void canonicalMigrationsProducePinnedFingerprint() throws Exception {
         DataSource dataSource = dataSource();
-        createGlobalIdentityContract(dataSource);
+        createGlobalIdentityAndTenant(dataSource);
 
         SchemaNameValidator validator = new SchemaNameValidator();
-        TenantSchemaInspector inspector = new TenantSchemaInspector(dataSource, validator);
-        PostgresAdvisoryLock advisoryLock = new PostgresAdvisoryLock(dataSource, validator);
         TenantFlywayFactory flywayFactory = new TenantFlywayFactory(
                 dataSource,
                 validator,
                 "classpath:db/migration/tenant"
         );
-        TenantMigrationExecutor executor = new TenantMigrationExecutor(flywayFactory, inspector, advisoryLock);
-        TenantSchemaProvisioner provisioner = new TenantSchemaProvisioner(
-                dataSource,
-                validator,
-                inspector,
-                executor
+        flywayFactory.create(SCHEMA).migrate();
+
+        TenantSchemaFingerprint fingerprint = new TenantSchemaFingerprintService(dataSource, validator)
+                .fingerprint(SCHEMA, 42L);
+
+        assertEquals(CoreTenantBaselineContract.CORE_TABLES, fingerprint.tables());
+        assertEquals(CoreTenantBaselineContract.IDENTITY_VIEWS, fingerprint.views());
+        assertTrue(fingerprint.identityViewsValid());
+        assertEquals(
+                CoreTenantBaselineContract.expectedCategoryHashes(),
+                fingerprint.categoryHashes(),
+                () -> "Pin these canonical category hashes: " + fingerprint.categoryHashes()
         );
-
-        TenantMigrationPlan first = provisioner.provision("company_new");
-        assertEquals("2026082001", first.currentVersion());
-        assertEquals(0, first.pendingCount());
-        assertTrue(tableExists(dataSource, "company_new", "messages"));
-        assertTrue(tableExists(dataSource, "company_new", "flyway_schema_history"));
-
-        TenantMigrationPlan retry = provisioner.provision("company_new");
-        assertEquals("2026082001", retry.currentVersion());
-        assertEquals(0, retry.pendingCount());
-
-        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
-            statement.execute("CREATE SCHEMA legacy_clone");
-            statement.execute("CREATE TABLE legacy_clone.messages(id BIGINT PRIMARY KEY)");
-        }
-
-        BusinessException legacy = assertThrows(
-                BusinessException.class,
-                () -> provisioner.provision("legacy_clone")
-        );
-        assertEquals("MIGRATION_BASELINE_REQUIRED", legacy.getErrorCode());
-        assertTrue(tableExists(dataSource, "legacy_clone", "messages"));
     }
 
     private DataSource dataSource() {
@@ -80,7 +57,7 @@ class TenantSchemaProvisionerIntegrationTest {
         return dataSource;
     }
 
-    private void createGlobalIdentityContract(DataSource dataSource) throws Exception {
+    private void createGlobalIdentityAndTenant(DataSource dataSource) throws Exception {
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.execute("""
                     CREATE TABLE public.company (
@@ -115,18 +92,16 @@ class TenantSchemaProvisionerIntegrationTest {
                         user_id BIGINT NOT NULL REFERENCES public.users(user_id)
                     )
                     """);
-        }
-    }
-
-    private boolean tableExists(DataSource dataSource, String schemaName, String tableName) throws Exception {
-        try (Connection connection = dataSource.getConnection();
-             var statement = connection.prepareStatement(
-                     "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema=? AND table_name=?)")) {
-            statement.setString(1, schemaName);
-            statement.setString(2, tableName);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next() && resultSet.getBoolean(1);
-            }
+            statement.execute("CREATE SCHEMA " + SCHEMA);
+            statement.execute("""
+                    INSERT INTO public.company(company_id, active, name, schema_name)
+                    VALUES (42, TRUE, 'Contract Tenant', 'contract_tenant')
+                    """);
+            statement.execute("INSERT INTO public.users(user_id, username) VALUES (1001, 'contract-user')");
+            statement.execute("""
+                    INSERT INTO public.company_user(id, company_id, status, user_id)
+                    VALUES (5001, 42, 'ACTIVE', 1001)
+                    """);
         }
     }
 }
