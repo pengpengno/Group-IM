@@ -47,12 +47,20 @@ public class CompanyService {
         return companyRepository.findByCompanyId(companyId);
     }
 
+    public Optional<Company> findActiveById(Long companyId) {
+        return companyRepository.findByCompanyIdAndActive(companyId, true);
+    }
+
     public Optional<Company> findByIdWithUsers(Long companyId) {
         return companyRepository.findByIdWithUsers(companyId);
     }
 
     public Optional<Company> findBySchemaName(String schemaName) {
         return companyRepository.findBySchemaName(schemaName);
+    }
+
+    public Optional<Company> findActiveBySchemaName(String schemaName) {
+        return companyRepository.findBySchemaNameAndActive(schemaName, true);
     }
 
     /**
