@@ -7,9 +7,9 @@
 - 文档状态：ACTIVE
 - 基线日期：2026-08-20
 - 唯一开发主线：`master`
-- 最近完成：Issue #12 — Tenant Versioned Migration Epic
-- 当前交付：Issue #13 / PR #38 — Workbench Platform Foundation
-- 下一业务阶段：Workbench Overview → Task Backend
+- 最近完成：Issue #13 / PR #38 — Workbench Platform Foundation
+- 当前紧急项：Issue #41 — 恢复 accidental direct overview commits 后的 master 完整性
+- 当前功能项：Issue #39 / PR #40 — Workbench Overview（hotfix 完成后继续）
 - 仓库：`pengpengno/Group-IM`
 
 ---
@@ -33,28 +33,69 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 - `master` 是唯一开发主线；
 - `main` 是历史遗留分支，不参与正常开发与发布；
 - 所有代码、数据库、配置和文档变更必须通过 PR；
-- Bug 必须有 Issue；重要功能、架构、数据库变更原则上也必须先有 Issue；
+- Bug 必须有 Issue；重要功能/架构/数据库变更原则上也必须先有 Issue；
 - 每个 PR 必须更新本文件；
-- 默认 Squash Merge。
+- 默认 Squash Merge；
+- 分支命名必须满足 Governance CI；
+- 不以 force-reset / history rewrite 修复 master 事故，优先用可审计 hotfix PR 恢复内容。
 
-已实现：
+项目原则：
 
-- PR #5：Issue-driven PR、PROJECT_MASTER、模板、Governance CI、ADR；
+> Issue 描述为什么做，PR 描述怎么做，代码描述实际怎么运行，PROJECT_MASTER 描述项目现在是什么。
+
+### 已完成关键基础
+
+- PR #5：Repository Governance / PROJECT_MASTER / templates / ADR；
 - PR #16：Backend PR Validation；
-- PR #23 / #18：ADR-0004 Tenant Migration Architecture；
-- PR #24 / #19：Tenant Migration Runtime；
-- PR #27 / #26：Trusted Tenant Schema Snapshot Tooling；
-- #32：Trusted Snapshot Review；
-- PR #33 / #25：Core Tenant Baseline Migrations；
-- PR #35 / #20：New Tenant Provisioning；
-- PR #36 / #21：Existing Tenant Baseline / Validate；
-- Issue #12：Tenant Versioned Migration Epic — COMPLETED。
+- #12 Tenant Versioned Migration Epic：#18/#19/#26/#32/#25/#20/#21 完成；
+- PR #38 / #13：Workbench Platform Foundation。
 
-仍待治理：#6 master protection、#7 legacy `main` deploy trigger、#9 Electron/Web PR CI、#22 Maven duplicate dependencies。
+### 仍待治理项
+
+- #6：master protection / required checks；
+- #7：移除 legacy `main` deploy trigger；
+- #9：Electron/Web PR CI；
+- #22：Maven duplicate dependency warnings。
 
 ---
 
-## 3. 技术架构概览
+## 3. Issue #41 — Master Recovery
+
+在 #39 / PR #40 开发期间，connector 的四次逐文件更新意外写入默认 `master`，产生：
+
+```text
+c71e96b
+149eb7d
+d4ecfdf
+ab1091c
+```
+
+这些提交只包含 Overview 的局部文件，不包含完整 DTO/controller/domain change set，因此既违反 PR-only 规则，也会让 master 处于不完整编译状态。
+
+恢复策略：
+
+```text
+current master
+→ hotfix/41-revert-overview-master
+→ tree 恢复到 PR #38 verified merge boundary
+→ 本 PROJECT_MASTER 记录事故与恢复
+→ Governance / Backend / KMP
+→ Squash Merge
+→ 基于 repaired master 重建 feature/39-workbench-overview
+```
+
+明确禁止：
+
+- force-reset master；
+- 删除/改写公开历史；
+- 把 accidental commits 当作 Overview 正式交付；
+- 在 hotfix 中混入新的 Overview 功能。
+
+Hotfix 完成后，Overview 所有代码仍必须只通过 PR #40 进入 master。
+
+---
+
+## 4. 技术架构概览
 
 ### Server
 
@@ -76,52 +117,34 @@ Electron + React + TypeScript；Kotlin Multiplatform + Compose Android。
 - `application-schema-validate.yml` 仅供 staged rollout；
 - legacy public clone / Safe Sync 是 deprecated transitional compatibility，不是 migration authority。
 
-测试 tenant 数据不作为产品事实；需要时可清理重建，不阻塞功能模块实现。
+测试 tenant 数据不作为产品事实；需要时可清理重建，不阻塞 Workbench 功能实现。
 
 ---
 
-## 4. 模块状态
+## 5. 模块状态
 
 | 模块 | 状态 | 当前事实 | 下一步 |
 | --- | --- | --- | --- |
 | 登录/鉴权 | STABLE | JWT/Spring Security；inactive company 不可进入 | RBAC 细化 |
-| 多公司/多租户 | STABLE | #12 migration foundation 完成 | 运营观测 / validate rollout |
+| 多公司/多租户 | STABLE | #12 migration foundation 完成 | validate rollout / observability |
 | 单聊/群聊 | STABLE | 核心 IM 主链路存在 | 搜索/治理/一致性 |
-| 联系人/组织 | STABLE | 公司/部门/员工能力存在 | Workbench adapter + 权限治理 |
-| 文件 | IN_PROGRESS | 上传/分片存在 | 资源级授权持续加强 |
-| 会议 | IN_PROGRESS | Meeting 服务与多端入口存在 | Workbench 聚合 |
+| 联系人/组织 | STABLE | 公司/部门/员工能力存在；Workbench adapter 已建立 | 权限治理 |
+| 文件 | IN_PROGRESS | 上传/分片存在；Workbench availability adapter 已建立 | 资源级授权 |
+| 会议 | IN_PROGRESS | Meeting 服务与多端入口存在 | Overview 聚合 / 协作联动 |
 | AI 助手 | IN_PROGRESS | AI/Bot 能力持续演进 | 工具治理 |
 | 群自动化 | IN_PROGRESS | 规则/执行/管理存在 | 审批/审计 |
-| Workbench | IN_PROGRESS | Web/Electron + Android Shell；#13 platform foundation 正在交付 | Overview |
-| OA Task | PLANNED | 正式领域设计已形成 | #13 后 Backend |
+| Workbench Platform | STABLE | #13 / PR #38 context/permission/audit/adapters/tenant executor | 供领域复用 |
+| Workbench Overview | IN_PROGRESS | #39 / PR #40；当前因 #41 hotfix 暂停写入 master | hotfix 后重建 branch/CI |
+| OA Task | PLANNED | 正式领域设计已形成 | Overview 后 Backend |
 | OA Approval | PLANNED | 轻量串行审批设计已形成 | Task 闭环后 |
-| Tenant Migration Foundation | STABLE | #12 完成；baseline 1906 / target 2001 | 支撑 OA 新 migration |
+| Tenant Migration | STABLE | #12 完成；baseline 1906 / target 2001 | 支撑 OA migrations |
 | Backend PR CI | STABLE | Java 21 compile + tests | #6 required check |
 
 ---
 
-## 5. Workbench / OA
+## 6. Workbench Platform Foundation — #13 COMPLETED
 
-正式设计：
-
-- `doc/features/workbench/README.md`
-- `doc/features/workbench/platform-foundation.md`
-- `doc/features/workbench/platform-integration.md`
-- `doc/features/workbench/task.md`
-- `doc/features/workbench/approval.md`
-- `doc/features/workbench/implementation-roadmap.md`
-
-关键 ADR：
-
-- ADR-0002：Workbench modular monolith + tenant domains；
-- ADR-0003：Task-first + lightweight Approval；
-- ADR-0005：Workbench structured card / client event protocol。
-
-### #13 Platform Foundation — PR #38
-
-目标：在 Task/Approval 之前统一所有 Workbench 服务端领域都会重复需要的平台能力。
-
-当前实现边界：
+Package boundary：
 
 ```text
 com.github.im.server.workbench.common
@@ -133,178 +156,125 @@ com.github.im.server.workbench.common
 └── tenant
 ```
 
-已实现于 PR #38：
+当前事实：
 
-- `CurrentWorkContext` / `CurrentWorkContextProvider`：从 authenticated `User.currentCompany` 得到 user/company/schema；
-- 校验 current company active、tenant schema 合法、`SchemaContext` 与认证公司一致；
-- Workbench stable error code，通过现有 `BusinessException` + `GlobalExceptionHandler` 输出；
-- `WorkbenchPermissionService`：以 active company membership 为最小基线，未配置的高权限策略 fail-closed；
-- 禁止新 Workbench command 使用 `username == admin`；
-- `OrganizationAdapter`：隔离 Workbench 与旧组织 Repository/Entity；
-- `FileAdapter`：建立 tenant-local attachment availability boundary；
-- `WorkbenchAuditEvent` / Sink / Service：支持 request actor 与 explicit job actor；
-- `WorkbenchTenantScope(companyId, schemaName)`；
-- `WorkbenchTenantExecutor`：后台任务不依赖 HTTP TenantContextFilter，显式 tenant execution，并在 finally 恢复/清理 SchemaContext；
-- unit tests 覆盖认证上下文、tenant mismatch、inactive company、tenant restore、public rejection、permission fail-closed。
+- `CurrentWorkContext` 从 authenticated `User.currentCompany` 获得 user/company/schema；
+- current company 必须 active；
+- 已绑定 `SchemaContext` 与认证公司 schema 不一致时 fail closed；
+- client companyId 不作为 Workbench tenant route；
+- Workbench stable errors 使用 `WORKBENCH_*`；
+- `WorkbenchPermissionService` 不使用 `username == admin`；
+- active company member 是最低 feature permission baseline；
+- 未配置高权限策略 fail closed；
+- Organization/File adapters 隔离旧模块；
+- File adapter 只证明 tenant-local availability，不代表业务资源授权；
+- `WorkbenchAuditService` 提供统一审计边界；
+- Background job 使用 explicit `WorkbenchTenantScope(companyId,schemaName)` + `WorkbenchTenantExecutor`，不依赖 HTTP filter。
 
-非范围：Task/Approval model/API、OA 新表、Workbench Card emission、大规模 Spring Security 重写。
-
-### 当前依赖链
-
-```text
-#12 Tenant Versioned Migration Epic ✅
-        ↓
-#13 Workbench Platform Foundation 🚧 PR #38
-        ↓
-Workbench Overview
-        ↓
-Task Backend
-        ↓
-Task Web/Electron
-        ↓
-Realtime / Push / Structured Card
-        ↓
-Approval Backend / UI
-```
-
-#14 protocol design 已接受；#28/#29/#30 按 client-first rollout gate 推进，server actual WORKBENCH emission 不能早于客户端兼容。
+PR #38 merge：`4c7f3e29379ec44013e7e78d15edece6d6b1a924`。
 
 ---
 
-## 6. Tenant Versioned Migration — #12 COMPLETED
+## 7. Workbench Overview — #39 / PR #40
 
-Canonical docs：
+Hotfix #41 完成后继续。
 
-- `doc/architecture/adr/ADR-0004-versioned-tenant-schema-migrations.md`
-- `doc/architecture/tenant-migration/README.md`
+目标 endpoint：
 
-Runtime rules：
+```http
+GET /api/workbench/overview
+```
 
-1. `<tenant>.flyway_schema_history` 是 tenant migration authority；
-2. PLAN 只读；
-3. empty / Flyway-managed tenant 才走 normal APPLY；
-4. non-empty + no-history tenant 先 preflight/baseline；
-5. 同 tenant advisory lock；
-6. migration immutable，只新增版本；
-7. 禁止 blind `baselineOnMigrate(true)`；
-8. public/current schema 不能动态充当 expected contract。
+设计原则：
 
-Core baseline `2026081906` 包含 18 core tables、3 tenant identity views、17 identity sequences、65 constraints、26 PK/UNIQUE backing indexes。
-
-Managed target `2026082001` 记录 baseline contract，不改变 core business schema。
-
-未来 Workbench/OA tenant table 只能在 `2026082001` 之后追加新的 immutable migrations。
+- tenant 只来自 CurrentWorkContext；
+- require `VIEW_WORKBENCH`；
+- current company response 只暴露 companyId/name，不暴露 schemaName；
+- Task/Approval/Announcement 尚未实现时返回 count=0/list=[]；
+- 不制造临时 Todo 表或 pseudo data；
+- todaySchedules 首版聚合现有 Meeting 真相；
+- Meeting 使用轻量 constructor projection，不加载完整 participant/conversation graph；
+- rejected meeting invitation 不应进入 todaySchedules；
+- 首版 no cache / no Overview write model；
+- Quick Apps 只返回 stable key/title，不绑定具体客户端 route。
 
 ---
 
-## 7. New / Existing Tenant Lifecycle
+## 8. Tenant Versioned Migration — #12 COMPLETED
 
-### New tenant — #20 / PR #35
+Core baseline：`2026081906`。Managed target：`2026082001`。
 
-```text
-reserve inactive company
-→ create empty schema
-→ Flyway migrate current target
-→ verify
-→ activate
-```
+关键规则：
 
-失败保持 inactive；CompanyCreatedEvent 不承担 schema DDL。
-
-### Existing tenant — #21 / PR #36
-
-```text
-read-only semantic preflight
-→ BASELINE_READY / DRIFTED / CONFLICT / ERROR
-→ exact fingerprint authorization
-→ advisory lock + recheck
-→ baseline 2026081906
-→ migrate/validate 2026082001
-→ audit/state
-```
-
-Drift/Conflict 不自动 ALTER/DROP。
-
-测试 tenant（如 `dingding`、`pingduoduo`、`yuansheng`）可按需要清理重建；当前不再作为 Workbench 功能实现阻塞项。
+1. `<tenant>.flyway_schema_history` 是 migration authority；
+2. migrations immutable，只新增版本；
+3. normal APPLY 仅对 empty/Flyway-managed tenant；
+4. non-empty/no-history 必须 preflight + explicit baseline；
+5. advisory lock；
+6. 禁止 blind baselineOnMigrate；
+7. public/current schema 不动态充当 expected contract；
+8. Workbench/OA 新表必须从 current target 之后追加 migration。
 
 ---
 
-## 8. CI / Validation
+## 9. CI / Merge Gates
 
-Backend PR Validation：
+Backend：
 
 ```text
 mvn -B -ntp -pl server -am -DskipTests compile
 mvn -B -ntp -pl server -am test
 ```
 
-数据库 integration tests 持续覆盖 runtime、baseline、provisioning、preflight。
+所有 PR 继续以：
 
-#13 新增纯单元测试，不依赖测试 tenant 数据。
+- Repository Governance；
+- Backend PR Validation（适用路径）；
+- Build KMP APK；
+- no unresolved review threads；
+- PROJECT_MASTER 同步；
 
----
-
-## 9. 当前风险
-
-1. #6 未完成，GitHub 尚未强制 master required checks；
-2. #9 未完成，Electron/Web 缺独立 PR build gate；
-3. 默认 `ddl-auto=update` 尚未切到 validate；
-4. #22 Maven duplicate dependency warnings 尚未清理；
-5. legacy schema sync write path 仍存在；
-6. Workbench protocol actual emission 仍受 client-first gate；
-7. `FileResource` 当前缺少完整业务资源级 ownership 语义，#13 只建立 adapter boundary，Task/Approval 必须在资源层继续授权；
-8. Workbench permission foundation 当前只提供最小 company-member baseline，管理权限需要后续 RBAC/领域 policy 扩展。
+作为 merge gate。
 
 ---
 
 ## 10. Roadmap
 
-### P0 Governance
-
-#6 / #7 / #9 / #22。
-
-### P1 Workbench Platform
-
 ```text
-#13 Workbench Platform Foundation — PR #38
+#41 master recovery ← CURRENT HOTFIX
         ↓
-Overview
+#39 Workbench Overview API
         ↓
 Task Backend
+        ↓
+Task Web/Electron
+        ↓
+Task Realtime / Push / WORKBENCH Card
+        ↓
+Approval Backend / UI
+        ↓
+Calendar / Announcement / Android OA / Report / AI Office
 ```
 
-### P1 Workbench Business
-
-Overview → Task Backend → Task Web/Electron → Task Realtime/Push/Card → Approval Backend → Approval Web/Electron。
-
-### P2 OA Expansion
-
-Calendar → Announcement → Android OA → Report / AI Office。
+#14 structured card protocol design 已接受；server actual WORKBENCH emission 继续受 client-first gate 约束。
 
 ---
 
 ## 11. Change Log
 
+### 2026-08-20 — Issue #41
+
+状态：`HOTFIX IN PROGRESS`。
+
+- 记录 Overview connector direct-master incident；
+- 用可审计 PR 恢复 PR #38 merge-boundary 内容；
+- 不 force-reset master；
+- #39 将在 repaired master 上重建 feature branch。
+
 ### 2026-08-20 — Issue #13 / PR #38
 
-状态：`IN_PROGRESS / IMPLEMENTATION READY FOR CI`。
+状态：`COMPLETED`，merge `4c7f3e29379ec44013e7e78d15edece6d6b1a924`。
 
-- Workbench common package boundary；
-- authenticated CurrentWorkContext；
-- stable Workbench error codes；
-- fail-closed permission foundation；
-- Organization/File adapters；
-- Audit primitives；
-- explicit background TenantExecutor；
-- context/tenant/permission unit tests；
-- 无新数据库 migration，无 Task/Approval 实现。
+### 2026-08-20 — Issue #12
 
-### 2026-08-20 — Issue #12 — Tenant Versioned Migration Epic
-
-状态：`COMPLETED`。#18/#19/#26/#32/#25/#20/#21 已完成；core baseline `2026081906`，managed target `2026082001`。
-
----
-
-项目原则：
-
-> Issue 描述为什么做，PR 描述怎么做，代码描述实际怎么运行，PROJECT_MASTER 描述项目现在是什么。
+状态：`COMPLETED`，core baseline `2026081906`，managed target `2026082001`。
