@@ -7,9 +7,8 @@
 - 文档状态：ACTIVE
 - 基线日期：2026-08-20
 - 唯一开发主线：`master`
-- 当前 master 基线：`9d41d3d8fdac7b903d1764ff39f9422de76e874d`
-- 当前数据库执行项：Issue #20 New Tenant Provisioning（branch `refactor/20-new-tenant-provisioning`）
-- 并行下一项：Issue #21 Existing Tenant Baseline / Validate
+- 本次状态边界：Issue #20 / PR #35 — New Tenant Provisioning
+- 当前数据库下一项：Issue #21 Existing Tenant Baseline / Validate
 - 仓库：`pengpengno/Group-IM`
 
 ---
@@ -45,7 +44,8 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 - PR #24 / #19：Tenant Migration Runtime；
 - PR #27 / #26：Trusted Tenant Schema Snapshot Tooling；
 - #32：Trusted Snapshot Review；
-- PR #33 / #25：Core Tenant Baseline Migrations，version `2026081906`。
+- PR #33 / #25：Core Tenant Baseline Migrations，version `2026081906`；
+- PR #35 / #20：New Tenant Provisioning（以本 PR 合并为状态边界）。
 
 待完成：#6 master protection、#7 remove legacy `main` deploy trigger、#9 Electron/Web CI、#22 Maven duplicate dependencies。
 
@@ -70,7 +70,9 @@ Electron + React + TypeScript；Kotlin Multiplatform + Compose Android。
 - #19 runtime 提供 PLAN/APPLY/retry、advisory lock、control plane；
 - #25 baseline 已证明空 schema 可只通过 Flyway 建完整 core schema；
 - canonical tenant version：`2026081906`；
-- legacy `public.create_or_sync_company_schema(...)` 仍保留给显式 compatibility sync，但 #20 新公司主路径正在移除对它的依赖。
+- #20 新公司主路径：inactive reservation → CREATE SCHEMA → Flyway → active；
+- login/company switch 只接受 active company；
+- legacy `public.create_or_sync_company_schema(...)` 仅保留给显式 compatibility sync，不再用于新公司主路径。
 
 ---
 
@@ -78,8 +80,8 @@ Electron + React + TypeScript；Kotlin Multiplatform + Compose Android。
 
 | 模块 | 状态 | 当前事实 | 下一步 |
 | --- | --- | --- | --- |
-| 登录/鉴权 | STABLE | JWT/Spring Security | RBAC 细化 |
-| 多公司/多租户 | IN_PROGRESS | Migration Runtime + core baseline；#20 provisioning WIP | #20/#21 |
+| 登录/鉴权 | STABLE | JWT/Spring Security；company availability 受 active gate 约束 | RBAC 细化 |
+| 多公司/多租户 | IN_PROGRESS | Runtime + baseline + new provisioning 已形成 | #21 |
 | 单聊/群聊 | STABLE | 核心 IM 主链路存在 | 搜索/治理/一致性 |
 | 联系人/组织 | STABLE | 公司/部门/员工能力存在 | 权限治理 |
 | 文件 | IN_PROGRESS | 上传/分片存在 | 资源级授权 |
@@ -89,10 +91,10 @@ Electron + React + TypeScript；Kotlin Multiplatform + Compose Android。
 | Workbench | IN_PROGRESS | Web/Electron + Android Shell；正式设计已合并 | #12/#13 后 Overview |
 | OA Task | PLANNED | 领域设计已形成 | platform foundation 后实现 |
 | OA Approval | PLANNED | 轻量串行审批设计已形成 | Task 闭环后 |
-| Tenant Migration Runtime | STABLE | #19 / PR #24 | #20/#21 |
-| Core Tenant Baseline | STABLE | #25 / PR #33，version `2026081906` | provisioning/baseline rollout |
-| New Tenant Provisioning | IN_PROGRESS | #20：inactive reservation → schema → Flyway → activate | CI / merge |
-| Existing Tenant Baseline | PLANNED | #21 使用 2026081906 contract | #20 后并行推进 |
+| Tenant Migration Runtime | STABLE | #19 / PR #24 | #21 |
+| Core Tenant Baseline | STABLE | #25 / PR #33，version `2026081906` | coverage rollout |
+| New Tenant Provisioning | STABLE | #20 / PR #35：migration-backed lifecycle | observe + #21 |
+| Existing Tenant Baseline | PLANNED | #21 使用 2026081906 contract | NEXT |
 | Backend PR CI | STABLE | Java 21 compile + tests | required check |
 
 ---
@@ -118,8 +120,8 @@ Electron + React + TypeScript；Kotlin Multiplatform + Compose Android。
   #26 ✅ Snapshot Tooling
   #32 ✅ Snapshot Review
   #25 ✅ Core Baseline
-  #20 ← IN PROGRESS
-  #21 ← NEXT
+  #20 ✅ New Tenant Provisioning / PR #35
+  #21 ← NEXT Existing Tenant Baseline/Validate
       ↓
 #12 complete
       ↓
@@ -165,9 +167,9 @@ Normalization：`messages.content=TEXT`、`meetings.scheduled_at=timestamp(6)`�
 
 ---
 
-## 7. Issue #20 — New Tenant Provisioning
+## 7. Issue #20 / PR #35 — New Tenant Provisioning
 
-状态：`IN_PROGRESS`
+状态：`IMPLEMENTED`（以本 PR 合并为状态边界）。
 
 新公司生命周期：
 
@@ -195,14 +197,17 @@ publish CompanyCreatedEvent
 - `CompanyProvisioningTransactionService` 固定 inactive/active 的独立事务边界；
 - `CompanyCreatedEvent` 不再执行 DDL；
 - admin retry：`POST /api/admin/tenant-provisioning/companies/{companyId}/retry`；
+- `AuthenticationService` 只允许 active company 登录/切换，admin 也不能进入 inactive tenant；
 - legacy `CompanyService.syncSchemas()` 暂时保留，但不是新 tenant 主路径。
 
-测试：
+验证：
 
 - `TenantSchemaProvisionerIntegrationTest`：PostgreSQL 16 create→migrate→retry + legacy rejection；
-- `CompanyServiceProvisioningSpec`：成功后才 active，失败保持 inactive。
+- `CompanyServiceProvisioningSpec`：成功后才 active，失败保持 inactive；
+- `AuthenticationServiceCompanyAvailabilitySpec`：inactive tenant 不可切入；
+- Repository Governance / Backend compile+test / Build KMP APK 全绿。
 
-测试环境已存在 `钉钉 / dingding`。由于它是在 #20 合并前创建，必须先看 `flyway_schema_history` 与 business table 状态；不能直接把它当作 #20 新路径成功证据。
+测试环境已存在 `钉钉 / dingding`。由于它在 #20 合并前创建，必须先检查 `flyway_schema_history` 与 business-table 状态；不能直接当作 #20 新路径成功证据。
 
 ---
 
@@ -224,6 +229,8 @@ normal Flyway migrations
 
 禁止 blind `baselineOnMigrate(true)`。
 
+`pingduoduo`、`yuansheng`，以及任何 #20 合并前创建且 non-empty/no-history 的测试 tenant（可能包括 `dingding`）都属于 #21 的 candidate set。
+
 ---
 
 ## 9. CI / Validation
@@ -239,9 +246,13 @@ Stable PostgreSQL tests：
 
 - `MigrationRuntimeIntegrationTest`；
 - `CoreTenantBaselineIntegrationTest`；
-- `TenantSchemaInventorySqlIntegrationTest`。
+- `TenantSchemaInventorySqlIntegrationTest`；
+- `TenantSchemaProvisionerIntegrationTest`。
 
-#20 新增 provisioning integration + lifecycle unit/spec tests。
+Lifecycle/availability specs：
+
+- `CompanyServiceProvisioningSpec`；
+- `AuthenticationServiceCompanyAvailabilitySpec`。
 
 ---
 
@@ -249,13 +260,12 @@ Stable PostgreSQL tests：
 
 1. #6 未完成，master 尚未强制保护；
 2. #9 未完成，Electron/Web 缺独立 build gate；
-3. #20 未合并前，生产/测试现有版本新公司仍可能走 legacy clone；
-4. #21 未完成前，旧 tenant 不能安全统一纳入 Flyway history；
-5. #22 Maven duplicate dependency warnings 尚未清理；
-6. `ddl-auto=update` 尚未进入 staged `validate`；
-7. MigrationAdminAuthorizer 仍是 configured-admin bridge；
-8. Workbench protocol 仍需 client-first rollout；
-9. attachment/resource authorization 仍需后续加强。
+3. #21 未完成前，legacy tenants 不能安全统一纳入 Flyway history；
+4. #22 Maven duplicate dependency warnings 尚未清理；
+5. `ddl-auto=update` 尚未进入 staged `validate`；
+6. MigrationAdminAuthorizer 仍是 configured-admin bridge；
+7. Workbench protocol 仍需 client-first rollout；
+8. attachment/resource authorization 仍需后续加强。
 
 ---
 
@@ -268,8 +278,8 @@ Stable PostgreSQL tests：
 ### P1 Tenant / Workbench Foundation
 
 ```text
-#20 New Tenant Provisioning ← CURRENT
-#21 Existing Tenant Baseline/Validate ← NEXT
+#20 New Tenant Provisioning ✅ PR #35
+#21 Existing Tenant Baseline/Validate ← CURRENT NEXT
 #12 Tenant Migration Epic complete
 #13 Workbench Platform Foundation
 Overview / Task Backend
@@ -287,22 +297,22 @@ Calendar → Announcement → Android OA → Report / AI Office。
 
 ## 12. Change Log
 
-### 2026-08-20 — Issue #20 — New Tenant Provisioning
+### 2026-08-20 — Issue #20 / PR #35 — New Tenant Provisioning
 
-状态：`IN_PROGRESS`
+状态：`IMPLEMENTED`（以本 PR 合并为状态边界）。
 
-- 新 tenant 主路径改为 migration-backed provisioning；
+- 新 tenant 主路径切为 migration-backed provisioning；
 - company 先 inactive reservation，成功后再 active；
 - migration failure 保持 inactive 并允许显式 retry；
+- login / company switch 强制 active availability gate；
 - CompanyCreatedEvent 移除 DDL；
 - legacy non-empty/no-history tenant 明确转 #21；
-- PostgreSQL provisioning integration test 与 activation-boundary spec 已加入分支。
+- PostgreSQL provisioning integration test、activation-boundary spec、availability spec 全绿。
 
 ### 2026-08-19 — Issue #25 / PR #33 — Core Tenant Baseline
 
 状态：`IMPLEMENTED`
 
-- merge `b8b0d093c224ff577ae953ae52839aca4d0c9f57`；
 - canonical baseline `2026081906`；
 - PostgreSQL 16 empty-schema contract 全绿。
 
