@@ -144,7 +144,10 @@ public class TenantSchemaFingerprintService {
                              ON attribute.attrelid = constraint_row.conrelid
                             AND attribute.attnum = key_row.attnum
                        ), ''),
-                       COALESCE(ref_namespace.nspname, ''),
+                       CASE
+                           WHEN ref_namespace.nspname = namespace_row.nspname THEN '<tenant>'
+                           ELSE COALESCE(ref_namespace.nspname, '')
+                       END,
                        COALESCE(ref_table.relname, ''),
                        COALESCE((
                            SELECT string_agg(attribute.attname, ',' ORDER BY key_row.ordinality)
