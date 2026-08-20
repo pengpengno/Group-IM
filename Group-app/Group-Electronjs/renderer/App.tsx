@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { clearError } from './features/auth/authSlice';
 import LoginScreen from './features/auth/LoginScreen';
 import Dashboard from './features/dashboard/Dashboard';
+import WorkbenchNavigationRuntime from './features/workbench/notification/WorkbenchNavigationRuntime';
 import Notification from './components/common/Notification';
 import { webRTCService } from './services/WebRTCService';
 import { socketService } from './services/socketService';
@@ -86,6 +87,7 @@ const App: React.FC = () => {
       )}
 
       <Dashboard />
+      <WorkbenchNavigationRuntime />
     </div>
   );
 };
