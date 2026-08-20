@@ -103,25 +103,39 @@ public class TenantBaselinePreflightService {
             TenantSchemaFingerprint fingerprint
     ) {
         Set<String> missingTables = difference(CoreTenantBaselineContract.CORE_TABLES, fingerprint.tables());
-        Set<String> extraTables = difference(fingerprint.tables(), CoreTenantBaselineContract.CORE_TABLES);
         Set<String> missingViews = difference(CoreTenantBaselineContract.IDENTITY_VIEWS, fingerprint.views());
-        Set<String> extraViews = difference(fingerprint.views(), CoreTenantBaselineContract.IDENTITY_VIEWS);
+
+        Set<String> extraTables = difference(fingerprint.allTables(), CoreTenantBaselineContract.CORE_TABLES);
+        Set<String> extraViews = difference(fingerprint.allViews(), CoreTenantBaselineContract.IDENTITY_VIEWS);
+        Set<String> extraSequences = difference(fingerprint.allSequences(), fingerprint.sequences());
 
         List<String> repairPlan = new ArrayList<>();
         if (!missingTables.isEmpty()) {
             repairPlan.add("缺失 core tables: " + missingTables);
         }
-        if (!extraTables.isEmpty()) {
-            repairPlan.add("存在 baseline contract 外 tables: " + extraTables + "；先确认是否为合法后续业务表，禁止盲删。");
-        }
         if (!missingViews.isEmpty()) {
             repairPlan.add("缺失 tenant identity views: " + missingViews);
         }
-        if (!extraViews.isEmpty()) {
-            repairPlan.add("存在 baseline contract 外 views: " + extraViews + "；先人工确认来源。");
+
+        // Only an unmanaged no-history tenant must exactly match the adoption
+        // inventory. A Flyway-managed tenant is expected to accumulate later
+        // immutable migration objects after the 2026081906 core baseline.
+        if (!inspection.historyExists()) {
+            if (!extraTables.isEmpty()) {
+                repairPlan.add("存在 baseline contract 外 tables: " + extraTables + "；无 Flyway history，禁止盲目纳入 baseline。");
+            }
+            if (!extraViews.isEmpty()) {
+                repairPlan.add("存在 baseline contract 外 views: " + extraViews + "；无 Flyway history，先人工确认来源。");
+            }
+            if (!extraSequences.isEmpty()) {
+                repairPlan.add("存在 baseline contract 外 sequences: " + extraSequences + "；无 Flyway history，先确认其 owner/source。");
+            }
         }
 
-        if (!missingTables.isEmpty() || !extraTables.isEmpty() || !missingViews.isEmpty() || !extraViews.isEmpty()) {
+        if (!missingTables.isEmpty()
+                || !missingViews.isEmpty()
+                || (!inspection.historyExists()
+                    && (!extraTables.isEmpty() || !extraViews.isEmpty() || !extraSequences.isEmpty()))) {
             return snapshot(
                     target,
                     TenantBaselineClassification.CONFLICT,
@@ -141,7 +155,7 @@ public class TenantBaselinePreflightService {
             }
         }
         if (!fingerprint.identityViewsValid()) {
-            repairPlan.add("tenant identity view 行为不符合当前 company membership；重建 view 前先核对 public.company/company_user/users。") ;
+            repairPlan.add("tenant identity view 行为不符合当前 company membership；重建 view 前先核对 public.company/company_user/users。");
         }
 
         TenantBaselineClassification classification = repairPlan.isEmpty()
@@ -149,7 +163,7 @@ public class TenantBaselinePreflightService {
                 : TenantBaselineClassification.DRIFTED;
 
         if (inspection.historyExists() && classification == TenantBaselineClassification.BASELINE_READY) {
-            repairPlan.add("已有 Flyway history：结构匹配 baseline contract，无需再次 baseline；继续使用正常 migration APPLY。");
+            repairPlan.add("已有 Flyway history：core baseline contract 匹配；后续 managed objects 不参与 baseline hash，无需再次 baseline。") ;
         }
 
         return snapshot(
@@ -222,13 +236,13 @@ public class TenantBaselinePreflightService {
 
     private String repairHint(String category) {
         return switch (category) {
-            case "columns" -> "column contract drift：逐项核对 type/nullability/default/identity；重点检查 messages.content=TEXT 与 meetings.scheduled_at=timestamp(6)。";
-            case "constraints" -> "constraint contract drift：核对 PK/UNIQUE/FK/CHECK；不要自动 drop/recreate，先确认数据是否满足 canonical constraint。";
-            case "indexes" -> "index contract drift：核对 #25 baseline 的 PK/UNIQUE backing indexes；禁止按 public 当前结构覆盖。";
-            case "views" -> "view shape drift：核对 company/company_user/users 输出列；view predicate 使用行为校验，不要求 legacy 文本完全一致。";
-            case "sequences" -> "identity sequence drift：核对 17 个 identity sequence 及 start/increment/min/max/cache/cycle。";
-            case "tables" -> "table contract drift：核对 core table kind/name。";
-            default -> category + " contract drift";
+            case "columns" -> "core column contract drift：逐项核对 type/nullability/default/identity；重点检查 messages.content=TEXT 与 meetings.scheduled_at=timestamp(6)。";
+            case "constraints" -> "core constraint contract drift：核对 PK/UNIQUE/FK/CHECK；不要自动 drop/recreate。";
+            case "indexes" -> "core index contract drift：核对 #25 baseline 的 PK/UNIQUE backing indexes。";
+            case "views" -> "identity view shape drift：核对 company/company_user/users 输出列和隔离行为。";
+            case "sequences" -> "core identity sequence drift：核对 2026081906 core tables owned sequences。";
+            case "tables" -> "core table contract drift：核对 2026081906 table kind/name。";
+            default -> category + " core contract drift";
         };
     }
 

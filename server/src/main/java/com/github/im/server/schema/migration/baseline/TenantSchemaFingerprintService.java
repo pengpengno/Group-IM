@@ -13,6 +13,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -22,6 +23,11 @@ import java.util.Set;
 
 @Component
 public class TenantSchemaFingerprintService {
+
+    private static final List<String> CORE_TABLE_NAMES =
+            CoreTenantBaselineContract.CORE_TABLES.stream().sorted().toList();
+    private static final List<String> IDENTITY_VIEW_NAMES =
+            CoreTenantBaselineContract.IDENTITY_VIEWS.stream().sorted().toList();
 
     private final DataSource dataSource;
     private final SchemaNameValidator schemaNameValidator;
@@ -35,12 +41,18 @@ public class TenantSchemaFingerprintService {
         String schemaName = schemaNameValidator.requireTenantSchema(rawSchemaName);
         try (Connection connection = dataSource.getConnection()) {
             Map<String, List<String>> categories = new LinkedHashMap<>();
-            Set<String> tables = loadTables(connection, schemaName, categories);
-            loadColumns(connection, schemaName, categories);
-            loadConstraints(connection, schemaName, categories);
-            loadIndexes(connection, schemaName, categories);
-            Set<String> views = loadViews(connection, schemaName, categories);
-            loadSequences(connection, schemaName, categories);
+
+            Set<String> allTables = loadAllTables(connection, schemaName);
+            Set<String> tables = loadCoreTables(connection, schemaName, categories);
+            loadCoreColumns(connection, schemaName, categories);
+            loadCoreConstraints(connection, schemaName, categories);
+            loadCoreIndexes(connection, schemaName, categories);
+
+            Set<String> allViews = loadAllViews(connection, schemaName);
+            Set<String> views = loadCoreViews(connection, schemaName, categories);
+
+            Set<String> allSequences = loadAllSequences(connection, schemaName);
+            Set<String> sequences = loadCoreSequences(connection, schemaName, categories);
 
             Map<String, String> hashes = new LinkedHashMap<>();
             categories.forEach((name, rows) -> hashes.put(name, sha256(String.join("\n", rows))));
@@ -58,6 +70,10 @@ public class TenantSchemaFingerprintService {
                     Map.copyOf(hashes),
                     Set.copyOf(tables),
                     Set.copyOf(views),
+                    Set.copyOf(sequences),
+                    Set.copyOf(allTables),
+                    Set.copyOf(allViews),
+                    Set.copyOf(allSequences),
                     identityViewsValid
             );
         } catch (SQLException exception) {
@@ -69,7 +85,20 @@ public class TenantSchemaFingerprintService {
         }
     }
 
-    private Set<String> loadTables(
+    private Set<String> loadAllTables(Connection connection, String schemaName) throws SQLException {
+        String sql = """
+                SELECT c.relname
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = ?
+                  AND c.relkind IN ('r', 'p')
+                  AND c.relname NOT IN ('flyway_schema_history', 'tenant_schema_metadata')
+                ORDER BY c.relname
+                """;
+        return queryNameSet(connection, sql, schemaName);
+    }
+
+    private Set<String> loadCoreTables(
             Connection connection,
             String schemaName,
             Map<String, List<String>> categories
@@ -80,25 +109,15 @@ public class TenantSchemaFingerprintService {
                 JOIN pg_namespace n ON n.oid = c.relnamespace
                 WHERE n.nspname = ?
                   AND c.relkind IN ('r', 'p')
-                  AND c.relname NOT IN ('flyway_schema_history', 'tenant_schema_metadata')
+                  AND c.relname IN (%s)
                 ORDER BY c.relname
-                """;
-        List<String> rows = new ArrayList<>();
-        Set<String> names = new LinkedHashSet<>();
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, schemaName);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    names.add(resultSet.getString(1));
-                    rows.add(resultSet.getString(1) + "|" + resultSet.getString(2));
-                }
-            }
-        }
+                """.formatted(placeholders(CORE_TABLE_NAMES.size()));
+        List<String> rows = queryLines(connection, sql, schemaName, CORE_TABLE_NAMES, 2);
         categories.put("tables", rows);
-        return names;
+        return firstColumnNames(rows);
     }
 
-    private void loadColumns(
+    private void loadCoreColumns(
             Connection connection,
             String schemaName,
             Map<String, List<String>> categories
@@ -120,15 +139,15 @@ public class TenantSchemaFingerprintService {
                       AND default_row.adnum = attribute.attnum
                 WHERE namespace_row.nspname = ?
                   AND table_row.relkind IN ('r', 'p')
-                  AND table_row.relname NOT IN ('flyway_schema_history', 'tenant_schema_metadata')
+                  AND table_row.relname IN (%s)
                   AND attribute.attnum > 0
                   AND NOT attribute.attisdropped
                 ORDER BY table_row.relname, attribute.attnum
-                """;
-        categories.put("columns", queryLines(connection, sql, schemaName, 8));
+                """.formatted(placeholders(CORE_TABLE_NAMES.size()));
+        categories.put("columns", queryLines(connection, sql, schemaName, CORE_TABLE_NAMES, 8));
     }
 
-    private void loadConstraints(
+    private void loadCoreConstraints(
             Connection connection,
             String schemaName,
             Map<String, List<String>> categories
@@ -173,13 +192,13 @@ public class TenantSchemaFingerprintService {
                 LEFT JOIN pg_class ref_table ON ref_table.oid = constraint_row.confrelid
                 LEFT JOIN pg_namespace ref_namespace ON ref_namespace.oid = ref_table.relnamespace
                 WHERE namespace_row.nspname = ?
-                  AND table_row.relname NOT IN ('flyway_schema_history', 'tenant_schema_metadata')
+                  AND table_row.relname IN (%s)
                 ORDER BY table_row.relname, constraint_row.conname
-                """;
-        categories.put("constraints", queryLines(connection, sql, schemaName, 8));
+                """.formatted(placeholders(CORE_TABLE_NAMES.size()));
+        categories.put("constraints", queryLines(connection, sql, schemaName, CORE_TABLE_NAMES, 8));
     }
 
-    private void loadIndexes(
+    private void loadCoreIndexes(
             Connection connection,
             String schemaName,
             Map<String, List<String>> categories
@@ -205,13 +224,25 @@ public class TenantSchemaFingerprintService {
                 JOIN pg_class index_row ON index_row.oid = index_meta.indexrelid
                 JOIN pg_namespace namespace_row ON namespace_row.oid = table_row.relnamespace
                 WHERE namespace_row.nspname = ?
-                  AND table_row.relname NOT IN ('flyway_schema_history', 'tenant_schema_metadata')
+                  AND table_row.relname IN (%s)
                 ORDER BY table_row.relname, index_row.relname
-                """;
-        categories.put("indexes", queryLines(connection, sql, schemaName, 5));
+                """.formatted(placeholders(CORE_TABLE_NAMES.size()));
+        categories.put("indexes", queryLines(connection, sql, schemaName, CORE_TABLE_NAMES, 5));
     }
 
-    private Set<String> loadViews(
+    private Set<String> loadAllViews(Connection connection, String schemaName) throws SQLException {
+        String sql = """
+                SELECT view_row.relname
+                FROM pg_class view_row
+                JOIN pg_namespace namespace_row ON namespace_row.oid = view_row.relnamespace
+                WHERE namespace_row.nspname = ?
+                  AND view_row.relkind = 'v'
+                ORDER BY view_row.relname
+                """;
+        return queryNameSet(connection, sql, schemaName);
+    }
+
+    private Set<String> loadCoreViews(
             Connection connection,
             String schemaName,
             Map<String, List<String>> categories
@@ -227,22 +258,30 @@ public class TenantSchemaFingerprintService {
                 JOIN pg_attribute attribute ON attribute.attrelid = view_row.oid
                 WHERE namespace_row.nspname = ?
                   AND view_row.relkind = 'v'
+                  AND view_row.relname IN (%s)
                   AND attribute.attnum > 0
                   AND NOT attribute.attisdropped
                 GROUP BY view_row.relname
                 ORDER BY view_row.relname
-                """;
-        List<String> rows = queryLines(connection, sql, schemaName, 2);
-        Set<String> names = new LinkedHashSet<>();
-        for (String row : rows) {
-            int separator = row.indexOf('|');
-            names.add(separator < 0 ? row : row.substring(0, separator));
-        }
+                """.formatted(placeholders(IDENTITY_VIEW_NAMES.size()));
+        List<String> rows = queryLines(connection, sql, schemaName, IDENTITY_VIEW_NAMES, 2);
         categories.put("views", rows);
-        return names;
+        return firstColumnNames(rows);
     }
 
-    private void loadSequences(
+    private Set<String> loadAllSequences(Connection connection, String schemaName) throws SQLException {
+        String sql = """
+                SELECT sequence_row.relname
+                FROM pg_class sequence_row
+                JOIN pg_namespace namespace_row ON namespace_row.oid = sequence_row.relnamespace
+                WHERE namespace_row.nspname = ?
+                  AND sequence_row.relkind = 'S'
+                ORDER BY sequence_row.relname
+                """;
+        return queryNameSet(connection, sql, schemaName);
+    }
+
+    private Set<String> loadCoreSequences(
             Connection connection,
             String schemaName,
             Map<String, List<String>> categories
@@ -255,25 +294,56 @@ public class TenantSchemaFingerprintService {
                        sequence_meta.seqmax,
                        sequence_meta.seqcache,
                        sequence_meta.seqcycle
-                FROM pg_class sequence_row
-                JOIN pg_namespace namespace_row ON namespace_row.oid = sequence_row.relnamespace
+                FROM pg_class table_row
+                JOIN pg_namespace namespace_row ON namespace_row.oid = table_row.relnamespace
+                JOIN pg_attribute attribute
+                  ON attribute.attrelid = table_row.oid
+                 AND attribute.attnum > 0
+                 AND NOT attribute.attisdropped
+                JOIN pg_class sequence_row
+                  ON sequence_row.oid = to_regclass(
+                         pg_get_serial_sequence(
+                             format('%%I.%%I', namespace_row.nspname, table_row.relname),
+                             attribute.attname
+                         )
+                     )
                 JOIN pg_sequence sequence_meta ON sequence_meta.seqrelid = sequence_row.oid
                 WHERE namespace_row.nspname = ?
+                  AND table_row.relname IN (%s)
                   AND sequence_row.relkind = 'S'
                 ORDER BY sequence_row.relname
-                """;
-        categories.put("sequences", queryLines(connection, sql, schemaName, 7));
+                """.formatted(placeholders(CORE_TABLE_NAMES.size()));
+        List<String> rows = queryLines(connection, sql, schemaName, CORE_TABLE_NAMES, 7);
+        categories.put("sequences", rows);
+        return firstColumnNames(rows);
+    }
+
+    private Set<String> queryNameSet(Connection connection, String sql, String schemaName) throws SQLException {
+        Set<String> names = new LinkedHashSet<>();
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, schemaName);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    names.add(resultSet.getString(1));
+                }
+            }
+        }
+        return names;
     }
 
     private List<String> queryLines(
             Connection connection,
             String sql,
             String schemaName,
+            List<String> names,
             int columnCount
     ) throws SQLException {
         List<String> rows = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, schemaName);
+            for (int index = 0; index < names.size(); index++) {
+                statement.setString(index + 2, names.get(index));
+            }
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     StringBuilder line = new StringBuilder();
@@ -289,6 +359,19 @@ public class TenantSchemaFingerprintService {
             }
         }
         return rows;
+    }
+
+    private Set<String> firstColumnNames(List<String> rows) {
+        Set<String> names = new LinkedHashSet<>();
+        for (String row : rows) {
+            int separator = row.indexOf('|');
+            names.add(separator < 0 ? row : row.substring(0, separator));
+        }
+        return names;
+    }
+
+    private String placeholders(int size) {
+        return String.join(", ", Collections.nCopies(size, "?"));
     }
 
     private boolean validateIdentityViews(Connection connection, String schemaName, Long companyId) throws SQLException {
