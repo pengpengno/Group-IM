@@ -23,7 +23,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class AuthenticationService  {
+public class AuthenticationService {
 
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
@@ -32,22 +32,13 @@ public class AuthenticationService  {
     private final CompanyService companyService;
     private final CompanyUserService companyUserService;
 
-    public Optional<UserInfo> login(LoginRequest loginRequest){
-
-        // 密码登录 和 长期refreshToken 登录
+    public Optional<UserInfo> login(LoginRequest loginRequest) {
         if (loginRequest.getRefreshToken() == null) {
             return loginUser(loginRequest);
-        } else {
-            return loginViaRefreshToken(loginRequest.getRefreshToken());
         }
-
+        return loginViaRefreshToken(loginRequest.getRefreshToken());
     }
 
-    /***
-     * 密码登录
-     * @param loginRequest
-     * @return
-     */
     @Transactional
     public Optional<UserInfo> loginUser(LoginRequest loginRequest) {
         Authentication authenticationToken = new UsernamePasswordAuthenticationToken(
@@ -56,89 +47,64 @@ public class AuthenticationService  {
         );
 
         Authentication authResult = authenticationManager.authenticate(authenticationToken);
-
-        SecurityContextHolder.getContext()
-                .setAuthentication(authResult);
+        SecurityContextHolder.getContext().setAuthentication(authResult);
 
         User user = (User) authResult.getPrincipal();
-        final String companyCode = loginRequest.getCompanyCode();
-        if (companyCode != null && companyCode.equals("public")) {
-            user.setCurrentCompany(companyService.findBySchemaName(companyCode)
-                    .orElseThrow(() -> new BadCredentialsException("当前公司"+ companyCode + "不存在！")));
+        String companyCode = loginRequest.getCompanyCode();
+        if ("public".equals(companyCode)) {
+            user.setCurrentCompany(companyService.findActiveBySchemaName(companyCode)
+                    .orElseThrow(() -> new BadCredentialsException("当前公司" + companyCode + "不存在或不可用！")));
         } else {
-            user.setCurrentCompany(companyService.findById(user.getPrimaryCompanyId())
-                    .orElseThrow(() -> new BadCredentialsException("当前公司不存在！")));
+            user.setCurrentCompany(companyService.findActiveById(user.getPrimaryCompanyId())
+                    .orElseThrow(() -> new BadCredentialsException("当前公司不存在或尚未完成初始化！")));
         }
 
         val token = userTokenManager.createAccessTokenAndCache(user);
-
-        val refreshToken =  userTokenManager.createRefreshToken(user);
+        val refreshToken = userTokenManager.createRefreshToken(user);
 
         user.setRefreshToken(refreshToken);
         userRepository.save(user);
 
-        var userInfo = UserMapper.INSTANCE.userToUserInfo(user);
-
+        UserInfo userInfo = UserMapper.INSTANCE.userToUserInfo(user);
         userInfo.setToken(token);
         userInfo.setRefreshToken(refreshToken);
-
         return Optional.of(userInfo);
     }
 
-    /**
-     * 根据长期 Token 登录
-     * @param refreshToken 长期有效的刷新令牌
-     * @return 用户信息及新的访问令牌
-     */
     public Optional<UserInfo> loginViaRefreshToken(String refreshToken) {
-        var authToken = new RefreshAuthenticationToken(refreshToken);
+        RefreshAuthenticationToken authToken = new RefreshAuthenticationToken(refreshToken);
         Authentication authResult = authenticationManager.authenticate(authToken);
-//        SecurityContextHolder.getContext().setAuthentication(authResult);
-
         User user = (User) authResult.getPrincipal();
 
         val accessToken = userTokenManager.createAccessTokenAndCache(user);
 
-//        val refreshToken =  userTokenManager.createRefreshToken(user);
-
         UserInfo userInfo = UserMapper.INSTANCE.userToUserInfo(user);
         userInfo.setToken(accessToken);
         userInfo.setRefreshToken(user.getRefreshToken());
-        
         return Optional.of(userInfo);
     }
 
     /**
-     * 切换当前登录的公司
-     * @param companyId 目标公司ID
-     * @param user 当前用户
-     * @return 更新后的用户信息和 Token
+     * Switch current company only when the target company is active. This is part of the
+     * provisioning availability boundary: an inactive company cannot be entered even by admin.
      */
     @Transactional
     public Optional<UserInfo> switchCompany(Long companyId, User user) {
-        // 1. 验证用户是否属于该公司
         boolean belongsToCompany = companyUserService.isUserInCompany(user.getUserId(), companyId);
-        
-        // Admin 可以访问任何公司，或者用户确实属于该公司
-        if (!belongsToCompany && !user.getUsername().equals("admin")) { 
-             throw new BadCredentialsException("您不属于该公司，无法切换！");
+
+        if (!belongsToCompany && !user.getUsername().equals("admin")) {
+            throw new BadCredentialsException("您不属于该公司，无法切换！");
         }
 
-        // 2. 获取目标公司实体
-        Company company = companyService.findById(companyId)
-                .orElseThrow(() -> new BadCredentialsException("目标公司不存在！"));
-        
-        // 3. 更新用户当前公司上下文
-        user.setCurrentCompany(company);
+        Company company = companyService.findActiveById(companyId)
+                .orElseThrow(() -> new BadCredentialsException("目标公司不存在或尚未完成初始化！"));
 
-        // 4. 生成包含新公司信息的 Access Token
+        user.setCurrentCompany(company);
         String token = userTokenManager.createAccessTokenAndCache(user);
-        
-        // 5. 封装返回信息
+
         UserInfo userInfo = UserMapper.INSTANCE.userToUserInfo(user);
         userInfo.setToken(token);
         userInfo.setRefreshToken(user.getRefreshToken());
-
         return Optional.of(userInfo);
     }
 }
