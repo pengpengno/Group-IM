@@ -72,7 +72,11 @@ export function parseWorkbenchDeepLink(value: string): WorkbenchDeepLinkTarget |
   try {
     const url = new URL(value);
     if (url.protocol !== 'group:' || url.hostname !== 'workbench') return null;
-    if ([...url.searchParams.keys()].some((key) => key !== 'companyId')) return null;
+    let hasUnknownQueryParam = false;
+    url.searchParams.forEach((_paramValue, key) => {
+      if (key !== 'companyId') hasUnknownQueryParam = true;
+    });
+    if (hasUnknownQueryParam) return null;
 
     const companyRaw = url.searchParams.get('companyId');
     const companyId = companyRaw ? Number(companyRaw) : NaN;
@@ -164,5 +168,3 @@ export function parseWorkbenchCard(content: string): WorkbenchCardParseResult {
 
 export const WORKBENCH_NAVIGATION_EVENT = 'group:workbench-navigate';
 export const PENDING_WORKBENCH_DEEP_LINK_KEY = 'group.workbench.pendingDeepLink';
-export const PENDING_WORKBENCH_TASK_ID_KEY = 'group.workbench.pendingTaskId';
-export const WORKBENCH_NAVIGATION_ERROR_KEY = 'group.workbench.navigationError';
