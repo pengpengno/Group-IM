@@ -50,13 +50,13 @@ class TenantSchemaProvisionerIntegrationTest {
         );
 
         TenantMigrationPlan first = provisioner.provision("company_new");
-        assertEquals("2026081906", first.currentVersion());
+        assertEquals("2026082001", first.currentVersion());
         assertEquals(0, first.pendingCount());
         assertTrue(tableExists(dataSource, "company_new", "messages"));
         assertTrue(tableExists(dataSource, "company_new", "flyway_schema_history"));
 
         TenantMigrationPlan retry = provisioner.provision("company_new");
-        assertEquals("2026081906", retry.currentVersion());
+        assertEquals("2026082001", retry.currentVersion());
         assertEquals(0, retry.pendingCount());
 
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
