@@ -148,11 +148,12 @@ export const MessageType = {
   VOICE: 'VOICE',
   VIDEO: 'VIDEO',
   MEETING: 'MEETING',
+  BOT_CARD: 'BOT_CARD',
+  WORKBENCH: 'WORKBENCH',
 } as const;
 
 // 聊天交互相关类型
 export type MessageType = typeof MessageType[keyof typeof MessageType];
-// export type MessageType = 'TEXT' | 'IMAGE' | 'FILE' | 'VOICE' | 'VIDEO' | 'MEETING';
 
 export interface MessageDTO {
   msgId: number;
