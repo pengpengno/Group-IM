@@ -7,9 +7,9 @@
 - 文档状态：ACTIVE
 - 基线日期：2026-08-20
 - 唯一开发主线：`master`
-- 最近完成：Issue #13 / PR #38 — Workbench Platform Foundation
-- 当前紧急项：Issue #41 — 恢复 accidental direct overview commits 后的 master 完整性
-- 当前功能项：Issue #39 / PR #40 — Workbench Overview（hotfix 完成后继续）
+- 最近完成：Issue #41 / PR #42 — master recovery；Issue #13 / PR #38 — Workbench Platform Foundation
+- 当前交付：Issue #39 / PR #40 — Workbench Overview API Foundation
+- 下一业务阶段：Task Backend
 - 仓库：`pengpengno/Group-IM`
 
 ---
@@ -37,7 +37,7 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 - 每个 PR 必须更新本文件；
 - 默认 Squash Merge；
 - 分支命名必须满足 Governance CI；
-- 不以 force-reset / history rewrite 修复 master 事故，优先用可审计 hotfix PR 恢复内容。
+- 不以 force-reset / history rewrite 修复 master 事故，优先可审计 hotfix PR。
 
 项目原则：
 
@@ -48,7 +48,8 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 - PR #5：Repository Governance / PROJECT_MASTER / templates / ADR；
 - PR #16：Backend PR Validation；
 - #12 Tenant Versioned Migration Epic：#18/#19/#26/#32/#25/#20/#21 完成；
-- PR #38 / #13：Workbench Platform Foundation。
+- PR #38 / #13：Workbench Platform Foundation；
+- PR #42 / #41：恢复 accidental direct Overview commits 后的 master 完整性，无 history rewrite。
 
 ### 仍待治理项
 
@@ -59,43 +60,7 @@ Group-IM 是面向组织协作的多端 IM 与办公平台。即时通信是协�
 
 ---
 
-## 3. Issue #41 — Master Recovery
-
-在 #39 / PR #40 开发期间，connector 的四次逐文件更新意外写入默认 `master`，产生：
-
-```text
-c71e96b
-149eb7d
-d4ecfdf
-ab1091c
-```
-
-这些提交只包含 Overview 的局部文件，不包含完整 DTO/controller/domain change set，因此既违反 PR-only 规则，也会让 master 处于不完整编译状态。
-
-恢复策略：
-
-```text
-current master
-→ hotfix/41-revert-overview-master
-→ tree 恢复到 PR #38 verified merge boundary
-→ 本 PROJECT_MASTER 记录事故与恢复
-→ Governance / Backend / KMP
-→ Squash Merge
-→ 基于 repaired master 重建 feature/39-workbench-overview
-```
-
-明确禁止：
-
-- force-reset master；
-- 删除/改写公开历史；
-- 把 accidental commits 当作 Overview 正式交付；
-- 在 hotfix 中混入新的 Overview 功能。
-
-Hotfix 完成后，Overview 所有代码仍必须只通过 PR #40 进入 master。
-
----
-
-## 4. 技术架构概览
+## 3. 技术架构概览
 
 ### Server
 
@@ -121,7 +86,7 @@ Electron + React + TypeScript；Kotlin Multiplatform + Compose Android。
 
 ---
 
-## 5. 模块状态
+## 4. 模块状态
 
 | 模块 | 状态 | 当前事实 | 下一步 |
 | --- | --- | --- | --- |
@@ -134,17 +99,15 @@ Electron + React + TypeScript；Kotlin Multiplatform + Compose Android。
 | AI 助手 | IN_PROGRESS | AI/Bot 能力持续演进 | 工具治理 |
 | 群自动化 | IN_PROGRESS | 规则/执行/管理存在 | 审批/审计 |
 | Workbench Platform | STABLE | #13 / PR #38 context/permission/audit/adapters/tenant executor | 供领域复用 |
-| Workbench Overview | IN_PROGRESS | #39 / PR #40；当前因 #41 hotfix 暂停写入 master | hotfix 后重建 branch/CI |
-| OA Task | PLANNED | 正式领域设计已形成 | Overview 后 Backend |
+| Workbench Overview | IN_PROGRESS | #39 / PR #40 后端 API 正在交付 | Web/Electron Overview |
+| OA Task | PLANNED | 正式领域设计已形成 | #39 后 Backend |
 | OA Approval | PLANNED | 轻量串行审批设计已形成 | Task 闭环后 |
 | Tenant Migration | STABLE | #12 完成；baseline 1906 / target 2001 | 支撑 OA migrations |
 | Backend PR CI | STABLE | Java 21 compile + tests | #6 required check |
 
 ---
 
-## 6. Workbench Platform Foundation — #13 COMPLETED
-
-Package boundary：
+## 5. Workbench Platform Foundation — #13 COMPLETED
 
 ```text
 com.github.im.server.workbench.common
@@ -175,9 +138,7 @@ PR #38 merge：`4c7f3e29379ec44013e7e78d15edece6d6b1a924`。
 
 ---
 
-## 7. Workbench Overview — #39 / PR #40
-
-Hotfix #41 完成后继续。
+## 6. Workbench Overview — #39 / PR #40
 
 目标 endpoint：
 
@@ -185,22 +146,40 @@ Hotfix #41 完成后继续。
 GET /api/workbench/overview
 ```
 
-设计原则：
+首版 response：
 
-- tenant 只来自 CurrentWorkContext；
-- require `VIEW_WORKBENCH`；
-- current company response 只暴露 companyId/name，不暴露 schemaName；
-- Task/Approval/Announcement 尚未实现时返回 count=0/list=[]；
-- 不制造临时 Todo 表或 pseudo data；
-- todaySchedules 首版聚合现有 Meeting 真相；
-- Meeting 使用轻量 constructor projection，不加载完整 participant/conversation graph；
-- rejected meeting invitation 不应进入 todaySchedules；
-- 首版 no cache / no Overview write model；
-- Quick Apps 只返回 stable key/title，不绑定具体客户端 route。
+```text
+currentCompany
++ todoSummary
++ recentTasks
++ pendingApprovals
++ todaySchedules
++ announcements
++ quickApps
+```
+
+实现规则：
+
+1. tenant 只来自 #13 `CurrentWorkContext`；
+2. 先 require `WorkbenchPermission.VIEW_WORKBENCH`；
+3. response 不暴露 `schemaName`；
+4. Task/Approval/Announcement 尚未实现时返回 count=0 / list=[]；
+5. 不建立 Overview 写模型、临时 Todo 表或伪数据；
+6. todaySchedules 首版聚合现有 Meeting 真相；
+7. Meeting 使用 JPQL constructor projection，只读取 Overview 所需字段；
+8. 只包含当前用户 participant 且 participant status 为 INVITED/JOINED/LEFT；REJECTED 明确排除；
+9. Meeting status 只包含 SCHEDULED/ACTIVE；
+10. scheduledAt 落在当天，或 scheduledAt 为空时 startedAt 落在当天；
+11. Quick Apps 只返回 stable key/title；
+12. 首版不缓存。
+
+现有 Meeting 的日期字段是 `LocalDateTime`，Overview 首版显式沿用服务器默认时区解释“今天”；未来引入 user/company timezone 必须通过独立兼容变更完成。
+
+正式文档：`doc/features/workbench/overview.md`。
 
 ---
 
-## 8. Tenant Versioned Migration — #12 COMPLETED
+## 7. Tenant Versioned Migration — #12 COMPLETED
 
 Core baseline：`2026081906`。Managed target：`2026082001`。
 
@@ -214,6 +193,23 @@ Core baseline：`2026081906`。Managed target：`2026082001`。
 6. 禁止 blind baselineOnMigrate；
 7. public/current schema 不动态充当 expected contract；
 8. Workbench/OA 新表必须从 current target 之后追加 migration。
+
+---
+
+## 8. Repository Incident #41 — COMPLETED
+
+#39 开发期间四次 connector 逐文件更新意外进入 default `master`。处理方式：
+
+```text
+Issue #41
+→ hotfix/41-revert-overview-master
+→ PR #42
+→ restore verified PR #38 content tree
+→ Governance / Backend / KMP green
+→ Squash Merge 85b78f1236169774aa2befd5bf11f9ccb3b6fd20
+```
+
+没有 force-reset master，没有删除或改写公开历史。#39 feature branch在 repaired master 上通过一次性 tree/commit 重建，后续禁止使用该逐文件默认分支路径更新 feature 文件。
 
 ---
 
@@ -241,9 +237,9 @@ mvn -B -ntp -pl server -am test
 ## 10. Roadmap
 
 ```text
-#41 master recovery ← CURRENT HOTFIX
+#13 Platform Foundation ✅
         ↓
-#39 Workbench Overview API
+#39 Overview API ← CURRENT
         ↓
 Task Backend
         ↓
@@ -262,14 +258,21 @@ Calendar / Announcement / Android OA / Report / AI Office
 
 ## 11. Change Log
 
-### 2026-08-20 — Issue #41
+### 2026-08-20 — Issue #39 / PR #40
 
-状态：`HOTFIX IN PROGRESS`。
+状态：`IN_PROGRESS`。
 
-- 记录 Overview connector direct-master incident；
-- 用可审计 PR 恢复 PR #38 merge-boundary 内容；
-- 不 force-reset master；
-- #39 将在 repaired master 上重建 feature branch。
+- stable Overview DTO；
+- current company 不暴露 schema；
+- future domains zero/empty；
+- current-user today Meeting lightweight projection；
+- rejected invitations excluded；
+- Quick Apps stable metadata；
+- no cache / no write model。
+
+### 2026-08-20 — Issue #41 / PR #42
+
+状态：`COMPLETED`，merge `85b78f1236169774aa2befd5bf11f9ccb3b6fd20`。
 
 ### 2026-08-20 — Issue #13 / PR #38
 
