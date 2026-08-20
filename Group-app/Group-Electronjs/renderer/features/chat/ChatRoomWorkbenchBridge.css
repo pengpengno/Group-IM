@@ -1,0 +1,4 @@
+.chat-room-workbench-bridge { height: 100%; min-height: 0; }
+.chat-room-workbench-bridge > .chat-room-premium { height: 100%; }
+.workbench-portal-host { font-size: 0 !important; line-height: 0 !important; white-space: normal !important; }
+.workbench-portal-host > .workbench-message-card { font-size: 12px; line-height: 1.5; white-space: normal; }
