@@ -3,9 +3,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import Notification from '../../../components/common/Notification';
 import { authAPI } from '../../../services/api/apiClient';
 import { taskAPI, unwrapWorkbenchResponse, workbenchErrorMessage } from '../../../services/api/workbenchAPI';
+import type { TaskDetail } from '../workbenchTypes';
 import type { AppDispatch, RootState } from '../../../store';
 import { loginSuccess } from '../../auth/authSlice';
-import TaskCenter from '../TaskCenter';
 import {
   parseWorkbenchDeepLink,
   PENDING_WORKBENCH_DEEP_LINK_KEY,
@@ -14,10 +14,16 @@ import {
 } from './workbenchCard';
 import './WorkbenchNavigationRuntime.css';
 
+const formatDate = (value?: string | null): string => {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+};
+
 const WorkbenchNavigationRuntime: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((state: RootState) => state.auth.user);
-  const [taskId, setTaskId] = useState<number | null>(null);
+  const [task, setTask] = useState<TaskDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -74,11 +80,11 @@ const WorkbenchNavigationRuntime: React.FC = () => {
       throw new Error('任务链接中的资源标识无效');
     }
 
-    // The card snapshot is never treated as current business state. This detail
-    // fetch is the authorization and existence check for the active tenant.
+    // Card fields are immutable event snapshots. The only resource data rendered
+    // below comes from this current-tenant detail fetch, which also enforces
+    // membership and Task resource permission on the server.
     const response = await taskAPI.detail(numericTaskId);
-    const currentTask = unwrapWorkbenchResponse(response);
-    setTaskId(currentTask.taskId);
+    setTask(unwrapWorkbenchResponse(response));
   }, [switchCompanyAndReload, user?.currentCompany?.companyId]);
 
   const process = useCallback(async (deepLink: string) => {
@@ -105,10 +111,10 @@ const WorkbenchNavigationRuntime: React.FC = () => {
   }, [process]);
 
   useEffect(() => {
-    if (!user?.currentCompany?.companyId || busy || taskId) return;
+    if (!user?.currentCompany?.companyId || busy || task) return;
     const pending = sessionStorage.getItem(PENDING_WORKBENCH_DEEP_LINK_KEY);
     if (pending) void process(pending);
-  }, [busy, process, taskId, user?.currentCompany?.companyId]);
+  }, [busy, process, task, user?.currentCompany?.companyId]);
 
   return (
     <>
@@ -120,9 +126,32 @@ const WorkbenchNavigationRuntime: React.FC = () => {
       {error && (
         <Notification message={error} type="error" onClose={() => setError(null)} />
       )}
-      {taskId && (
-        <div className="workbench-navigation-runtime__overlay" role="dialog" aria-modal="true" aria-label="工作台任务">
-          <TaskCenter initialTaskId={taskId} onBack={() => setTaskId(null)} />
+      {task && (
+        <div className="workbench-navigation-runtime__overlay" role="dialog" aria-modal="true" aria-label="工作台任务详情">
+          <article className="workbench-navigation-runtime__detail">
+            <header>
+              <div>
+                <p>WORKBENCH · TASK</p>
+                <h2>{task.title}</h2>
+                <span>{task.status} · {task.priority}</span>
+              </div>
+              <button type="button" onClick={() => setTask(null)} aria-label="关闭任务详情">×</button>
+            </header>
+            <section className="workbench-navigation-runtime__summary">
+              {task.description || '暂无任务描述。'}
+            </section>
+            <section className="workbench-navigation-runtime__facts">
+              <div><span>负责人</span><strong>{task.ownerId ? `用户 #${task.ownerId}` : '未指定'}</strong></div>
+              <div><span>创建人</span><strong>用户 #{task.creatorId}</strong></div>
+              <div><span>进度</span><strong>{task.progress}%</strong></div>
+              <div><span>截止时间</span><strong>{formatDate(task.dueAt)}</strong></div>
+              <div><span>最近更新</span><strong>{formatDate(task.updatedAt)}</strong></div>
+            </section>
+            <footer>
+              <span>此处内容已从当前工作区服务端重新读取；卡片快照不会授权任何写操作。</span>
+              <button type="button" onClick={() => setTask(null)}>返回聊天</button>
+            </footer>
+          </article>
         </div>
       )}
     </>
