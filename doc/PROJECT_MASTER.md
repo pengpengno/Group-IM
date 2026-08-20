@@ -5,9 +5,8 @@
 - 文档状态：ACTIVE
 - 基线日期：2026-08-20
 - 唯一开发主线：`master`
-- 最近完成：#45 / PR #46 Workbench Task Backend V1
-- 当前交付：#9 Electron/Web PR Validation
-- 下一业务交付：#47 Workbench Task Web/Electron
+- 最近完成：#45 / PR #46 Workbench Task Backend V1；#9 / PR #48 Electron/Web PR Validation
+- 当前交付：#47 Workbench Task Web/Electron
 - 仓库：`pengpengno/Group-IM`
 
 ---
@@ -133,25 +132,26 @@ Create/update/workflow/assignee/comment 同事务写 Task Activity，并记录 W
 Group-app/Group-Electronjs
 ```
 
-Workbench 已有静态入口，但 #47 开始前仍未读取 Overview，也没有 Task 页面。
+### Electron/Web PR Validation — #9 COMPLETED
 
-### #9 Electron/Web PR Validation — CURRENT
+PR #48 Squash merge：`d5570e0145a549a4869118b957a059a857e0d6ee`。
 
-新增 `.github/workflows/electron-web.yml`：
+`.github/workflows/electron-web.yml` 在 Electron/Web 路径变化时执行：
 
-- 仅在 Electron/Web 路径或 workflow 自身变化时触发；
-- Node.js 20；
-- `npm ci`；
-- production desktop env + `npm run app:build`；
-- `npm run web:build`；
-- concurrency cancel-in-progress；
-- 可作为未来 master required check。
+```text
+npm ci
+production desktop env
+npm run app:build
+npm run web:build
+```
 
-项目目前没有稳定 lint/test script，因此 #9 先以 TypeScript/Webpack build 作为真实门禁；未来新增 lint/test 后再扩展。
+首次 workflow 自验证已通过 Electron main/renderer、Web bundle 和 KMP。项目目前没有稳定 lint/test script，因此当前门禁以 TypeScript/Webpack build 为真实证据；#6 后续可把该 check 配成 master required check。
 
 ---
 
-## 6. 下一业务交付 — #47 Task Web/Electron
+## 6. Task Web/Electron V1 — #47 CURRENT
+
+正式实现文档：`doc/features/workbench/task-web-v1.md`。
 
 目标用户链路：
 
@@ -162,17 +162,70 @@ Workbench Overview
 → list/detail
 → Start / Block / Resume / Complete / Reopen / Cancel
 → comment / activity
-→ refresh Overview
+→ back to refreshed Overview
 ```
 
-约束：
+### Navigation boundary
 
-- API 复用现有 Bearer interceptor；
-- Workbench/Task 使用后端真实 `ApiResponse { code, message, data, timestamp }`；
-- client 不传 companyId 作为 tenant route；
-- server 仍是 Task 唯一业务真相；
-- 不在 #47 混入 Realtime / Push / WORKBENCH Card；
-- 不在 #47 混入 Android Task UI 或 #29 structured-card renderer/deep-link。
+Task 是 Workbench OA 子模块，不新增 Dashboard 顶级 tab：
+
+```text
+Dashboard activeTab = workbench
+        ↓
+Workbench local view
+  ├── overview
+  └── tasks
+```
+
+Meeting / Contacts / Automation / Settings 继续使用现有全局导航。
+
+### Typed client
+
+新增：
+
+```text
+renderer/features/workbench/workbenchTypes.ts
+renderer/services/api/workbenchAPI.ts
+```
+
+Workbench 新代码使用后端真实 envelope：
+
+```text
+code + message + data + timestamp
+```
+
+客户端不传 companyId 作为 tenant route。API client 复用现有 `BASE_URL` 与 Bearer token 存储约定。
+
+### Overview UI
+
+Workbench 页面读取真实：
+
+- current company；
+- assigned / overdue Task counts；
+- pending Approval / unread Announcement counts；
+- recent Task；
+- today Meeting schedules；
+- quick apps。
+
+Task 修改后返回 Overview 会重新请求服务端，不维护第二份本地真相。
+
+### Task Center UI
+
+已实现页面结构：
+
+- 可见 Task list；
+- Task detail；
+- create modal；
+- state-based action buttons；
+- assignee summary；
+- comments + add comment；
+- activity timeline；
+- loading / empty / error / mutation busy；
+- desktop list/detail 双栏 + narrow-screen 单栏退化。
+
+客户端的动作显示只是 UX 提示；服务端 `TaskAccessPolicy + TaskStateMachine` 始终是最终权限/状态权威。
+
+#47 不包含 Realtime / Push / WORKBENCH Card、#29 structured-card renderer/deep-link、Android Task UI、附件 relation 或新的 Task Redux/global store。
 
 ---
 
@@ -181,28 +234,25 @@ Workbench Overview
 | 模块 | 状态 | 当前事实 | 下一步 |
 | --- | --- | --- | --- |
 | Workbench Platform | STABLE | #13 完成 | 领域复用 |
-| Workbench Overview | STABLE | #39 + Task projection | #47 UI |
+| Workbench Overview | STABLE | #39 + Task projection | #47 UI 消费 |
 | Tenant Migration | STABLE | core 1906 / target 2002 | 后续 OA migrations |
 | OA Task Backend | STABLE | #45 / PR #46 已合并 | UI / events |
-| OA Task Web/Electron | PLANNED | #47 已登记 | Electron/Web UI |
-| Electron/Web PR CI | IN_PROGRESS | #9 正在交付 | merge 后成为 applicable gate |
+| OA Task Web/Electron | IN_PROGRESS | #47 Overview + Task Center | build / review / merge |
+| Electron/Web PR CI | STABLE | #9 / PR #48 已合并 | #6 required check |
 | OA Approval | PLANNED | 设计已完成 | Task 闭环后 |
 
 ---
 
 ## 8. CI / Merge Gates
 
-已存在：
+当前 checks：
 
 - Repository Governance；
-- Backend PR Validation；
+- Backend PR Validation（后端适用路径）；
+- Electron Web PR Validation（Electron/Web 适用路径）；
 - Build KMP APK。
 
-#9 合并后新增：
-
-- Electron Web PR Validation：Electron/Web 相关 PR 执行 dependency install + Electron main/renderer build + Web build。
-
-#6 仍负责把这些稳定 checks 配置为 master required checks。
+#47 必须通过 Electron main/renderer + Web build，并保持 no unresolved review threads。#6 仍负责把稳定 checks 配置为 master required checks。
 
 ---
 
@@ -213,8 +263,8 @@ Workbench Overview
 → #39 Overview API ✅
 → #43 Baseline Scope ✅
 → #45 Task Backend ✅
-→ #9 Electron/Web CI ← CURRENT ENABLER
-→ #47 Task Web/Electron
+→ #9 Electron/Web CI ✅
+→ #47 Task Web/Electron ← CURRENT
 → Task Realtime / Push / WORKBENCH Card
 → Approval Backend / UI
 → Calendar / Announcement / Android OA / Report / AI Office
@@ -226,9 +276,13 @@ Workbench Overview
 
 ## 10. Change Log
 
-### 2026-08-20 — #9 Electron/Web PR Validation
+### 2026-08-20 — #47 Task Web/Electron
 
-状态：IN_PROGRESS。增加针对 `Group-app/Group-Electronjs/**` 的 PR build gate，验证 Electron main/renderer 与 Web bundle。
+状态：IN_PROGRESS。Workbench 接真实 Overview，新增 Workbench 内部 Task Center，覆盖 create/list/detail/state actions/comments/activity 和响应式页面状态。
+
+### 2026-08-20 — #9 / PR #48 Electron/Web PR Validation
+
+状态：COMPLETED，merge `d5570e0145a549a4869118b957a059a857e0d6ee`。Electron main/renderer + Web bundle build gate 已进入 master。
 
 ### 2026-08-20 — #45 / PR #46 Task Backend V1
 
