@@ -12,6 +12,7 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -21,12 +22,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CoreTenantBaselineContractFingerprintTest {
 
     private static final String SCHEMA = "contract_tenant";
+    private static final Set<String> TASK_TABLES = Set.of(
+            "wb_task", "wb_task_assignee", "wb_task_comment", "wb_task_activity"
+    );
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
 
     @Test
-    void canonicalMigrationsProducePinnedFingerprintAndIgnoreLaterManagedObjects() throws Exception {
+    void managedMigrationsKeepPinnedCoreFingerprintStable() throws Exception {
         DataSource dataSource = dataSource();
         createGlobalIdentityAndTenant(dataSource);
 
@@ -44,13 +48,15 @@ class CoreTenantBaselineContractFingerprintTest {
 
         assertEquals(CoreTenantBaselineContract.CORE_TABLES, fingerprint.tables());
         assertEquals(CoreTenantBaselineContract.IDENTITY_VIEWS, fingerprint.views());
-        assertEquals(fingerprint.tables(), fingerprint.allTables());
+        assertTrue(fingerprint.allTables().containsAll(CoreTenantBaselineContract.CORE_TABLES));
+        assertTrue(fingerprint.allTables().containsAll(TASK_TABLES));
         assertEquals(fingerprint.views(), fingerprint.allViews());
-        assertEquals(fingerprint.sequences(), fingerprint.allSequences());
+        assertTrue(fingerprint.allSequences().size() > fingerprint.sequences().size());
         assertTrue(fingerprint.identityViewsValid());
         assertEquals(pinned, fingerprint.categoryHashes(),
                 () -> "Core category hashes changed: " + fingerprint.categoryHashes());
 
+        int managedSequenceCount = fingerprint.allSequences().size();
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.execute("""
                     CREATE TABLE contract_tenant.wb_future_probe (
@@ -69,7 +75,7 @@ class CoreTenantBaselineContractFingerprintTest {
         assertEquals(CoreTenantBaselineContract.IDENTITY_VIEWS, withLaterObjects.views());
         assertTrue(withLaterObjects.allTables().contains("wb_future_probe"));
         assertTrue(withLaterObjects.allViews().contains("wb_future_probe_view"));
-        assertTrue(withLaterObjects.allSequences().size() > withLaterObjects.sequences().size());
+        assertEquals(managedSequenceCount + 1, withLaterObjects.allSequences().size());
         assertFalse(withLaterObjects.sequences().stream().anyMatch(name -> name.contains("future_probe")));
     }
 
@@ -117,15 +123,9 @@ class CoreTenantBaselineContractFingerprintTest {
                     )
                     """);
             statement.execute("CREATE SCHEMA " + SCHEMA);
-            statement.execute("""
-                    INSERT INTO public.company(company_id, active, name, schema_name)
-                    VALUES (42, TRUE, 'Contract Tenant', 'contract_tenant')
-                    """);
+            statement.execute("INSERT INTO public.company(company_id, active, name, schema_name) VALUES (42, TRUE, 'Contract Tenant', 'contract_tenant')");
             statement.execute("INSERT INTO public.users(user_id, username) VALUES (1001, 'contract-user')");
-            statement.execute("""
-                    INSERT INTO public.company_user(id, company_id, status, user_id)
-                    VALUES (5001, 42, 'ACTIVE', 1001)
-                    """);
+            statement.execute("INSERT INTO public.company_user(id, company_id, status, user_id) VALUES (5001, 42, 'ACTIVE', 1001)");
         }
     }
 }

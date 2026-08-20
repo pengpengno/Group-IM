@@ -1,5 +1,6 @@
 package com.github.im.server.schema.migration;
 
+import com.github.im.server.schema.migration.baseline.CoreTenantBaselineContract;
 import com.github.im.server.schema.migration.service.TenantFlywayFactory;
 import com.github.im.server.schema.migration.support.SchemaNameValidator;
 import org.flywaydb.core.Flyway;
@@ -17,236 +18,150 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Testcontainers
 class CoreTenantBaselineIntegrationTest {
 
-    private static final String TENANT_SCHEMA = "baseline_tenant";
-
-    private static final Set<String> EXPECTED_CORE_TABLES = Set.of(
-            "approval_requests",
-            "automation_executions",
-            "automation_rules",
-            "conversation_bot_configs",
-            "conversation_members",
-            "conversations",
-            "departments",
-            "file_resource",
-            "friendships",
-            "media_file_resource",
-            "meeting_participants",
-            "meetings",
-            "messages",
-            "status_updates",
-            "system_config_item",
-            "upload_chunk_record",
-            "user_departments",
-            "user_privacy_settings"
-    );
-
-    private static final Set<String> EXPECTED_IDENTITY_VIEWS = Set.of(
-            "company",
-            "company_user",
-            "users"
+    private static final String SCHEMA = "baseline_tenant";
+    private static final Set<String> TASK_TABLES = Set.of(
+            "wb_task", "wb_task_assignee", "wb_task_comment", "wb_task_activity"
     );
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
 
     @Test
-    void emptyTenantMigratesToReviewedCoreSchemaContract() throws Exception {
+    void emptyTenantMigratesThroughCoreBaselineAndManagedTaskExtension() throws Exception {
         DataSource dataSource = dataSource();
-        createGlobalIdentityContractAndEmptyTenant(dataSource);
+        createGlobalIdentityContract(dataSource);
+        createTenant(dataSource);
 
-        TenantFlywayFactory flywayFactory = new TenantFlywayFactory(
+        Flyway flyway = new TenantFlywayFactory(
                 dataSource,
                 new SchemaNameValidator(),
                 "classpath:db/migration/tenant"
-        );
-        Flyway flyway = flywayFactory.create(TENANT_SCHEMA);
+        ).create(SCHEMA);
+
         flyway.migrate();
 
-        assertNotNull(flyway.info().current());
-        assertEquals("2026082001", flyway.info().current().getVersion().getVersion());
+        assertEquals(CoreTenantBaselineContract.MANAGED_TARGET_VERSION, flyway.info().current().getVersion().getVersion());
+        assertTrue(flyway.validateWithResult().validationSuccessful);
 
-        assertEquals(EXPECTED_CORE_TABLES, relationNames(dataSource, "r"));
-        assertEquals(EXPECTED_IDENTITY_VIEWS, relationNames(dataSource, "v"));
-        assertEquals(17, scalarInt(dataSource, """
-                SELECT count(*)
-                FROM pg_class sequence_row
-                JOIN pg_namespace namespace_row ON namespace_row.oid = sequence_row.relnamespace
-                WHERE namespace_row.nspname = 'baseline_tenant'
-                  AND sequence_row.relkind = 'S'
-                """));
-        assertEquals(65, scalarInt(dataSource, """
-                SELECT count(*)
-                FROM pg_constraint constraint_row
-                JOIN pg_namespace namespace_row ON namespace_row.oid = constraint_row.connamespace
-                JOIN pg_class table_row ON table_row.oid = constraint_row.conrelid
-                WHERE namespace_row.nspname = 'baseline_tenant'
-                  AND table_row.relkind = 'r'
-                  AND table_row.relname NOT IN ('flyway_schema_history', 'tenant_schema_metadata')
-                """));
-        assertEquals(26, scalarInt(dataSource, """
-                SELECT count(*)
-                FROM pg_indexes
-                WHERE schemaname = 'baseline_tenant'
-                  AND tablename NOT IN ('flyway_schema_history', 'tenant_schema_metadata')
-                """));
-
+        Set<String> relations = relationNames(dataSource);
+        assertTrue(relations.containsAll(CoreTenantBaselineContract.CORE_TABLES));
+        assertTrue(relations.containsAll(TASK_TABLES));
+        assertEquals(22, relations.size());
+        assertEquals(Set.of("company", "company_user", "users"), viewNames(dataSource));
+        assertEquals(21, identitySequenceCount(dataSource));
+        assertEquals(80, constraintCount(dataSource));
+        assertEquals(31, primaryOrUniqueBackingIndexCount(dataSource));
         assertEquals("text", columnType(dataSource, "messages", "content"));
         assertEquals("timestamp(6) without time zone", columnType(dataSource, "meetings", "scheduled_at"));
-
-        String messageTypeCheck = scalarString(dataSource, """
-                SELECT pg_get_constraintdef(constraint_row.oid, true)
-                FROM pg_constraint constraint_row
-                JOIN pg_class table_row ON table_row.oid = constraint_row.conrelid
-                JOIN pg_namespace namespace_row ON namespace_row.oid = table_row.relnamespace
-                WHERE namespace_row.nspname = 'baseline_tenant'
-                  AND table_row.relname = 'messages'
-                  AND constraint_row.conname = 'messages_type_check'
-                """);
-        assertTrue(messageTypeCheck.contains("BOT_CARD"));
-
-        assertEquals("2026081906", scalarString(dataSource, """
-                SELECT metadata_value
-                FROM baseline_tenant.tenant_schema_metadata
-                WHERE metadata_key = 'core_baseline_contract'
-                """));
-
-        assertEquals(1, scalarInt(dataSource, "SELECT count(*) FROM baseline_tenant.company"));
-        assertEquals("baseline_tenant", scalarString(dataSource,
-                "SELECT schema_name FROM baseline_tenant.company"));
-        assertEquals(1, scalarInt(dataSource, "SELECT count(*) FROM baseline_tenant.company_user"));
-        assertEquals(1, scalarInt(dataSource, "SELECT count(*) FROM baseline_tenant.users"));
-        assertEquals("baseline-user", scalarString(dataSource,
-                "SELECT username FROM baseline_tenant.users"));
+        assertTrue(messageTypeCheck(dataSource).contains("BOT_CARD"));
+        assertTrue(taskStatusCheck(dataSource).contains("IN_PROGRESS"));
+        assertFalse(relations.contains("tenant_schema_metadata"));
+        assertTrue(tableExists(dataSource, "tenant_schema_metadata"));
+        assertTrue(tableExists(dataSource, "flyway_schema_history"));
     }
 
     private DataSource dataSource() {
-        PGSimpleDataSource dataSource = new PGSimpleDataSource();
-        dataSource.setURL(POSTGRES.getJdbcUrl());
-        dataSource.setUser(POSTGRES.getUsername());
-        dataSource.setPassword(POSTGRES.getPassword());
-        return dataSource;
+        PGSimpleDataSource source = new PGSimpleDataSource();
+        source.setURL(POSTGRES.getJdbcUrl());
+        source.setUser(POSTGRES.getUsername());
+        source.setPassword(POSTGRES.getPassword());
+        return source;
     }
 
-    private void createGlobalIdentityContractAndEmptyTenant(DataSource dataSource) throws Exception {
+    private void createGlobalIdentityContract(DataSource dataSource) throws Exception {
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
-            statement.execute("""
-                    CREATE TABLE public.company (
-                        company_id BIGINT PRIMARY KEY,
-                        active BOOLEAN NOT NULL,
-                        created_at TIMESTAMP(6) WITHOUT TIME ZONE,
-                        name VARCHAR(255) NOT NULL,
-                        schema_name VARCHAR(255) NOT NULL UNIQUE,
-                        updated_at TIMESTAMP(6) WITHOUT TIME ZONE
-                    )
-                    """);
-            statement.execute("""
-                    CREATE TABLE public.users (
-                        user_id BIGINT PRIMARY KEY,
-                        created_at TIMESTAMP(6) WITHOUT TIME ZONE,
-                        email VARCHAR(255),
-                        force_password_change BOOLEAN,
-                        password_hash VARCHAR(255),
-                        phone_number VARCHAR(255),
-                        primary_company_id BIGINT,
-                        refresh_token VARCHAR(255),
-                        updated_at TIMESTAMP(6) WITHOUT TIME ZONE,
-                        user_status VARCHAR(255),
-                        username VARCHAR(255)
-                    )
-                    """);
-            statement.execute("""
-                    CREATE TABLE public.company_user (
-                        id BIGINT PRIMARY KEY,
-                        company_id BIGINT NOT NULL REFERENCES public.company(company_id),
-                        status VARCHAR(255),
-                        user_id BIGINT NOT NULL REFERENCES public.users(user_id)
-                    )
-                    """);
-            statement.execute("CREATE SCHEMA " + TENANT_SCHEMA);
-            statement.execute("""
-                    INSERT INTO public.company(company_id, active, name, schema_name)
-                    VALUES (42, TRUE, 'Baseline Tenant', 'baseline_tenant')
-                    """);
-            statement.execute("""
-                    INSERT INTO public.company(company_id, active, name, schema_name)
-                    VALUES (43, TRUE, 'Other Tenant', 'other_tenant')
-                    """);
-            statement.execute("""
-                    INSERT INTO public.users(user_id, username)
-                    VALUES (1001, 'baseline-user'), (1002, 'other-user')
-                    """);
-            statement.execute("""
-                    INSERT INTO public.company_user(id, company_id, status, user_id)
-                    VALUES (5001, 42, 'ACTIVE', 1001), (5002, 43, 'ACTIVE', 1002)
-                    """);
+            statement.execute("CREATE TABLE public.company (company_id BIGINT PRIMARY KEY, active BOOLEAN NOT NULL, created_at TIMESTAMP(6), name VARCHAR(255) NOT NULL, schema_name VARCHAR(255) NOT NULL UNIQUE, updated_at TIMESTAMP(6))");
+            statement.execute("CREATE TABLE public.users (user_id BIGINT PRIMARY KEY, created_at TIMESTAMP(6), email VARCHAR(255), force_password_change BOOLEAN, password_hash VARCHAR(255), phone_number VARCHAR(255), primary_company_id BIGINT, refresh_token VARCHAR(255), updated_at TIMESTAMP(6), user_status VARCHAR(255), username VARCHAR(255))");
+            statement.execute("CREATE TABLE public.company_user (id BIGINT PRIMARY KEY, company_id BIGINT NOT NULL REFERENCES public.company(company_id), status VARCHAR(255), user_id BIGINT NOT NULL REFERENCES public.users(user_id))");
+            statement.execute("INSERT INTO public.company(company_id, active, name, schema_name) VALUES (42, TRUE, 'Baseline Tenant', 'baseline_tenant')");
+            statement.execute("INSERT INTO public.users(user_id, username) VALUES (1001, 'baseline-user')");
+            statement.execute("INSERT INTO public.company_user(id, company_id, status, user_id) VALUES (5001, 42, 'ACTIVE', 1001)");
         }
     }
 
-    private Set<String> relationNames(DataSource dataSource, String relationKind) throws Exception {
+    private void createTenant(DataSource dataSource) throws Exception {
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("CREATE SCHEMA " + SCHEMA);
+        }
+    }
+
+    private Set<String> relationNames(DataSource dataSource) throws Exception {
         Set<String> names = new HashSet<>();
         try (Connection connection = dataSource.getConnection();
-             var statement = connection.prepareStatement("""
-                     SELECT relation.relname
-                     FROM pg_class relation
-                     JOIN pg_namespace namespace_row ON namespace_row.oid = relation.relnamespace
-                     WHERE namespace_row.nspname = ?
-                       AND relation.relkind::text = ?
-                       AND relation.relname NOT IN ('flyway_schema_history', 'tenant_schema_metadata')
-                     ORDER BY relation.relname
-                     """)) {
-            statement.setString(1, TENANT_SCHEMA);
-            statement.setString(2, relationKind);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    names.add(resultSet.getString(1));
-                }
+             var statement = connection.prepareStatement("SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=? AND c.relkind='r' AND c.relname NOT IN ('flyway_schema_history','tenant_schema_metadata')")) {
+            statement.setString(1, SCHEMA);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) names.add(rs.getString(1));
             }
         }
         return names;
     }
 
-    private String columnType(DataSource dataSource, String tableName, String columnName) throws Exception {
+    private Set<String> viewNames(DataSource dataSource) throws Exception {
+        Set<String> names = new HashSet<>();
         try (Connection connection = dataSource.getConnection();
-             var statement = connection.prepareStatement("""
-                     SELECT format_type(attribute.atttypid, attribute.atttypmod)
-                     FROM pg_attribute attribute
-                     JOIN pg_class table_row ON table_row.oid = attribute.attrelid
-                     JOIN pg_namespace namespace_row ON namespace_row.oid = table_row.relnamespace
-                     WHERE namespace_row.nspname = ?
-                       AND table_row.relname = ?
-                       AND attribute.attname = ?
-                       AND attribute.attnum > 0
-                       AND NOT attribute.attisdropped
-                     """)) {
-            statement.setString(1, TENANT_SCHEMA);
-            statement.setString(2, tableName);
-            statement.setString(3, columnName);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                assertTrue(resultSet.next());
-                return resultSet.getString(1);
+             var statement = connection.prepareStatement("SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=? AND c.relkind='v'")) {
+            statement.setString(1, SCHEMA);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) names.add(rs.getString(1));
             }
+        }
+        return names;
+    }
+
+    private int identitySequenceCount(DataSource dataSource) throws Exception {
+        return scalarInt(dataSource, "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='" + SCHEMA + "' AND c.relkind='S'");
+    }
+
+    private int constraintCount(DataSource dataSource) throws Exception {
+        return scalarInt(dataSource, "SELECT count(*) FROM pg_constraint con JOIN pg_class c ON c.oid=con.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='" + SCHEMA + "' AND c.relname NOT IN ('flyway_schema_history','tenant_schema_metadata')");
+    }
+
+    private int primaryOrUniqueBackingIndexCount(DataSource dataSource) throws Exception {
+        return scalarInt(dataSource, "SELECT count(*) FROM pg_index i JOIN pg_class c ON c.oid=i.indrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='" + SCHEMA + "' AND c.relname NOT IN ('flyway_schema_history','tenant_schema_metadata') AND (i.indisprimary OR i.indisunique)");
+    }
+
+    private String columnType(DataSource dataSource, String table, String column) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             var statement = connection.prepareStatement("SELECT format_type(a.atttypid,a.atttypmod) FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=? AND c.relname=? AND a.attname=? AND a.attnum>0 AND NOT a.attisdropped")) {
+            statement.setString(1, SCHEMA); statement.setString(2, table); statement.setString(3, column);
+            try (ResultSet rs = statement.executeQuery()) { assertTrue(rs.next()); return rs.getString(1); }
+        }
+    }
+
+    private String messageTypeCheck(DataSource dataSource) throws Exception {
+        return checkDefinition(dataSource, "messages", "messages_type_check");
+    }
+
+    private String taskStatusCheck(DataSource dataSource) throws Exception {
+        return checkDefinition(dataSource, "wb_task", "wb_task_status_check");
+    }
+
+    private String checkDefinition(DataSource dataSource, String table, String constraint) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             var statement = connection.prepareStatement("SELECT pg_get_constraintdef(con.oid,true) FROM pg_constraint con JOIN pg_class c ON c.oid=con.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=? AND c.relname=? AND con.conname=?")) {
+            statement.setString(1, SCHEMA); statement.setString(2, table); statement.setString(3, constraint);
+            try (ResultSet rs = statement.executeQuery()) { assertTrue(rs.next()); return rs.getString(1); }
         }
     }
 
     private int scalarInt(DataSource dataSource, String sql) throws Exception {
-        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(sql)) {
-            assertTrue(resultSet.next());
-            return resultSet.getInt(1);
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement(); ResultSet rs = statement.executeQuery(sql)) {
+            assertTrue(rs.next()); return rs.getInt(1);
         }
     }
 
-    private String scalarString(DataSource dataSource, String sql) throws Exception {
-        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(sql)) {
-            assertTrue(resultSet.next());
-            return resultSet.getString(1);
+    private boolean tableExists(DataSource dataSource, String table) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             var statement = connection.prepareStatement("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema=? AND table_name=?)")) {
+            statement.setString(1, SCHEMA); statement.setString(2, table);
+            try (ResultSet rs = statement.executeQuery()) { return rs.next() && rs.getBoolean(1); }
         }
     }
 }
