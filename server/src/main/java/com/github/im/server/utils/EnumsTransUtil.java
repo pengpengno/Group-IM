@@ -44,8 +44,10 @@ public class EnumsTransUtil {
                 return com.github.im.common.connect.model.proto.Chat.MessageType.MEETING;
             case BOT_CARD:
                 return com.github.im.common.connect.model.proto.Chat.MessageType.BOT_CARD;
+            case WORKBENCH:
+                return com.github.im.common.connect.model.proto.Chat.MessageType.WORKBENCH;
             default:
-                // 默认转换为文本消息类型
+                // MEDIA currently has no protobuf wire value. Preserve the existing TEXT fallback.
                 return com.github.im.common.connect.model.proto.Chat.MessageType.TEXT;
         }
     }
@@ -56,7 +58,7 @@ public class EnumsTransUtil {
      * 这在数据传输和跨系统通信中很有用，确保了数据的一致性和可理解性
      *
      * @param messageStatus 消息状态的枚举类型，表示消息的各种状态（如未发送、已发送等）
-     * @return 返回转换后的ChatMessage的MessagesStatus枚举类型
+     * @return 返回转换后的ChatMessage的MessagesStatus枚举值
      */
     public static com.github.im.common.connect.model.proto.Chat.MessagesStatus convertMessageStatus(MessageStatus messageStatus) {
         switch (messageStatus) {
@@ -118,8 +120,12 @@ public class EnumsTransUtil {
                 return MessageType.IMAGE;
             case VOICE:
                 return MessageType.VOICE;
+            case MEETING:
+                return MessageType.MEETING;
             case BOT_CARD:
                 return MessageType.BOT_CARD;
+            case WORKBENCH:
+                return MessageType.WORKBENCH;
             // 对于未处理的消息类型，默认为TEXT，确保总是有返回值
             default:
                 return MessageType.TEXT;

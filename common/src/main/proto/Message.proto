@@ -45,7 +45,7 @@ enum MessagesStatus{
   SENT = 1 ;   //  已发送 -》 服务端已经接收
   FAILED = 2 ; // 发送失败
   RECEIVED = 3 ;    // 已接收 用于 服务端-》客户端 接收到的状态
-  READ = 4 ;   //  已读取  客户端消息回执状态
+  READ = 4 ;   //  已读取 客户端消息回执状态
   UNREAD = 5 ;  // 未读取 客户端消息回执状态
   DELETED = 6 ;  // 删除
   REVOKE = 7 ;  // 撤回
@@ -87,6 +87,9 @@ enum MessageType{
   MEETING = 7 ;
 
   BOT_CARD = 8 ;
+
+  // Append-only. Existing numeric values are wire compatibility contracts.
+  WORKBENCH = 9 ;
 
 
 
