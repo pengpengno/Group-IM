@@ -10,6 +10,8 @@ import com.github.im.dto.workbench.task.TaskDTO;
 import com.github.im.dto.workbench.task.TaskSummaryDTO;
 import com.github.im.dto.workbench.task.UpdateTaskRequest;
 import com.github.im.server.web.ApiResponse;
+import com.github.im.server.workbench.common.error.WorkbenchErrorCode;
+import com.github.im.server.workbench.common.error.WorkbenchException;
 import com.github.im.server.workbench.task.model.TaskWorkflowAction;
 import com.github.im.server.workbench.task.service.TaskService;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/workbench/tasks")
@@ -40,17 +43,12 @@ public class WorkbenchTaskController {
     }
 
     @PatchMapping("/{taskId}")
-    public ApiResponse<TaskDTO> update(
-            @PathVariable Long taskId,
-            @RequestBody UpdateTaskRequest request
-    ) {
+    public ApiResponse<TaskDTO> update(@PathVariable Long taskId, @RequestBody UpdateTaskRequest request) {
         return ApiResponse.success(taskService.update(taskId, request));
     }
 
     @GetMapping
-    public ApiResponse<List<TaskSummaryDTO>> list(
-            @RequestParam(defaultValue = "50") int limit
-    ) {
+    public ApiResponse<List<TaskSummaryDTO>> list(@RequestParam(defaultValue = "50") int limit) {
         return ApiResponse.success(taskService.list(limit));
     }
 
@@ -65,11 +63,7 @@ public class WorkbenchTaskController {
             @PathVariable String action,
             @RequestBody(required = false) TaskActionRequest request
     ) {
-        return ApiResponse.success(taskService.action(
-                taskId,
-                TaskWorkflowAction.valueOf(action.trim().toUpperCase()),
-                request
-        ));
+        return ApiResponse.success(taskService.action(taskId, parseAction(action), request));
     }
 
     @PostMapping("/{taskId}/assignees")
@@ -81,10 +75,7 @@ public class WorkbenchTaskController {
     }
 
     @DeleteMapping("/{taskId}/assignees/{userId}")
-    public ApiResponse<TaskDTO> removeAssignee(
-            @PathVariable Long taskId,
-            @PathVariable Long userId
-    ) {
+    public ApiResponse<TaskDTO> removeAssignee(@PathVariable Long taskId, @PathVariable Long userId) {
         return ApiResponse.success(taskService.removeAssignee(taskId, userId));
     }
 
@@ -99,5 +90,16 @@ public class WorkbenchTaskController {
     @GetMapping("/{taskId}/activities")
     public ApiResponse<List<TaskActivityDTO>> activities(@PathVariable Long taskId) {
         return ApiResponse.success(taskService.activities(taskId));
+    }
+
+    private TaskWorkflowAction parseAction(String value) {
+        try {
+            return TaskWorkflowAction.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (Exception exception) {
+            throw WorkbenchException.badRequest(
+                    WorkbenchErrorCode.TASK_INVALID_REQUEST,
+                    "不支持的 Task action: " + value
+            );
+        }
     }
 }

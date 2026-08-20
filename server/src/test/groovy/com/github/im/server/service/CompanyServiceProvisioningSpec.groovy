@@ -23,30 +23,15 @@ class CompanyServiceProvisioningSpec extends Specification {
     TenantSchemaProvisioner tenantSchemaProvisioner = Mock()
     CompanyProvisioningTransactionService provisioningTransactions = Mock()
 
-    CompanyService service = new CompanyService(
-            companyRepository,
-            eventPublisher,
-            userMapper,
-            companyMapper,
-            entityManager,
-            tenantSchemaProvisioner,
-            provisioningTransactions
-    )
+    CompanyService service = new CompanyService(companyRepository, eventPublisher, userMapper, companyMapper,
+            entityManager, tenantSchemaProvisioner, provisioningTransactions)
 
     def "new tenant remains inactive until migrations succeed"() {
         given:
         def requested = company(null, "钉钉", "dingding", true)
         def reserved = company(42L, "钉钉", "dingding", false)
         def active = company(42L, "钉钉", "dingding", true)
-        def plan = new TenantMigrationPlan(
-                "dingding",
-                "2026082001",
-                "2026082001",
-                0,
-                List.of(),
-                false,
-                null
-        )
+        def plan = new TenantMigrationPlan("dingding", "2026082002", "2026082002", 0, List.of(), false, null)
 
         when:
         def result = service.save(requested)
@@ -66,11 +51,7 @@ class CompanyServiceProvisioningSpec extends Specification {
         given:
         def requested = company(null, "钉钉", "dingding", true)
         def reserved = company(42L, "钉钉", "dingding", false)
-        def failure = new BusinessException(
-                HttpStatus.CONFLICT,
-                "MIGRATION_APPLY_FAILED",
-                "migration failed"
-        )
+        def failure = new BusinessException(HttpStatus.CONFLICT, "MIGRATION_APPLY_FAILED", "migration failed")
 
         when:
         service.save(requested)
