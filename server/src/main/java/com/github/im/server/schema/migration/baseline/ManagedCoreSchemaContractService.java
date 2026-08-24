@@ -36,7 +36,7 @@ public class ManagedCoreSchemaContractService {
         try (Connection connection = dataSource.getConnection()) {
             boolean historyExists = tableExists(connection, schemaName, "flyway_schema_history");
             if (!historyExists) {
-                return new Inspection(false, null, false, Set.of(), false,
+                return new Inspection(false, null, false, null, Set.of(), false,
                         List.of("tenant 没有 Flyway history；managed-core projection 禁止启用。"));
             }
 
@@ -46,23 +46,31 @@ public class ManagedCoreSchemaContractService {
                     qualifiedHistory,
                     ManagedCoreSchemaContract.WORKBENCH_STORAGE_VERSION
             );
+            String managedContractMarker = metadataValue(connection, schemaName, "managed_core_contract");
             Set<String> actualMessageTypes = loadMessageTypes(connection, schemaName);
             Set<String> expectedMessageTypes = workbenchMigrationApplied
                     ? ManagedCoreSchemaContract.WORKBENCH_MESSAGE_TYPES
                     : ManagedCoreSchemaContract.BASELINE_MESSAGE_TYPES;
 
-            boolean valid = actualMessageTypes.equals(expectedMessageTypes);
+            String expectedContractMarker = workbenchMigrationApplied
+                    ? ManagedCoreSchemaContract.WORKBENCH_STORAGE_VERSION
+                    : null;
+            boolean valid = actualMessageTypes.equals(expectedMessageTypes)
+                    && java.util.Objects.equals(managedContractMarker, expectedContractMarker);
             List<String> problems = valid
                     ? List.of()
                     : List.of(
                             "messages_type_check 与 Flyway history 不一致；expected="
                                     + expectedMessageTypes + ", actual=" + actualMessageTypes
+                                    + "; managed_core_contract expected=" + expectedContractMarker
+                                    + ", actual=" + managedContractMarker
                     );
 
             return new Inspection(
                     true,
                     currentVersion,
                     workbenchMigrationApplied,
+                    managedContractMarker,
                     Set.copyOf(actualMessageTypes),
                     valid,
                     problems
@@ -73,6 +81,20 @@ public class ManagedCoreSchemaContractService {
                     "MIGRATION_MANAGED_CORE_INSPECTION_FAILED",
                     "无法验证 managed core contract: " + safeMessage(exception)
             );
+        }
+    }
+
+    private String metadataValue(Connection connection, String schemaName, String key) throws SQLException {
+        if (!tableExists(connection, schemaName, "tenant_schema_metadata")) {
+            return null;
+        }
+        String sql = "SELECT metadata_value FROM " + quote(schemaName)
+                + ".\"tenant_schema_metadata\" WHERE metadata_key = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, key);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next() ? resultSet.getString(1) : null;
+            }
         }
     }
 
@@ -163,6 +185,7 @@ public class ManagedCoreSchemaContractService {
             boolean historyExists,
             String currentVersion,
             boolean workbenchMigrationApplied,
+            String managedContractMarker,
             Set<String> messageTypes,
             boolean valid,
             List<String> problems

@@ -301,6 +301,10 @@ Approval V1 复用 #13 permission/audit/tenant foundation，固定 Definition + 
 
 当前 checks：Repository Governance、Backend PR Validation（applicable paths）、Electron Web PR Validation（applicable paths）、Build KMP APK、no unresolved review threads。#6 仍负责把这些 checks 配成 `master` required checks。
 
+### 开源复用决策
+
+详细评审见 `doc/features/workbench/open-source-component-review.md`。当前唯一建议进入近期技术 Spike 的是 Spring Modulith Event Publication Registry，用于 #55 评估可恢复的事件发布；Adaptive Cards / Gotify 仅借鉴降级与连接设计，UnifiedPush 仅作为后续 Android transport，Flowable 不进入 Approval V1。所有候选都不得建立第二套 tenant、permission 或业务真相。
+
 ---
 
 ## 12. Change Log

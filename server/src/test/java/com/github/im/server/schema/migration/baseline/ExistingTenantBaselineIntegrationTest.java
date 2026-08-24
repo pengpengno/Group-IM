@@ -193,6 +193,17 @@ class ExistingTenantBaselineIntegrationTest {
         assertTrue(manualManagedDrift.repairPlan().stream()
                 .anyMatch(value -> value.contains("messages_type_check 与 Flyway history 不一致")));
 
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("DELETE FROM legacy_a.tenant_schema_metadata WHERE metadata_key = 'managed_core_contract'");
+        }
+        TenantBaselinePreflightSnapshot missingManagedMarker = preflightService.preflight(
+                new TenantBaselinePreflightRequest(List.of(1L), false),
+                9001L
+        ).getFirst();
+        assertEquals(TenantBaselineClassification.DRIFTED, missingManagedMarker.classification());
+        assertTrue(missingManagedMarker.repairPlan().stream()
+                .anyMatch(value -> value.contains("managed_core_contract expected=2026082003, actual=null")));
+
         BusinessException drifted = assertThrows(
                 BusinessException.class,
                 () -> baselineService.baseline(
