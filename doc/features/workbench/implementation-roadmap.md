@@ -1,325 +1,257 @@
 # Workbench / OA 实施 Roadmap
 
 > 状态：ACTIVE PLAN  
-> 设计 Issue：#10  
+> 最后同步：2026-08-24  
+> 设计基线：#10 / ADR-0002 / ADR-0003 / ADR-0005  
+> 路线同步 Issue：#53  
 > 规则：每个阶段必须 `Issue -> Branch -> PR -> CI -> PROJECT_MASTER -> Merge`
 
-本文把 2026-08-06 v0.1 草稿中的 PR-0 ~ PR-10 重新整理为当前仓库的 Issue/PR 驱动路线。Workbench Web/Android Shell、数据库安全同步和仓库治理已经存在，因此旧编号不再直接沿用。
+本文只描述**当前可执行路线**。历史设计细节分别保留在：
+
+- `README.md`：Workbench/OA 业务边界；
+- `task.md`：Task 领域设计；
+- `approval.md`：Approval 领域设计；
+- `platform-integration.md`：tenant/security/file/job 集成；
+- `notification-protocol.md` + ADR-0005：WORKBENCH Card / ClientEvent / Push / Deep Link 协议。
+
+项目实时状态以 `doc/PROJECT_MASTER.md` 为唯一事实入口。
 
 ---
 
-## 1. 总体策略
+## 1. 当前路线结论
 
-Workbench V1 按以下顺序推进：
+截至 2026-08-24，Workbench 已经完成从“设计与基础设施”到“Task Web/Electron 可用闭环”的主体建设：
 
 ```text
-#10 Formal Design
-   ↓
-#12 Versioned Tenant Migration
-   ↓
-#13 Workbench Platform Foundation
-   ↓
-Overview
-   ↓
-Task Backend
-   ↓
-Task Web/Electron
-   ↓
-#14 Structured OA Card / ClientEvent Protocol
-   ↓
-Task Realtime / Push / Card
-   ↓
-Approval Backend
-   ↓
-Approval Web/Electron
-   ↓
-Calendar + Announcement
-   ↓
-Android OA capabilities
+Formal Design                         ✅
+Tenant Versioned Migration            ✅
+Workbench Platform Foundation         ✅
+Overview                              ✅
+Task Backend                          ✅
+Task Web/Electron                     ✅
+Structured OA Notification Design     ✅
+WORKBENCH Protocol                    ✅
+Web/Electron WORKBENCH Consumer       ✅
+Android/KMP WORKBENCH Consumer        ← CURRENT
+WORKBENCH Storage/Core Evolution      NEXT
+Supported-client Rollout Gate         NEXT
+Task Realtime/Push/Card                BLOCKED
+Approval Backend                       QUEUED
 ```
 
-核心原则：每一步必须可独立验收，避免一个 PR 同时决定数据库、后端业务、Electron、Android 和消息协议。
+当前唯一优先主线：
+
+```text
+#30 Android/KMP Card + Deep Link
+→ #50 WORKBENCH Message Storage / Managed Core Evolution
+→ #54 Supported-client Rollout Gate
+→ #55 Task Realtime / Push / WORKBENCH Notification
+→ Task V1 cross-client E2E
+→ #56 Approval Backend V1
+```
+
+选择这一路线的原因：先把一个 Task 纵向切片从数据库、API、Web/Electron、Android consumer、通知、安全 rollout 全部闭环，再展开 Approval，避免两个领域同时处于半完成状态。
 
 ---
 
-## 2. 已建立的前置 Issue
+## 2. 已完成阶段
 
-| Issue | 状态 | 目的 | 是否阻塞业务实现 |
+| 阶段 | Issue | 状态 | 产物 |
 | --- | --- | --- | --- |
-| #10 | IN_PROGRESS | 正式化 Workbench/OA Feature Design | 是，设计基线 |
-| #12 | OPEN | 建立可创建新表的版本化 tenant migration | 是，阻塞 Task/Approval 新表 |
-| #13 | OPEN | 建立 Workbench common/context/permission/audit/adapters | 是，阻塞领域实现规范化 |
-| #14 | OPEN | 固定 OA Card / ClientEvent / Push / Deep Link 协议 | 阻塞 Task/Approval 卡片通知，不阻塞纯 Backend |
+| 正式 Feature Design | #10 | ✅ COMPLETED | Workbench / Task / Approval / platform / roadmap |
+| Tenant Versioned Migration | #12 | ✅ COMPLETED | Flyway provisioning / baseline / validate / audit |
+| Workbench Platform Foundation | #13 | ✅ COMPLETED | CurrentWorkContext / permission / audit / adapters / tenant executor |
+| Overview | #39 | ✅ COMPLETED | `/api/workbench/overview` + Meeting/Task projection |
+| Baseline Scope Compatibility | #43 | ✅ COMPLETED | immutable core baseline 与 later managed object 分离 |
+| Task Backend | #45 | ✅ COMPLETED | `wb_task*` + API + state machine + permission + activity/audit |
+| Electron/Web CI | #9 | ✅ COMPLETED | clean runner app/web build gate |
+| Task Web/Electron | #47 | ✅ COMPLETED | Workbench Task Center 核心操作闭环 |
+| Structured OA Card Design | #14 | ✅ COMPLETED | ADR-0005 / client-first rollout / delivery matrix |
+| WORKBENCH Protocol | #28 | ✅ COMPLETED | Java/Proto/envelope/event/deep-link contract |
+| Web/Electron Consumer | #29 | ✅ COMPLETED | safe card renderer / tenant-aware Deep Link / server re-fetch |
 
-依赖关系：
+### 已完成的 Task 非通知闭环
 
 ```text
-#10
- ├── #12 database migration
- ├── #13 platform foundation (depends on #12 for DB-backed foundation)
- └── #14 structured notification protocol
+create
+→ assign
+→ query/detail
+→ start/block/resume
+→ complete/reopen/cancel
+→ comment/activity
+→ Overview aggregation
+→ Web/Electron UI
 ```
 
----
-
-## 3. Phase 0 — 正式设计基线（#10）
-
-### 交付
-
-- Workbench Feature Design；
-- Task 设计；
-- Approval 设计；
-- 平台集成设计；
-- 本 Roadmap；
-- PROJECT_MASTER 同步；
-- ADR-0002 / ADR-0003。
-
-### 验收
-
-- 不修改业务代码；
-- Governance CI 通过；
-- 旧 v0.1 过时假设已移除；
-- 后续开发有唯一正式设计入口；
-- 实现前置项已转为真实 Issue，而不是文档 TODO。
+当前缺口不是 Task 领域本身，而是**跨客户端安全通知闭环**。
 
 ---
 
-## 4. Phase 1A — Versioned Tenant Migration（#12）
+## 3. CURRENT — #30 Android/KMP Workbench Card + Deep Link
 
 ### 目标
 
-为 Workbench 以及后续业务模块建立唯一、可审计的 tenant 新表迁移路径。
+让 Android/KMP 在 server 开启 WORKBENCH emission 之前，先具备与 Web/Electron 同等的安全 consumer 能力。
 
-### 范围
+### 已确认的技术边界
 
-- public/global 与 tenant migration 的目录/版本策略；
-- 新 tenant 创建后迁移到 target version；
-- 已有 tenant 批量 migration；
-- migration history / version tracking；
-- Safe Sync 与正式 migration 的职责边界；
-- drift/conflict preflight；
-- 执行审计与失败恢复；
-- 多 tenant integration test；
-- Hibernate `ddl-auto=update -> validate` 的分阶段路线。
-
-### 关键约束
-
-当前 `SafeTenantSchemaSyncService` **不自动创建缺失表**，所以不能依赖它生成：
-
-```text
-wb_task
-wb_approval_*
-wb_schedule
-wb_announcement
-```
-
-### 验收
-
-- 能安全创建新表/索引/约束；
-- 新旧 tenant 可达到同一 target version；
-- 冲突 tenant 不执行危险 DDL；
-- 迁移结果可追踪。
-
----
-
-## 5. Phase 1B — Workbench Platform Foundation（#13）
-
-依赖：#12 的正式 migration 路径已明确到可供 Workbench 使用的程度。
-
-### 范围
-
-- `workbench/common` 模块边界；
-- `CurrentWorkContext`；
-- Workbench exception/error mapping；
-- 最小 PermissionService 框架；
-- Audit 基础；
-- Organization Adapter；
-- File Adapter / resource authorization boundary；
-- 后台 Job 的 explicit TenantExecutor/SchemaSwitcher 规则。
-
-### 不做
-
-- 完整 Task；
-- Approval；
-- 大规模 Workbench UI；
-- OA Card 协议。
-
-### 验收
-
-- 能统一读取/校验 current user/company/schema；
-- 新 Workbench Command 不使用 `username == admin`；
-- Job tenant execution 不依赖 HTTP Filter；
-- 后续 Task/Approval 可复用统一权限、审计和适配边界。
-
----
-
-## 6. Phase 2 — Overview 基础
-
-在 #13 完成后创建独立 Feature Issue。
-
-### 后端
-
-```http
-GET /api/workbench/overview
-```
-
-初期可以聚合已有 Meeting + 空 Task/Approval/Announcement projection，但 API 契约需要稳定。
-
-### Web/Electron
-
-在现有 Workbench Shell 内加入：
-
-- Current Company；
-- Todo Summary；
-- Quick Apps；
-- Today Schedule/Meeting；
-- Recent Tasks placeholder/真实数据逐步接入；
-- Pending Approvals placeholder/真实数据逐步接入；
-- Loading / Empty / Error；
-- 公司切换 reset/refresh。
-
-### Android
-
-可以同步接 Overview，也可以延后到 Task 阶段；不要求同一 PR 完整实现全部卡片。
-
-### 验收
-
-- 两个公司切换无数据串租户；
-- 当前 Workbench 入口能力无回归；
-- 首页不通过 N 个独立卡片请求拼接完整业务详情。
-
----
-
-## 7. Phase 3 — Task Backend
-
-创建独立 Feature Issue；依赖 #12 + #13。
-
-### 数据
-
-```text
-wb_task
-wb_task_assignee
-wb_task_comment
-wb_task_activity
-```
-
-### 代码边界
-
-```text
-workbench/task/
-├── model
-├── repository
-├── service
-├── query
-├── permission
-├── controller
-├── mapper
-└── event
-```
-
-### API 范围
-
-- Create / Query / Detail；
-- Edit metadata；
-- Assignee；
-- Start / Block / Resume / Complete / Reopen / Cancel；
-- Comment；
-- Activity timeline。
-
-### 测试
-
-- 状态机；
-- 权限；
-- tenant isolation；
-- optimistic lock；
-- Controller 401/403/409；
-- migration。
-
-### 验收
-
-不依赖 UI，通过 API 可完成：
-
-```text
-create -> assign -> start -> complete -> query history
-```
-
----
-
-## 8. Phase 4 — Task Web/Electron
-
-### 范围
-
-- Task List；
-- Task Detail；
-- Create/Edit；
-- Assignees；
-- Filters/Pagination；
-- Comments；
-- Activity；
-- 状态动作；
-- Overview count 联动；
-- 公司切换 state reset。
-
-Task 使用独立 slice/store，不把完整 Task 写进 Overview state。
+1. KMP 本地 `MessageType` 必须 append `WORKBENCH`；
+2. Proto `WORKBENCH` 映射不能在 `MessageType.valueOf(...)` 阶段崩溃；
+3. `MessageBubble.kt` 新增独立 Workbench renderer，不复用 BOT_CARD；
+4. V1 parser 校验 version/category/action/target/deepLink；
+5. unknown/malformed payload 只显示安全 fallback；
+6. company switch 必须复用 authenticated `CompanyApi.switchCompany` / `UserViewModel.switchWorkspace`；
+7. 跨公司时必须等 credential/current company 真正更新后再读取资源；
+8. Task Detail 必须重新调用 server API，不能信任卡片 snapshot；
+9. 卡片不直接执行 Complete/Approve 等业务命令；
+10. BOT_CARD / MEETING 行为必须回归；
+11. KMP APK CI green。
 
 ### 验收
 
 ```text
-A 创建任务并指派 B
-→ B 在 Web/Electron 查看
-→ B Start / Complete
-→ A 查看状态和 Overview 更新
+valid WORKBENCH V1
+→ Compose card renders
+→ tap
+→ optional authenticated workspace switch
+→ GET current resource detail
+→ server authorizes
+→ current detail / forbidden / deleted safe state
 ```
 
----
-
-## 9. Phase 5A — Structured OA Card / ClientEvent Protocol（#14）
-
-#14 可以与 Task Backend 并行设计，但必须在 Task 卡片/Push 正式实现前完成。
-
-### 决策内容
-
-- 独立 `WORKBENCH` MessageType，或泛化 `APP_CARD/STRUCTURED_CARD`；
-- 不破坏已有 `BOT_CARD` 机器人语义；
-- payload version/category/action/resourceId/status/deepLink；
-- ClientEventType 扩展；
-- Push payload 最小化；
-- Web/Electron + Android 兼容渲染；
-- 未知卡片的老客户端降级策略；
-- Deep Link tenant/resource 再授权。
-
-### 验收
-
-必须通过 ADR 固定选择，而不是在 Task PR 中临时决定。
+#30 未完成前：**禁止 server actual WORKBENCH emission**。
 
 ---
 
-## 10. Phase 5B — Task Realtime / Push / Card
+## 4. NEXT — #50 WORKBENCH Message Storage / Managed Core Evolution
 
-依赖：Task Backend + #14。
+### 背景
 
-### 范围
+`messages_type_check` 属于 `2026081906` immutable core baseline，当前不允许 `WORKBENCH`。
 
-- Task ClientEvent；
-- Notification Policy；
-- Deep Link；
-- Task Card renderer；
-- AFTER_COMMIT handler；
-- online/offline 策略；
-- Push payload 安全。
+直接手工 ALTER 会破坏 core fingerprint 语义，因此 #50 不是一个“改 CHECK 就结束”的小修，而是正式建立 **managed core evolution**。
 
-### 验收
+### 必须保持
 
-- 在线/离线按策略通知；
-- Deep Link 到正确 tenant/resource；
-- DB rollback 不产生成功通知；
-- 老客户端有安全降级。
+- 历史 migration `V2026081901..1906` 不修改；
+- no-history tenant 仍严格按 1906 adoption contract；
+- unknown/manual core drift 仍 fail closed；
+- 已有可信 Flyway history 的 tenant 可以证明合法后续 core evolution；
+- 新 immutable migration 扩展 `messages_type_check`；
+- BOT_CARD / MEETING 等原类型不变；
+- provisioning / baseline / target / Testcontainers regression 同步。
+
+### 结果
+
+#50 完成只代表：
+
+```text
+数据库可以合法保存 WORKBENCH
+```
+
+不代表 server 可以立即开始发消息。
 
 ---
 
-## 11. Phase 6 — Approval Backend
+## 5. NEXT — #54 Supported-client Rollout Gate
 
-依赖：#12 + #13；Task 主闭环已验证平台基础。
+### 目标
+
+把 ADR-0005 的“client-first”从设计原则变成发布规则。
+
+### 必须固定
+
+- supported-client matrix；
+- Web/Electron minimum version；
+- Android/KMP minimum version；
+- rollout feature gate；
+- 灰度策略；
+- rollback/kill switch；
+- old-client behavior；
+- ClientEvent / Push / IM WORKBENCH Card 各自开启条件；
+- 禁止 TEXT + WORKBENCH dual-write。
+
+### Gate
+
+只有：
+
+```text
+#29 Web/Electron consumer ✅
++ #30 Android/KMP consumer ✅
++ #50 WORKBENCH storage ✅
++ #54 rollout policy ✅
+```
+
+全部满足，才允许进入 actual emission。
+
+---
+
+## 6. #55 Task Realtime / Push / WORKBENCH Notification
+
+状态：BLOCKED，依赖 #30 + #50 + #54。
+
+### 领域原则
+
+Task 表/状态仍是唯一业务真相。通知只是已经提交成功的业务事实的投影视图。
+
+### 处理链路
+
+```text
+Task Domain Command
+→ DB transaction
+→ COMMIT
+→ AFTER_COMMIT Domain Event Handler
+→ NotificationPolicy(category=TASK, action=...)
+→ ClientEvent / Push / optional IM WORKBENCH Card
+```
+
+### V1 事件候选
+
+- created；
+- assigned；
+- started；
+- blocked；
+- resumed；
+- completed；
+- reopened；
+- cancelled；
+- comment-added（按 policy 决定）。
+
+### 安全边界
+
+- rollback 不产生成功通知；
+- stable `eventId` 去重；
+- Push 只传最低敏感度信息；
+- IM Card 只在已有合法 route 时使用；
+- 不为了 OA 通知自动创建 conversation；
+- Deep Link 不授权写操作；
+- client 打开后必须 server re-fetch + re-authorize；
+- 禁止 TEXT + WORKBENCH 双写。
+
+### Task V1 E2E Gate
+
+```text
+A(company X) create/assign Task to B
+→ commit
+→ B receives policy-selected notification on supported client
+→ B opens Deep Link
+→ authenticated company switch if needed
+→ server returns current Task detail
+→ B start/complete
+→ A sees current state / Overview refresh
+→ company Y cannot access X Task
+→ rollback emits nothing
+```
+
+达到该 Gate 后，Task V1 才算真正跨端闭环。
+
+---
+
+## 7. #56 Approval Backend V1
+
+状态：QUEUED。
+
+技术上 Approval Backend 可以独立于 WORKBENCH notification 开发，但项目交付优先级选择在 #55 之后开始，以保证一个领域完整闭环后再进入下一领域。
 
 ### 数据
 
@@ -331,231 +263,265 @@ wb_approval_action
 wb_approval_cc
 ```
 
-### 首版流程
+### V1 流程
 
-- 固定 Definition；
-- 串行 Nodes；
-- Submit；
-- Approve；
-- Reject；
-- Return；
-- Resubmit；
-- Cancel；
-- Transfer（如范围允许）；
-- CC。
+```text
+draft
+→ submit
+→ serial pending node
+→ approve / reject / return
+→ resubmit when returned
+→ terminal approved/rejected/cancelled
+```
 
-### 测试重点
+### 必须复用
 
-- current assignee；
-- serial node advance；
-- terminal state；
-- concurrent approve；
-- tenant isolation；
-- sensitive detail permission。
+- #13 CurrentWorkContext；
+- Workbench Permission；
+- Workbench Audit；
+- Organization/File adapters；
+- Flyway tenant migration；
+- optimistic/concurrency control；
+- ADR-0005 notification protocol（通知阶段）。
 
----
-
-## 12. Phase 7 — Approval Web/Electron + Notification
-
-卡片/通知部分依赖 #14 已完成。
-
-### UI
-
-- 发起；
-- 待我审批；
-- 我发起的；
-- 我处理过的；
-- 抄送我的；
-- Detail/Timeline；
-- Approve/Reject/Return/Cancel；
-- Attachment。
-
-### 验收
+### 后端验收
 
 ```text
 A submit
-→ B pending
+→ B becomes current assignee
 → B approve
-→ A result
-→ pending count correct
+→ next node / terminal result correct
+→ duplicate/concurrent approve safe
+→ tenant/resource permission fail closed
+→ audit/action history complete
 ```
 
 ---
 
-## 13. Phase 8 — Calendar / Meeting Aggregation
+## 8. Approval Web/Electron 与通知
 
-### 范围
+#56 后拆独立 Issue/PR：
 
-- `wb_schedule`；
-- participant/reminder；
-- personal schedule；
-- `MeetingCalendarAdapter`；
-- Task due projection；
-- Today Schedule；
-- reminder Job。
+### UI
 
-Meeting 的真实参与状态仍由 Meeting 模块维护，不复制成 Workbench 第二份真相。
+- 发起审批；
+- 待我审批；
+- 我发起的；
+- 我处理过的；
+- 抄送我的；
+- Detail / Timeline；
+- Approve / Reject / Return / Cancel；
+- Attachment。
 
----
+### Overview
 
-## 14. Phase 9 — Announcement
+接入真实：
 
-### 范围
+```text
+pendingApprovalCount
+recent approvals
+```
 
-- Announcement；
-- Company/Department/User target；
-- read receipt；
-- publish permission；
-- normal/urgent notification policy；
-- Overview unread card。
+### Notification
 
-### 验收
-
-- 目标范围外用户不可读取；
-- read count 正确；
-- urgent Push 正确；
-- 发布动作可审计。
+复用 #54 rollout policy 与 WORKBENCH protocol，不再为 Approval 发明第二套消息协议。
 
 ---
 
-## 15. Phase 10 — Android OA 完整度
+## 9. Android OA 后续完整度
 
-Android Workbench Shell 已存在，本阶段是补足领域能力而不是新建工作台入口。
+#30 只负责 **WORKBENCH structured card consumer/deep-link gate**，不是完整 Android Task/Approval UI。
 
-推荐顺序：
+后续 Android OA 推荐顺序：
 
-1. Overview；
+1. Overview real API；
 2. Task list/detail；
 3. Task Start/Complete/Comment；
 4. Approval pending/detail/actions；
 5. Announcement；
-6. Deep Link / Push routing；
-7. Task/Approval 创建体验；
-8. 管理配置最后补。
+6. Task/Approval 创建体验；
+7. 管理配置最后补。
+
+Android 和 Web/Electron 共享 server DTO/permission/domain truth，不建立移动端专属业务模型。
 
 ---
 
-## 16. 后续 Phase — Report / AI Office
+## 10. 后续业务领域
 
-Task/Approval 稳定后再评估：
+Task + Approval 稳定后：
 
-- 日报/周报；
-- AI 总结工作内容；
-- AI 从会议/消息提议任务；
-- 自动化触发 Task/Approval；
-- 部门工作汇总。
+```text
+Calendar / Meeting aggregation
+→ Announcement
+→ Report
+→ AI Office / Automation proposals
+```
 
-AI/Automation 创建或修改真实业务对象必须经过权限和必要的人机确认，并调用 Workbench Domain Service，不能直接写 OA 表。
+### Calendar / Schedule
+
+- `wb_schedule`；
+- participant/reminder；
+- Meeting adapter；
+- Task due projection；
+- Today Schedule。
+
+Meeting 的真实参与状态继续归 Meeting 模块维护。
+
+### Announcement
+
+- Company / Department / User target；
+- read receipt；
+- publish permission；
+- normal/urgent notification policy；
+- Overview unread。
+
+### AI Office
+
+AI/Automation 可以：
+
+- 总结 Task/Approval/Meeting；
+- 从会议/消息提出 Task 建议；
+- 建议自动化流程；
+
+但创建/修改真实业务对象必须调用 Workbench Domain Service，并经过权限与必要的人机确认；禁止直接写 OA 表。
 
 ---
 
-## 17. 每个实现 Issue 必须包含
+## 11. 数据库路线
+
+当前：
+
+```text
+core baseline = 2026081906
+managed target = 2026082002
+```
+
+原则：
+
+- core baseline 永不随普通业务 migration 前移；
+- Task/Approval 新表使用新的 immutable tenant migration；
+- managed target 随合法 migration 前移；
+- no-history legacy adoption 与 managed current validation 是两个不同阶段；
+- 不允许 Hibernate `ddl-auto=update` 作为 Workbench schema authority；
+- `ddl-auto=validate` 继续按 staging/canary/production coverage 分阶段推进；
+- 测试 tenant 可删除重建，不阻塞功能开发；真实数据环境必须走正式 migration/preflight。
+
+---
+
+## 12. 通知协议不变量
+
+以下规则后续所有 Task/Approval/Announcement/Schedule/Report 都必须遵守：
+
+1. `WORKBENCH` 与 `BOT_CARD` 语义隔离；
+2. card payload versioned；
+3. card 是 immutable event snapshot；
+4. current domain state 必须 server fetch；
+5. companyId 是 routing hint，不是 authorization；
+6. schemaName 不下发客户端；
+7. Deep Link 必须 tenant-aware；
+8. client 不从 card payload 直接执行业务写命令；
+9. unknown/malformed payload safe fallback；
+10. Push 最小化；
+11. no implicit conversation creation；
+12. no TEXT + WORKBENCH dual-write；
+13. server emission 必须经过 supported-client rollout gate。
+
+---
+
+## 13. PR / CI 路线规则
+
+每个实现 Issue 必须包含：
 
 ```text
 背景
 目标
 范围
 非范围
-设计文档链接
-依赖 Issue
+依赖
 数据/API/协议影响
 验收标准
 测试计划
 兼容性/迁移风险
 ```
 
-涉及长期架构决定时，同时建立 ADR。
+每个实现 PR 必须包含：
 
----
-
-## 18. 每个实现 PR 必须包含
-
-- `Fixes/Closes #issue`；
+- `Closes #issue` 或 `Related to #issue`；
 - 实现与测试；
 - `doc/PROJECT_MASTER.md` 更新；
-- 本目录对应 Feature Design 更新；
+- 对应 Feature Design / Roadmap 更新（当状态或架构变化）；
 - migration 说明（如有）；
 - API/协议兼容性说明（如有）；
-- 当前模块状态变化；
-- Follow-up Issue。
+- follow-up blockers/Issues。
 
-推荐分支示例：
-
-```text
-feature/13-workbench-foundation
-feature/<issue>-workbench-overview
-feature/<issue>-task-backend
-feature/<issue>-task-web
-feature/<issue>-task-notification
-feature/<issue>-approval-backend
-feature/<issue>-approval-web
-feature/<issue>-workbench-calendar
-feature/<issue>-announcement
-feature/<issue>-android-workbench-oa
-```
-
-架构类：
+Merge gates：
 
 ```text
-feature/12-tenant-migration
-feature/14-workbench-card-protocol
+Repository Governance
++ Backend PR Validation (applicable)
++ Electron Web PR Validation (applicable)
++ Build KMP APK
++ no unresolved review threads
 ```
 
-实际前缀可按 Issue 类型使用 `feature/`、`refactor/` 或 `chore/`，但必须符合 Governance CI。
+默认 Squash Merge。
 
 ---
 
-## 19. 风险处理顺序
+## 14. 当前执行队列
 
-最先解决的不是 UI，而是：
+### P0 — 正在做
 
-1. tenant migration（#12）；
-2. platform/data permission（#13）；
-3. 状态机；
-4. 并发；
-5. notification transaction boundary；
-6. card/event protocol（#14）；
-7. attachment authorization；
-8. company-switch stale state；
-9. 多端 DTO 漂移。
+```text
+#30 Android/KMP Workbench Card + Deep Link
+```
 
-禁止为了“先看到页面”跳过这些基础后直接大规模实现 OA UI。
+### P1 — 紧随其后
+
+```text
+#50 WORKBENCH Message Storage / Managed Core Evolution
+#54 Supported-client Rollout Gate
+```
+
+### P2 — 完成 Task 纵向闭环
+
+```text
+#55 Task Realtime / Push / WORKBENCH Notification
+```
+
+### P3 — 下一业务模块
+
+```text
+#56 Approval Backend V1
+→ Approval Web/Electron
+→ Approval Notification
+```
+
+### P4 — 后续
+
+```text
+Android OA full capabilities
+Calendar / Meeting aggregation
+Announcement
+Report
+AI Office / Automation
+```
 
 ---
 
-## 20. V1 最终 E2E Gate
+## 15. 路线变化记录
 
-### Task
+### 2026-08-24 — #53
 
-```text
-A(company X) create task for B
-→ B realtime/push
-→ B start/complete
-→ A observes completed
-→ switch company Y: task unavailable
-```
+- 修正早期 roadmap 将 #10/#12/#13/#14 等已完成阶段仍标为 OPEN/IN_PROGRESS 的历史状态漂移；
+- #29 Web/Electron consumer 标记 COMPLETED；
+- CURRENT 切到 #30；
+- #50 固定为 storage/core evolution blocker；
+- 新建 #54 supported-client rollout gate；
+- 新建 #55 Task notification implementation；
+- 新建 #56 Approval Backend V1；
+- 固定当前优先路线：`#30 -> #50 -> #54 -> #55 -> #56`。
 
-### Approval
+---
 
-```text
-A submit
-→ B pending notification
-→ B approve
-→ A result notification
-→ Overview pending count changes
-→ switch company Y: approval unavailable
-```
-
-### Regression
-
-同时验证：
-
-- Chat；
-- Meeting；
-- Login；
-- Company switch；
-- Contacts；
-- File upload/download；
-- AI/BOT_CARD existing rendering。
-
-只有这些 Gate 全部通过，Workbench V1 才可以进入 `STABLE`。
+> Workbench 当前不是“继续堆页面”，而是先完成 Task 的安全跨客户端通知纵向闭环，再复制已经验证过的平台模式到 Approval。
