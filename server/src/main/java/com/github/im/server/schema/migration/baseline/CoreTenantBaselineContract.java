@@ -8,14 +8,15 @@ import java.util.Set;
  * Immutable contract used to decide whether an existing tenant can be explicitly
  * baselined into Flyway history.
  *
- * 2026081906 remains the business-schema baseline. MANAGED_TARGET_VERSION tracks
- * the latest tenant Flyway target and advances as immutable managed migrations
- * such as Workbench tables are added.
+ * 2026081906 remains the business-schema adoption baseline forever. The managed
+ * target advances only through immutable Flyway migrations. Managed core evolution
+ * after the baseline is validated separately and must never rewrite these pinned
+ * adoption hashes.
  */
 public final class CoreTenantBaselineContract {
 
     public static final String BASELINE_VERSION = "2026081906";
-    public static final String MANAGED_TARGET_VERSION = "2026082002";
+    public static final String MANAGED_TARGET_VERSION = "2026082003";
 
     public static final Set<String> CORE_TABLES = Set.of(
             "approval_requests",
