@@ -5,7 +5,6 @@
 - 文档状态：ACTIVE
 - 基线日期：2026-08-24
 - 唯一开发主线：`master`
-- 当前 `master`：`eb332edafa68c2ab8a73a62f345742a7f61ddb42`
 - 最近完成：#45 Task Backend、#47 Task Web/Electron、#28 Workbench Protocol、#29 Web/Electron Workbench Card + Deep Link
 - **当前交付：#30 Android/KMP Workbench Card + tenant-aware Deep Link**
 - **下一阻塞项：#50 WORKBENCH Message Storage / managed core evolution**
@@ -418,7 +417,7 @@ A submit
 
 ### 2026-08-24 — #53 / PR #57 Roadmap synchronization
 
-状态：**COMPLETED 以 PR #57 Squash Merge 为生效边界**。修正 PROJECT_MASTER / implementation roadmap 的历史状态漂移；新增 #54 rollout gate、#55 Task notification、#56 Approval Backend 真实追踪入口；CURRENT 切换到 #30。
+状态：COMPLETED。修正 PROJECT_MASTER / implementation roadmap 的历史状态漂移；新增 #54 rollout gate、#55 Task notification、#56 Approval Backend 真实追踪入口；CURRENT 切换到 #30。
 
 ### 2026-08-20 — #29 / PR #52
 
