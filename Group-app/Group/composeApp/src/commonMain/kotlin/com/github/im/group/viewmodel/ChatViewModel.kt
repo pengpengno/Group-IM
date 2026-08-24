@@ -344,6 +344,7 @@ class ChatViewModel(
             MessageType.IMAGE -> "[图片]"
             MessageType.MEETING -> "[会议]"
             MessageType.BOT_CARD -> "[机器人卡片]"
+            MessageType.WORKBENCH -> "[工作台]"
         }
     }
 

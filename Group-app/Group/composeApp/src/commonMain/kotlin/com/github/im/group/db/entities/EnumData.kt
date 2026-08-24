@@ -46,6 +46,7 @@ enum class MessageType {
     IMAGE,
     MEETING,
     BOT_CARD,
+    WORKBENCH,
     ;
 
     /**

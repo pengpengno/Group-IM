@@ -57,6 +57,7 @@ import com.github.im.group.manager.toPreviewFile
 import com.github.im.group.model.MessageItem
 import com.github.im.group.model.MessageWrapper
 import com.github.im.group.ui.UserAvatar
+import com.github.im.group.ui.workbench.notification.WorkbenchMessageCard
 import com.github.im.group.viewmodel.ChatRoomViewModel
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.json.Json
@@ -165,6 +166,11 @@ fun MessageBubble(
                                     rawText = msg.content,
                                     isOwnMessage = isOwnMessage,
                                     isStructuredCard = true,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                )
+                                MessageType.WORKBENCH -> WorkbenchMessageCard(
+                                    rawText = msg.content,
+                                    isOwnMessage = isOwnMessage,
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                                 )
                                 MessageType.VOICE -> VoiceMessageContent(msg, messageViewModel, isOwnMessage)
