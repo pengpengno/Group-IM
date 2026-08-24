@@ -246,7 +246,7 @@ A(company X) create/assign Task to B
 
 ## 7. #56 Approval Backend V1
 
-状态：QUEUED。
+状态：CURRENT。#55 最小通知闭环已由 PR #62 合并。
 
 技术上 Approval Backend 可以独立于 WORKBENCH notification 开发，但项目交付优先级选择在 #55 之后开始，以保证一个领域完整闭环后再进入下一领域。
 
@@ -270,6 +270,8 @@ draft
 → resubmit when returned
 → terminal approved/rejected/cancelled
 ```
+
+实现保持显式且轻量：内置 `GENERAL` 通用定义，发起时固定串行 approver 列表；不引入流程引擎、动态表达式或低代码表单平台。
 
 ### 必须复用
 

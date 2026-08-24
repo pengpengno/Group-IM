@@ -50,8 +50,8 @@ Group-IM 是多租户组织协作 IM/OA 平台。消息是协作主链路，Work
 | Android/KMP Card + Deep Link | #30 / PR #59 | COMPLETED | safe Compose renderer + authenticated company switch + server re-fetch |
 | WORKBENCH Storage | #50 / PR #60 | COMPLETED | 2003 managed-core evolution + `messages.type=WORKBENCH` |
 | Supported-client rollout | #54 / PR #61 | COMPLETED | fail-closed master switch + per-channel kill switch + release floors |
-| Task Notification | #55 | **CURRENT** | AFTER_COMMIT + ASSIGN/COMPLETE/REOPEN 最小通知闭环 |
-| Approval Backend | #56 | QUEUED | Task 通知闭环后进入下一领域模块 |
+| Task Notification | #55 / PR #62 | COMPLETED | AFTER_COMMIT + ASSIGN/COMPLETE/REOPEN 最小通知闭环 |
+| Approval Backend | #56 | **CURRENT** | migration + serial state machine + API + Overview projection |
 
 ---
 
@@ -235,7 +235,7 @@ V1 首批只发送 `ASSIGN / COMPLETE / REOPEN` 三类高价值事件；普通�
 
 ---
 
-## 8. 下一业务领域 — #56 Approval Backend V1
+## 8. 当前业务领域 — #56 Approval Backend V1
 
 项目交付顺序保持：
 

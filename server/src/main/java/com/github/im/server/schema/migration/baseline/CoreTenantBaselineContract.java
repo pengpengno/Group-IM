@@ -16,7 +16,7 @@ import java.util.Set;
 public final class CoreTenantBaselineContract {
 
     public static final String BASELINE_VERSION = "2026081906";
-    public static final String MANAGED_TARGET_VERSION = "2026082003";
+    public static final String MANAGED_TARGET_VERSION = "2026082004";
 
     public static final Set<String> CORE_TABLES = Set.of(
             "approval_requests",
