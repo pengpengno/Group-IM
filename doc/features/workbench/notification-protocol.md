@@ -1,6 +1,6 @@
 # Workbench Structured Card / ClientEvent / Push Protocol
 
-> 状态：CLIENT CONSUMERS READY ON #30 MERGE / STORAGE BLOCKED  
+> 状态：CLIENTS + STORAGE READY / ROLLOUT GATE CURRENT
 > Related Issue：#14 / #28 / #29 / #30 / #50 / #54 / #55  
 > Architecture：ADR-0005
 
@@ -33,11 +33,11 @@
   ↓
 #29 Web/Electron parser + renderer + deep link ✅
   ↓
-#30 Android parser + renderer + deep link ✅ on PR #59 merge
+#30 Android parser + renderer + deep link ✅
   ↓
-#50 WORKBENCH message storage / managed-core evolution ← CURRENT
+#50 WORKBENCH message storage / managed-core evolution ✅
   ↓
-#54 supported-client / minimum-version rollout policy
+#54 supported-client / minimum-version rollout policy ← CURRENT
   ↓
 #55 actual Task realtime / push / optional IM WORKBENCH emission
 ```
@@ -391,7 +391,7 @@ BUT Message.type=WORKBENCH must not be persisted or emitted
 1. #28 Java/Proto/envelope/event contract ✅
 2. #29 Web/Electron renderer + unknown-safe fallback + tenant-aware deep link ✅
 3. #30 Android renderer + unknown-safe fallback + tenant-aware deep link ✅ on PR #59 merge
-4. #50 DB storage + managed-core evolution gate
+4. #50 DB storage + managed-core evolution gate ✅
 5. #54 supported-client coverage / minimum-version / feature-gate / rollback policy
 6. #55 Task server AFTER_COMMIT realtime/push/optional WORKBENCH emission
 ```
@@ -453,3 +453,12 @@ Storage follow-up #50：
 - managed core evolution accepted only when justified by Flyway history；
 - WORKBENCH type storage allowed only after migration；
 - manual core constraint drift still rejected。
+
+Rollout gate #54：
+
+- `GROUP_WORKBENCH_ROLLOUT_ENABLED=false` 是总 kill switch；
+- ClientEvent / Push / IM Card 三个通道各自默认关闭，可独立灰度和回滚；
+- 开启任何通道前必须记录包含 PR #52 / PR #59 的 Web/Electron 与 Android 发布版本；
+- 未记录两个 release floor、总开关关闭或通道关闭时统一 fail closed；
+- old client 使用已有 unknown/fallback 行为，不做 TEXT + WORKBENCH 双写；
+- #54 本身不发送消息，#55 emitter 必须统一调用 `WorkbenchRolloutGate`。
