@@ -10,12 +10,12 @@ import java.util.Set;
  *
  * 2026081906 remains the business-schema baseline. MANAGED_TARGET_VERSION tracks
  * the latest tenant Flyway target and advances as immutable managed migrations
- * such as Workbench tables are added.
+ * such as Workbench tables and managed core evolution are added.
  */
 public final class CoreTenantBaselineContract {
 
     public static final String BASELINE_VERSION = "2026081906";
-    public static final String MANAGED_TARGET_VERSION = "2026082002";
+    public static final String MANAGED_TARGET_VERSION = "2026082003";
 
     public static final Set<String> CORE_TABLES = Set.of(
             "approval_requests",
