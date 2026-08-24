@@ -22,6 +22,7 @@ public class TenantBaselinePreflightService {
     private final TenantCatalogRepository tenantCatalogRepository;
     private final TenantSchemaInspector schemaInspector;
     private final TenantSchemaFingerprintService fingerprintService;
+    private final ManagedCoreSchemaContractService managedCoreContractService;
     private final TenantBaselineRepository baselineRepository;
 
     public TenantBaselinePreflightService(
@@ -29,12 +30,14 @@ public class TenantBaselinePreflightService {
             TenantCatalogRepository tenantCatalogRepository,
             TenantSchemaInspector schemaInspector,
             TenantSchemaFingerprintService fingerprintService,
+            ManagedCoreSchemaContractService managedCoreContractService,
             TenantBaselineRepository baselineRepository
     ) {
         this.publicBootstrap = publicBootstrap;
         this.tenantCatalogRepository = tenantCatalogRepository;
         this.schemaInspector = schemaInspector;
         this.fingerprintService = fingerprintService;
+        this.managedCoreContractService = managedCoreContractService;
         this.baselineRepository = baselineRepository;
     }
 
@@ -69,11 +72,16 @@ public class TenantBaselinePreflightService {
                         List.of("tenant schema 不存在；不要 baseline。确认 company.schema_name 或按新租户 provisioning 重建。")
                 );
             } else {
+                ManagedCoreSchemaContractService.Inspection managedCore = inspection.historyExists()
+                        ? managedCoreContractService.inspect(target.schemaName())
+                        : null;
+                boolean projectManagedCore = managedCore != null && managedCore.workbenchMigrationApplied();
                 TenantSchemaFingerprint fingerprint = fingerprintService.fingerprint(
                         target.schemaName(),
-                        target.companyId()
+                        target.companyId(),
+                        projectManagedCore
                 );
-                snapshot = classify(target, inspection, fingerprint);
+                snapshot = classify(target, inspection, fingerprint, managedCore);
             }
         } catch (Exception exception) {
             snapshot = snapshot(
@@ -100,7 +108,8 @@ public class TenantBaselinePreflightService {
     private TenantBaselinePreflightSnapshot classify(
             TenantTarget target,
             TenantSchemaInspector.Inspection inspection,
-            TenantSchemaFingerprint fingerprint
+            TenantSchemaFingerprint fingerprint,
+            ManagedCoreSchemaContractService.Inspection managedCore
     ) {
         Set<String> missingTables = difference(CoreTenantBaselineContract.CORE_TABLES, fingerprint.tables());
         Set<String> missingViews = difference(CoreTenantBaselineContract.IDENTITY_VIEWS, fingerprint.views());
@@ -157,13 +166,23 @@ public class TenantBaselinePreflightService {
         if (!fingerprint.identityViewsValid()) {
             repairPlan.add("tenant identity view 行为不符合当前 company membership；重建 view 前先核对 public.company/company_user/users。");
         }
+        if (managedCore != null && !managedCore.valid()) {
+            repairPlan.addAll(managedCore.problems());
+        }
 
         TenantBaselineClassification classification = repairPlan.isEmpty()
                 ? TenantBaselineClassification.BASELINE_READY
                 : TenantBaselineClassification.DRIFTED;
 
         if (inspection.historyExists() && classification == TenantBaselineClassification.BASELINE_READY) {
-            repairPlan.add("已有 Flyway history：core baseline contract 匹配；后续 managed objects 不参与 baseline hash，无需再次 baseline。") ;
+            if (managedCore != null && managedCore.workbenchMigrationApplied()) {
+                repairPlan.add("已有可信 Flyway history：1906 adoption contract 与 managed-core 2003 contract 均匹配，无需再次 baseline。");
+            } else {
+                String currentVersion = managedCore == null ? null : managedCore.currentVersion();
+                repairPlan.add("已有 Flyway history：1906 adoption contract 匹配；当前 version="
+                        + currentVersion + "，可通过正常 migration 前进到 target="
+                        + CoreTenantBaselineContract.MANAGED_TARGET_VERSION + "。");
+            }
         }
 
         return snapshot(
@@ -237,7 +256,7 @@ public class TenantBaselinePreflightService {
     private String repairHint(String category) {
         return switch (category) {
             case "columns" -> "core column contract drift：逐项核对 type/nullability/default/identity；重点检查 messages.content=TEXT 与 meetings.scheduled_at=timestamp(6)。";
-            case "constraints" -> "core constraint contract drift：核对 PK/UNIQUE/FK/CHECK；不要自动 drop/recreate。";
+            case "constraints" -> "core constraint contract drift：核对 PK/UNIQUE/FK/CHECK；已知 managed-core evolution 只在 Flyway history 证明且当前语义精确匹配时投影。";
             case "indexes" -> "core index contract drift：核对 #25 baseline 的 PK/UNIQUE backing indexes。";
             case "views" -> "identity view shape drift：核对 company/company_user/users 输出列和隔离行为。";
             case "sequences" -> "core identity sequence drift：核对 2026081906 core tables owned sequences。";
