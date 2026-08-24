@@ -5,9 +5,8 @@
 - 文档状态：ACTIVE
 - 基线日期：2026-08-24
 - 唯一开发主线：`master`
-- 最近完成：#45 Task Backend、#47 Task Web/Electron、#28 Workbench Protocol、#29 Web/Electron Workbench Card + Deep Link
-- **当前交付：#30 Android/KMP Workbench Card + tenant-aware Deep Link**
-- **下一阻塞项：#50 WORKBENCH Message Storage / managed core evolution**
+- 最近完成：#45 Task Backend、#47 Task Web/Electron、#28 Workbench Protocol、#29 Web/Electron Workbench Card + Deep Link；PR #59 合并即完成 #30 Android/KMP consumer
+- **当前交付（PR #59 合并后）：#50 WORKBENCH Message Storage / managed core evolution**
 - 后续：#54 supported-client rollout gate → #55 Task Realtime/Push/WORKBENCH notifications → #56 Approval Backend V1
 - 仓库：`pengpengno/Group-IM`
 
@@ -48,10 +47,10 @@ Group-IM 是多租户组织协作 IM/OA 平台。消息是协作主链路，Work
 | Structured OA Card design | #14 / PR #31 | COMPLETED | ADR-0005 / client-first policy |
 | WORKBENCH Protocol | #28 / PR #51 | COMPLETED | Java/Proto/envelope/event/deep-link contract |
 | Web/Electron Card + Deep Link | #29 / PR #52 | COMPLETED | safe renderer + tenant-aware navigation + server re-fetch |
-| Android/KMP Card + Deep Link | #30 | **CURRENT** | branch `feature/30-workbench-card-deeplink` 已建立，正在实现 |
-| WORKBENCH Storage | #50 | NEXT BLOCKER | 合法 managed-core evolution + `messages.type=WORKBENCH` |
+| Android/KMP Card + Deep Link | #30 / PR #59 | COMPLETED ON MERGE | safe Compose renderer + authenticated company switch + server re-fetch |
+| WORKBENCH Storage | #50 | **CURRENT / NEXT BLOCKER** | 合法 managed-core evolution + `messages.type=WORKBENCH` |
 | Supported-client rollout | #54 | QUEUED | minimum version / feature gate / rollback policy |
-| Task Notification | #55 | BLOCKED | 等 #30 + #50 + #54 后开启 actual emission |
+| Task Notification | #55 | BLOCKED | 等 #50 + #54 后开启 actual emission |
 | Approval Backend | #56 | QUEUED | Task 纵向闭环完成后进入下一领域模块 |
 
 ---
@@ -207,30 +206,35 @@ PR #52 merge：`eb332edafa68c2ab8a73a62f345742a7f61ddb42`。
 
 ---
 
-## 6. CURRENT — #30 Android/KMP Workbench Card + Deep Link
+## 6. #30 Android/KMP Workbench Card + Deep Link — COMPLETED ON PR #59 MERGE
 
 Issue：#30  
+PR：#59  
 Branch：`feature/30-workbench-card-deeplink`
 
-当前已确认的实现边界：
+实现边界：
 
-- KMP `MessageType` 需要增加 `WORKBENCH`，否则 Proto `WORKBENCH` 在 `MessageType.valueOf(message.type.name)` 阶段会先于 Compose renderer 抛错；
-- `MessageBubble.kt` 已有正常 renderer 边界，可直接新增独立 WORKBENCH 分支，不需要 Electron 的 ChatRoom bridge；
-- 必须独立 Workbench parser/card，不复用 BOT_CARD；
-- unknown/malformed payload 安全 fallback；
-- company switch 复用 `UserViewModel.switchWorkspace(companyId)` / `CompanyApi.switchCompany`；
-- 跨公司导航必须等 authenticated company/token 状态切换成功；
-- Task detail 必须重新从 server fetch，card snapshot 不授权写操作；
-- BOT_CARD / MEETING 必须回归；
-- KMP APK CI 必须 green。
+- KMP 本地 `MessageType` append `WORKBENCH`，Proto `WORKBENCH` 不再在 `MessageType.valueOf(message.type.name)` 阶段失败；
+- `MessageBubble.kt` 只新增独立 WORKBENCH renderer 分支，BOT_CARD / MEETING / file / voice 原分支保持；
+- V1 parser 与 Web/Electron 对齐：version/category/action/UUID/长度/occurredAt/canonical deep-link/target triplet 校验；
+- unknown version/category/action、malformed JSON、非法 deep link 全部只显示 safe fallback，不执行导航；
+- `WorkbenchMessageCard` 不复用 BOT_CARD renderer；
+- company switch 复用正常 `UserViewModel.switchWorkspace(companyId)` / `CompanyApi.switchCompany` 认证路径；
+- cross-company deep link 会等待 target company 的 authenticated state 后才发起资源请求；
+- Task deep link 必须重新调用 `GET /api/workbench/tasks/{taskId}`，展示服务器当前 detail；
+- card snapshot 不提供 Complete/Approve 等写操作；
+- 已离开公司、切换失败、403/404/删除资源均 fail closed；
+- 尚无移动详情 UI 的 Approval/Announcement/Schedule/Report 安全提示，不猜测业务状态；
+- parser tests 覆盖 valid、malformed、unknown action、forged companyId、canonical percent encoding；
+- KMP APK CI 是合并门禁。
 
-#30 完成前，server WORKBENCH emission 禁止开启。
+#30 完成只代表受支持 Android 客户端具备安全消费能力；server WORKBENCH persistence/emission 仍由 #50 + #54 阻塞。
 
 ---
 
-## 7. NEXT GATES — #50 → #54 → #55
+## 7. CURRENT GATES — #50 → #54 → #55
 
-### #50 Storage / Managed Core Evolution — NEXT BLOCKER
+### #50 Storage / Managed Core Evolution — CURRENT / NEXT BLOCKER
 
 目标：在不破坏 immutable 1906 adoption contract 的前提下，通过合法 Flyway managed-core evolution 允许 `messages.type=WORKBENCH`。
 
@@ -250,7 +254,7 @@ Branch：`feature/30-workbench-card-deeplink`
 
 ### #55 Task Realtime / Push / WORKBENCH Notification — BLOCKED
 
-依赖：`#30 + #50 + #54`。
+依赖：`#50 + #54`（客户端 consumer #29/#30 已完成）。
 
 开启后才实现：
 
@@ -281,8 +285,7 @@ Approval 设计已完成，#56 已建立正式实施 Issue。
 技术上 Approval Backend 不依赖 WORKBENCH emission 才能编码，但交付顺序保持：
 
 ```text
-#30 Android consumer
-→ #50 storage
+#50 storage
 → #54 rollout gate
 → #55 Task notification E2E
 → #56 Approval Backend
@@ -305,12 +308,12 @@ Approval V1：固定 Definition + 串行 Nodes，覆盖 draft/submit/approve/rej
 | Task Backend | STABLE | #45 / PR #46 | #55 notification |
 | Task Web/Electron | STABLE | #47 / PR #49 | notification E2E |
 | Electron/Web PR CI | STABLE | #9 / PR #48 | #6 required check |
-| Workbench Protocol | STABLE | #14 + #28 | consumers/storage/emission |
-| Workbench Web/Electron Card | STABLE | #29 / PR #52 | supported-client rollout |
-| Workbench Android Card | **IN_PROGRESS** | #30 | implement + KMP CI + merge |
-| WORKBENCH Message Storage | BLOCKED/NEXT | #50 | after #30 priority |
-| Supported-client Rollout | QUEUED | #54 | after consumers/storage |
-| Task Notification | BLOCKED | #55 | requires #30/#50/#54 |
+| Workbench Protocol | STABLE | #14 + #28 | storage/emission |
+| Workbench Web/Electron Card | STABLE | #29 / PR #52 | #54 rollout |
+| Workbench Android Card | STABLE ON MERGE | #30 / PR #59 | #54 rollout |
+| WORKBENCH Message Storage | **CURRENT / BLOCKER** | #50 | implement managed core evolution |
+| Supported-client Rollout | QUEUED | #54 | after storage |
+| Task Notification | BLOCKED | #55 | requires #50/#54 |
 | Approval Backend | QUEUED | #56 | after Task notification E2E |
 | Approval Web/Electron | PLANNED | design complete | after #56 |
 | Android OA full Task/Approval UI | PLANNED | Workbench shell exists | after core web vertical slices |
@@ -319,7 +322,7 @@ Approval V1：固定 Definition + 串行 Nodes，覆盖 draft/submit/approve/rej
 
 ## 10. 执行路线
 
-### 已完成
+### 已完成（PR #59 合并后）
 
 ```text
 #10 Formal Design ✅
@@ -333,13 +336,13 @@ Approval V1：固定 Definition + 串行 Nodes，覆盖 draft/submit/approve/rej
 → #14 Structured Notification Design ✅
 → #28 WORKBENCH Protocol ✅
 → #29 Web/Electron Card + Deep Link ✅
+→ #30 Android/KMP Card + Deep Link ✅
 ```
 
 ### 当前到下一纵向闭环
 
 ```text
-#30 Android/KMP Card + Deep Link        ← CURRENT
-→ #50 WORKBENCH Storage/Core Evolution
+#50 WORKBENCH Storage/Core Evolution    ← CURRENT
 → #54 Supported-client Rollout Gate
 → #55 Task Realtime/Push/Card
 → Task V1 cross-client E2E DONE
@@ -414,6 +417,10 @@ A submit
 ---
 
 ## 13. Change Log
+
+### 2026-08-24 — #30 / PR #59 Android/KMP Workbench consumer
+
+状态：PR #59 合并即 COMPLETED。KMP 本地 WORKBENCH enum、safe parser、独立 Compose renderer、tenant-aware authenticated switch、server-refetched Task detail 与 safe fallback 已实现；actual persistence/emission 继续由 #50/#54 阻塞。
 
 ### 2026-08-24 — #53 / PR #57 Roadmap synchronization
 
