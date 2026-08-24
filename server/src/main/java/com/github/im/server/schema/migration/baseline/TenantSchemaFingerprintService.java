@@ -38,6 +38,21 @@ public class TenantSchemaFingerprintService {
     }
 
     public TenantSchemaFingerprint fingerprint(String rawSchemaName, Long companyId) {
+        return fingerprint(rawSchemaName, companyId, false);
+    }
+
+    /**
+     * Compute the immutable 2026081906 adoption fingerprint. For a tenant whose
+     * Flyway history proves a known managed-core migration, the caller may enable
+     * projection of that exact known evolution back to its baseline representation.
+     * Unknown/manual changes are never projected and therefore still fail the
+     * pinned baseline hashes.
+     */
+    public TenantSchemaFingerprint fingerprint(
+            String rawSchemaName,
+            Long companyId,
+            boolean projectManagedCoreEvolution
+    ) {
         String schemaName = schemaNameValidator.requireTenantSchema(rawSchemaName);
         try (Connection connection = dataSource.getConnection()) {
             Map<String, List<String>> categories = new LinkedHashMap<>();
@@ -45,7 +60,7 @@ public class TenantSchemaFingerprintService {
             Set<String> allTables = loadAllTables(connection, schemaName);
             Set<String> tables = loadCoreTables(connection, schemaName, categories);
             loadCoreColumns(connection, schemaName, categories);
-            loadCoreConstraints(connection, schemaName, categories);
+            loadCoreConstraints(connection, schemaName, categories, projectManagedCoreEvolution);
             loadCoreIndexes(connection, schemaName, categories);
 
             Set<String> allViews = loadAllViews(connection, schemaName);
@@ -150,7 +165,8 @@ public class TenantSchemaFingerprintService {
     private void loadCoreConstraints(
             Connection connection,
             String schemaName,
-            Map<String, List<String>> categories
+            Map<String, List<String>> categories,
+            boolean projectManagedCoreEvolution
     ) throws SQLException {
         String sql = """
                 SELECT table_row.relname,
@@ -195,7 +211,13 @@ public class TenantSchemaFingerprintService {
                   AND table_row.relname IN (%s)
                 ORDER BY table_row.relname, constraint_row.conname
                 """.formatted(placeholders(CORE_TABLE_NAMES.size()));
-        categories.put("constraints", queryLines(connection, sql, schemaName, CORE_TABLE_NAMES, 8));
+        List<String> rows = queryLines(connection, sql, schemaName, CORE_TABLE_NAMES, 8);
+        if (projectManagedCoreEvolution) {
+            rows = rows.stream()
+                    .map(row -> ManagedCoreSchemaContract.projectConstraintRowToBaseline(row, true))
+                    .toList();
+        }
+        categories.put("constraints", rows);
     }
 
     private void loadCoreIndexes(

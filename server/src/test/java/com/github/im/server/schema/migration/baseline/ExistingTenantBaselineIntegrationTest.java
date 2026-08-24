@@ -77,6 +77,8 @@ class ExistingTenantBaselineIntegrationTest {
         TenantSchemaInspector inspector = new TenantSchemaInspector(dataSource, validator);
         TenantCatalogRepository catalogRepository = new TenantCatalogRepository(dataSource);
         TenantSchemaFingerprintService fingerprintService = new TenantSchemaFingerprintService(dataSource, validator);
+        ManagedCoreSchemaContractService managedCoreContractService =
+                new ManagedCoreSchemaContractService(dataSource, validator);
         TenantBaselineRepository baselineRepository = new TenantBaselineRepository(dataSource, new ObjectMapper());
 
         preflightService = new TenantBaselinePreflightService(
@@ -84,6 +86,7 @@ class ExistingTenantBaselineIntegrationTest {
                 catalogRepository,
                 inspector,
                 fingerprintService,
+                managedCoreContractService,
                 baselineRepository
         );
         baselineService = new ExistingTenantBaselineService(
@@ -97,7 +100,7 @@ class ExistingTenantBaselineIntegrationTest {
     }
 
     @Test
-    void preflightBaselinesLegacyCoreToCurrentTaskTargetAndRejectsUnsafeAdoption() throws Exception {
+    void preflightBaselinesLegacyCoreToManagedCoreTargetAndRejectsUnsafeEvolution() throws Exception {
         List<TenantBaselinePreflightSnapshot> preflight = preflightService.preflight(
                 new TenantBaselinePreflightRequest(List.of(), true),
                 9001L
@@ -140,6 +143,22 @@ class ExistingTenantBaselineIntegrationTest {
                 FROM legacy_a.tenant_schema_metadata
                 WHERE metadata_key = 'core_baseline_contract'
                 """));
+        assertEquals("2026082003", scalarString("""
+                SELECT metadata_value
+                FROM legacy_a.tenant_schema_metadata
+                WHERE metadata_key = 'managed_core_contract'
+                """));
+        assertTrue(messageTypeCheck("legacy_a").contains("WORKBENCH"));
+
+        TenantBaselinePreflightSnapshot managedAfter2003 = preflightService.preflight(
+                new TenantBaselinePreflightRequest(List.of(1L), false),
+                9001L
+        ).getFirst();
+        assertEquals(TenantBaselineClassification.BASELINE_READY, managedAfter2003.classification());
+        assertTrue(managedAfter2003.historyPresent());
+        assertEquals(first.fingerprint(), managedAfter2003.observedFingerprint());
+        assertTrue(managedAfter2003.repairPlan().stream()
+                .anyMatch(value -> value.contains("managed-core 2003 contract")));
 
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.execute("""
@@ -154,10 +173,36 @@ class ExistingTenantBaselineIntegrationTest {
                 9001L
         ).getFirst();
         assertEquals(TenantBaselineClassification.BASELINE_READY, managedWithLaterObject.classification());
-        assertTrue(managedWithLaterObject.historyPresent());
         assertEquals(first.fingerprint(), managedWithLaterObject.observedFingerprint());
-        assertTrue(managedWithLaterObject.repairPlan().stream()
-                .anyMatch(value -> value.contains("后续 managed objects 不参与 baseline hash")));
+
+        // Flyway history says 2003 ran, but the current core CHECK is manually altered.
+        // This must not be normalized away as a legal managed evolution.
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("ALTER TABLE legacy_b.messages DROP CONSTRAINT messages_type_check");
+            statement.execute("""
+                    ALTER TABLE legacy_b.messages ADD CONSTRAINT messages_type_check CHECK (
+                        type IN ('TEXT','FILE','VOICE','VIDEO','IMAGE','MEDIA','MEETING','BOT_CARD','WORKBENCH','MANUAL_TYPE')
+                    )
+                    """);
+        }
+        TenantBaselinePreflightSnapshot manualManagedDrift = preflightService.preflight(
+                new TenantBaselinePreflightRequest(List.of(2L), false),
+                9001L
+        ).getFirst();
+        assertEquals(TenantBaselineClassification.DRIFTED, manualManagedDrift.classification());
+        assertTrue(manualManagedDrift.repairPlan().stream()
+                .anyMatch(value -> value.contains("messages_type_check 与 Flyway history 不一致")));
+
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("DELETE FROM legacy_a.tenant_schema_metadata WHERE metadata_key = 'managed_core_contract'");
+        }
+        TenantBaselinePreflightSnapshot missingManagedMarker = preflightService.preflight(
+                new TenantBaselinePreflightRequest(List.of(1L), false),
+                9001L
+        ).getFirst();
+        assertEquals(TenantBaselineClassification.DRIFTED, missingManagedMarker.classification());
+        assertTrue(missingManagedMarker.repairPlan().stream()
+                .anyMatch(value -> value.contains("managed_core_contract expected=2026082003, actual=null")));
 
         BusinessException drifted = assertThrows(
                 BusinessException.class,
@@ -279,15 +324,29 @@ class ExistingTenantBaselineIntegrationTest {
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.execute("CREATE SCHEMA " + schemaName);
         }
-        // Build with the current migration set so the fixture stays compatible
-        // with Flyway SQL, then remove managed extensions after the immutable
-        // 1906 baseline to simulate a real pre-Flyway legacy core tenant.
+        // Build from the current immutable migration set, then remove every
+        // managed extension after the 2026081906 adoption baseline. The CHECK
+        // must be restored to its baseline form before history is removed;
+        // otherwise the fixture would correctly represent unmanaged core drift.
         flywayFactory.create(schemaName).migrate();
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.execute("DROP TABLE " + schemaName + ".wb_task_activity");
             statement.execute("DROP TABLE " + schemaName + ".wb_task_comment");
             statement.execute("DROP TABLE " + schemaName + ".wb_task_assignee");
             statement.execute("DROP TABLE " + schemaName + ".wb_task");
+            statement.execute("ALTER TABLE " + schemaName + ".messages DROP CONSTRAINT messages_type_check");
+            statement.execute("""
+                    ALTER TABLE %s.messages ADD CONSTRAINT messages_type_check CHECK (((type)::text = ANY (ARRAY[
+                        ('TEXT'::character varying)::text,
+                        ('FILE'::character varying)::text,
+                        ('VOICE'::character varying)::text,
+                        ('VIDEO'::character varying)::text,
+                        ('IMAGE'::character varying)::text,
+                        ('MEDIA'::character varying)::text,
+                        ('MEETING'::character varying)::text,
+                        ('BOT_CARD'::character varying)::text
+                    ])))
+                    """.formatted(schemaName));
             statement.execute("DROP TABLE " + schemaName + ".flyway_schema_history");
             statement.execute("DROP TABLE " + schemaName + ".tenant_schema_metadata");
         }
@@ -301,6 +360,25 @@ class ExistingTenantBaselineIntegrationTest {
             statement.setString(2, tableName);
             try (ResultSet resultSet = statement.executeQuery()) {
                 return resultSet.next() && resultSet.getBoolean(1);
+            }
+        }
+    }
+
+    private static String messageTypeCheck(String schemaName) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             var statement = connection.prepareStatement("""
+                     SELECT pg_get_constraintdef(constraint_row.oid, true)
+                     FROM pg_constraint constraint_row
+                     JOIN pg_class table_row ON table_row.oid = constraint_row.conrelid
+                     JOIN pg_namespace namespace_row ON namespace_row.oid = table_row.relnamespace
+                     WHERE namespace_row.nspname = ?
+                       AND table_row.relname = 'messages'
+                       AND constraint_row.conname = 'messages_type_check'
+                     """)) {
+            statement.setString(1, schemaName);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                assertTrue(resultSet.next());
+                return resultSet.getString(1);
             }
         }
     }

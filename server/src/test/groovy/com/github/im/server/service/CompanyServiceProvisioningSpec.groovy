@@ -31,7 +31,7 @@ class CompanyServiceProvisioningSpec extends Specification {
         def requested = company(null, "钉钉", "dingding", true)
         def reserved = company(42L, "钉钉", "dingding", false)
         def active = company(42L, "钉钉", "dingding", true)
-        def plan = new TenantMigrationPlan("dingding", "2026082002", "2026082002", 0, List.of(), false, null)
+        def plan = new TenantMigrationPlan("dingding", "2026082003", "2026082003", 0, List.of(), false, null)
 
         when:
         def result = service.save(requested)

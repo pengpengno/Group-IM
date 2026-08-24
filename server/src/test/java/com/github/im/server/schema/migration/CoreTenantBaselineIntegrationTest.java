@@ -33,7 +33,7 @@ class CoreTenantBaselineIntegrationTest {
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
 
     @Test
-    void emptyTenantMigratesThroughCoreBaselineAndManagedTaskExtension() throws Exception {
+    void emptyTenantMigratesThroughImmutableBaselineAndManagedExtensions() throws Exception {
         DataSource dataSource = dataSource();
         createGlobalIdentityContract(dataSource);
         createTenant(dataSource);
@@ -60,6 +60,7 @@ class CoreTenantBaselineIntegrationTest {
         assertEquals("text", columnType(dataSource, "messages", "content"));
         assertEquals("timestamp(6) without time zone", columnType(dataSource, "meetings", "scheduled_at"));
         assertTrue(messageTypeCheck(dataSource).contains("BOT_CARD"));
+        assertTrue(messageTypeCheck(dataSource).contains("WORKBENCH"));
         assertTrue(taskStatusCheck(dataSource).contains("IN_PROGRESS"));
         assertFalse(relations.contains("tenant_schema_metadata"));
         assertTrue(tableExists(dataSource, "tenant_schema_metadata"));

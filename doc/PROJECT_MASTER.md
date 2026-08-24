@@ -5,8 +5,8 @@
 - 文档状态：ACTIVE
 - 基线日期：2026-08-24
 - 唯一开发主线：`master`
-- 最近完成：#45 Task Backend、#47 Task Web/Electron、#28 Workbench Protocol、#29 Web/Electron Workbench Card + Deep Link；PR #59 合并即完成 #30 Android/KMP consumer
-- **当前交付（PR #59 合并后）：#50 WORKBENCH Message Storage / managed core evolution**
+- 最近完成：#45 Task Backend、#47 Task Web/Electron、#28 Workbench Protocol、#29 Web/Electron Workbench Card、#30 Android/KMP Workbench Card
+- **当前交付：#50 WORKBENCH Message Storage / managed core evolution**
 - 后续：#54 supported-client rollout gate → #55 Task Realtime/Push/WORKBENCH notifications → #56 Approval Backend V1
 - 仓库：`pengpengno/Group-IM`
 
@@ -47,53 +47,81 @@ Group-IM 是多租户组织协作 IM/OA 平台。消息是协作主链路，Work
 | Structured OA Card design | #14 / PR #31 | COMPLETED | ADR-0005 / client-first policy |
 | WORKBENCH Protocol | #28 / PR #51 | COMPLETED | Java/Proto/envelope/event/deep-link contract |
 | Web/Electron Card + Deep Link | #29 / PR #52 | COMPLETED | safe renderer + tenant-aware navigation + server re-fetch |
-| Android/KMP Card + Deep Link | #30 / PR #59 | COMPLETED ON MERGE | safe Compose renderer + authenticated company switch + server re-fetch |
-| WORKBENCH Storage | #50 | **CURRENT / NEXT BLOCKER** | 合法 managed-core evolution + `messages.type=WORKBENCH` |
+| Android/KMP Card + Deep Link | #30 / PR #59 | COMPLETED | safe Compose renderer + authenticated company switch + server re-fetch |
+| WORKBENCH Storage | #50 | **IN_PROGRESS** | 2003 managed-core evolution + `messages.type=WORKBENCH` |
 | Supported-client rollout | #54 | QUEUED | minimum version / feature gate / rollback policy |
 | Task Notification | #55 | BLOCKED | 等 #50 + #54 后开启 actual emission |
-| Approval Backend | #56 | QUEUED | Task 纵向闭环完成后进入下一领域模块 |
+| Approval Backend | #56 | QUEUED | Task 通知闭环后进入下一领域模块 |
 
 ---
 
 ## 3. Tenant Migration 当前契约
 
 ```text
-core business baseline = 2026081906
-managed current target = 2026082002
+core business adoption baseline = 2026081906
+managed current target           = 2026082003   (#50 merge boundary)
 ```
 
-当前事实：
+### 3.1 Immutable adoption baseline
 
-- #12 versioned tenant migration foundation 已完成；
-- core baseline `2026081906` 是 immutable adoption contract；
-- `2026082002` 已加入 `wb_task / wb_task_assignee / wb_task_comment / wb_task_activity`；
-- #43 将 core fingerprint 与 later managed object inventory 分离；
-- no-history tenant 出现 extra object 仍必须 `CONFLICT`；
-- Flyway-managed 后续业务表/sequence 不污染 1906 core baseline hash；
-- new tenant：inactive company → empty schema → Flyway current target → verify → active；
-- existing reviewed tenant：preflight → explicit baseline 1906 → migrate target → validate/audit；
-- Safe Sync / public clone 只保留 deprecated/transitional compatibility，不再是正式 provisioning/release authority；
-- 测试 tenant 数据可以清理重建，不作为 Workbench 功能开发阻塞项。
+`2026081906` 永远是 existing no-history tenant 的 adoption contract：
 
-### #50 — WORKBENCH message storage / managed core evolution
+- historical migrations `V2026081901..1906` 不修改；
+- pinned tables/columns/constraints/indexes/views/sequences hash 不修改；
+- no-history tenant 必须精确匹配该 contract 才可 baseline；
+- no-history tenant 手工提前增加 WORKBENCH 或其他 core ALTER 仍为 `DRIFTED/CONFLICT`；
+- Safe Sync / public clone 只保留 deprecated/transitional compatibility。
 
-`2026081906` 的 `messages_type_check` 属于 pinned core constraint fingerprint，目前不允许 `WORKBENCH`。
+### 3.2 Later managed objects
 
-#50 必须同时满足：
+`2026082002` 已加入：
 
-1. 不修改历史 migration `V2026081901..1906`；
-2. no-history 1906 tenant 仍按原 contract adoption；
-3. Flyway history 可证明后续合法 core evolution；
-4. unknown/manual core ALTER 仍 fail closed；
-5. 新 immutable migration 扩展 `messages_type_check` 允许 `WORKBENCH`；
-6. provisioning/baseline/Testcontainers target 同步前移。
+```text
+wb_task
+wb_task_assignee
+wb_task_comment
+wb_task_activity
+```
+
+#43 已保证 Flyway history 证明的 later business tables/sequences 不污染 1906 adoption fingerprint；无 history tenant 的 unknown extra objects 仍 fail closed。
+
+### 3.3 #50 Managed core evolution
+
+`messages_type_check` 本身属于 1906 pinned core constraint。#50 不通过修改历史 baseline 来加入 WORKBENCH，而采用两阶段验证：
+
+```text
+Adoption contract (1906, immutable)
+        +
+Flyway-proven managed core evolution
+        ↓
+Managed current contract (2003)
+```
+
+`V2026082003__allow_workbench_message_type.sql`：
+
+- 只扩展 `messages_type_check`；
+- 保留 TEXT / FILE / VOICE / VIDEO / IMAGE / MEDIA / MEETING / BOT_CARD；
+- 新增 WORKBENCH；
+- 记录 `managed_core_contract=2026082003` metadata；
+- **不创建、不发送任何 WORKBENCH 消息**。
+
+验证规则：
+
+1. no-history tenant：不启用任何 managed projection，仍精确比较 1906；
+2. history 未执行 2003：`messages_type_check` 必须仍是 baseline type set；
+3. history 已执行 2003：当前 CHECK 必须精确是 baseline type set + WORKBENCH；
+4. 只有“Flyway history 证明 2003 已执行 + 当前语义精确匹配”时，fingerprint 才把这一个已知 evolution 投影回 1906 adoption representation；
+5. history 说 2003 但 CHECK 缺 WORKBENCH、增加未知类型或其他手工修改，仍为 `DRIFTED`；
+6. 未来 core evolution 必须新增新的 immutable managed contract，禁止通配忽略 core drift。
 
 因此：
 
 ```text
-MessageType.WORKBENCH protocol recognition
-!= WORKBENCH persistence enabled
-!= WORKBENCH server emission enabled
+MessageType.WORKBENCH protocol recognition ✅
+Web/Electron consumer                 ✅
+Android/KMP consumer                  ✅
+WORKBENCH persistence schema          #50
+server WORKBENCH emission             ❌ 仍由 #54/#55 gate 控制
 ```
 
 ---
@@ -102,161 +130,77 @@ MessageType.WORKBENCH protocol recognition
 
 ### Platform Foundation — STABLE
 
-#13 已提供：
-
-- `CurrentWorkContext`；
-- fail-closed permission boundary；
-- Workbench Audit；
-- Organization / File adapters；
-- explicit background tenant executor。
-
-后续 Task/Approval 必须复用这些平台能力，不建立领域私有 tenant/security 框架。
+#13 已提供 `CurrentWorkContext`、fail-closed permission、Audit、Organization/File adapters、explicit tenant executor。后续领域禁止建立私有 tenant/security 框架。
 
 ### Overview — STABLE
 
-`GET /api/workbench/overview`：
-
-- 只使用 authenticated current company；
-- response 不暴露 schemaName；
-- Meeting 使用轻量 projection；
-- 已接入真实 Task assigned/overdue/recent projection；
-- 后续 Approval 上线后继续接 pending projection。
+`GET /api/workbench/overview` 只使用 authenticated current company，不暴露 schemaName；Meeting 使用轻量 projection；已接入真实 Task assigned/overdue/recent projection。
 
 ### Task Backend — STABLE
 
-#45 / PR #46，merge：`6ff1d1f99567e9d203ca1e27e20c47db24551d62`。
-
-能力：
-
-- Task 四表 migration；
-- create/update/list/detail；
-- TODO / IN_PROGRESS / BLOCKED / COMPLETED / CANCELLED 状态机；
-- assignee / comment / activity；
-- creator/owner/collaborator/watcher 资源级权限；
-- Activity + Workbench Audit；
-- Overview Task projection；
-- PostgreSQL Testcontainers / migration regression。
+#45 / PR #46，merge `6ff1d1f99567e9d203ca1e27e20c47db24551d62`：Task 四表、状态机、resource permission、assignee/comment/activity、Audit 与 Overview projection 已完成。
 
 ### Task Web/Electron — STABLE
 
-#47 / PR #49，merge：`b590bbd6a18737b504d0c3876a8d12831e3efe15`。
-
-Workbench shell 已提供真实 Overview + Task Center：create/list/detail/state action/comment/activity。
-
-Task 是 Workbench 子视图，不扩散为 Dashboard 顶级 tab；客户端不保存 Task 第二份业务真相。
+#47 / PR #49，merge `b590bbd6a18737b504d0c3876a8d12831e3efe15`：Workbench 内 Task Center 已支持 create/list/detail/state action/comment/activity。
 
 ---
 
 ## 5. Workbench Structured Notification Contract
 
-### #14 Structured OA Card / ClientEvent Protocol — COMPLETED
+### #14 / #28 Protocol — COMPLETED
 
-ADR-0005 固定：
-
-- 独立 `WORKBENCH` MessageType，不复用 BOT_CARD；
-- versioned Workbench Card JSON；
-- stable `eventId` UUID；
-- `category + action + resourceId + companyId` target；
-- `companyId` 只是 routing hint；
-- client payload 不包含 schemaName；
-- card 是 immutable historical event snapshot，不是当前业务状态；
-- ClientEvent 使用粗粒度 `WORKBENCH_RESOURCE_EVENT`；
-- Push 只携带低敏感、最小 routing 信息；
-- canonical tenant-aware `group://workbench/...?...companyId=` Deep Link；
-- client-first rollout；
-- 禁止为了兼容老客户端进行 TEXT + WORKBENCH 双写。
-
-### #28 WORKBENCH Protocol — COMPLETED
+已固定：独立 `WORKBENCH` MessageType、versioned Card/Event envelope、stable eventId、`WORKBENCH_RESOURCE_EVENT`、最小 Push、tenant-aware Deep Link、client-first rollout、禁止 TEXT + WORKBENCH 双写。
 
 PR #51 merge：`7f261e881bdc3eb3cebcd1d0468777f647d3ea43`。
 
-进入 master：
-
-```text
-Java MessageType.WORKBENCH
-Proto WORKBENCH = 9 (append only)
-Java <-> Proto mapping
-WorkbenchCardEnvelope / WorkbenchEventEnvelope
-WorkbenchEnvelopeValidator
-WorkbenchDeepLinkFactory
-WorkbenchCardSerializer
-WorkbenchNotificationPolicyKey
-ClientEventType.WORKBENCH_RESOURCE_EVENT
-```
-
-旧 Proto wire numbers 固定不变；#28 没有开启 persistence/emission。
-
-### #29 Web/Electron Card + Deep Link — COMPLETED
+### #29 Web/Electron consumer — COMPLETED
 
 PR #52 merge：`eb332edafa68c2ab8a73a62f345742a7f61ddb42`。
 
+独立 safe parser/renderer、authenticated company switch、server-refetched Task detail、forbidden/deleted fail closed；card snapshot 不执行 Complete/Approve 等写操作。
+
+### #30 Android/KMP consumer — COMPLETED
+
+PR #59 merge：`28036e6ccd6558c84fe95e2ece48ddb874514441`。
+
 已完成：
 
-- independent `WorkbenchMessageCard`；
-- V1 safe parser；
-- unknown/malformed safe fallback；
-- BOT_CARD / MEETING 旧渲染保持；
-- tenant-aware company switch；
-- reload 后恢复 pending Deep Link；
-- Task detail 必须重新从 server fetch；
-- forbidden/deleted/left-company fail closed；
-- card/deep-link 不直接执行 Complete/Approve 等写命令。
+- KMP local `MessageType.WORKBENCH`；
+- safe V1 parser + malformed/unknown fallback；
+- 独立 Compose `WorkbenchMessageCard`，不复用 BOT_CARD；
+- existing `UserViewModel.switchWorkspace(companyId)` authenticated switch；
+- target company state ready 后才 `GET /api/workbench/tasks/{taskId}`；
+- resource current detail 来自 server，card snapshot 不授权写操作；
+- conversation preview 使用 `[工作台]`，不泄漏 JSON payload；
+- parser regression + KMP APK CI 通过。
 
-当前 Web/Electron consumer 已 READY，但 server emission 仍关闭。
-
----
-
-## 6. #30 Android/KMP Workbench Card + Deep Link — COMPLETED ON PR #59 MERGE
-
-Issue：#30  
-PR：#59  
-Branch：`feature/30-workbench-card-deeplink`
-
-实现边界：
-
-- KMP 本地 `MessageType` append `WORKBENCH`，Proto `WORKBENCH` 不再在 `MessageType.valueOf(message.type.name)` 阶段失败；
-- `MessageBubble.kt` 只新增独立 WORKBENCH renderer 分支，BOT_CARD / MEETING / file / voice 原分支保持；
-- V1 parser 与 Web/Electron 对齐：version/category/action/UUID/长度/occurredAt/canonical deep-link/target triplet 校验；
-- unknown version/category/action、malformed JSON、非法 deep link 全部只显示 safe fallback，不执行导航；
-- `WorkbenchMessageCard` 不复用 BOT_CARD renderer；
-- company switch 复用正常 `UserViewModel.switchWorkspace(companyId)` / `CompanyApi.switchCompany` 认证路径；
-- cross-company deep link 会等待 target company 的 authenticated state 后才发起资源请求；
-- Task deep link 必须重新调用 `GET /api/workbench/tasks/{taskId}`，展示服务器当前 detail；
-- card snapshot 不提供 Complete/Approve 等写操作；
-- 已离开公司、切换失败、403/404/删除资源均 fail closed；
-- 尚无移动详情 UI 的 Approval/Announcement/Schedule/Report 安全提示，不猜测业务状态；
-- parser tests 覆盖 valid、malformed、unknown action、forged companyId、canonical percent encoding；
-- KMP APK CI 是合并门禁。
-
-#30 完成只代表受支持 Android 客户端具备安全消费能力；server WORKBENCH persistence/emission 仍由 #50 + #54 阻塞。
+两类 supported client consumer 均已具备安全消费能力，但这不等于允许 server emission。
 
 ---
 
-## 7. CURRENT GATES — #50 → #54 → #55
+## 6. CURRENT → NEXT：#50 → #54 → #55
 
-### #50 Storage / Managed Core Evolution — CURRENT / NEXT BLOCKER
+### #50 Storage / Managed Core Evolution — CURRENT
 
-目标：在不破坏 immutable 1906 adoption contract 的前提下，通过合法 Flyway managed-core evolution 允许 `messages.type=WORKBENCH`。
+完成条件：
 
-#50 只开放**存储能力**，不自动产生任何 WORKBENCH 消息。
+- 2003 migration 在 PostgreSQL Testcontainers 通过；
+- 1906 pinned adoption hashes保持不变；
+- legacy 1906 no-history tenant 仍 BASELINE_READY；
+- baseline 后正常 migrate 到 2003；
+- 2003 managed tenant 不误报 drift；
+- history/current CHECK 不一致时 fail closed；
+- provisioning / migration runtime target 前移到 2003；
+- server emission 仍关闭。
 
-### #54 Supported-client Rollout Gate — QUEUED
+### #54 Supported-client Rollout Gate — NEXT
 
-目标：把 ADR-0005 的 client-first 原则变成可执行发布策略：
-
-- supported-client matrix；
-- minimum version；
-- feature gate；
-- 灰度与 rollback；
-- old-client behavior；
-- Push / ClientEvent / IM Card 各自开启条件；
-- 禁止 dual-write。
+把 client-first 原则变成可执行发布策略：supported-client matrix、minimum version、feature gate、灰度/rollback、old-client behavior、各 delivery channel 开启条件。
 
 ### #55 Task Realtime / Push / WORKBENCH Notification — BLOCKED
 
-依赖：`#50 + #54`（客户端 consumer #29/#30 已完成）。
-
-开启后才实现：
+依赖 `#50 + #54`。开启后才实现：
 
 ```text
 Task domain event
@@ -265,24 +209,37 @@ Task domain event
 → ClientEvent / Push / optional existing-route IM WORKBENCH Card
 ```
 
-关键安全条件：
-
-- DB rollback 不产生成功通知；
-- eventId 可去重；
-- Push 不携带敏感 Task detail；
-- 不为了 OA 通知自动创建 conversation；
-- Deep Link 仍由客户端重新获取当前资源并由 server 授权；
-- 不做 TEXT + WORKBENCH 双写。
+关键安全条件：rollback 不产生成功通知、eventId 去重、Push 不携带敏感 Task detail、不隐式创建 conversation、客户端重新鉴权、不双写 TEXT + WORKBENCH。
 
 ---
 
-## 8. NEXT FEATURE MODULE — #56 Approval Backend V1
+## 7. 开源复用策略
 
-Approval 设计已完成，#56 已建立正式实施 Issue。
+当前原则：**优先复用已有依赖和成熟 Spring 生态，不为了“用开源”增加重复架构。**
 
-项目优先级选择：**先完成 Task 的端到端通知闭环，再进入 Approval 实现**，避免同时展开两个未闭环领域。
+### Android/KMP
 
-技术上 Approval Backend 不依赖 WORKBENCH emission 才能编码，但交付顺序保持：
+项目已有 Ktor + kotlinx.serialization + Voyager / AndroidX Navigation；#30 不再引入 Decompose 等第三套路由体系。
+
+### #55 Event delivery 候选
+
+在 #55 编码前做正式 spike：
+
+1. **Spring Modulith Event Publication Registry — 首选候选**：适配当前模块化单体，可在原业务事务内记录 event publication，并提供完成/失败/重提能力；
+2. `gruelbox/transaction-outbox` — Apache-2.0 备选，更偏 microservice/eventual-consistency；
+3. 若两者都不能满足 tenant/audit/notification policy 边界，再自研最小 outbox。
+
+禁止直接使用裸 `@Async @TransactionalEventListener` 承担可靠通知，因为进程在 commit 后、listener 执行前失败会丢事件。
+
+### Approval
+
+#56 V1 是固定 definition + 串行 nodes，保持显式领域状态机。Flowable 作为未来 BPMN/并行 gateway/timer/escalation 复杂化后的备选，不在 V1 引入；许可证不清晰的 workflow 项目不进入生产依赖。
+
+---
+
+## 8. 下一业务领域 — #56 Approval Backend V1
+
+项目交付顺序保持：
 
 ```text
 #50 storage
@@ -293,7 +250,7 @@ Approval 设计已完成，#56 已建立正式实施 Issue。
 → Approval notification
 ```
 
-Approval V1：固定 Definition + 串行 Nodes，覆盖 draft/submit/approve/reject/return/resubmit/cancel/CC，并复用 #13 permission/audit/tenant foundation。
+Approval V1 复用 #13 permission/audit/tenant foundation，固定 Definition + 串行 Nodes，覆盖 draft/submit/approve/reject/return/resubmit/cancel/CC。
 
 ---
 
@@ -301,28 +258,22 @@ Approval V1：固定 Definition + 串行 Nodes，覆盖 draft/submit/approve/rej
 
 | 模块 | 状态 | 当前事实 | 下一步 |
 | --- | --- | --- | --- |
-| Repository Governance | STABLE | Issue/PR/PROJECT_MASTER + CI | #6 required checks |
-| Tenant Migration | STABLE | baseline 1906 / target 2002 | #50 managed core evolution |
+| Tenant Migration | STABLE / EVOLVING | baseline 1906 / target 2003 on #50 | managed core regression |
 | Workbench Platform | STABLE | #13 | Task/Approval 复用 |
 | Workbench Overview | STABLE | #39 + Task projection | Approval projection |
 | Task Backend | STABLE | #45 / PR #46 | #55 notification |
 | Task Web/Electron | STABLE | #47 / PR #49 | notification E2E |
-| Electron/Web PR CI | STABLE | #9 / PR #48 | #6 required check |
 | Workbench Protocol | STABLE | #14 + #28 | storage/emission |
 | Workbench Web/Electron Card | STABLE | #29 / PR #52 | #54 rollout |
-| Workbench Android Card | STABLE ON MERGE | #30 / PR #59 | #54 rollout |
-| WORKBENCH Message Storage | **CURRENT / BLOCKER** | #50 | implement managed core evolution |
-| Supported-client Rollout | QUEUED | #54 | after storage |
+| Workbench Android Card | STABLE | #30 / PR #59 | #54 rollout |
+| WORKBENCH Message Storage | **IN_PROGRESS** | #50 | CI / merge |
+| Supported-client Rollout | QUEUED | #54 | after #50 |
 | Task Notification | BLOCKED | #55 | requires #50/#54 |
 | Approval Backend | QUEUED | #56 | after Task notification E2E |
-| Approval Web/Electron | PLANNED | design complete | after #56 |
-| Android OA full Task/Approval UI | PLANNED | Workbench shell exists | after core web vertical slices |
 
 ---
 
 ## 10. 执行路线
-
-### 已完成（PR #59 合并后）
 
 ```text
 #10 Formal Design ✅
@@ -337,109 +288,41 @@ Approval V1：固定 Definition + 串行 Nodes，覆盖 draft/submit/approve/rej
 → #28 WORKBENCH Protocol ✅
 → #29 Web/Electron Card + Deep Link ✅
 → #30 Android/KMP Card + Deep Link ✅
-```
-
-### 当前到下一纵向闭环
-
-```text
-#50 WORKBENCH Storage/Core Evolution    ← CURRENT
+→ #50 WORKBENCH Storage/Core Evolution        ← CURRENT
 → #54 Supported-client Rollout Gate
 → #55 Task Realtime/Push/Card
 → Task V1 cross-client E2E DONE
-```
-
-### 下一业务领域
-
-```text
-#56 Approval Backend V1
-→ Approval Web/Electron
-→ Approval Realtime/Push/Card (reuse #54 policy)
-→ Overview pending approvals
-→ Android Approval capability
-```
-
-### 后续领域
-
-```text
-Calendar / Meeting aggregation
-→ Announcement
-→ Report
-→ AI Office / Automation proposals
-```
-
-AI/Automation 只能调用真实 Workbench Domain Service，不能直接写 OA 表。
-
----
-
-## 11. V1 E2E Definition of Done
-
-### Task
-
-```text
-A(company X) creates/assigns Task to B
-→ transaction commits
-→ B receives policy-selected realtime/push/WORKBENCH notification on supported client
-→ B opens canonical Deep Link
-→ client switches authenticated company if required
-→ server re-authorizes and returns current Task detail
-→ B starts/completes Task
-→ A observes current state / Overview refresh
-→ switch to company Y: Task cannot be accessed
-→ rollback path produces no success notification
-```
-
-### Approval（#56 后）
-
-```text
-A submit
-→ B pending
-→ B server-authorized approve/reject/return
-→ A observes terminal/current state
-→ Overview pending count changes
-→ notification card remains event snapshot, not command authority
-→ cross-tenant access denied
+→ #56 Approval Backend V1
 ```
 
 ---
 
-## 12. CI / Merge Gates
+## 11. CI / Merge Gates
 
-当前 checks：
+当前 checks：Repository Governance、Backend PR Validation（applicable paths）、Electron Web PR Validation（applicable paths）、Build KMP APK、no unresolved review threads。#6 仍负责把这些 checks 配成 `master` required checks。
 
-- Repository Governance；
-- Backend PR Validation（applicable paths）；
-- Electron Web PR Validation（applicable paths，`npm ci + app:build + web:build`）；
-- Build KMP APK；
-- no unresolved review threads。
+### 开源复用决策
 
-#6 仍负责把这些 checks 配成 `master` required checks；当前 `master` 仍未开启 branch protection。
+详细评审见 `doc/features/workbench/open-source-component-review.md`。当前唯一建议进入近期技术 Spike 的是 Spring Modulith Event Publication Registry，用于 #55 评估可恢复的事件发布；Adaptive Cards / Gotify 仅借鉴降级与连接设计，UnifiedPush 仅作为后续 Android transport，Flowable 不进入 Approval V1。所有候选都不得建立第二套 tenant、permission 或业务真相。
 
 ---
 
-## 13. Change Log
+## 12. Change Log
+
+### 2026-08-24 — #50 WORKBENCH managed core storage
+
+状态：IN_PROGRESS。新增 2003 managed-core contract：Flyway history 与当前 `messages_type_check` 语义双验证，只有已知合法 evolution 可投影回 immutable 1906 adoption fingerprint；actual server emission 仍禁用。
 
 ### 2026-08-24 — #30 / PR #59 Android/KMP Workbench consumer
 
-状态：PR #59 合并即 COMPLETED。KMP 本地 WORKBENCH enum、safe parser、独立 Compose renderer、tenant-aware authenticated switch、server-refetched Task detail 与 safe fallback 已实现；actual persistence/emission 继续由 #50/#54 阻塞。
+状态：COMPLETED，merge `28036e6ccd6558c84fe95e2ece48ddb874514441`。
 
 ### 2026-08-24 — #53 / PR #57 Roadmap synchronization
 
-状态：COMPLETED。修正 PROJECT_MASTER / implementation roadmap 的历史状态漂移；新增 #54 rollout gate、#55 Task notification、#56 Approval Backend 真实追踪入口；CURRENT 切换到 #30。
+状态：COMPLETED。CURRENT/NEXT 路线与真实 Issues 同步。
 
 ### 2026-08-20 — #29 / PR #52
 
-状态：COMPLETED，merge `eb332edafa68c2ab8a73a62f345742a7f61ddb42`。Web/Electron WORKBENCH safe consumer + tenant-aware Deep Link 已进入 master；server emission 继续禁用。
-
-### 2026-08-20 — #28 / PR #51
-
-状态：COMPLETED，merge `7f261e881bdc3eb3cebcd1d0468777f647d3ea43`。
-
-### 2026-08-20 — #47 / PR #49
-
-状态：COMPLETED，merge `b590bbd6a18737b504d0c3876a8d12831e3efe15`。
-
-### 2026-08-20 — #45 / PR #46
-
-状态：COMPLETED，merge `6ff1d1f99567e9d203ca1e27e20c47db24551d62`。
+状态：COMPLETED，merge `eb332edafa68c2ab8a73a62f345742a7f61ddb42`。
 
 > Issue 描述为什么做，PR 描述怎么做，代码描述实际怎么运行，PROJECT_MASTER 描述项目现在是什么。

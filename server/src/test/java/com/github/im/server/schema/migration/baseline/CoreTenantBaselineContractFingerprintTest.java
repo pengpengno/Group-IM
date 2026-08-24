@@ -43,7 +43,7 @@ class CoreTenantBaselineContractFingerprintTest {
         flywayFactory.create(SCHEMA).migrate();
 
         TenantSchemaFingerprintService service = new TenantSchemaFingerprintService(dataSource, validator);
-        TenantSchemaFingerprint fingerprint = service.fingerprint(SCHEMA, 42L);
+        TenantSchemaFingerprint fingerprint = service.fingerprint(SCHEMA, 42L, true);
         Map<String, String> pinned = CoreTenantBaselineContract.expectedCategoryHashes();
 
         assertEquals(CoreTenantBaselineContract.CORE_TABLES, fingerprint.tables());
@@ -67,7 +67,7 @@ class CoreTenantBaselineContractFingerprintTest {
             statement.execute("CREATE VIEW contract_tenant.wb_future_probe_view AS SELECT probe_id, title FROM contract_tenant.wb_future_probe");
         }
 
-        TenantSchemaFingerprint withLaterObjects = service.fingerprint(SCHEMA, 42L);
+        TenantSchemaFingerprint withLaterObjects = service.fingerprint(SCHEMA, 42L, true);
 
         assertEquals(pinned, withLaterObjects.categoryHashes());
         assertEquals(fingerprint.fingerprint(), withLaterObjects.fingerprint());

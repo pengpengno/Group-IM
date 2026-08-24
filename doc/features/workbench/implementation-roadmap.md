@@ -32,8 +32,8 @@ Task Web/Electron                     ✅
 Structured OA Notification Design     ✅
 WORKBENCH Protocol                    ✅
 Web/Electron WORKBENCH Consumer       ✅
-Android/KMP WORKBENCH Consumer        ← CURRENT
-WORKBENCH Storage/Core Evolution      NEXT
+Android/KMP WORKBENCH Consumer        ✅
+WORKBENCH Storage/Core Evolution      ← CURRENT
 Supported-client Rollout Gate         NEXT
 Task Realtime/Push/Card                BLOCKED
 Approval Backend                       QUEUED
@@ -42,8 +42,8 @@ Approval Backend                       QUEUED
 当前唯一优先主线：
 
 ```text
-#30 Android/KMP Card + Deep Link
-→ #50 WORKBENCH Message Storage / Managed Core Evolution
+#30 Android/KMP Card + Deep Link ✅
+→ #50 WORKBENCH Message Storage / Managed Core Evolution ← CURRENT
 → #54 Supported-client Rollout Gate
 → #55 Task Realtime / Push / WORKBENCH Notification
 → Task V1 cross-client E2E
@@ -69,6 +69,7 @@ Approval Backend                       QUEUED
 | Structured OA Card Design | #14 | ✅ COMPLETED | ADR-0005 / client-first rollout / delivery matrix |
 | WORKBENCH Protocol | #28 | ✅ COMPLETED | Java/Proto/envelope/event/deep-link contract |
 | Web/Electron Consumer | #29 | ✅ COMPLETED | safe card renderer / tenant-aware Deep Link / server re-fetch |
+| Android/KMP Consumer | #30 | ✅ COMPLETED | PR #59 / safe Compose renderer / authenticated company switch / server re-fetch |
 
 ### 已完成的 Task 非通知闭环
 
@@ -87,7 +88,7 @@ create
 
 ---
 
-## 3. CURRENT — #30 Android/KMP Workbench Card + Deep Link
+## 3. COMPLETED — #30 Android/KMP Workbench Card + Deep Link
 
 ### 目标
 
@@ -119,11 +120,11 @@ valid WORKBENCH V1
 → current detail / forbidden / deleted safe state
 ```
 
-#30 未完成前：**禁止 server actual WORKBENCH emission**。
+#30 已由 PR #59 合并完成；server actual WORKBENCH emission 仍由 #50 + #54 + #55 禁止。
 
 ---
 
-## 4. NEXT — #50 WORKBENCH Message Storage / Managed Core Evolution
+## 4. CURRENT — #50 WORKBENCH Message Storage / Managed Core Evolution
 
 ### 背景
 
@@ -178,8 +179,8 @@ valid WORKBENCH V1
 ```text
 #29 Web/Electron consumer ✅
 + #30 Android/KMP consumer ✅
-+ #50 WORKBENCH storage ✅
-+ #54 rollout policy ✅
++ #50 WORKBENCH storage ⏳
++ #54 rollout policy ⏳
 ```
 
 全部满足，才允许进入 actual emission。
@@ -473,13 +474,12 @@ Repository Governance
 ### P0 — 正在做
 
 ```text
-#30 Android/KMP Workbench Card + Deep Link
+#50 WORKBENCH Message Storage / Managed Core Evolution
 ```
 
 ### P1 — 紧随其后
 
 ```text
-#50 WORKBENCH Message Storage / Managed Core Evolution
 #54 Supported-client Rollout Gate
 ```
 
@@ -510,6 +510,13 @@ AI Office / Automation
 ---
 
 ## 15. 路线变化记录
+
+### 2026-08-24 — #30 completed / #50 current
+
+- PR #59 已合并，Android/KMP consumer 标记 COMPLETED；
+- CURRENT 切到 #50 managed-core evolution；
+- 2003 只开放 WORKBENCH 合法存储，不开启 server emission；
+- actual emission 仍依赖 #54 rollout gate 与 #55 notification implementation。
 
 ### 2026-08-24 — #53
 
