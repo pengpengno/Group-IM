@@ -49,6 +49,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, "认证失败", new HttpHeaders(), HttpStatus.UNAUTHORIZED, request);
     }
 
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<Object> handleAccessDeniedException(org.springframework.security.access.AccessDeniedException ex, WebRequest request) {
+        return handleExceptionInternal(ex, "无权访问该资源", new HttpHeaders(), HttpStatus.FORBIDDEN, request);
+    }
+
     // 处理参数验证异常
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
@@ -126,6 +131,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             return "Bad Request";
         } else if (status.equals(HttpStatus.UNAUTHORIZED)) {
             return "Unauthorized";
+        } else if (status.equals(HttpStatus.FORBIDDEN)) {
+            return "Forbidden";
         } else if (status.equals(HttpStatus.NOT_FOUND)) {
             return "Not Found";
         } else if (status.equals(HttpStatus.INTERNAL_SERVER_ERROR)) {

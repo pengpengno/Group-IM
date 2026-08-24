@@ -608,7 +608,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/conversations/1/active",
+              "raw": "{{base_url}}/api/conversations/active",
               "host": [
                 "{{base_url}}"
               ],

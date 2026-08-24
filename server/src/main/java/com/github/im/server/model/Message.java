@@ -55,7 +55,7 @@ public class Message {
     private String content;  // 消息正文
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "from_account_id", referencedColumnName = "userId", nullable = false)
+    @JoinColumn(name = "from_account_id", referencedColumnName = "user_id", nullable = false)
     private User fromAccountId;  // 发送人
 
     /**

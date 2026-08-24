@@ -7,6 +7,7 @@ import com.github.im.server.service.ConversationService;
 import lombok.val;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -77,9 +78,24 @@ public class ConversationController {
      * @param userId 用户ID
      * @return 用户正在进行的群组
      */
-    @GetMapping("/{userId}/active")
-    public ResponseEntity<List<ConversationRes>> getActiveConversationsByUserId(@PathVariable Long userId) {
-        var activeConversations = conversationService.getActiveConversationsByUserId(userId);
+    @GetMapping("/active")
+    public ResponseEntity<List<ConversationRes>> getCurrentUserActiveConversations(@AuthenticationPrincipal User user) {
+        var activeConversations = conversationService.getActiveConversationsByUserId(user.getUserId());
         return ResponseEntity.ok(activeConversations);
+    }
+
+    /**
+     * Compatibility route for clients that have not migrated to {@code /active}.
+     * The path parameter must match the authenticated user and is never trusted as identity.
+     */
+    @GetMapping("/{userId}/active")
+    public ResponseEntity<List<ConversationRes>> getActiveConversationsByUserId(
+            @PathVariable Long userId,
+            @AuthenticationPrincipal User user
+    ) {
+        if (!user.getUserId().equals(userId)) {
+            throw new AccessDeniedException("Cannot access another user's active conversations");
+        }
+        return getCurrentUserActiveConversations(user);
     }
 }

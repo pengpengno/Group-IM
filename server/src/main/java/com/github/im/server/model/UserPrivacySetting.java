@@ -12,7 +12,7 @@ public class UserPrivacySetting {
     private Long settingId;
 
     @OneToOne
-    @JoinColumn(name = "user_id", referencedColumnName = "userId")
+    @JoinColumn(name = "user_id", referencedColumnName = "user_id")
     private User user;
 
     private Boolean visibilityStatus = true;

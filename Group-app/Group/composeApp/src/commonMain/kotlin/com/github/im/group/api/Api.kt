@@ -94,10 +94,10 @@ object ConversationApi{
     /**
      * 获取用户已激活的会话
      */
-    suspend fun getActiveConversationsByUserId(userId:Long ): List<ConversationRes> {
+    suspend fun getActiveConversations(): List<ConversationRes> {
         return ProxyApi.request<Unit, List<ConversationRes>>(
             hmethod = HttpMethod.Get,
-            path = "/api/conversations/${userId}/active"
+            path = "/api/conversations/active"
         )
     }
     /**

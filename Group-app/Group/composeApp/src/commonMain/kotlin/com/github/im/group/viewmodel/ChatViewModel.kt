@@ -286,7 +286,7 @@ class ChatViewModel(
     }
 
     private suspend fun loadRemoteConversations(userId: Long): List<ConversationDisplayState> {
-        val response = ConversationApi.getActiveConversationsByUserId(userId)
+        val response = ConversationApi.getActiveConversations()
         response.forEach { conversationRepository.saveConversation(it) }
 
         val preferences = conversationRepository.getConversationUiPreferences()

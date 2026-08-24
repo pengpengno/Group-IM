@@ -1,6 +1,7 @@
 package com.github.im.server.repository;
 
 import com.github.im.server.model.Conversation;
+import com.github.im.enums.ConversationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,9 +20,20 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
     List<Conversation> findByMembers_User_UserId(Long userId);
 
     // 查询某个用户正在进行的群组
-    @Query("SELECT c FROM Conversation c JOIN c.members m WHERE m.user.userId = :userId AND c.status = ACTIVE")
-//    List<Conversation> findActiveConversationsByUserId(Long userId, ConversationStatus status);
-    List<Conversation> findActiveConversationsByUserId(Long userId);
+    @Query("""
+            SELECT DISTINCT c
+            FROM Conversation c
+            JOIN c.members matchingMember
+            LEFT JOIN FETCH c.createdBy
+            LEFT JOIN FETCH c.members member
+            LEFT JOIN FETCH member.user
+            WHERE matchingMember.user.userId = :userId
+              AND c.status = :status
+            """)
+    List<Conversation> findActiveConversationsByUserId(
+            @Param("userId") Long userId,
+            @Param("status") ConversationStatus status
+    );
 
     // 查询两个用户之间的私聊会话
     @Query("SELECT c FROM Conversation c JOIN c.members m1 JOIN c.members m2 " +

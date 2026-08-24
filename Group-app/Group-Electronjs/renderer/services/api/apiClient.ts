@@ -69,9 +69,9 @@ export const authAPI = {
 };
 
 export const conversationAPI = {
-  // GET /api/conversations/{userId}/active
-  getActiveConversations: async (userId: string) => {
-    return http.get(`/api/conversations/${userId}/active`);
+  // GET /api/conversations/active
+  getActiveConversations: async () => {
+    return http.get('/api/conversations/active');
   },
 
   // POST /api/conversations/private-chat?userId={userId}&friendId={friendId}

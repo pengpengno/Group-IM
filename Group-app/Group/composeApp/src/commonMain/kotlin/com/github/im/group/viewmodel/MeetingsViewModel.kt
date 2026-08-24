@@ -35,7 +35,7 @@ class MeetingsViewModel : ViewModel() {
             _state.value = MeetingsState.Loading
             try {
                 if (userId != null) {
-                    _groupConversations.value = ConversationApi.getActiveConversationsByUserId(userId)
+                    _groupConversations.value = ConversationApi.getActiveConversations()
                         .filter { it.conversationType == ConversationType.GROUP }
                 }
                 val meetings = MeetingApi.listMyMeetings()

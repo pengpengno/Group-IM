@@ -212,8 +212,7 @@ public class ConversationService {
      * @return 用户正在进行的群组
      */
     public List<ConversationRes> getActiveConversationsByUserId(Long userId) {
-//        return conversationRepository.findActiveConversationsByUserId(userId, ConversationStatus.ACTIVE).stream()
-        return conversationRepository.findActiveConversationsByUserId(userId).stream()
+        return conversationRepository.findActiveConversationsByUserId(userId, ConversationStatus.ACTIVE).stream()
                 .map(conversationsMapper::toDTO)
                 .collect(Collectors.toList());
     }

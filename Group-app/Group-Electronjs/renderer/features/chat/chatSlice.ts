@@ -180,7 +180,7 @@ function upsertConversation(state: ChatState, conversation: ConversationRes) {
 export const fetchConversations = createAsyncThunk(
     'chat/fetchConversations',
     async (userId: string) => {
-        const response = await conversationAPI.getActiveConversations(userId);
+        const response = await conversationAPI.getActiveConversations();
         return response.data?.data || response.data || [];
     }
 );
@@ -320,7 +320,7 @@ export const addConversationMembers = createAsyncThunk(
             throw new Error('User context is missing');
         }
 
-        const response = await conversationAPI.getActiveConversations(currentUserId);
+        const response = await conversationAPI.getActiveConversations();
         const conversations = response.data?.data || response.data || [];
         const updatedConversation = conversations.find((conversation: ConversationRes) => conversation.conversationId === conversationId);
 
