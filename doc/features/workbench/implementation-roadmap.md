@@ -34,9 +34,10 @@ WORKBENCH Protocol                    ✅
 Web/Electron WORKBENCH Consumer       ✅
 Android/KMP WORKBENCH Consumer        ✅
 WORKBENCH Storage/Core Evolution      ✅
-Supported-client Rollout Gate         ← CURRENT
-Task Realtime/Push/Card                BLOCKED
-Approval Backend                       QUEUED
+Supported-client Rollout Gate          ✅
+Task Realtime/Push/Card                 ✅
+Approval Backend                        ✅
+Approval Web/Electron                  ← CURRENT
 ```
 
 当前唯一优先主线：
@@ -44,10 +45,11 @@ Approval Backend                       QUEUED
 ```text
 #30 Android/KMP Card + Deep Link ✅
 → #50 WORKBENCH Message Storage / Managed Core Evolution ✅
-→ #54 Supported-client Rollout Gate ← CURRENT
-→ #55 Task Realtime / Push / WORKBENCH Notification
-→ Task V1 cross-client E2E
-→ #56 Approval Backend V1
+→ #54 Supported-client Rollout Gate ✅
+→ #55 Task Realtime / Push / WORKBENCH Notification ✅
+→ Task V1 cross-client E2E ✅
+→ #56 Approval Backend V1 ✅
+→ Approval Web/Electron ← CURRENT
 ```
 
 选择这一路线的原因：先把一个 Task 纵向切片从数据库、API、Web/Electron、Android consumer、通知、安全 rollout 全部闭环，再展开 Approval，避免两个领域同时处于半完成状态。
@@ -154,7 +156,7 @@ valid WORKBENCH V1
 
 ---
 
-## 5. CURRENT — #54 Supported-client Rollout Gate
+## 5. COMPLETED — #54 Supported-client Rollout Gate
 
 ### 目标
 
@@ -180,7 +182,7 @@ valid WORKBENCH V1
 #29 Web/Electron consumer ✅
 + #30 Android/KMP consumer ✅
 + #50 WORKBENCH storage ✅
-+ #54 rollout policy ⏳
++ #54 rollout policy ✅
 ```
 
 全部满足，才允许进入 actual emission。
@@ -189,7 +191,7 @@ valid WORKBENCH V1
 
 ## 6. #55 Task Realtime / Push / WORKBENCH Notification
 
-状态：CURRENT，#50 与 #54 已完成。
+状态：COMPLETED，由 PR #62 合并。
 
 ### 领域原则
 
@@ -246,7 +248,7 @@ A(company X) create/assign Task to B
 
 ## 7. #56 Approval Backend V1
 
-状态：CURRENT。#55 最小通知闭环已由 PR #62 合并。
+状态：COMPLETED，由 PR #63 合并。#55 最小通知闭环已由 PR #62 合并。
 
 技术上 Approval Backend 可以独立于 WORKBENCH notification 开发，但项目交付优先级选择在 #55 之后开始，以保证一个领域完整闭环后再进入下一领域。
 
