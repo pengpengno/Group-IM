@@ -1,6 +1,7 @@
 package com.github.im.server.workbench.task;
 
 import com.github.im.server.schema.migration.baseline.CoreTenantBaselineContract;
+import com.github.im.server.schema.migration.baseline.ManagedCoreSchemaContractService;
 import com.github.im.server.schema.migration.baseline.TenantSchemaFingerprint;
 import com.github.im.server.schema.migration.baseline.TenantSchemaFingerprintService;
 import com.github.im.server.schema.migration.service.TenantFlywayFactory;
@@ -38,7 +39,7 @@ class TaskMigrationIntegrationTest {
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
 
     @Test
-    void taskMigrationAdvancesManagedTargetWithoutChangingCoreFingerprint() throws Exception {
+    void taskMigrationSurvivesManagedCoreEvolutionWithoutChangingAdoptionFingerprint() throws Exception {
         DataSource dataSource = dataSource();
         createGlobalIdentityAndTenant(dataSource);
         SchemaNameValidator validator = new SchemaNameValidator();
@@ -50,12 +51,18 @@ class TaskMigrationIntegrationTest {
 
         flyway.migrate();
 
-        assertEquals("2026082002", flyway.info().current().getVersion().getVersion());
+        assertEquals("2026082003", flyway.info().current().getVersion().getVersion());
         assertTrue(flyway.validateWithResult().validationSuccessful);
         assertTrue(relationNames(dataSource).containsAll(TASK_TABLES));
 
+        ManagedCoreSchemaContractService.Inspection managedCore =
+                new ManagedCoreSchemaContractService(dataSource, validator).inspect(SCHEMA);
+        assertTrue(managedCore.workbenchMigrationApplied());
+        assertTrue(managedCore.valid());
+        assertTrue(managedCore.messageTypes().contains("WORKBENCH"));
+
         TenantSchemaFingerprint fingerprint = new TenantSchemaFingerprintService(dataSource, validator)
-                .fingerprint(SCHEMA, 42L);
+                .fingerprint(SCHEMA, 42L, managedCore.workbenchMigrationApplied());
         assertEquals(CoreTenantBaselineContract.expectedCategoryHashes(), fingerprint.categoryHashes());
         assertEquals(CoreTenantBaselineContract.CORE_TABLES, fingerprint.tables());
         assertTrue(fingerprint.allTables().containsAll(TASK_TABLES));
