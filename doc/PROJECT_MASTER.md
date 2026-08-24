@@ -5,9 +5,9 @@
 - 文档状态：ACTIVE
 - 基线日期：2026-08-24
 - 唯一开发主线：`master`
-- 最近完成：#45 Task Backend、#47 Task Web/Electron、#28 Workbench Protocol、#29 Web/Electron Workbench Card、#30 Android/KMP Workbench Card
-- **当前交付：#50 WORKBENCH Message Storage / managed core evolution**
-- 后续：#54 supported-client rollout gate → #55 Task Realtime/Push/WORKBENCH notifications → #56 Approval Backend V1
+- 最近完成：#30 Android/KMP Workbench Card、#50 WORKBENCH Message Storage / managed core evolution（PR #60）
+- **当前交付：#54 supported-client rollout gate**
+- 后续：#55 Task Realtime/Push/WORKBENCH notifications → #56 Approval Backend V1
 - 仓库：`pengpengno/Group-IM`
 
 ---
@@ -48,8 +48,8 @@ Group-IM 是多租户组织协作 IM/OA 平台。消息是协作主链路，Work
 | WORKBENCH Protocol | #28 / PR #51 | COMPLETED | Java/Proto/envelope/event/deep-link contract |
 | Web/Electron Card + Deep Link | #29 / PR #52 | COMPLETED | safe renderer + tenant-aware navigation + server re-fetch |
 | Android/KMP Card + Deep Link | #30 / PR #59 | COMPLETED | safe Compose renderer + authenticated company switch + server re-fetch |
-| WORKBENCH Storage | #50 | **IN_PROGRESS** | 2003 managed-core evolution + `messages.type=WORKBENCH` |
-| Supported-client rollout | #54 | QUEUED | minimum version / feature gate / rollback policy |
+| WORKBENCH Storage | #50 / PR #60 | COMPLETED | 2003 managed-core evolution + `messages.type=WORKBENCH` |
+| Supported-client rollout | #54 | **CURRENT** | fail-closed master switch + per-channel kill switch + release floors |
 | Task Notification | #55 | BLOCKED | 等 #50 + #54 后开启 actual emission |
 | Approval Backend | #56 | QUEUED | Task 通知闭环后进入下一领域模块 |
 
@@ -179,9 +179,9 @@ PR #59 merge：`28036e6ccd6558c84fe95e2ece48ddb874514441`。
 
 ---
 
-## 6. CURRENT → NEXT：#50 → #54 → #55
+## 6. CURRENT → NEXT：#54 → #55
 
-### #50 Storage / Managed Core Evolution — CURRENT
+### #50 Storage / Managed Core Evolution — COMPLETED
 
 完成条件：
 
@@ -194,9 +194,11 @@ PR #59 merge：`28036e6ccd6558c84fe95e2ece48ddb874514441`。
 - provisioning / migration runtime target 前移到 2003；
 - server emission 仍关闭。
 
-### #54 Supported-client Rollout Gate — NEXT
+### #54 Supported-client Rollout Gate — CURRENT
 
 把 client-first 原则变成可执行发布策略：supported-client matrix、minimum version、feature gate、灰度/rollback、old-client behavior、各 delivery channel 开启条件。
+
+最小实现：一个默认关闭的总 kill switch、ClientEvent / Push / IM Card 三个独立开关、Web/Electron 与 Android 两个 release floor，以及统一 `WorkbenchRolloutGate`。没有新发布平台、动态规则引擎或双写兼容层。
 
 ### #55 Task Realtime / Push / WORKBENCH Notification — BLOCKED
 
@@ -215,7 +217,7 @@ Task domain event
 
 ## 7. 开源复用策略
 
-当前原则：**优先复用已有依赖和成熟 Spring 生态，不为了“用开源”增加重复架构。**
+当前原则：**不为了“用开源”增加重复架构，V1 优先复用现有 Spring、ClientEvent、Push 与 IM 能力。**
 
 ### Android/KMP
 
@@ -223,13 +225,7 @@ Task domain event
 
 ### #55 Event delivery 候选
 
-在 #55 编码前做正式 spike：
-
-1. **Spring Modulith Event Publication Registry — 首选候选**：适配当前模块化单体，可在原业务事务内记录 event publication，并提供完成/失败/重提能力；
-2. `gruelbox/transaction-outbox` — Apache-2.0 备选，更偏 microservice/eventual-consistency；
-3. 若两者都不能满足 tenant/audit/notification policy 边界，再自研最小 outbox。
-
-禁止直接使用裸 `@Async @TransactionalEventListener` 承担可靠通知，因为进程在 commit 后、listener 执行前失败会丢事件。
+#55 V1 不引入 Spring Modulith、transaction-outbox 或新的消息中间件。先用现有 Spring transaction event 完成业务闭环，并以稳定 `eventId` 做幂等。若生产数据证明 commit 后丢失窗口不可接受，再把持久 outbox 作为独立可靠性升级，不和 Task V1 混做。
 
 ### Approval
 
@@ -266,8 +262,8 @@ Approval V1 复用 #13 permission/audit/tenant foundation，固定 Definition + 
 | Workbench Protocol | STABLE | #14 + #28 | storage/emission |
 | Workbench Web/Electron Card | STABLE | #29 / PR #52 | #54 rollout |
 | Workbench Android Card | STABLE | #30 / PR #59 | #54 rollout |
-| WORKBENCH Message Storage | **IN_PROGRESS** | #50 | CI / merge |
-| Supported-client Rollout | QUEUED | #54 | after #50 |
+| WORKBENCH Message Storage | STABLE | #50 / PR #60 | #54 rollout |
+| Supported-client Rollout | **IN_PROGRESS** | #54 | fail-closed gate / CI |
 | Task Notification | BLOCKED | #55 | requires #50/#54 |
 | Approval Backend | QUEUED | #56 | after Task notification E2E |
 
@@ -288,8 +284,8 @@ Approval V1 复用 #13 permission/audit/tenant foundation，固定 Definition + 
 → #28 WORKBENCH Protocol ✅
 → #29 Web/Electron Card + Deep Link ✅
 → #30 Android/KMP Card + Deep Link ✅
-→ #50 WORKBENCH Storage/Core Evolution        ← CURRENT
-→ #54 Supported-client Rollout Gate
+→ #50 WORKBENCH Storage/Core Evolution ✅
+→ #54 Supported-client Rollout Gate           ← CURRENT
 → #55 Task Realtime/Push/Card
 → Task V1 cross-client E2E DONE
 → #56 Approval Backend V1
@@ -303,7 +299,7 @@ Approval V1 复用 #13 permission/audit/tenant foundation，固定 Definition + 
 
 ### 开源复用决策
 
-详细评审见 `doc/features/workbench/open-source-component-review.md`。当前唯一建议进入近期技术 Spike 的是 Spring Modulith Event Publication Registry，用于 #55 评估可恢复的事件发布；Adaptive Cards / Gotify 仅借鉴降级与连接设计，UnifiedPush 仅作为后续 Android transport，Flowable 不进入 Approval V1。所有候选都不得建立第二套 tenant、permission 或业务真相。
+详细评审见 `doc/features/workbench/open-source-component-review.md`。当前路线不引入 Spring Modulith、Adaptive Cards、Gotify、UnifiedPush 或 Flowable；它们只保留为未来参考，不进入 #54/#55/#56 V1。所有候选都不得建立第二套 tenant、permission 或业务真相。
 
 ---
 
@@ -311,7 +307,7 @@ Approval V1 复用 #13 permission/audit/tenant foundation，固定 Definition + 
 
 ### 2026-08-24 — #50 WORKBENCH managed core storage
 
-状态：IN_PROGRESS。新增 2003 managed-core contract：Flyway history 与当前 `messages_type_check` 语义双验证，只有已知合法 evolution 可投影回 immutable 1906 adoption fingerprint；actual server emission 仍禁用。
+状态：COMPLETED，PR #60 merge `bf4f9da715a8c1d7a91d5a81ce7fdc815d11d7b2`。2003 managed-core contract 已进入 master；actual server emission 仍禁用。
 
 ### 2026-08-24 — #30 / PR #59 Android/KMP Workbench consumer
 

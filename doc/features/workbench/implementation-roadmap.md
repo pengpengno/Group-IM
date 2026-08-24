@@ -33,8 +33,8 @@ Structured OA Notification Design     ✅
 WORKBENCH Protocol                    ✅
 Web/Electron WORKBENCH Consumer       ✅
 Android/KMP WORKBENCH Consumer        ✅
-WORKBENCH Storage/Core Evolution      ← CURRENT
-Supported-client Rollout Gate         NEXT
+WORKBENCH Storage/Core Evolution      ✅
+Supported-client Rollout Gate         ← CURRENT
 Task Realtime/Push/Card                BLOCKED
 Approval Backend                       QUEUED
 ```
@@ -43,8 +43,8 @@ Approval Backend                       QUEUED
 
 ```text
 #30 Android/KMP Card + Deep Link ✅
-→ #50 WORKBENCH Message Storage / Managed Core Evolution ← CURRENT
-→ #54 Supported-client Rollout Gate
+→ #50 WORKBENCH Message Storage / Managed Core Evolution ✅
+→ #54 Supported-client Rollout Gate ← CURRENT
 → #55 Task Realtime / Push / WORKBENCH Notification
 → Task V1 cross-client E2E
 → #56 Approval Backend V1
@@ -120,11 +120,11 @@ valid WORKBENCH V1
 → current detail / forbidden / deleted safe state
 ```
 
-#30 已由 PR #59 合并完成；server actual WORKBENCH emission 仍由 #50 + #54 + #55 禁止。
+#30 已由 PR #59 合并完成；server actual WORKBENCH emission 仍由 #54 + #55 禁止。
 
 ---
 
-## 4. CURRENT — #50 WORKBENCH Message Storage / Managed Core Evolution
+## 4. COMPLETED — #50 WORKBENCH Message Storage / Managed Core Evolution
 
 ### 背景
 
@@ -154,7 +154,7 @@ valid WORKBENCH V1
 
 ---
 
-## 5. NEXT — #54 Supported-client Rollout Gate
+## 5. CURRENT — #54 Supported-client Rollout Gate
 
 ### 目标
 
@@ -179,7 +179,7 @@ valid WORKBENCH V1
 ```text
 #29 Web/Electron consumer ✅
 + #30 Android/KMP consumer ✅
-+ #50 WORKBENCH storage ⏳
++ #50 WORKBENCH storage ✅
 + #54 rollout policy ⏳
 ```
 
@@ -189,7 +189,7 @@ valid WORKBENCH V1
 
 ## 6. #55 Task Realtime / Push / WORKBENCH Notification
 
-状态：BLOCKED，依赖 #30 + #50 + #54。
+状态：BLOCKED，仅剩 #54 rollout gate。
 
 ### 领域原则
 
@@ -474,13 +474,13 @@ Repository Governance
 ### P0 — 正在做
 
 ```text
-#50 WORKBENCH Message Storage / Managed Core Evolution
+#54 Supported-client Rollout Gate
 ```
 
 ### P1 — 紧随其后
 
 ```text
-#54 Supported-client Rollout Gate
+#55 Task Realtime / Push / WORKBENCH Notification
 ```
 
 ### P2 — 完成 Task 纵向闭环
@@ -510,6 +510,13 @@ AI Office / Automation
 ---
 
 ## 15. 路线变化记录
+
+### 2026-08-24 — #50 completed / #54 current
+
+- PR #60 已 Squash Merge，2003 managed-core storage contract 进入 master；
+- CURRENT 切到 #54；
+- #54 只实现 fail-closed 总开关、通道开关和发布版本记录，不引入新的发布系统；
+- 所有开关默认关闭，#55 合并前仍无 actual emission。
 
 ### 2026-08-24 — #30 completed / #50 current
 
