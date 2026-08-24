@@ -49,8 +49,8 @@ Group-IM 是多租户组织协作 IM/OA 平台。消息是协作主链路，Work
 | Web/Electron Card + Deep Link | #29 / PR #52 | COMPLETED | safe renderer + tenant-aware navigation + server re-fetch |
 | Android/KMP Card + Deep Link | #30 / PR #59 | COMPLETED | safe Compose renderer + authenticated company switch + server re-fetch |
 | WORKBENCH Storage | #50 / PR #60 | COMPLETED | 2003 managed-core evolution + `messages.type=WORKBENCH` |
-| Supported-client rollout | #54 | **CURRENT** | fail-closed master switch + per-channel kill switch + release floors |
-| Task Notification | #55 | BLOCKED | 等 #50 + #54 后开启 actual emission |
+| Supported-client rollout | #54 / PR #61 | COMPLETED | fail-closed master switch + per-channel kill switch + release floors |
+| Task Notification | #55 | **CURRENT** | AFTER_COMMIT + ASSIGN/COMPLETE/REOPEN 最小通知闭环 |
 | Approval Backend | #56 | QUEUED | Task 通知闭环后进入下一领域模块 |
 
 ---
@@ -179,7 +179,7 @@ PR #59 merge：`28036e6ccd6558c84fe95e2ece48ddb874514441`。
 
 ---
 
-## 6. CURRENT → NEXT：#54 → #55
+## 6. CURRENT → NEXT：#55 → #56
 
 ### #50 Storage / Managed Core Evolution — COMPLETED
 
@@ -194,15 +194,15 @@ PR #59 merge：`28036e6ccd6558c84fe95e2ece48ddb874514441`。
 - provisioning / migration runtime target 前移到 2003；
 - server emission 仍关闭。
 
-### #54 Supported-client Rollout Gate — CURRENT
+### #54 Supported-client Rollout Gate — COMPLETED
 
 把 client-first 原则变成可执行发布策略：supported-client matrix、minimum version、feature gate、灰度/rollback、old-client behavior、各 delivery channel 开启条件。
 
 最小实现：一个默认关闭的总 kill switch、ClientEvent / Push / IM Card 三个独立开关、Web/Electron 与 Android 两个 release floor，以及统一 `WorkbenchRolloutGate`。没有新发布平台、动态规则引擎或双写兼容层。
 
-### #55 Task Realtime / Push / WORKBENCH Notification — BLOCKED
+### #55 Task Realtime / Push / WORKBENCH Notification — CURRENT
 
-依赖 `#50 + #54`。开启后才实现：
+`#50 + #54` 已完成。当前实现：
 
 ```text
 Task domain event
@@ -212,6 +212,8 @@ Task domain event
 ```
 
 关键安全条件：rollback 不产生成功通知、eventId 去重、Push 不携带敏感 Task detail、不隐式创建 conversation、客户端重新鉴权、不双写 TEXT + WORKBENCH。
+
+V1 首批只发送 `ASSIGN / COMPLETE / REOPEN` 三类高价值事件；普通更新与评论暂不通知。所有开关仍默认关闭，且 IM Card 在没有明确合法 conversation route 时不发送。
 
 ---
 

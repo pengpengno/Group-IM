@@ -30,6 +30,8 @@ import com.github.im.server.workbench.task.repository.WorkTaskActivityRepository
 import com.github.im.server.workbench.task.repository.WorkTaskAssigneeRepository;
 import com.github.im.server.workbench.task.repository.WorkTaskCommentRepository;
 import com.github.im.server.workbench.task.repository.WorkTaskRepository;
+import com.github.im.server.workbench.task.event.TaskNotificationEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -37,10 +39,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 @Service
 public class TaskService {
@@ -55,6 +59,7 @@ public class TaskService {
     private final WorkTaskActivityRepository activityRepository;
     private final WorkbenchAuditService auditService;
     private final Clock clock;
+    private final ApplicationEventPublisher eventPublisher;
 
     public TaskService(
             WorkbenchPermissionService permissionService,
@@ -66,7 +71,8 @@ public class TaskService {
             WorkTaskCommentRepository commentRepository,
             WorkTaskActivityRepository activityRepository,
             WorkbenchAuditService auditService,
-            Clock workbenchClock
+            Clock workbenchClock,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.permissionService = permissionService;
         this.organizationAdapter = organizationAdapter;
@@ -78,6 +84,7 @@ public class TaskService {
         this.activityRepository = activityRepository;
         this.auditService = auditService;
         this.clock = workbenchClock;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -211,6 +218,12 @@ public class TaskService {
         TaskActivityAction activityAction = TaskActivityAction.valueOf(action.name());
         recordActivity(task, context.userId(), activityAction, before, after, note);
         audit(context, task, activityAction, before, after, Map.of());
+        if (activityAction == TaskActivityAction.COMPLETE || activityAction == TaskActivityAction.REOPEN) {
+            List<Long> receivers = assigneeRepository.findByTaskIdOrderByCreatedAtAsc(taskId).stream()
+                    .map(WorkTaskAssignee::getUserId)
+                    .toList();
+            publishNotification(context, task, activityAction, receivers);
+        }
         return toDto(task);
     }
 
@@ -242,6 +255,7 @@ public class TaskService {
             recordActivity(task, context.userId(), TaskActivityAction.ASSIGN, task.getStatus(), task.getStatus(), detail);
             audit(context, task, TaskActivityAction.ASSIGN, task.getStatus(), task.getStatus(),
                     Map.of("userId", request.userId(), "role", role.name()));
+            publishNotification(context, task, TaskActivityAction.ASSIGN, List.of(request.userId()));
         }
         return toDto(task);
     }
@@ -430,6 +444,20 @@ public class TaskService {
         if (request == null) {
             badRequest("请求体不能为空");
         }
+    }
+
+    private void publishNotification(CurrentWorkContext context, WorkTask task,
+                                     TaskActivityAction action, List<Long> receiverIds) {
+        List<Long> recipients = receiverIds.stream()
+                .filter(Objects::nonNull)
+                .filter(userId -> !Objects.equals(userId, context.userId()))
+                .distinct()
+                .toList();
+        if (recipients.isEmpty()) return;
+        eventPublisher.publishEvent(new TaskNotificationEvent(
+                UUID.randomUUID().toString(), context.companyId(), task.getTaskId(),
+                task.getTitle(), task.getStatus().name(), action, context.userId(),
+                recipients, task.getConversationId(), Instant.now(clock)));
     }
 
     private String requireTitle(String value) {

@@ -104,7 +104,19 @@ public class ClientEventPublisherImpl implements ClientEventPublisher {
         }
     }
 
+    @Override
+    public void publishWorkbenchResourceEvent(ClientEvent event, boolean pushChannelEnabled) {
+        if (event == null || event.getReceiverId() == null) {
+            return;
+        }
+        dispatch(event, pushChannelEnabled);
+    }
+
     private void dispatch(ClientEvent event) {
+        dispatch(event, true);
+    }
+
+    private void dispatch(ClientEvent event, boolean pushChannelEnabled) {
         NotificationPolicyDecision decision = notificationPolicyService.decide(event);
         log.info(
                 "ClientEvent dispatched eventType={}, receiverId={}, presenceState={}, realtimeEnabled={}, pushEnabled={}, reason={}",
@@ -116,7 +128,7 @@ public class ClientEventPublisherImpl implements ClientEventPublisher {
                 decision.getReason()
         );
 
-        if (decision.isPushEnabled()) {
+        if (pushChannelEnabled && decision.isPushEnabled()) {
             pushNotificationGateway.send(event);
         }
     }

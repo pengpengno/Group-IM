@@ -11,4 +11,6 @@ public interface ClientEventPublisher {
     void publishChatMessageCreated(Message message, User sender, List<User> recipients);
 
     void publishMeetingInviteCreated(Meeting meeting, User host, List<User> recipients);
+
+    void publishWorkbenchResourceEvent(ClientEvent event, boolean pushChannelEnabled);
 }

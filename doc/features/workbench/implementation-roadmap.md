@@ -189,7 +189,7 @@ valid WORKBENCH V1
 
 ## 6. #55 Task Realtime / Push / WORKBENCH Notification
 
-状态：BLOCKED，仅剩 #54 rollout gate。
+状态：CURRENT，#50 与 #54 已完成。
 
 ### 领域原则
 
@@ -206,17 +206,13 @@ Task Domain Command
 → ClientEvent / Push / optional IM WORKBENCH Card
 ```
 
-### V1 事件候选
+### V1 首批事件
 
-- created；
 - assigned；
-- started；
-- blocked；
-- resumed；
 - completed；
 - reopened；
-- cancelled；
-- comment-added（按 policy 决定）。
+
+其他状态变化、普通更新与 comment-added 先保持静默；只有出现明确业务需求时再加入 policy，避免通知噪音。
 
 ### 安全边界
 
