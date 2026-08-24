@@ -27,9 +27,11 @@ public final class ManagedCoreSchemaContract {
     );
 
     private static final String MESSAGE_TYPE_ROW_PREFIX = "messages|messages_type_check|c|";
-    private static final String WORKBENCH_NORMALIZED_TOKEN = ",('workbench'::charactervarying)::text";
+    private static final Pattern WORKBENCH_NORMALIZED_TOKEN = Pattern.compile(
+            ",?\\(?'workbench'::charactervarying\\)?(?:::text)?"
+    );
     private static final Pattern NORMALIZED_MESSAGE_LITERAL =
-            Pattern.compile("\\('([a-z_]+)'::charactervarying\\)::text");
+            Pattern.compile("'([a-z_]+)'(?:::[a-z]+)?");
 
     private ManagedCoreSchemaContract() {
     }
@@ -48,7 +50,7 @@ public final class ManagedCoreSchemaContract {
         if (!actualTypes.equals(lowercase(WORKBENCH_MESSAGE_TYPES))) {
             return row;
         }
-        return row.replace(WORKBENCH_NORMALIZED_TOKEN, "");
+        return WORKBENCH_NORMALIZED_TOKEN.matcher(row).replaceFirst("");
     }
 
     private static Set<String> normalizedMessageTypes(String row) {
