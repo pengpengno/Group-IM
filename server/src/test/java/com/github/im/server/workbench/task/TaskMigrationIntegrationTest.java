@@ -1,6 +1,7 @@
 package com.github.im.server.workbench.task;
 
 import com.github.im.server.schema.migration.baseline.CoreTenantBaselineContract;
+import com.github.im.server.schema.migration.baseline.ManagedCoreSchemaContract;
 import com.github.im.server.schema.migration.baseline.TenantSchemaFingerprint;
 import com.github.im.server.schema.migration.baseline.TenantSchemaFingerprintService;
 import com.github.im.server.schema.migration.service.TenantFlywayFactory;
@@ -38,7 +39,7 @@ class TaskMigrationIntegrationTest {
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
 
     @Test
-    void taskMigrationAdvancesManagedTargetWithoutChangingCoreFingerprint() throws Exception {
+    void taskSchemaCoexistsWithVersionedManagedCoreEvolution() throws Exception {
         DataSource dataSource = dataSource();
         createGlobalIdentityAndTenant(dataSource);
         SchemaNameValidator validator = new SchemaNameValidator();
@@ -50,16 +51,21 @@ class TaskMigrationIntegrationTest {
 
         flyway.migrate();
 
-        assertEquals("2026082002", flyway.info().current().getVersion().getVersion());
+        assertEquals(CoreTenantBaselineContract.MANAGED_TARGET_VERSION, flyway.info().current().getVersion().getVersion());
         assertTrue(flyway.validateWithResult().validationSuccessful);
         assertTrue(relationNames(dataSource).containsAll(TASK_TABLES));
 
         TenantSchemaFingerprint fingerprint = new TenantSchemaFingerprintService(dataSource, validator)
                 .fingerprint(SCHEMA, 42L);
-        assertEquals(CoreTenantBaselineContract.expectedCategoryHashes(), fingerprint.categoryHashes());
+        assertEquals(
+                ManagedCoreSchemaContract.forManagedVersion(CoreTenantBaselineContract.MANAGED_TARGET_VERSION)
+                        .expectedCategoryHashes(),
+                fingerprint.categoryHashes()
+        );
         assertEquals(CoreTenantBaselineContract.CORE_TABLES, fingerprint.tables());
         assertTrue(fingerprint.allTables().containsAll(TASK_TABLES));
         assertTrue(fingerprint.allSequences().size() > fingerprint.sequences().size());
+        assertTrue(messageTypeCheck(dataSource).contains("WORKBENCH"));
 
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.execute("""
@@ -101,19 +107,23 @@ class TaskMigrationIntegrationTest {
     private Set<String> relationNames(DataSource dataSource) throws Exception {
         var names = new java.util.HashSet<String>();
         try (Connection connection = dataSource.getConnection();
-             var statement = connection.prepareStatement("""
-                     SELECT c.relname
-                     FROM pg_class c
-                     JOIN pg_namespace n ON n.oid = c.relnamespace
-                     WHERE n.nspname = ? AND c.relkind = 'r'
-                     """)) {
+             var statement = connection.prepareStatement("SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=? AND c.relkind='r'")) {
             statement.setString(1, SCHEMA);
             try (ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    names.add(resultSet.getString(1));
-                }
+                while (resultSet.next()) names.add(resultSet.getString(1));
             }
         }
         return names;
+    }
+
+    private String messageTypeCheck(DataSource dataSource) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             var statement = connection.prepareStatement("SELECT pg_get_constraintdef(con.oid,true) FROM pg_constraint con JOIN pg_class c ON c.oid=con.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=? AND c.relname='messages' AND con.conname='messages_type_check'")) {
+            statement.setString(1, SCHEMA);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                assertTrue(resultSet.next());
+                return resultSet.getString(1);
+            }
+        }
     }
 }
