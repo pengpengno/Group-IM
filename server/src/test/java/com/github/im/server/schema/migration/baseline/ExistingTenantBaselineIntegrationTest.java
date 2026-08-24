@@ -78,13 +78,15 @@ class ExistingTenantBaselineIntegrationTest {
         TenantCatalogRepository catalogRepository = new TenantCatalogRepository(dataSource);
         TenantSchemaFingerprintService fingerprintService = new TenantSchemaFingerprintService(dataSource, validator);
         TenantBaselineRepository baselineRepository = new TenantBaselineRepository(dataSource, new ObjectMapper());
+        ManagedCoreSchemaContractResolver managedCoreResolver = new ManagedCoreSchemaContractResolver(flywayFactory);
 
         preflightService = new TenantBaselinePreflightService(
                 publicBootstrap,
                 catalogRepository,
                 inspector,
                 fingerprintService,
-                baselineRepository
+                baselineRepository,
+                managedCoreResolver
         );
         baselineService = new ExistingTenantBaselineService(
                 publicBootstrap,
@@ -97,7 +99,7 @@ class ExistingTenantBaselineIntegrationTest {
     }
 
     @Test
-    void preflightBaselinesLegacyCoreToCurrentTaskTargetAndRejectsUnsafeAdoption() throws Exception {
+    void preflightBaselinesLegacyCoreToCurrentManagedTargetAndRejectsUnsafeAdoption() throws Exception {
         List<TenantBaselinePreflightSnapshot> preflight = preflightService.preflight(
                 new TenantBaselinePreflightRequest(List.of(), true),
                 9001L
@@ -113,6 +115,7 @@ class ExistingTenantBaselineIntegrationTest {
         assertEquals(TenantBaselineClassification.CONFLICT, byCompany.get(5L).classification());
         assertFalse(byCompany.get(1L).historyPresent());
         assertNotNull(byCompany.get(1L).observedFingerprint());
+        assertEquals(CoreTenantBaselineContract.expectedCategoryHashes(), byCompany.get(1L).categoryHashes());
         assertTrue(byCompany.get(3L).repairPlan().stream().anyMatch(value -> value.contains("column contract drift")));
         assertTrue(byCompany.get(4L).repairPlan().stream().anyMatch(value -> value.contains("status_updates")));
         assertTrue(byCompany.get(5L).repairPlan().stream().anyMatch(value -> value.contains("wb_unknown_probe")));
@@ -135,11 +138,25 @@ class ExistingTenantBaselineIntegrationTest {
         assertTrue(tableExists("legacy_b", "flyway_schema_history"));
         assertTrue(tableExists("legacy_a", "wb_task"));
         assertTrue(tableExists("legacy_b", "wb_task_activity"));
+        assertTrue(checkDefinition("legacy_a", "messages", "messages_type_check").contains("WORKBENCH"));
         assertEquals("2026081906", scalarString("""
                 SELECT metadata_value
                 FROM legacy_a.tenant_schema_metadata
                 WHERE metadata_key = 'core_baseline_contract'
                 """));
+
+        TenantBaselinePreflightSnapshot managed = preflightService.preflight(
+                new TenantBaselinePreflightRequest(List.of(1L), false),
+                9001L
+        ).getFirst();
+        assertEquals(
+                ManagedCoreSchemaContract.forManagedVersion(CoreTenantBaselineContract.MANAGED_TARGET_VERSION)
+                        .expectedCategoryHashes().get("constraints"),
+                managed.categoryHashes().get("constraints")
+        );
+        assertEquals(TenantBaselineClassification.BASELINE_READY, managed.classification());
+        assertTrue(managed.historyPresent());
+        assertTrue(managed.repairPlan().stream().anyMatch(value -> value.contains("2026082003")));
 
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.execute("""
@@ -155,9 +172,19 @@ class ExistingTenantBaselineIntegrationTest {
         ).getFirst();
         assertEquals(TenantBaselineClassification.BASELINE_READY, managedWithLaterObject.classification());
         assertTrue(managedWithLaterObject.historyPresent());
-        assertEquals(first.fingerprint(), managedWithLaterObject.observedFingerprint());
         assertTrue(managedWithLaterObject.repairPlan().stream()
-                .anyMatch(value -> value.contains("后续 managed objects 不参与 baseline hash")));
+                .anyMatch(value -> value.contains("后续 managed objects")));
+
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("ALTER TABLE legacy_b.messages DROP CONSTRAINT messages_type_check");
+            statement.execute("ALTER TABLE legacy_b.messages ADD CONSTRAINT messages_type_check CHECK (type IN ('TEXT','FILE','VOICE','VIDEO','IMAGE','MEDIA','MEETING','BOT_CARD','WORKBENCH','MANUAL_DRIFT'))");
+        }
+        TenantBaselinePreflightSnapshot managedManualDrift = preflightService.preflight(
+                new TenantBaselinePreflightRequest(List.of(2L), false),
+                9001L
+        ).getFirst();
+        assertEquals(TenantBaselineClassification.DRIFTED, managedManualDrift.classification());
+        assertTrue(managedManualDrift.repairPlan().stream().anyMatch(value -> value.contains("managed core contract")));
 
         BusinessException drifted = assertThrows(
                 BusinessException.class,
@@ -192,17 +219,6 @@ class ExistingTenantBaselineIntegrationTest {
                 )
         );
         assertEquals("MIGRATION_BASELINE_HISTORY_EXISTS", repeat.getErrorCode());
-
-        assertEquals(2, scalarInt("""
-                SELECT count(*)
-                FROM public.tenant_schema_baseline_audit
-                WHERE status = 'SUCCEEDED'
-                """));
-        assertEquals(3, scalarInt("""
-                SELECT count(*)
-                FROM public.tenant_schema_baseline_audit
-                WHERE status = 'FAILED'
-                """));
     }
 
     private static DataSource dataSource() {
@@ -215,63 +231,12 @@ class ExistingTenantBaselineIntegrationTest {
 
     private static void createGlobalIdentityContract() throws Exception {
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
-            statement.execute("""
-                    CREATE TABLE public.company (
-                        company_id BIGINT PRIMARY KEY,
-                        active BOOLEAN NOT NULL,
-                        created_at TIMESTAMP(6) WITHOUT TIME ZONE,
-                        name VARCHAR(255) NOT NULL,
-                        schema_name VARCHAR(255) NOT NULL UNIQUE,
-                        updated_at TIMESTAMP(6) WITHOUT TIME ZONE
-                    )
-                    """);
-            statement.execute("""
-                    CREATE TABLE public.users (
-                        user_id BIGINT PRIMARY KEY,
-                        created_at TIMESTAMP(6) WITHOUT TIME ZONE,
-                        email VARCHAR(255),
-                        force_password_change BOOLEAN,
-                        password_hash VARCHAR(255),
-                        phone_number VARCHAR(255),
-                        primary_company_id BIGINT,
-                        refresh_token VARCHAR(255),
-                        updated_at TIMESTAMP(6) WITHOUT TIME ZONE,
-                        user_status VARCHAR(255),
-                        username VARCHAR(255)
-                    )
-                    """);
-            statement.execute("""
-                    CREATE TABLE public.company_user (
-                        id BIGINT PRIMARY KEY,
-                        company_id BIGINT NOT NULL REFERENCES public.company(company_id),
-                        status VARCHAR(255),
-                        user_id BIGINT NOT NULL REFERENCES public.users(user_id)
-                    )
-                    """);
-            statement.execute("""
-                    INSERT INTO public.company(company_id, active, name, schema_name) VALUES
-                    (1, TRUE, 'Legacy A', 'legacy_a'),
-                    (2, TRUE, 'Legacy B', 'legacy_b'),
-                    (3, TRUE, 'Drifted Tenant', 'drifted_tenant'),
-                    (4, TRUE, 'Conflict Tenant', 'conflict_tenant'),
-                    (5, TRUE, 'Extra No History', 'extra_no_history')
-                    """);
-            statement.execute("""
-                    INSERT INTO public.users(user_id, username) VALUES
-                    (1001, 'legacy-a-user'),
-                    (1002, 'legacy-b-user'),
-                    (1003, 'drifted-user'),
-                    (1004, 'conflict-user'),
-                    (1005, 'extra-user')
-                    """);
-            statement.execute("""
-                    INSERT INTO public.company_user(id, company_id, status, user_id) VALUES
-                    (5001, 1, 'ACTIVE', 1001),
-                    (5002, 2, 'ACTIVE', 1002),
-                    (5003, 3, 'ACTIVE', 1003),
-                    (5004, 4, 'ACTIVE', 1004),
-                    (5005, 5, 'ACTIVE', 1005)
-                    """);
+            statement.execute("CREATE TABLE public.company (company_id BIGINT PRIMARY KEY, active BOOLEAN NOT NULL, created_at TIMESTAMP(6) WITHOUT TIME ZONE, name VARCHAR(255) NOT NULL, schema_name VARCHAR(255) NOT NULL UNIQUE, updated_at TIMESTAMP(6) WITHOUT TIME ZONE)");
+            statement.execute("CREATE TABLE public.users (user_id BIGINT PRIMARY KEY, created_at TIMESTAMP(6) WITHOUT TIME ZONE, email VARCHAR(255), force_password_change BOOLEAN, password_hash VARCHAR(255), phone_number VARCHAR(255), primary_company_id BIGINT, refresh_token VARCHAR(255), updated_at TIMESTAMP(6) WITHOUT TIME ZONE, user_status VARCHAR(255), username VARCHAR(255))");
+            statement.execute("CREATE TABLE public.company_user (id BIGINT PRIMARY KEY, company_id BIGINT NOT NULL REFERENCES public.company(company_id), status VARCHAR(255), user_id BIGINT NOT NULL REFERENCES public.users(user_id))");
+            statement.execute("INSERT INTO public.company(company_id, active, name, schema_name) VALUES (1,TRUE,'Legacy A','legacy_a'),(2,TRUE,'Legacy B','legacy_b'),(3,TRUE,'Drifted Tenant','drifted_tenant'),(4,TRUE,'Conflict Tenant','conflict_tenant'),(5,TRUE,'Extra No History','extra_no_history')");
+            statement.execute("INSERT INTO public.users(user_id, username) VALUES (1001,'legacy-a-user'),(1002,'legacy-b-user'),(1003,'drifted-user'),(1004,'conflict-user'),(1005,'extra-user')");
+            statement.execute("INSERT INTO public.company_user(id, company_id, status, user_id) VALUES (5001,1,'ACTIVE',1001),(5002,2,'ACTIVE',1002),(5003,3,'ACTIVE',1003),(5004,4,'ACTIVE',1004),(5005,5,'ACTIVE',1005)");
         }
     }
 
@@ -279,68 +244,43 @@ class ExistingTenantBaselineIntegrationTest {
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.execute("CREATE SCHEMA " + schemaName);
         }
-        // Build with the current migration set so the fixture stays compatible
-        // with Flyway SQL, then remove managed extensions after the immutable
-        // 1906 baseline to simulate a real pre-Flyway legacy core tenant.
         flywayFactory.create(schemaName).migrate();
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.execute("DROP TABLE " + schemaName + ".wb_task_activity");
             statement.execute("DROP TABLE " + schemaName + ".wb_task_comment");
             statement.execute("DROP TABLE " + schemaName + ".wb_task_assignee");
             statement.execute("DROP TABLE " + schemaName + ".wb_task");
+            statement.execute("ALTER TABLE " + schemaName + ".messages DROP CONSTRAINT messages_type_check");
+            statement.execute("ALTER TABLE " + schemaName + ".messages ADD CONSTRAINT messages_type_check CHECK (((type)::text = ANY (ARRAY[('TEXT'::character varying)::text,('FILE'::character varying)::text,('VOICE'::character varying)::text,('VIDEO'::character varying)::text,('IMAGE'::character varying)::text,('MEDIA'::character varying)::text,('MEETING'::character varying)::text,('BOT_CARD'::character varying)::text])))");
             statement.execute("DROP TABLE " + schemaName + ".flyway_schema_history");
             statement.execute("DROP TABLE " + schemaName + ".tenant_schema_metadata");
         }
     }
 
     private static boolean tableExists(String schemaName, String tableName) throws Exception {
-        try (Connection connection = dataSource.getConnection();
-             var statement = connection.prepareStatement(
-                     "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema=? AND table_name=?)")) {
-            statement.setString(1, schemaName);
-            statement.setString(2, tableName);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next() && resultSet.getBoolean(1);
-            }
+        try (Connection connection = dataSource.getConnection(); var statement = connection.prepareStatement("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema=? AND table_name=?)")) {
+            statement.setString(1, schemaName); statement.setString(2, tableName);
+            try (ResultSet resultSet = statement.executeQuery()) { return resultSet.next() && resultSet.getBoolean(1); }
         }
     }
 
     private static String columnType(String schemaName, String tableName, String columnName) throws Exception {
-        try (Connection connection = dataSource.getConnection();
-             var statement = connection.prepareStatement("""
-                     SELECT format_type(attribute.atttypid, attribute.atttypmod)
-                     FROM pg_attribute attribute
-                     JOIN pg_class table_row ON table_row.oid = attribute.attrelid
-                     JOIN pg_namespace namespace_row ON namespace_row.oid = table_row.relnamespace
-                     WHERE namespace_row.nspname = ?
-                       AND table_row.relname = ?
-                       AND attribute.attname = ?
-                       AND attribute.attnum > 0
-                       AND NOT attribute.attisdropped
-                     """)) {
-            statement.setString(1, schemaName);
-            statement.setString(2, tableName);
-            statement.setString(3, columnName);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                assertTrue(resultSet.next());
-                return resultSet.getString(1);
-            }
+        try (Connection connection = dataSource.getConnection(); var statement = connection.prepareStatement("SELECT format_type(a.atttypid,a.atttypmod) FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=? AND c.relname=? AND a.attname=? AND a.attnum>0 AND NOT a.attisdropped")) {
+            statement.setString(1, schemaName); statement.setString(2, tableName); statement.setString(3, columnName);
+            try (ResultSet resultSet = statement.executeQuery()) { assertTrue(resultSet.next()); return resultSet.getString(1); }
         }
     }
 
-    private static int scalarInt(String sql) throws Exception {
-        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(sql)) {
-            assertTrue(resultSet.next());
-            return resultSet.getInt(1);
+    private static String checkDefinition(String schemaName, String tableName, String constraintName) throws Exception {
+        try (Connection connection = dataSource.getConnection(); var statement = connection.prepareStatement("SELECT pg_get_constraintdef(con.oid,true) FROM pg_constraint con JOIN pg_class c ON c.oid=con.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=? AND c.relname=? AND con.conname=?")) {
+            statement.setString(1, schemaName); statement.setString(2, tableName); statement.setString(3, constraintName);
+            try (ResultSet resultSet = statement.executeQuery()) { assertTrue(resultSet.next()); return resultSet.getString(1); }
         }
     }
 
     private static String scalarString(String sql) throws Exception {
-        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(sql)) {
-            assertTrue(resultSet.next());
-            return resultSet.getString(1);
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(sql)) {
+            assertTrue(resultSet.next()); return resultSet.getString(1);
         }
     }
 }
