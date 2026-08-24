@@ -416,9 +416,9 @@ A submit
 
 ## 13. Change Log
 
-### 2026-08-24 — #53 Roadmap synchronization
+### 2026-08-24 — #53 / PR #57 Roadmap synchronization
 
-状态：IN_PROGRESS。修正 PROJECT_MASTER / implementation roadmap 的历史状态漂移；新增 #54 rollout gate、#55 Task notification、#56 Approval Backend 真实追踪入口；CURRENT 切换到 #30。
+状态：**COMPLETED 以 PR #57 Squash Merge 为生效边界**。修正 PROJECT_MASTER / implementation roadmap 的历史状态漂移；新增 #54 rollout gate、#55 Task notification、#56 Approval Backend 真实追踪入口；CURRENT 切换到 #30。
 
 ### 2026-08-20 — #29 / PR #52
 
