@@ -330,6 +330,11 @@ class ExistingTenantBaselineIntegrationTest {
         // otherwise the fixture would correctly represent unmanaged core drift.
         flywayFactory.create(schemaName).migrate();
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("DROP TABLE " + schemaName + ".wb_approval_cc");
+            statement.execute("DROP TABLE " + schemaName + ".wb_approval_action");
+            statement.execute("DROP TABLE " + schemaName + ".wb_approval_node");
+            statement.execute("DROP TABLE " + schemaName + ".wb_approval_instance");
+            statement.execute("DROP TABLE " + schemaName + ".wb_approval_definition");
             statement.execute("DROP TABLE " + schemaName + ".wb_task_activity");
             statement.execute("DROP TABLE " + schemaName + ".wb_task_comment");
             statement.execute("DROP TABLE " + schemaName + ".wb_task_assignee");
