@@ -52,11 +52,11 @@ class CoreTenantBaselineIntegrationTest {
         Set<String> relations = relationNames(dataSource);
         assertTrue(relations.containsAll(CoreTenantBaselineContract.CORE_TABLES));
         assertTrue(relations.containsAll(TASK_TABLES));
-        assertEquals(22, relations.size());
+        assertEquals(27, relations.size());
         assertEquals(Set.of("company", "company_user", "users"), viewNames(dataSource));
-        assertEquals(21, identitySequenceCount(dataSource));
-        assertEquals(80, constraintCount(dataSource));
-        assertEquals(31, primaryOrUniqueBackingIndexCount(dataSource));
+        assertEquals(26, identitySequenceCount(dataSource));
+        assertEquals(96, constraintCount(dataSource));
+        assertEquals(39, primaryOrUniqueBackingIndexCount(dataSource));
         assertEquals("text", columnType(dataSource, "messages", "content"));
         assertEquals("timestamp(6) without time zone", columnType(dataSource, "meetings", "scheduled_at"));
         assertTrue(messageTypeCheck(dataSource).contains("BOT_CARD"));

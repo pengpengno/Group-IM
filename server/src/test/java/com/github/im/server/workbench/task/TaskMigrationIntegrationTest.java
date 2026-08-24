@@ -34,6 +34,10 @@ class TaskMigrationIntegrationTest {
             "wb_task_comment",
             "wb_task_activity"
     );
+    private static final Set<String> APPROVAL_TABLES = Set.of(
+            "wb_approval_definition", "wb_approval_instance", "wb_approval_node",
+            "wb_approval_action", "wb_approval_cc"
+    );
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
@@ -51,9 +55,10 @@ class TaskMigrationIntegrationTest {
 
         flyway.migrate();
 
-        assertEquals("2026082003", flyway.info().current().getVersion().getVersion());
+        assertEquals("2026082004", flyway.info().current().getVersion().getVersion());
         assertTrue(flyway.validateWithResult().validationSuccessful);
         assertTrue(relationNames(dataSource).containsAll(TASK_TABLES));
+        assertTrue(relationNames(dataSource).containsAll(APPROVAL_TABLES));
 
         ManagedCoreSchemaContractService.Inspection managedCore =
                 new ManagedCoreSchemaContractService(dataSource, validator).inspect(SCHEMA);

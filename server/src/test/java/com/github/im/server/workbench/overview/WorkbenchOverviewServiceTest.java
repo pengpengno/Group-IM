@@ -9,6 +9,8 @@ import com.github.im.server.workbench.common.permission.WorkbenchPermission;
 import com.github.im.server.workbench.common.permission.WorkbenchPermissionService;
 import com.github.im.server.workbench.task.service.TaskOverviewProjection;
 import com.github.im.server.workbench.task.service.TaskOverviewQueryService;
+import com.github.im.server.workbench.approval.service.ApprovalOverviewProjection;
+import com.github.im.server.workbench.approval.service.ApprovalOverviewQueryService;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -75,7 +77,8 @@ class WorkbenchOverviewServiceTest {
                 permissionService,
                 repository,
                 taskQuery,
-                FIXED_CLOCK
+                FIXED_CLOCK,
+                emptyApprovalQuery()
         ).getOverview();
 
         assertEquals(42L, queriedUser.get());
@@ -115,9 +118,16 @@ class WorkbenchOverviewServiceTest {
                 permissionService(context),
                 repository,
                 taskQuery,
-                FIXED_CLOCK
+                FIXED_CLOCK,
+                emptyApprovalQuery()
         ).getOverview();
         assertEquals("会议", result.todaySchedules().getFirst().title());
+    }
+
+    private ApprovalOverviewQueryService emptyApprovalQuery() {
+        ApprovalOverviewQueryService query=mock(ApprovalOverviewQueryService.class);
+        when(query.query(42L)).thenReturn(new ApprovalOverviewProjection(0,List.of()));
+        return query;
     }
 
     private WorkbenchPermissionService permissionService(CurrentWorkContext context) {

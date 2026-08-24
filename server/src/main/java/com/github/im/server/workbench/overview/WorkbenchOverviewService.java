@@ -14,6 +14,7 @@ import com.github.im.server.workbench.common.permission.WorkbenchPermission;
 import com.github.im.server.workbench.common.permission.WorkbenchPermissionService;
 import com.github.im.server.workbench.task.service.TaskOverviewProjection;
 import com.github.im.server.workbench.task.service.TaskOverviewQueryService;
+import com.github.im.server.workbench.approval.service.ApprovalOverviewQueryService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,17 +49,20 @@ public class WorkbenchOverviewService {
     private final MeetingOverviewRepository meetingOverviewRepository;
     private final TaskOverviewQueryService taskOverviewQueryService;
     private final Clock clock;
+    private final ApprovalOverviewQueryService approvalOverviewQueryService;
 
     public WorkbenchOverviewService(
             WorkbenchPermissionService permissionService,
             MeetingOverviewRepository meetingOverviewRepository,
             TaskOverviewQueryService taskOverviewQueryService,
-            Clock workbenchClock
+            Clock workbenchClock,
+            ApprovalOverviewQueryService approvalOverviewQueryService
     ) {
         this.permissionService = permissionService;
         this.meetingOverviewRepository = meetingOverviewRepository;
         this.taskOverviewQueryService = taskOverviewQueryService;
         this.clock = workbenchClock;
+        this.approvalOverviewQueryService = approvalOverviewQueryService;
     }
 
     @Transactional(readOnly = true)
@@ -70,6 +74,7 @@ public class WorkbenchOverviewService {
         LocalDateTime dayEnd = today.plusDays(1).atStartOfDay();
 
         TaskOverviewProjection taskProjection = taskOverviewQueryService.query(context.userId(), now);
+        var approvalProjection = approvalOverviewQueryService.query(context.userId());
         List<WorkbenchScheduleSummaryDTO> schedules = meetingOverviewRepository.findTodayForParticipant(
                         context.userId(),
                         OVERVIEW_PARTICIPANT_STATUSES,
@@ -85,11 +90,11 @@ public class WorkbenchOverviewService {
                 new WorkbenchTodoSummaryDTO(
                         taskProjection.assignedTaskCount(),
                         taskProjection.overdueTaskCount(),
-                        0,
+                        approvalProjection.pendingCount(),
                         0
                 ),
                 taskProjection.recentTasks(),
-                List.<WorkbenchApprovalSummaryDTO>of(),
+                approvalProjection.recent(),
                 schedules,
                 List.<WorkbenchAnnouncementSummaryDTO>of(),
                 QUICK_APPS
