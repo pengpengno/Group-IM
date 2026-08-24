@@ -20,6 +20,7 @@ import com.github.im.server.workbench.task.repository.WorkTaskCommentRepository;
 import com.github.im.server.workbench.task.repository.WorkTaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -46,6 +47,7 @@ class TaskServiceTest {
     private WorkTaskActivityRepository activityRepository;
     private WorkbenchAuditService auditService;
     private TaskService service;
+    private ApplicationEventPublisher eventPublisher;
 
     private final CurrentWorkContext context = new CurrentWorkContext(10L, "alice", 7L, "Acme", "tenant_a");
 
@@ -59,6 +61,7 @@ class TaskServiceTest {
         commentRepository = mock(WorkTaskCommentRepository.class);
         activityRepository = mock(WorkTaskActivityRepository.class);
         auditService = mock(WorkbenchAuditService.class);
+        eventPublisher = mock(ApplicationEventPublisher.class);
         service = new TaskService(
                 permissionService,
                 organizationAdapter,
@@ -69,7 +72,8 @@ class TaskServiceTest {
                 commentRepository,
                 activityRepository,
                 auditService,
-                Clock.fixed(Instant.parse("2026-08-20T03:00:00Z"), ZoneOffset.UTC)
+                Clock.fixed(Instant.parse("2026-08-20T03:00:00Z"), ZoneOffset.UTC),
+                eventPublisher
         );
         when(assigneeRepository.findByTaskIdOrderByCreatedAtAsc(any())).thenReturn(List.of());
         when(commentRepository.findByTaskIdAndDeletedFalseOrderByCreatedAtAsc(any())).thenReturn(List.of());
