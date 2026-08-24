@@ -5,9 +5,9 @@
 - 文档状态：ACTIVE
 - 基线日期：2026-08-24
 - 唯一开发主线：`master`
-- 最近完成：#30 Android/KMP Workbench Card、#50 WORKBENCH Message Storage / managed core evolution（PR #60）
-- **当前交付：#54 supported-client rollout gate**
-- 后续：#55 Task Realtime/Push/WORKBENCH notifications → #56 Approval Backend V1
+- 最近完成：#56 Approval Backend V1（PR #63）
+- **当前交付：Approval Web/Electron**
+- 后续：Approval Notification → Android OA 完整能力
 - 仓库：`pengpengno/Group-IM`
 
 ---
@@ -51,7 +51,7 @@ Group-IM 是多租户组织协作 IM/OA 平台。消息是协作主链路，Work
 | WORKBENCH Storage | #50 / PR #60 | COMPLETED | 2003 managed-core evolution + `messages.type=WORKBENCH` |
 | Supported-client rollout | #54 / PR #61 | COMPLETED | fail-closed master switch + per-channel kill switch + release floors |
 | Task Notification | #55 / PR #62 | COMPLETED | AFTER_COMMIT + ASSIGN/COMPLETE/REOPEN 最小通知闭环 |
-| Approval Backend | #56 | **CURRENT** | migration + serial state machine + API + Overview projection |
+| Approval Backend | #56 / PR #63 | COMPLETED | migration 2004 + serial state machine + API + Overview projection |
 
 ---
 
@@ -59,7 +59,7 @@ Group-IM 是多租户组织协作 IM/OA 平台。消息是协作主链路，Work
 
 ```text
 core business adoption baseline = 2026081906
-managed current target           = 2026082003   (#50 merge boundary)
+managed current target           = 2026082004   (#56 merge boundary)
 ```
 
 ### 3.1 Immutable adoption baseline
@@ -179,7 +179,7 @@ PR #59 merge：`28036e6ccd6558c84fe95e2ece48ddb874514441`。
 
 ---
 
-## 6. CURRENT → NEXT：#55 → #56
+## 6. CURRENT → NEXT：Approval Web/Electron → Approval Notification
 
 ### #50 Storage / Managed Core Evolution — COMPLETED
 
@@ -200,7 +200,7 @@ PR #59 merge：`28036e6ccd6558c84fe95e2ece48ddb874514441`。
 
 最小实现：一个默认关闭的总 kill switch、ClientEvent / Push / IM Card 三个独立开关、Web/Electron 与 Android 两个 release floor，以及统一 `WorkbenchRolloutGate`。没有新发布平台、动态规则引擎或双写兼容层。
 
-### #55 Task Realtime / Push / WORKBENCH Notification — CURRENT
+### #55 Task Realtime / Push / WORKBENCH Notification — COMPLETED
 
 `#50 + #54` 已完成。当前实现：
 
@@ -235,7 +235,7 @@ V1 首批只发送 `ASSIGN / COMPLETE / REOPEN` 三类高价值事件；普通�
 
 ---
 
-## 8. 当前业务领域 — #56 Approval Backend V1
+## 8. 最近完成业务领域 — #56 Approval Backend V1
 
 项目交付顺序保持：
 
@@ -256,18 +256,18 @@ Approval V1 复用 #13 permission/audit/tenant foundation，固定 Definition + 
 
 | 模块 | 状态 | 当前事实 | 下一步 |
 | --- | --- | --- | --- |
-| Tenant Migration | STABLE / EVOLVING | baseline 1906 / target 2003 on #50 | managed core regression |
+| Tenant Migration | STABLE / EVOLVING | baseline 1906 / target 2004 on #56 | managed extension regression |
 | Workbench Platform | STABLE | #13 | Task/Approval 复用 |
-| Workbench Overview | STABLE | #39 + Task projection | Approval projection |
-| Task Backend | STABLE | #45 / PR #46 | #55 notification |
-| Task Web/Electron | STABLE | #47 / PR #49 | notification E2E |
+| Workbench Overview | STABLE | #39 + Task + Approval projection | later domain projections |
+| Task Backend | STABLE | #45 / PR #46 + #55 / PR #62 | maintenance only |
+| Task Web/Electron | STABLE | #47 / PR #49 | maintenance only |
 | Workbench Protocol | STABLE | #14 + #28 | storage/emission |
 | Workbench Web/Electron Card | STABLE | #29 / PR #52 | #54 rollout |
 | Workbench Android Card | STABLE | #30 / PR #59 | #54 rollout |
 | WORKBENCH Message Storage | STABLE | #50 / PR #60 | #54 rollout |
-| Supported-client Rollout | **IN_PROGRESS** | #54 | fail-closed gate / CI |
-| Task Notification | BLOCKED | #55 | requires #50/#54 |
-| Approval Backend | QUEUED | #56 | after Task notification E2E |
+| Supported-client Rollout | STABLE | #54 / PR #61 | fail-closed gate |
+| Task Notification | STABLE | #55 / PR #62 | high-value event policy |
+| Approval Backend | STABLE | #56 / PR #63 | UI + notification consumers next |
 
 ---
 
@@ -287,10 +287,12 @@ Approval V1 复用 #13 permission/audit/tenant foundation，固定 Definition + 
 → #29 Web/Electron Card + Deep Link ✅
 → #30 Android/KMP Card + Deep Link ✅
 → #50 WORKBENCH Storage/Core Evolution ✅
-→ #54 Supported-client Rollout Gate           ← CURRENT
-→ #55 Task Realtime/Push/Card
-→ Task V1 cross-client E2E DONE
-→ #56 Approval Backend V1
+→ #54 Supported-client Rollout Gate ✅
+→ #55 Task Realtime/Push/Card ✅
+→ Task V1 cross-client E2E ✅
+→ #56 Approval Backend V1 ✅
+→ Approval Web/Electron                       ← CURRENT
+→ Approval Notification
 ```
 
 ---
