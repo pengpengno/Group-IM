@@ -100,7 +100,7 @@ services:
       - --user=${COTURN_USER_NAME:-pengpeng}:${COTURN_PASSWORD:-pengpeng123}
       # 对外公布的公网 IP，客户端最终会基于这个地址进行 relay
       - --external-ip=${COTURN_EXTERNAL_IP:-groupim.cn}
-      # relay 端口范围需要与上面的 ports 映射一致
+      # TURN relay 媒体端口范围
       - --min-port=${COTURN_MIN_PORT:-49152}
       - --max-port=${COTURN_MAX_PORT:-49252}
       - --fingerprint
@@ -124,7 +124,7 @@ services:
   #      LDAP_CONFIG_PASSWORD: "config"
   #      LDAP_READONLY_USER: "false"
   #      LDAP_REMOVE_CONFIG_AFTER_SETUP: "true"
-  #      LDAP_SSL_HELPER_PREFIX=ldap
+  #      LDAP_SSL_HELPER_PREFIX: "ldap"
   #    ports:
   #      - "389:389"     # LDAP
   #      - "636:636"     # LDAPS
@@ -182,7 +182,9 @@ services:
       # WebRTC配置
       - WEBRTC_SESSION_TIMEOUT=300000
       - WEBRTC_TURN_ENABLED=true
+      # 服务端下发给客户端的 TURN 信息必须与 coturn 静态账号一致
       - WEBRTC_TURN_SERVER_URL=turn:${COTURN_EXTERNAL_IP:-groupim.cn}:3478
+      # - WEBRTC_TURN_SERVER_URL=turn:${COTURN_EXTERNAL_IP:-8.145.54.215}:3478
       - WEBRTC_TURN_SERVER_USERNAME=${COTURN_USER_NAME:-pengpeng}
       - WEBRTC_TURN_SERVER_CREDENTIAL=${COTURN_PASSWORD:-pengpeng123}
       # Android release metadata served by /api/app-updates/android.
